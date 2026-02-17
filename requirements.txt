@@ -1,0 +1,66 @@
+# ==================== CRYPTOTEHNOLOG Python Dependencies ====================
+# Generated from pyproject.toml
+# Install with: pip install -r requirements.txt
+
+# ==================== Core ====================
+python-dotenv==1.0.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# ==================== Async & Web ====================
+aiohttp==3.9.1
+aiogram==3.2.0
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+websockets==12.0
+
+# ==================== Exchange APIs ====================
+ccxt==4.1.95
+
+# ==================== Data & Analysis ====================
+pandas==2.1.4
+numpy==1.26.2
+scipy==1.11.4
+pytz==2023.3
+python-dateutil==2.8.2
+
+# ==================== Databases ====================
+redis==5.0.1
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+timescaledb==0.1.0
+
+# ==================== Secrets Management ====================
+hvac==2.0.0
+infisical==0.7.0
+
+# ==================== Logging & Observability ====================
+structlog==23.2.0
+prometheus-client==0.19.0
+
+# ==================== Utilities ====================
+cryptography==41.0.7
+pyjwt==2.8.0
+aiofiles==23.2.1
+
+# ==================== Development Dependencies ====================
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+pytest-xdist==3.5.0
+
+# Code Quality
+black==23.12.1
+mypy==1.7.1
+ruff==0.1.8
+pre-commit==3.6.0
+
+# Development Tools
+ipython==8.19.0
+ipdb==0.13.13
+
+# Security Scanning
+bandit==1.7.6
+safety==2.3.5

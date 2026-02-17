@@ -1,0 +1,77 @@
+# ==================== CRYPTOTEHNOLOG Rust Core Library ====================
+# High-performance components for the trading platform
+
+[package]
+name = "cryptotechnolog_core"
+version = "0.1.0"
+edition = "2021"
+authors = ["CRYPTOTEHNOLOG Team"]
+license = "Proprietary - All Rights Reserved"
+description = "High-performance core components for CRYPTOTEHNOLOG trading platform"
+repository = "https://github.com/your-org/cryptotechnolog"
+readme = "README.md"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Cryptography (for audit chain)
+sha2 = "0.10"
+hex = "0.4"
+
+# Redis (for event bus)
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# ZeroMQ (alternative event bus)
+zmq = "0.10"
+
+# UUID
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Metrics (for observability)
+prometheus = "0.13"
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"
+criterion = "0.5"
+
+# Mocking
+mockall = "0.12"
+
+[lib]
+name = "cryptotechnolog_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "event_bus_example"
+path = "examples/event_bus.rs"
+
+[[bin]]
+name = "audit_chain_example"
+path = "examples/audit_chain.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true

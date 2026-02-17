@@ -1,0 +1,155 @@
+# ==================== Secrets & Keys ====================
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+config/prod/*.yaml
+!config/prod/.gitkeep
+infisical/
+.infisical/
+
+# ==================== Python ====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.pyre/
+.pytype/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# ==================== Rust ====================
+rust_components/target/
+rust_components/**/target/
+**/*.rs.bk
+Cargo.lock
+
+# ==================== Data & Logs ====================
+logs/
+*.log
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.parquet
+*.feather
+*.h5
+*.hdf5
+*.csv
+*.xlsx
+
+# ==================== Docker ====================
+docker-volumes/redis/appendonly.aof
+docker-volumes/redis/dump.rdb
+docker-volumes/postgres/pg_*
+docker-volumes/postgres/*.conf
+docker-volumes/vault/data/
+docker-volumes/grafana/
+docker-volumes/prometheus/
+
+# ==================== IDE ====================
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.idea/
+*.iml
+*.iws
+*.ipr
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==================== Temporary Files ====================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*_old
+*_backup
+
+# ==================== Compiled Files ====================
+*.exe
+*.dll
+*.dylib
+*.o
+*.a
+*.obj
+*.lib
+*.exp
+
+# ==================== OS ====================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ==================== Jupyter Notebook ====================
+.ipynb_checkpoints
+*.ipynb
+
+# ==================== pytest ====================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==================== mypy ====================
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ==================== Celery ====================
+celerybeat-schedule
+celerybeat.pid
+
+# ==================== Sphinx ====================
+docs/_build/
+
+# ==================== Environments ====================
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
