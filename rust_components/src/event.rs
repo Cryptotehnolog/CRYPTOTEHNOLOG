@@ -170,12 +170,8 @@ mod tests {
 
     #[test]
     fn test_event_with_metadata() {
-        let event = Event::new(
-            "TEST_EVENT",
-            "TEST_SOURCE",
-            serde_json::json!({}),
-        )
-        .with_metadata("meta_key", serde_json::json!("meta_value"));
+        let event = Event::new("TEST_EVENT", "TEST_SOURCE", serde_json::json!({}))
+            .with_metadata("meta_key", serde_json::json!("meta_value"));
 
         assert_eq!(event.metadata["meta_key"], "meta_value");
     }
@@ -183,18 +179,10 @@ mod tests {
     #[test]
     fn test_event_correlation() {
         let correlation_id = Uuid::new_v4();
-        let event1 = Event::with_correlation_id(
-            "EVENT1",
-            "SOURCE1",
-            serde_json::json!({}),
-            correlation_id,
-        );
-        let event2 = Event::with_correlation_id(
-            "EVENT2",
-            "SOURCE2",
-            serde_json::json!({}),
-            correlation_id,
-        );
+        let event1 =
+            Event::with_correlation_id("EVENT1", "SOURCE1", serde_json::json!({}), correlation_id);
+        let event2 =
+            Event::with_correlation_id("EVENT2", "SOURCE2", serde_json::json!({}), correlation_id);
         let event3 = Event::new("EVENT3", "SOURCE3", serde_json::json!({}));
 
         assert!(event1.is_correlated_with(&event2));

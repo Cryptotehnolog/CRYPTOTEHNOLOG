@@ -56,12 +56,8 @@ mod tests {
 
     #[test]
     fn test_event_with_metadata() {
-        let event = Event::new(
-            "TEST_EVENT",
-            "TEST_SOURCE",
-            serde_json::json!({}),
-        )
-        .with_metadata("meta_key", serde_json::json!("meta_value"));
+        let event = Event::new("TEST_EVENT", "TEST_SOURCE", serde_json::json!({}))
+            .with_metadata("meta_key", serde_json::json!("meta_value"));
 
         assert_eq!(event.metadata["meta_key"], "meta_value");
     }
@@ -100,4 +96,3 @@ mod tests {
         assert_eq!(clamp(11, 1, 10), 10);
     }
 }
-
