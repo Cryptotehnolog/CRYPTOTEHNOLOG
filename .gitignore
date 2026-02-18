@@ -68,12 +68,16 @@ data/
 *.hdf5
 *.csv
 *.xlsx
+*.aof
+*.rdb
 
 # ==================== Docker ====================
 docker-volumes/redis/appendonly.aof
+docker-volumes/redis/appendonlydir/
 docker-volumes/redis/dump.rdb
 docker-volumes/postgres/pg_*
 docker-volumes/postgres/*.conf
+docker-volumes/postgres/data/
 docker-volumes/vault/data/
 docker-volumes/grafana/
 docker-volumes/prometheus/
