@@ -283,7 +283,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, develop]
 
 jobs:
   test:
