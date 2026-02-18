@@ -7,14 +7,6 @@
 // - Audit Chain (cryptographic audit trail)
 // - Execution Core (low-latency order execution)
 
-pub mod error;
-pub mod event;
-pub mod utils;
-
-// Re-export commonly used types
-pub use error::{CryptoError, Result};
-pub use event::Event;
-
 // ==================== Error Types ====================
 pub mod error {
     use thiserror::Error;
@@ -50,6 +42,9 @@ pub mod error {
     /// Result type alias
     pub type Result<T> = std::result::Result<T, CryptoError>;
 }
+
+// Re-export commonly used types
+pub use error::{CryptoError, Result};
 
 // ==================== Event Types ====================
 pub mod event {
@@ -120,6 +115,9 @@ pub mod event {
     }
 }
 
+// Re-export Event
+pub use event::Event;
+
 // ==================== Utilities ====================
 pub mod utils {
     use super::error::Result;
@@ -172,6 +170,7 @@ pub mod utils {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uuid::Uuid;
 
     #[test]
     fn test_event_creation() {

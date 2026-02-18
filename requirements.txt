@@ -9,8 +9,8 @@ pydantic-settings==2.1.0
 
 # ==================== Async & Web ====================
 aiohttp==3.9.1
-aiogram==3.2.0
-fastapi==0.109.0
+aiogram==3.13.0
+fastapi==0.115.0
 uvicorn[standard]==0.27.0
 websockets==12.0
 
@@ -28,11 +28,11 @@ python-dateutil==2.8.2
 redis==5.0.1
 asyncpg==0.29.0
 psycopg2-binary==2.9.9
-timescaledb==0.1.0
+timescaledb==0.0.4
 
 # ==================== Secrets Management ====================
 hvac==2.0.0
-infisical==0.7.0
+# infisical==0.7.0  # временно отключен (конфликт зависимостей, включим позже)
 
 # ==================== Logging & Observability ====================
 structlog==23.2.0

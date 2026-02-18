@@ -58,13 +58,14 @@ mockall = "0.12"
 name = "cryptotechnolog_core"
 path = "src/lib.rs"
 
-[[bin]]
-name = "event_bus_example"
-path = "examples/event_bus.rs"
+# Examples will be added in later phases
+# [[bin]]
+# name = "event_bus_example"
+# path = "examples/event_bus.rs"
 
-[[bin]]
-name = "audit_chain_example"
-path = "examples/audit_chain.rs"
+# [[bin]]
+# name = "audit_chain_example"
+# path = "examples/audit_chain.rs"
 
 [profile.release]
 opt-level = 3
