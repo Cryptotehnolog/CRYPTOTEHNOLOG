@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from src.config.settings import Settings, get_settings, reload_settings, validate_settings
 
 
+@pytest.mark.unit
 class TestSettings:
     """Test cases for Settings class."""
 
@@ -154,6 +155,7 @@ class TestSettings:
         os.environ.pop("EVENT_BUS_TYPE", None)
 
 
+@pytest.mark.unit
 class TestSettingsValidation:
     """Test cases for settings validation."""
 
@@ -167,29 +169,115 @@ class TestSettingsValidation:
         # Validate should succeed
         assert validate_settings() is True
 
-    # Note: validate_settings() checks global settings from environment variables
-    # These tests are simplified for Phase 0 - we'll add more comprehensive validation in later phases
     def test_validate_settings_invalid_base_r_percent(self):
-        """Test that Settings can be created with various base_r_percent values."""
-        # Pydantic Settings allows creation with any value
-        # Validation happens separately in validate_settings()
-        settings = Settings(base_r_percent=-0.01)
-        assert settings.base_r_percent == -0.01
+        """Test that invalid base_r_percent fails validation."""
+        # Save original value
+        original_value = os.environ.get("BASE_R_PERCENT")
+
+        try:
+            # Set invalid value (negative)
+            os.environ["BASE_R_PERCENT"] = "-0.01"
+
+            # Reload settings to pick up new environment variable
+            reload_settings()
+
+            # Validate should fail
+            result = validate_settings()
+            assert result is False
+        finally:
+            # Restore original value
+            if original_value is not None:
+                os.environ["BASE_R_PERCENT"] = original_value
+            else:
+                os.environ.pop("BASE_R_PERCENT", None)
+
+            # Reload settings back to original
+            reload_settings()
 
     def test_validate_settings_invalid_max_r_per_trade(self):
-        """Test that Settings can be created with various max_r_per_trade values."""
-        # Settings allows negative values, validation happens separately
-        settings = Settings(max_r_per_trade=-1.0)
-        assert settings.max_r_per_trade == -1.0
+        """Test that invalid max_r_per_trade fails validation."""
+        # Save original value
+        original_value = os.environ.get("MAX_R_PER_TRADE")
+
+        try:
+            # Set invalid value (negative)
+            os.environ["MAX_R_PER_TRADE"] = "-1.0"
+
+            # Reload settings to pick up new environment variable
+            reload_settings()
+
+            # Validate should fail
+            result = validate_settings()
+            assert result is False
+        finally:
+            # Restore original value
+            if original_value is not None:
+                os.environ["MAX_R_PER_TRADE"] = original_value
+            else:
+                os.environ.pop("MAX_R_PER_TRADE", None)
+
+            # Reload settings back to original
+            reload_settings()
 
     def test_validate_settings_invalid_leverage(self):
-        """Test that Settings can be created with various leverage values."""
-        # Settings allows any leverage values, validation happens separately
-        settings = Settings(default_leverage=0.5, max_leverage=1.0)
-        assert settings.default_leverage == 0.5
-        assert settings.max_leverage == 1.0
+        """Test that invalid leverage fails validation."""
+        # Save original values
+        original_default = os.environ.get("DEFAULT_LEVERAGE")
+        original_max = os.environ.get("MAX_LEVERAGE")
+
+        try:
+            # Set invalid values (default < 1.0)
+            os.environ["DEFAULT_LEVERAGE"] = "0.5"
+            os.environ["MAX_LEVERAGE"] = "10.0"
+
+            # Reload settings to pick up new environment variables
+            reload_settings()
+
+            # Validate should fail
+            result = validate_settings()
+            assert result is False
+        finally:
+            # Restore original values
+            if original_default is not None:
+                os.environ["DEFAULT_LEVERAGE"] = original_default
+            else:
+                os.environ.pop("DEFAULT_LEVERAGE", None)
+
+            if original_max is not None:
+                os.environ["MAX_LEVERAGE"] = original_max
+            else:
+                os.environ.pop("MAX_LEVERAGE", None)
+
+            # Reload settings back to original
+            reload_settings()
+
+    def test_validate_settings_invalid_slippage_tolerance(self):
+        """Test that invalid slippage tolerance fails validation."""
+        # Save original value
+        original_value = os.environ.get("SLIPPAGE_TOLERANCE")
+
+        try:
+            # Set invalid value (greater than 1.0)
+            os.environ["SLIPPAGE_TOLERANCE"] = "1.5"
+
+            # Reload settings to pick up new environment variable
+            reload_settings()
+
+            # Validate should fail
+            result = validate_settings()
+            assert result is False
+        finally:
+            # Restore original value
+            if original_value is not None:
+                os.environ["SLIPPAGE_TOLERANCE"] = original_value
+            else:
+                os.environ.pop("SLIPPAGE_TOLERANCE", None)
+
+            # Reload settings back to original
+            reload_settings()
 
 
+@pytest.mark.unit
 class TestSettingsFactory:
     """Test cases for settings factory functions."""
 
