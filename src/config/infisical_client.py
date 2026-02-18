@@ -5,6 +5,7 @@ import os
 
 try:
     from infisical import Client as InfisicalClient
+
     INFISICAL_AVAILABLE = True
 except ImportError:
     INFISICAL_AVAILABLE = False

@@ -144,7 +144,9 @@ class TestPostgreSQLConnection:
 
         # Insert JSONB data (asyncpg requires JSON as string)
         test_data = {"key1": "value1", "key2": 123, "key3": {"nested": "value"}}
-        await pg_connection.execute("INSERT INTO test_jsonb (data) VALUES ($1)", json.dumps(test_data))
+        await pg_connection.execute(
+            "INSERT INTO test_jsonb (data) VALUES ($1)", json.dumps(test_data)
+        )
 
         # Query and verify JSONB data
         result = await pg_connection.fetchrow("SELECT data FROM test_jsonb WHERE id = 1")
@@ -175,9 +177,7 @@ class TestPostgreSQLConnection:
         # Insert multiple rows in transaction
         async with pg_connection.transaction():
             for i in range(5):
-                await pg_connection.execute(
-                    "INSERT INTO test_transaction (value) VALUES ($1)", i
-                )
+                await pg_connection.execute("INSERT INTO test_transaction (value) VALUES ($1)", i)
 
             # Query all rows within transaction
             results = await pg_connection.fetch("SELECT * FROM test_transaction")
@@ -238,9 +238,7 @@ class TestInfrastructureIntegration:
                 )
             """)
 
-            await pg_conn.execute(
-                "INSERT INTO integration_test (value) VALUES ($1)", redis_value
-            )
+            await pg_conn.execute("INSERT INTO integration_test (value) VALUES ($1)", redis_value)
 
             # Retrieve from PostgreSQL
             pg_value = await pg_conn.fetchval("SELECT value FROM integration_test WHERE id = 1")
