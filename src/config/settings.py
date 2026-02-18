@@ -250,20 +250,26 @@ settings = Settings()
 
 
 # ==================== Settings Validation ====================
-def validate_settings() -> bool:
+def validate_settings(settings_to_validate: Settings | None = None) -> bool:
     """
     Validate that all required settings are properly configured.
+
+    Args:
+        settings_to_validate: Settings instance to validate. If None, uses global settings.
 
     Returns:
         bool: True if settings are valid, False otherwise.
     """
     validation_errors = []
 
+    # Use provided settings or global settings
+    s = settings_to_validate if settings_to_validate is not None else settings
+
     # Validate paths exist or can be created
     required_paths = [
-        ("data_dir", settings.data_dir),
-        ("logs_dir", settings.logs_dir),
-        ("config_dir", settings.config_dir),
+        ("data_dir", s.data_dir),
+        ("logs_dir", s.logs_dir),
+        ("config_dir", s.config_dir),
     ]
 
     for path_name, path in required_paths:
@@ -273,26 +279,26 @@ def validate_settings() -> bool:
             validation_errors.append(f"Failed to create {path_name} at {path}: {e}")
 
     # Validate database settings
-    if settings.environment == "production" and settings.infisical_token is None:
+    if s.environment == "production" and s.infisical_token is None:
         validation_errors.append("infisical_token is required in production")
 
     # Validate risk parameters
-    if settings.base_r_percent <= 0 or settings.base_r_percent > 1:
+    if s.base_r_percent <= 0 or s.base_r_percent > 1:
         validation_errors.append("base_r_percent must be between 0 and 1")
 
-    if settings.max_r_per_trade <= 0:
+    if s.max_r_per_trade <= 0:
         validation_errors.append("max_r_per_trade must be positive")
 
-    if settings.max_portfolio_r <= 0:
+    if s.max_portfolio_r <= 0:
         validation_errors.append("max_portfolio_r must be positive")
 
     # Validate trading settings
-    if settings.default_leverage < 1 or settings.default_leverage > settings.max_leverage:
+    if s.default_leverage < 1 or s.default_leverage > s.max_leverage:
         validation_errors.append(
-            f"default_leverage must be between 1 and max_leverage ({settings.max_leverage})"
+            f"default_leverage must be between 1 and max_leverage ({s.max_leverage})"
         )
 
-    if settings.slippage_tolerance < 0 or settings.slippage_tolerance > 1:
+    if s.slippage_tolerance < 0 or s.slippage_tolerance > 1:
         validation_errors.append("slippage_tolerance must be between 0 and 1")
 
     # Report validation results

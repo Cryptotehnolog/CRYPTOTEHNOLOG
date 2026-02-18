@@ -164,8 +164,11 @@ class TestSettingsValidation:
         test_settings.logs_dir = tmp_path / "logs"
         test_settings.config_dir = tmp_path / "config"
 
+        # Ensure environment is set to test (not production)
+        test_settings.environment = "test"
+
         # Validate should succeed
-        assert validate_settings() is True
+        assert validate_settings(test_settings) is True
 
     def test_validate_settings_invalid_base_r_percent(self):
         """Test that invalid base_r_percent fails validation."""
