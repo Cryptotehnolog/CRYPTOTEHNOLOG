@@ -3,10 +3,12 @@
 
 import os
 import sys
+from collections.abc import Generator
 from pathlib import Path
-from typing import AsyncGenerator, Generator
 
 import pytest
+
+from src.config.settings import Settings
 
 # Add src to path
 src_dir = Path(__file__).parent.parent / "src"
@@ -27,11 +29,22 @@ def test_env():
     # Cleanup after session
 
 
+@pytest.fixture(autouse=True)
+def isolate_environment():
+    """Isolate environment variables for each test."""
+    # Store original environment
+    original_env = dict(os.environ)
+
+    yield
+
+    # Restore environment
+    os.environ.clear()
+    os.environ.update(original_env)
+
+
 @pytest.fixture
 def test_settings():
     """Provide test settings instance."""
-    from src.config.settings import Settings
-
     return Settings()
 
 

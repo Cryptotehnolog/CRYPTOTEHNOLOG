@@ -2,8 +2,6 @@
 # Development environment with all infrastructure services
 # Production: Use Kubernetes (Phase 19)
 
-version: "3.8"
-
 services:
   # ==================== Redis ====================
   # For state machine, caching, pub/sub
@@ -55,7 +53,10 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./docker-volumes/postgres:/var/lib/postgresql/data
+      # Use named volume instead of bind mount for Windows compatibility
+      # Named volumes handle permissions correctly on Windows
+      - postgres_data:/var/lib/postgresql/data
+      # Initialization script for database setup
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bot_user -d trading_dev"]
