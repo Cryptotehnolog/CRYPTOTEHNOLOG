@@ -84,7 +84,7 @@ class InfisicalSecretsManager:
             try:
                 secret = self.client.get_secret(secret_name)
                 if secret:
-                    return secret.value
+                    return str(secret.value)
             except Exception as e:
                 print(f"⚠️  Failed to get secret '{secret_name}' from Infisical: {e}")
 
