@@ -201,6 +201,79 @@ print(settings.postgres_password)
 
 ---
 
+## Структура папок и секретов
+
+### Требуемые папки в Infisical
+
+Создайте следующие папки в проекте:
+
+| Папка | Назначение | Секреты |
+|-------|------------|---------|
+| `database` | PostgreSQL и Redis | POSTGRES_*, REDIS_* |
+| `exchanges/binance` | Binance API | BINANCE_API_KEY, BINANCE_API_SECRET, BINANCE_TESTNET |
+| `exchanges/bybit` | Bybit API | BYBIT_API_KEY, BYBIT_API_SECRET, BYBIT_TESTNET |
+| `exchanges/okx` | OKX API | OKX_API_KEY, OKX_API_SECRET, OKX_PASSPHRASE, OKX_TESTNET |
+| `observability` | Мониторинг | LOG_LEVEL, LOG_FORMAT, PROMETHEUS_PORT, DASHBOARD_* |
+| `security` | Безопасность | INFISICAL_*, VAULT_* |
+| `api` | Внешние API | NEWS_API_KEY, TELEGRAM_BOT_TOKEN, DISCORD_WEBHOOK_URL |
+| `webhooks` | Webhook URLs | ALERT_WEBHOOK_URL, TRADE_WEBHOOK_URL, RISK_WEBHOOK_URL |
+| `storage` | Облачное хранилище | AWS_*, GCP_* |
+| `monitoring` | Внешний мониторинг | SENTRY_DSN, DATADOG_*, PAGERDUTY_API_KEY |
+| `trading` | Торговые параметры | BASE_R_PERCENT, MAX_R_PER_TRADE, MAX_PORTFOLIO_R |
+| `environment` | Настройки окружения | ENVIRONMENT, DEBUG, TIMEZONE, CURRENCY |
+
+### Полный список секретов
+
+Полный список всех секретов с описаниями находится в файле:
+```
+config/infisical_secrets.yaml
+```
+
+---
+
+## Автоматизация работы с секретами
+
+### Скрипты проекта
+
+#### 1. Загрузка секретов из Infisical в .env
+
+```bash
+# Установите переменные окружения
+export INFISICAL_TOKEN="your_token_here"
+export INFISICAL_PROJECT_ID="your_project_id_here"
+export INFISICAL_ENVIRONMENT="dev"
+
+# Запустите скрипт загрузки
+python scripts/load_secrets_from_infisical.py
+```
+
+Что делает скрипт:
+- ✅ Подключается к Infisical
+- ✅ Загружает все секреты из всех папок
+- ✅ Генерирует файл `.env`
+- ✅ Создает резервную копию `.env.backup`
+- ✅ Использует значения по умолчанию если секрет не найден
+
+#### 2. Загрузка секретов в Infisical (для начальной настройки)
+
+```bash
+# Установите переменные окружения
+export INFISICAL_TOKEN="your_token_here"
+export INFISICAL_PROJECT_ID="your_project_id_here"
+export INFISICAL_ENVIRONMENT="dev"
+
+# Запустите скрипт загрузки
+python scripts/upload_secrets_to_infisical.py
+```
+
+Что делает скрипт:
+- ✅ Читает конфигурацию из `config/infisical_secrets.yaml`
+- ✅ Загружает секреты со значениями по умолчанию в Infisical
+- ✅ Пропускает секреты без значений по умолчанию
+- ✅ Показывает статистику загрузки
+
+---
+
 ## Интеграция с CI/CD
 
 ### GitHub Actions
@@ -218,16 +291,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Установка Infisical CLI
-      - name: Install Infisical CLI
-        run: npm install -g infisical
+      # Установка Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Установка зависимостей
+      - name: Install dependencies
+        run: |
+          pip install infisical pyyaml
 
       # Загрузка секретов из Infisical
       - name: Load secrets from Infisical
-        run: infisical export --env=dev > .env
-        env:
-          INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
-          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: |
+          export INFISICAL_TOKEN="${{ secrets.INFISICAL_TOKEN }}"
+          export INFISICAL_PROJECT_ID="${{ secrets.INFISICAL_PROJECT_ID }}"
+          export INFISICAL_ENVIRONMENT="dev"
+          python scripts/load_secrets_from_infisical.py
 
       # Запуск тестов
       - name: Run tests
@@ -237,10 +318,11 @@ jobs:
 ### Добавление секретов в GitHub
 
 1. Перейдите в репозиторий GitHub
-2. Settings -> Secrets and variables -> Actions
+2. Settings → Secrets and variables → Actions
 3. Добавьте:
-   - `INFISICAL_TOKEN`
-   - `INFISICAL_PROJECT_ID`
+   - `INFISICAL_TOKEN` - Service Token из Infisical
+   - `INFISICAL_PROJECT_ID` - Project ID из Infisical
+   - `INFISICAL_ENVIRONMENT` - Окружение (dev/prod)
 
 ---
 
