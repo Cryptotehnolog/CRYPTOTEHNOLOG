@@ -1,7 +1,7 @@
 # ==================== CRYPTOTEHNOLOG Makefile ====================
 # Convenient commands for development and testing
 
-.PHONY: help install install-dev test test-unit test-integration test-e2e lint format type-check security-check clean build run dev-up dev-down dev-logs dev-restart check-env setup-env rust-build rust-test rust-clippy rust-fmt docker-build docker-up docker-down docker-logs docker-clean docker-restart coverage-report secrets-load secrets-upload secrets-check
+.PHONY: help install install-dev test test-unit test-integration test-e2e lint format type-check security-check clean build run dev-up dev-down dev-logs dev-restart check-env setup-env rust-build rust-test rust-clippy rust-fmt docker-build docker-up docker-down docker-logs docker-clean docker-restart coverage-report
 
 # Default target
 help:
@@ -12,11 +12,6 @@ help:
 	@echo "  make install-dev       - Install development dependencies"
 	@echo "  make check-env         - Check if environment is set up correctly"
 	@echo "  make setup-env         - Set up development environment"
-	@echo ""
-	@echo "  ==================== Secrets Management ===================="
-	@echo "  make secrets-load      - Load secrets from Infisical to .env"
-	@echo "  make secrets-upload    - Upload default secrets to Infisical"
-	@echo "  make secrets-check     - Check Infisical connection"
 	@echo ""
 	@echo "  ==================== Python ===================="
 	@echo "  make test              - Run all tests"
@@ -109,52 +104,6 @@ security-check:
 coverage-report:
 	pytest tests/ --cov=src --cov-report=html
 	@echo "Coverage report generated at htmlcov/index.html"
-
-# ==================== Secrets Management ====================
-secrets-load:
-	@echo "Loading secrets from Infisical..."
-	@if [ -z "$$(INFISICAL_TOKEN)" ]; then \
-		echo "❌ INFISICAL_TOKEN not set"; \
-		echo "   Set it with: export INFISICAL_TOKEN=your_token"; \
-		exit 1; \
-	fi
-	@if [ -z "$$(INFISICAL_PROJECT_ID)" ]; then \
-		echo "❌ INFISICAL_PROJECT_ID not set"; \
-		echo "   Set it with: export INFISICAL_PROJECT_ID=your_project_id"; \
-		exit 1; \
-	fi
-	python scripts/load_secrets_from_infisical.py
-
-secrets-upload:
-	@echo "Uploading default secrets to Infisical..."
-	@if [ -z "$$(INFISICAL_TOKEN)" ]; then \
-		echo "❌ INFISICAL_TOKEN not set"; \
-		echo "   Set it with: export INFISICAL_TOKEN=your_token"; \
-		exit 1; \
-	fi
-	@if [ -z "$$(INFISICAL_PROJECT_ID)" ]; then \
-		echo "❌ INFISICAL_PROJECT_ID not set"; \
-		echo "   Set it with: export INFISICAL_PROJECT_ID=your_project_id"; \
-		exit 1; \
-	fi
-	@read -p "⚠️  This will upload default secrets to Infisical. Continue? (yes/no): " response; \
-	if [ "$$response" != "yes" ]; then \
-		echo "❌ Cancelled"; \
-		exit 1; \
-	fi
-	python scripts/upload_secrets_to_infisical.py
-
-secrets-check:
-	@echo "Checking Infisical connection..."
-	@if [ -z "$$(INFISICAL_TOKEN)" ]; then \
-		echo "❌ INFISICAL_TOKEN not set"; \
-		exit 1; \
-	fi
-	@if [ -z "$$(INFISICAL_PROJECT_ID)" ]; then \
-		echo "❌ INFISICAL_PROJECT_ID not set"; \
-		exit 1; \
-	fi
-	@python -c "from src.config.infisical_client import infisical_manager; print('✅ Infisical connection:', 'OK' if infisical_manager.is_available() else 'FAILED')"
 
 # ==================== Rust ====================
 rust-build:

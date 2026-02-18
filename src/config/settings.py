@@ -72,13 +72,7 @@ class Settings(BaseSettings):
         return f"redis://{password_part}{self.redis_host}:{self.redis_port}/{self.redis_db}"
 
     # ==================== Secrets Management ====================
-    # Infisical
-    infisical_token: str | None = None
-    infisical_address: str = "https://vault.infisical.com"
-    infisical_project_id: str | None = None
-    infisical_environment: str = "dev"
-
-    # Legacy Vault (if using)
+    # HashiCorp Vault (if using)
     vault_addr: str = "http://localhost:8200"
     vault_token: str = "dev-only-token"
 
@@ -279,8 +273,7 @@ def validate_settings(settings_to_validate: Settings | None = None) -> bool:
             validation_errors.append(f"Failed to create {path_name} at {path}: {e}")
 
     # Validate database settings
-    if s.environment == "production" and s.infisical_token is None:
-        validation_errors.append("infisical_token is required in production")
+    # (No external secrets manager validation required)
 
     # Validate risk parameters
     if s.base_r_percent <= 0 or s.base_r_percent > 1:

@@ -55,7 +55,6 @@ dependencies = [
 
     # Secrets Management
     "hvac>=2.0.0,<3.0.0",  # HashiCorp Vault
-    # "infisical>=0.7.0",  # Infisical - временно отключен (конфликт зависимостей, включим позже)
 
     # Logging & Observability
     "structlog>=23.0.0,<25.0.0",
@@ -203,7 +202,6 @@ strict_optional = true
 module = [
     "ccxt.*",
     "hvac.*",
-    "infisical.*",
     "timescaledb.*",
 ]
 ignore_missing_imports = true

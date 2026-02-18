@@ -87,7 +87,7 @@
 
 ## 🎯 Улучшения Фазы 0 (все реализованы)
 
-1. ✅ Использовать **Infisical** для секретов (вместо Vault для dev)
+1. ✅ Использовать **.env файлы** для секретов (HashiCorp Vault - опционально для production)
 2. ✅ **Docker Compose** для dev, **Kubernetes** для production (Фаза 19)
 3. ✅ Добавить **pre-commit hooks**
 4. ✅ Добавить **Makefile**

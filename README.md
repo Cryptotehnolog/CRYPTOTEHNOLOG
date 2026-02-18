@@ -54,7 +54,7 @@ CRYPTOTEHNOLOG Platform
 └── Storage
     ├── PostgreSQL + TimescaleDB (states, audit, time-series)
     ├── Redis (cache, state machine, pub/sub)
-    └── Infisical (secrets management)
+    └── HashiCorp Vault (secrets management, optional)
 ```
 
 ### Technology Stack
@@ -63,7 +63,7 @@ CRYPTOTEHNOLOG Platform
 |-----------|-----------|---------|
 | **Languages** | Python 3.11+, Rust 1.75+, TypeScript | Multi-language architecture |
 | **Databases** | PostgreSQL 15, TimescaleDB, Redis 7 | Persistent storage & caching |
-| **Secrets** | Infisical | Secure secrets management |
+| **Secrets** | HashiCorp Vault (optional), .env files | Secure secrets management |
 | **Observability** | Grafana, Prometheus | Metrics & monitoring |
 | **Containerization** | Docker, Docker Compose | Development environment |
 | **Orchestration** | Kubernetes | Production deployment (Phase 19) |
@@ -227,7 +227,7 @@ pytest tests/unit/test_settings.py
 
 ## 🔒 Security
 
-- **Secrets Management**: Infisical for all sensitive data
+- **Secrets Management**: HashiCorp Vault (optional) or .env files for sensitive data
 - **Configuration Integrity**: Cryptographic signatures for all configs
 - **Audit Trail**: Immutable cryptographic audit chain
 - **Network Security**: TLS for all external connections

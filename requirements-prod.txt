@@ -2,8 +2,5 @@
 # Additional dependencies for production environment
 # Install with: pip install -r requirements.txt -r requirements-prod.txt
 
-# ==================== Secrets Management ====================
-infisical>=1.0.0,<2.0.0
-
 # ==================== Additional Production Tools ====================
 gunicorn>=21.0.0,<23.0.0
