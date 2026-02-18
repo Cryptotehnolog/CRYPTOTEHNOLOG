@@ -3,6 +3,7 @@
 
 import asyncio
 import json
+import uuid
 
 import pytest
 import redis.asyncio as redis
@@ -34,21 +35,25 @@ class TestRedisConnection:
     @pytest.mark.asyncio
     async def test_redis_set_get(self, redis_client):
         """Test that we can set and get values from Redis."""
+        # Use unique key to avoid conflicts in parallel tests
+        test_key = f"test_key_{uuid.uuid4()}"
+
         # Set a value
-        await redis_client.set("test_key", "test_value")
+        await redis_client.set(test_key, "test_value")
 
         # Get the value
-        value = await redis_client.get("test_key")
+        value = await redis_client.get(test_key)
 
         assert value == "test_value"
 
         # Clean up
-        await redis_client.delete("test_key")
+        await redis_client.delete(test_key)
 
     @pytest.mark.asyncio
     async def test_redis_list_operations(self, redis_client):
         """Test that we can perform list operations in Redis."""
-        list_key = "test_list"
+        # Use unique key to avoid conflicts in parallel tests
+        list_key = f"test_list_{uuid.uuid4()}"
 
         # Push values to list
         await redis_client.lpush(list_key, "value1", "value2", "value3")
@@ -68,7 +73,8 @@ class TestRedisConnection:
     @pytest.mark.asyncio
     async def test_redis_hash_operations(self, redis_client):
         """Test that we can perform hash operations in Redis."""
-        hash_key = "test_hash"
+        # Use unique key to avoid conflicts in parallel tests
+        hash_key = f"test_hash_{uuid.uuid4()}"
 
         # Set hash fields
         await redis_client.hset(hash_key, mapping={"field1": "value1", "field2": "value2"})
@@ -223,11 +229,14 @@ class TestInfrastructureIntegration:
         pg_conn = await asyncpg_connect(test_settings.postgres_async_url)
 
         try:
+            # Use unique key to avoid conflicts in parallel tests
+            integration_key = f"integration_test_{uuid.uuid4()}"
+
             # Store data in Redis
-            await redis_client.set("integration_test", "test_value")
+            await redis_client.set(integration_key, "test_value")
 
             # Retrieve from Redis
-            redis_value = await redis_client.get("integration_test")
+            redis_value = await redis_client.get(integration_key)
             assert redis_value == "test_value"
 
             # Store data in PostgreSQL
@@ -245,7 +254,7 @@ class TestInfrastructureIntegration:
             assert pg_value == redis_value
 
             # Clean up Redis
-            await redis_client.delete("integration_test")
+            await redis_client.delete(integration_key)
         finally:
             await redis_client.close()
             await pg_conn.close()

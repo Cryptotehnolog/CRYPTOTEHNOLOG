@@ -62,7 +62,7 @@ class TestSettings:
         settings = Settings()
 
         expected_url = (
-            f"postgresql://{settings.postgres_user}:{settings.postgres_password}"
+            f"postgresql://{settings.postgres_user}:{settings.postgres_password.get_secret_value()}"
             f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
         )
 
@@ -73,7 +73,7 @@ class TestSettings:
         settings = Settings()
 
         expected_url = (
-            f"postgresql://{settings.postgres_user}:{settings.postgres_password}"
+            f"postgresql://{settings.postgres_user}:{settings.postgres_password.get_secret_value()}"
             f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
         )
 
@@ -95,7 +95,7 @@ class TestSettings:
         try:
             settings = Settings()
             expected_url = (
-                f"redis://:{settings.redis_password}@"
+                f"redis://:{settings.redis_password.get_secret_value()}@"
                 f"{settings.redis_host}:{settings.redis_port}/{settings.redis_db}"
             )
 
@@ -151,6 +151,22 @@ class TestSettings:
 
         # Clean up
         os.environ.pop("EVENT_BUS_TYPE", None)
+
+    def test_settings_repr_hides_secrets(self):
+        """Test that __repr__ hides secret values."""
+        settings = Settings()
+
+        repr_str = repr(settings)
+
+        # Should contain project name, version, environment
+        assert settings.project_name in repr_str
+        assert settings.project_version in repr_str
+        assert settings.environment in repr_str
+
+        # Should NOT contain actual secret values
+        assert "secrets=***" in repr_str
+        assert "bot_password_dev" not in repr_str
+        assert "dev-only-token" not in repr_str
 
 
 @pytest.mark.unit

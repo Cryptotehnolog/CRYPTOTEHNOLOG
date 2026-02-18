@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -39,14 +39,14 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_user: str = "bot_user"
-    postgres_password: str = "bot_password_dev"
+    postgres_password: SecretStr = SecretStr("bot_password_dev")
     postgres_db: str = "trading_dev"
 
     @property
     def postgres_url(self) -> str:
         """Construct PostgreSQL connection URL."""
         return (
-            f"postgresql://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql://{self.postgres_user}:{self.postgres_password.get_secret_value()}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
         """Construct async PostgreSQL connection URL."""
         # Note: asyncpg uses 'postgresql' scheme, not 'postgresql+asyncpg'
         return (
-            f"postgresql://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql://{self.postgres_user}:{self.postgres_password.get_secret_value()}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
@@ -63,34 +63,34 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_db: int = 0
-    redis_password: str | None = None
+    redis_password: SecretStr | None = None
 
     @property
     def redis_url(self) -> str:
         """Construct Redis connection URL."""
-        password_part = f":{self.redis_password}@" if self.redis_password else ""
+        password_part = f":{self.redis_password.get_secret_value()}@" if self.redis_password else ""
         return f"redis://{password_part}{self.redis_host}:{self.redis_port}/{self.redis_db}"
 
     # ==================== Secrets Management ====================
     # HashiCorp Vault (if using)
     vault_addr: str = "http://localhost:8200"
-    vault_token: str = "dev-only-token"
+    vault_token: SecretStr = SecretStr("dev-only-token")
 
     # ==================== Exchange API Keys ====================
     # Bybit
-    bybit_api_key: str | None = None
-    bybit_api_secret: str | None = None
+    bybit_api_key: SecretStr | None = None
+    bybit_api_secret: SecretStr | None = None
     bybit_testnet: bool = True
 
     # OKX
-    okx_api_key: str | None = None
-    okx_api_secret: str | None = None
-    okx_passphrase: str | None = None
+    okx_api_key: SecretStr | None = None
+    okx_api_secret: SecretStr | None = None
+    okx_passphrase: SecretStr | None = None
     okx_testnet: bool = True
 
     # Binance
-    binance_api_key: str | None = None
-    binance_api_secret: str | None = None
+    binance_api_key: SecretStr | None = None
+    binance_api_secret: SecretStr | None = None
     binance_testnet: bool = True
 
     # ==================== Risk Parameters ====================
@@ -230,12 +230,13 @@ class Settings(BaseSettings):
     )
 
     def __repr__(self) -> str:
-        """String representation of settings."""
+        """String representation of settings (secrets are hidden)."""
         return (
             f"Settings(project_name={self.project_name}, "
             f"version={self.project_version}, "
             f"environment={self.environment}, "
-            f"debug={self.debug})"
+            f"debug={self.debug}, "
+            f"secrets=***)"
         )
 
 
