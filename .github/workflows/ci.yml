@@ -78,12 +78,12 @@ jobs:
         continue-on-error: true
 
       - name: Run unit tests
-        run: pytest tests/unit/ -v -m unit --cov=src --cov-report=xml --cov-report=term-missing
+        run: pytest tests/unit/ -v -m unit -n auto --dist loadscope --cov=src --cov-report=xml
         env:
           PYTHONPATH: .
 
       - name: Run integration tests
-        run: pytest tests/integration/ -v -m integration --cov=src --cov-append --cov-report=xml
+        run: pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
         env:
           PYTHONPATH: .
           REDIS_HOST: localhost
