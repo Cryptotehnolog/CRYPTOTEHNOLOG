@@ -2,10 +2,8 @@
 # Unit tests for configuration settings
 
 import os
-from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
 
 from src.config.settings import Settings, get_settings, reload_settings, validate_settings
 

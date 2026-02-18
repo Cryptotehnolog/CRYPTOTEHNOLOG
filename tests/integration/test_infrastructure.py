@@ -1,11 +1,12 @@
 # ==================== CRYPTOTEHNOLOG Infrastructure Tests ====================
 # Integration tests for infrastructure services (Redis, PostgreSQL, Vault)
 
+import asyncio
+import json
+
 import pytest
 import redis.asyncio as redis
 from asyncpg import connect as asyncpg_connect
-
-from src.config.settings import Settings, get_settings
 
 
 @pytest.mark.integration
@@ -133,8 +134,6 @@ class TestPostgreSQLConnection:
     @pytest.mark.asyncio
     async def test_postgresql_jsonb_operations(self, pg_connection):
         """Test that we can perform JSONB operations in PostgreSQL."""
-        import json
-
         # Create a test table with JSONB column
         await pg_connection.execute("""
             CREATE TABLE IF NOT EXISTS test_jsonb (
@@ -256,8 +255,6 @@ class TestInfrastructureIntegration:
     @pytest.mark.asyncio
     async def test_concurrent_operations(self, test_settings):
         """Test that concurrent Redis operations work correctly."""
-        import asyncio
-
         # Create Redis client
         redis_client = await redis.from_url(
             test_settings.redis_url,

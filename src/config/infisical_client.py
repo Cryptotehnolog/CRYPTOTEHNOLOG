@@ -2,7 +2,6 @@
 # Client for managing secrets via Infisical
 
 import os
-from typing import Optional, Dict, Any
 
 try:
     from infisical import Client as InfisicalClient
@@ -21,8 +20,8 @@ class InfisicalSecretsManager:
 
     def __init__(
         self,
-        token: Optional[str] = None,
-        project_id: Optional[str] = None,
+        token: str | None = None,
+        project_id: str | None = None,
         environment: str = "dev",
     ):
         """
@@ -51,16 +50,15 @@ class InfisicalSecretsManager:
             except Exception as e:
                 print(f"⚠️  Failed to initialize Infisical client: {e}")
                 print("   Falling back to environment variables")
-        else:
-            if not INFISICAL_AVAILABLE:
-                print("⚠️  Infisical SDK not installed. Install with: pip install infisical")
-                print("   Falling back to environment variables")
-            elif not self.token:
-                print("⚠️  INFISICAL_TOKEN not set. Falling back to environment variables")
-            elif not self.project_id:
-                print("⚠️  INFISICAL_PROJECT_ID not set. Falling back to environment variables")
+        elif not INFISICAL_AVAILABLE:
+            print("⚠️  Infisical SDK not installed. Install with: pip install infisical")
+            print("   Falling back to environment variables")
+        elif not self.token:
+            print("⚠️  INFISICAL_TOKEN not set. Falling back to environment variables")
+        elif not self.project_id:
+            print("⚠️  INFISICAL_PROJECT_ID not set. Falling back to environment variables")
 
-    def get_secret(self, secret_name: str) -> Optional[str]:
+    def get_secret(self, secret_name: str) -> str | None:
         """
         Получить секрет по имени
 
@@ -91,7 +89,7 @@ class InfisicalSecretsManager:
 
         return None
 
-    def get_all_secrets(self) -> Dict[str, str]:
+    def get_all_secrets(self) -> dict[str, str]:
         """
         Получить все секреты
 
@@ -199,7 +197,7 @@ infisical_manager = InfisicalSecretsManager()
 
 
 # ==================== Удобные функции ====================
-def get_secret(secret_name: str, default: Optional[str] = None) -> Optional[str]:
+def get_secret(secret_name: str, default: str | None = None) -> str | None:
     """
     Удобная функция для получения секрета
 
@@ -214,7 +212,7 @@ def get_secret(secret_name: str, default: Optional[str] = None) -> Optional[str]
     return value if value is not None else default
 
 
-def get_all_secrets() -> Dict[str, str]:
+def get_all_secrets() -> dict[str, str]:
     """
     Удобная функция для получения всех секретов
 

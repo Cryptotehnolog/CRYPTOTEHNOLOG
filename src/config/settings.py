@@ -1,9 +1,7 @@
 # ==================== CRYPTOTEHNOLOG Configuration Settings ====================
 # Centralized configuration management using Pydantic Settings
 
-import os
 from pathlib import Path
-from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -65,7 +63,7 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_db: int = 0
-    redis_password: Optional[str] = None
+    redis_password: str | None = None
 
     @property
     def redis_url(self) -> str:
@@ -75,9 +73,9 @@ class Settings(BaseSettings):
 
     # ==================== Secrets Management ====================
     # Infisical
-    infisical_token: Optional[str] = None
+    infisical_token: str | None = None
     infisical_address: str = "https://vault.infisical.com"
-    infisical_project_id: Optional[str] = None
+    infisical_project_id: str | None = None
     infisical_environment: str = "dev"
 
     # Legacy Vault (if using)
@@ -86,19 +84,19 @@ class Settings(BaseSettings):
 
     # ==================== Exchange API Keys ====================
     # Bybit
-    bybit_api_key: Optional[str] = None
-    bybit_api_secret: Optional[str] = None
+    bybit_api_key: str | None = None
+    bybit_api_secret: str | None = None
     bybit_testnet: bool = True
 
     # OKX
-    okx_api_key: Optional[str] = None
-    okx_api_secret: Optional[str] = None
-    okx_passphrase: Optional[str] = None
+    okx_api_key: str | None = None
+    okx_api_secret: str | None = None
+    okx_passphrase: str | None = None
     okx_testnet: bool = True
 
     # Binance
-    binance_api_key: Optional[str] = None
-    binance_api_secret: Optional[str] = None
+    binance_api_key: str | None = None
+    binance_api_secret: str | None = None
     binance_testnet: bool = True
 
     # ==================== Risk Parameters ====================
@@ -275,9 +273,8 @@ def validate_settings() -> bool:
             validation_errors.append(f"Failed to create {path_name} at {path}: {e}")
 
     # Validate database settings
-    if settings.environment == "production":
-        if settings.infisical_token is None:
-            validation_errors.append("infisical_token is required in production")
+    if settings.environment == "production" and settings.infisical_token is None:
+        validation_errors.append("infisical_token is required in production")
 
     # Validate risk parameters
     if settings.base_r_percent <= 0 or settings.base_r_percent > 1:
@@ -327,7 +324,7 @@ def reload_settings() -> Settings:
     Returns:
         Settings: The reloaded settings instance.
     """
-    global settings
+    global settings  # noqa: PLW0603 - Required for singleton pattern
     settings = Settings()
     validate_settings()
     return settings

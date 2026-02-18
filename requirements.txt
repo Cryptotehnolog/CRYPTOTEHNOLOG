@@ -28,7 +28,7 @@ python-dateutil>=2.8.0
 redis>=5.0.0,<6.0.0
 asyncpg>=0.29.0,<0.31.0
 psycopg2-binary>=2.9.0,<3.0.0
-timescaledb>=0.0.4,<0.1.0
+# timescaledb>=0.0.4,<0.1.0  # Removed: TimescaleDB is used as PostgreSQL extension, not Python package
 
 # ==================== Secrets Management ====================
 hvac>=2.0.0,<3.0.0
