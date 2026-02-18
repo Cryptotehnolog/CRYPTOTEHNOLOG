@@ -268,6 +268,8 @@ jobs:
         run: |
           pip install radon
           radon cc src/ -a -nb
+        env:
+          PYTHONPATH: .
 
       - name: Check code duplication (jscpd)
         run: |

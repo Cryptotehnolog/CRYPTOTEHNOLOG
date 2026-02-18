@@ -32,7 +32,7 @@ psycopg2-binary>=2.9.0,<3.0.0
 
 # ==================== Secrets Management ====================
 hvac>=2.0.0,<3.0.0
-infisical>=0.7.0,<1.0.0
+# infisical>=1.0.0,<2.0.0  # Optional: Install separately for production
 pyyaml>=6.0.0,<7.0.0
 
 # ==================== Logging & Observability ====================
