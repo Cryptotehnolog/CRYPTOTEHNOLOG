@@ -50,7 +50,7 @@ prometheus = "0.13"
 
 # Python bindings (PyO3) - Python 3.14 support
 pyo3 = { version = "0.28", features = ["extension-module"] }
-pyo3-async-runtimes = { version = "0.28", features = ["tokio-runtime"] }
+pyo3-async-runtimes = { version = "0.28.0", features = ["tokio-runtime"] }
 
 # Testing
 tokio-test = "0.4"
