@@ -79,8 +79,8 @@ check-env:
 
 setup-env:
 	@echo "Setting up development environment..."
-	@python -m venv venv
-	@echo "✅ Virtual environment created. Activate with: .\\venv\\Scripts\\Activate.ps1 (Windows) or source venv/bin/activate (Linux/Mac)"
+	@uv venv --python 3.12
+	@echo "✅ Virtual environment created with uv. Activate with: .\\.venv\\Scripts\\Activate.ps1 (Windows) or source .venv/bin/activate (Linux/Mac)"
 	@make install-dev
 
 # ==================== Python ====================
