@@ -50,14 +50,24 @@ help:
 
 # ==================== Environment Setup ====================
 install:
-	pip install --upgrade pip
-	pip install -r requirements.txt
+	uv pip install --upgrade pip
+	uv pip install -r requirements.txt
 
 install-dev:
-	pip install --upgrade pip
-	pip install -r requirements.txt
-	pip install pre-commit
+	uv pip install --upgrade pip
+	uv pip install -r requirements.txt
+	uv pip install pre-commit
 	pre-commit install
+
+# UV-specific commands
+uv-sync:
+	uv pip sync requirements.txt
+
+uv-lock:
+	uv pip compile pyproject.toml -o requirements.txt
+
+uv-add:
+	uv pip install $(PACKAGE)
 
 check-env:
 	@echo "Checking environment..."

@@ -21,6 +21,7 @@ __pycache__/
 venv/
 env/
 ENV/
+.venv/
 build/
 develop-eggs/
 dist/
@@ -40,6 +41,7 @@ wheels/
 .mypy_cache/
 .coverage
 .coverage.*
+coverage.xml
 htmlcov/
 .tox/
 .nox/
@@ -48,6 +50,7 @@ htmlcov/
 .dmypy.json
 dmypy.json
 .ruff_cache/
+uv.lock
 
 # ==================== Rust ====================
 rust_components/target/
