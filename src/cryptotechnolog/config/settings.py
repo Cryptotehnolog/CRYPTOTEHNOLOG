@@ -168,8 +168,9 @@ class Settings(BaseSettings):
     # Dashboard enabled
     dashboard_enabled: bool = True
 
-    # Dashboard host
-    dashboard_host: str = "0.0.0.0"
+    # Dashboard host (localhost by default for security)
+    # For production, use DASHBOARD_HOST environment variable
+    dashboard_host: str = "127.0.0.1"
 
     # Dashboard port
     dashboard_port: int = 8000
