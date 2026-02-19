@@ -10,6 +10,10 @@ license = "Proprietary - All Rights Reserved"
 description = "High-performance event bus for CRYPTOTEHNOLOG"
 repository = "https://github.com/your-org/cryptotechnolog"
 
+[features]
+default = []
+lock-free = ["crossbeam", "arrayvec"]
+
 [dependencies]
 # Use workspace dependencies
 tokio = { workspace = true }
@@ -21,6 +25,10 @@ tracing = { workspace = true }
 redis = { workspace = true }
 zmq = { workspace = true }
 
+# Lock-free data structures (optional)
+crossbeam = { workspace = true, optional = true }
+arrayvec = { workspace = true, optional = true }
+
 # Local dependencies
 cryptotechnolog-common = { path = "../common" }
 
@@ -31,3 +39,8 @@ criterion = { workspace = true }
 [[bench]]
 name = "event_bench"
 harness = false
+
+[[bench]]
+name = "ring_buffer_bench"
+harness = false
+required-features = ["lock-free"]

@@ -3,8 +3,14 @@
 
 pub mod event;
 
+#[cfg(feature = "lock-free")]
+pub mod ring_buffer;
+
 // ==================== Re-exports ====================
 pub use event::Event;
+
+#[cfg(feature = "lock-free")]
+pub use ring_buffer::LockFreeRingBuffer;
 
 // ==================== Tests ====================
 #[cfg(test)]

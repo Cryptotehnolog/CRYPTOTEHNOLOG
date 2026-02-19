@@ -61,4 +61,8 @@ mockall = "0.12"
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 jemallocator = { version = "0.5", features = ["unprefixed_malloc_on_supported_platforms"] }
 
+# Lock-free data structures
+crossbeam = "0.8"
+arrayvec = "0.7"
+
 # Workspace members can reference these as just "tokio", "serde", etc.
