@@ -88,6 +88,8 @@ numpy==2.0.2
     #   scipy
 pandas==2.2.3
     # via cryptotechnolog (pyproject.toml)
+polars==0.20.31
+    # via cryptotechnolog (pyproject.toml)
 prometheus-client==0.24.1
     # via cryptotechnolog (pyproject.toml)
 propcache==0.4.1
@@ -95,6 +97,8 @@ propcache==0.4.1
     #   aiohttp
     #   yarl
 psycopg2-binary==2.9.11
+    # via cryptotechnolog (pyproject.toml)
+pyarrow==19.0.1
     # via cryptotechnolog (pyproject.toml)
 pycares==5.0.1
     # via aiodns
