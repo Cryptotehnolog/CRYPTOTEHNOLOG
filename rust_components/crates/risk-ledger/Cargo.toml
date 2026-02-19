@@ -1,0 +1,26 @@
+# ==================== CRYPTOTEHNOLOG Risk Ledger Crate ====================
+# High-performance risk calculations and position tracking
+
+[package]
+name = "cryptotechnolog-risk-ledger"
+version = "0.1.0"
+edition = "2021"
+authors = ["CRYPTOTEHNOLOG Team"]
+license = "Proprietary - All Rights Reserved"
+description = "Risk ledger and calculations for CRYPTOTEHNOLOG"
+repository = "https://github.com/your-org/cryptotechnolog"
+
+[dependencies]
+# Use workspace dependencies
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+
+# Local dependencies
+cryptotechnolog-common = { path = "../common" }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+criterion = { workspace = true }

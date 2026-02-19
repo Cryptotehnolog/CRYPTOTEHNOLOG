@@ -1,0 +1,29 @@
+# ==================== CRYPTOTEHNOLOG Event Bus Crate ====================
+# High-performance event bus for inter-component communication
+
+[package]
+name = "cryptotechnolog-eventbus"
+version = "0.1.0"
+edition = "2021"
+authors = ["CRYPTOTEHNOLOG Team"]
+license = "Proprietary - All Rights Reserved"
+description = "High-performance event bus for CRYPTOTEHNOLOG"
+repository = "https://github.com/your-org/cryptotechnolog"
+
+[dependencies]
+# Use workspace dependencies
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+redis = { workspace = true }
+zmq = { workspace = true }
+
+# Local dependencies
+cryptotechnolog-common = { path = "../common" }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+criterion = { workspace = true }

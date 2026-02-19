@@ -1,7 +1,7 @@
 // ==================== CRYPTOTEHNOLOG Utilities ====================
 // Common utility functions for the trading platform
 
-use super::error::{CryptoError, Result};
+use crate::error::{CryptoError, Result};
 use sha2::{Digest, Sha256};
 
 /// Compute SHA-256 hash of data
@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 /// # Examples
 ///
 /// ```rust,ignore
-/// use cryptotechnolog_core::utils;
+/// use cryptotechnolog_common::utils;
 ///
 /// let hash = utils::compute_hash(b"test data");
 /// assert_eq!(hash.len(), 64); // SHA-256 produces 64 hex characters
@@ -44,7 +44,7 @@ pub fn compute_hash(data: &[u8]) -> String {
 /// # Examples
 ///
 /// ```rust,ignore
-/// use cryptotechnolog_core::utils;
+/// use cryptotechnolog_common::utils;
 ///
 /// let result = utils::validate_range(5, 1, 10);
 /// assert!(result.is_ok());
@@ -86,7 +86,7 @@ where
 /// # Examples
 ///
 /// ```rust,ignore
-/// use cryptotechnolog_core::utils;
+/// use cryptotechnolog_common::utils;
 ///
 /// assert_eq!(utils::clamp(5, 1, 10), 5);
 /// assert_eq!(utils::clamp(0, 1, 10), 1);
@@ -119,7 +119,7 @@ where
 /// # Examples
 ///
 /// ```rust,ignore
-/// use cryptotechnolog_core::utils;
+/// use cryptotechnolog_common::utils;
 ///
 /// let percentage = utils::percentage(50, 100);
 /// assert_eq!(percentage, 0.5);
@@ -146,7 +146,7 @@ pub fn percentage(value: f64, total: f64) -> f64 {
 /// # Examples
 ///
 /// ```rust,ignore
-/// use cryptotechnolog_core::utils;
+/// use cryptotechnolog_common::utils;
 ///
 /// let rounded = utils::round(3.14159, 2);
 /// assert_eq!(rounded, 3.14);

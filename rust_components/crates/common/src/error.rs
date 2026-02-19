@@ -3,7 +3,7 @@
 
 use thiserror::Error;
 
-/// Main error type for CRYPTOTEHNOLOG Core
+/// Main error type for CRYPTOTEHNOLOG
 ///
 /// This enum encompasses all possible error types that can occur
 /// in the high-performance components of the trading platform.
@@ -62,7 +62,7 @@ pub enum CryptoError {
 ///
 /// Usage:
 /// ```rust,ignore
-/// use crate::error::{CryptoError, Result};
+/// use cryptotechnolog_common::error::{CryptoError, Result};
 ///
 /// fn do_something() -> Result<String> {
 ///     Ok("success".to_string())

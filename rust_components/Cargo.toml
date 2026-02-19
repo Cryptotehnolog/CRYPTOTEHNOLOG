@@ -1,17 +1,19 @@
-# ==================== CRYPTOTEHNOLOG Rust Core Library ====================
-# High-performance components for the trading platform
+# ==================== CRYPTOTEHNOLOG Rust Workspace ====================
+# Cargo workspace for high-performance trading platform components
 
-[package]
-name = "cryptotechnolog_core"
-version = "0.1.0"
-edition = "2021"
-authors = ["CRYPTOTEHNOLOG Team"]
-license = "Proprietary - All Rights Reserved"
-description = "High-performance core components for CRYPTOTEHNOLOG trading platform"
-repository = "https://github.com/your-org/cryptotechnolog"
-readme = "README.md"
+[workspace]
+resolver = "2"
+members = [
+    "crates/common",
+    "crates/eventbus",
+    "crates/risk-ledger",
+    "crates/audit-chain",
+    "crates/execution-core",
+    "crates/ffi",
+]
 
-[dependencies]
+# Workspace-level dependencies (shared across all crates)
+[workspace.dependencies]
 # Async runtime
 tokio = { version = "1.35", features = ["full"] }
 
@@ -27,7 +29,7 @@ anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-# Cryptography (for audit chain)
+# Cryptography
 sha2 = "0.10"
 hex = "0.4"
 
@@ -43,36 +45,17 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 # Time handling
 chrono = { version = "0.4", features = ["serde"] }
 
-# Metrics (for observability)
+# Metrics
 prometheus = "0.13"
 
-[dev-dependencies]
+# Python bindings (PyO3) - Python 3.14 support
+pyo3 = { version = "0.28", features = ["extension-module"] }
+# Note: pyo3-asyncio not yet available for PyO3 0.28
+# Use sync functions for now, async can be added later
+
 # Testing
 tokio-test = "0.4"
 criterion = "0.5"
-
-# Mocking
 mockall = "0.12"
 
-[lib]
-name = "cryptotechnolog_core"
-path = "src/lib.rs"
-
-# Examples will be added in later phases
-# [[bin]]
-# name = "event_bus_example"
-# path = "examples/event_bus.rs"
-
-# [[bin]]
-# name = "audit_chain_example"
-# path = "examples/audit_chain.rs"
-
-[profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
-panic = "abort"
-
-[profile.dev]
-opt-level = 0
-debug = true
+# Workspace members can reference these as just "tokio", "serde", etc.

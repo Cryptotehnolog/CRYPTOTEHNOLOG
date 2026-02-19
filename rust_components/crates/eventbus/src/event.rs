@@ -13,7 +13,7 @@ use uuid::Uuid;
 /// # Examples
 ///
 /// ```rust,ignore
-/// use cryptotechnolog_core::Event;
+/// use cryptotechnolog_eventbus::Event;
 /// use serde_json::json;
 ///
 /// let event = Event::new(

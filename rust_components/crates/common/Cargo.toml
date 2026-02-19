@@ -1,0 +1,25 @@
+# ==================== CRYPTOTEHNOLOG Common Crate ====================
+# Shared types, errors, and utilities
+
+[package]
+name = "cryptotechnolog-common"
+version = "0.1.0"
+edition = "2021"
+authors = ["CRYPTOTEHNOLOG Team"]
+license = "Proprietary - All Rights Reserved"
+description = "Common types, errors, and utilities for CRYPTOTEHNOLOG"
+repository = "https://github.com/your-org/cryptotechnolog"
+
+[dependencies]
+# Use workspace dependencies
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }

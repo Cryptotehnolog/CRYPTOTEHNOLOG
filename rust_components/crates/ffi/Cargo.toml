@@ -1,0 +1,31 @@
+# ==================== CRYPTOTEHNOLOG FFI Crate ====================
+# Python bindings using PyO3 for high-performance interop
+
+[package]
+name = "cryptotechnolog-ffi"
+version = "0.1.0"
+edition = "2021"
+authors = ["CRYPTOTEHNOLOG Team"]
+license = "Proprietary - All Rights Reserved"
+description = "Python bindings for CRYPTOTEHNOLOG using PyO3"
+repository = "https://github.com/your-org/cryptotechnolog"
+
+[lib]
+name = "cryptotechnolog_rust"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Use workspace dependencies
+pyo3 = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+
+# Local dependencies
+cryptotechnolog-common = { path = "../common" }
+cryptotechnolog-risk-ledger = { path = "../risk-ledger" }
+cryptotechnolog-execution-core = { path = "../execution-core" }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
