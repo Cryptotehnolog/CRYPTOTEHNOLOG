@@ -1,0 +1,35 @@
+{
+  "include": [
+    "src",
+    "tests"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/node_modules",
+    ".venv",
+    "venv",
+    "build",
+    "dist"
+  ],
+  "pythonVersion": "3.12",
+  "pythonPlatform": "All",
+  "venvPath": "${workspaceFolder}",
+  "venv": ".venv",
+  "extraPaths": [
+    "${workspaceFolder}/src"
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingModuleSource": "warning",
+  "reportMissingTypeStubs": "warning",
+  "reportUnknownMemberType": "warning",
+  "reportUnknownVariableType": "warning",
+  "reportUnknownArgumentType": "warning",
+  "reportGeneralTypeIssues": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportOptionalCall": "warning",
+  "reportOptionalIterable": "warning",
+  "reportOptionalContextManager": "warning",
+  "reportOptionalOperand": "warning",
+  "stubPath": ""
+}

@@ -51,6 +51,10 @@ htmlcov/
 dmypy.json
 .ruff_cache/
 uv.lock
+.pyrightconfig.json
+
+# ==================== VS Code ====================
+.vscode/settings.json
 
 # ==================== Rust ====================
 rust_components/target/
