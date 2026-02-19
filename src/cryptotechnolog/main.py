@@ -3,15 +3,10 @@
 
 import asyncio
 import sys
-from pathlib import Path
 
 import structlog
 
-from src.config.settings import get_settings
-
-# Add src to path for imports
-src_dir = Path(__file__).parent
-sys.path.insert(0, str(src_dir.parent))
+from cryptotechnolog.config.settings import get_settings
 
 
 async def main() -> None:

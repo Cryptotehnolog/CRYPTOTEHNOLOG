@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from src.config.settings import Settings, get_settings, reload_settings, validate_settings
+from cryptotechnolog.config.settings import Settings, get_settings, reload_settings, validate_settings
 
 
 @pytest.mark.unit

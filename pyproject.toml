@@ -1,7 +1,7 @@
 # ==================== CRYPTOTEHNOLOG Python Project Configuration ====================
 
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=79.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,7 +9,7 @@ name = "cryptotechnolog"
 version = "1.0.0"
 description = "Institutional-Grade Crypto Trading Platform"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12,<3.13"
 license = {text = "Proprietary - All Rights Reserved"}
 authors = [
     {name = "CRYPTOTEHNOLOG Team"}
@@ -41,9 +41,9 @@ dependencies = [
     "ccxt>=4.5.0,<5.0.0",
 
     # Data & Analysis
-    "pandas>=2.2.0,<2.4.0",
-    "numpy>=1.26.0,<2.2.0",
-    "scipy>=1.16.1,<1.17.0",
+    "pandas>=2.2.0,<2.3.0",
+    "numpy>=1.26.0,<2.1.0",
+    "scipy>=1.11.0,<1.15.0",
     "pytz>=2023.0",
     "python-dateutil>=2.8.0",
 
@@ -100,7 +100,7 @@ where = ["src"]
 
 [tool.black]
 line-length = 100
-target-version = ["py311", "py312", "py313", "py314"]
+target-version = ["py312"]
 include = '\.pyi?$'
 exclude = '''
 /(
@@ -185,7 +185,7 @@ ignore = [
 "tests/**/*.py" = ["ARG", "PLR2004"]  # Allow unused arguments in tests
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

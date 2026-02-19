@@ -8,11 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from src.config.settings import Settings
-
-# Add src to path
-src_dir = Path(__file__).parent.parent / "src"
-sys.path.insert(0, str(src_dir))
+from cryptotechnolog.config.settings import Settings
 
 # Set test environment
 os.environ["ENVIRONMENT"] = "test"

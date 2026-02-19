@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  PYTHON_VERSION: "3.11"
+  PYTHON_VERSION: "3.12"
   RUST_VERSION: "1.75"
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.12"]
 
     services:
       redis:
@@ -59,35 +59,47 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-        env:
-          UV_VERSION: "0.10.4"
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv --version
+
+      - name: Create virtual environment
+        run: uv venv
 
       - name: Install dependencies
         run: |
+          source .venv/bin/activate
           uv pip install --upgrade pip
           uv pip install -r requirements.txt
 
       - name: Run linter (ruff)
         run: |
+          source .venv/bin/activate
           ruff check src/ tests/
           ruff format --check src/ tests/
         env:
           PYTHONPATH: .
 
       - name: Run type checker (mypy)
-        run: mypy src/ --ignore-missing-imports
+        run: |
+          source .venv/bin/activate
+          mypy src/ --ignore-missing-imports
         env:
           PYTHONPATH: .
         continue-on-error: true
 
       - name: Run unit tests
-        run: pytest tests/unit/ -v -m unit -n auto --dist loadscope --cov=src --cov-report=xml
+        run: |
+          source .venv/bin/activate
+          pytest tests/unit/ -v -m unit -n auto --dist loadscope --cov=src --cov-report=xml
         env:
           PYTHONPATH: .
 
       - name: Run integration tests
-        run: pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
+        run: |
+          source .venv/bin/activate
+          pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
         env:
           PYTHONPATH: .
           REDIS_HOST: localhost
@@ -165,6 +177,12 @@ jobs:
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
         continue-on-error: true
 
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv --version
+
       - name: Run detect-secrets
         run: |
           uv pip install detect-secrets
@@ -209,21 +227,30 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-        env:
-          UV_VERSION: "0.10.4"
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv --version
+
+      - name: Create virtual environment
+        run: uv venv
 
       - name: Install dependencies
         run: |
+          source .venv/bin/activate
           uv pip install --upgrade pip
           uv pip install pip-audit
           uv pip install safety
 
       - name: Run pip-audit
-        run: pip-audit -r requirements.txt || true
+        run: |
+          source .venv/bin/activate
+          pip-audit -r requirements.txt || true
 
       - name: Run safety
-        run: safety check -r requirements.txt || true
+        run: |
+          source .venv/bin/activate
+          safety check -r requirements.txt || true
 
   # ==================== Docker Build Test ====================
   docker-build:
@@ -269,17 +296,23 @@ jobs:
           node-version: '20'
 
       - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-        env:
-          UV_VERSION: "0.10.4"
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv --version
+
+      - name: Create virtual environment
+        run: uv venv
 
       - name: Install dependencies
         run: |
+          source .venv/bin/activate
           uv pip install --upgrade pip
           uv pip install -r requirements.txt
 
       - name: Check code complexity (radon)
         run: |
+          source .venv/bin/activate
           uv pip install radon
           radon cc src/ -a -nb
         env:
