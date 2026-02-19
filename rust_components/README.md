@@ -141,13 +141,25 @@ maturin develop --release
 ```python
 from cryptotechnolog_rust import calculate_position_size
 
+# Sync function
 position_size = calculate_position_size(100000.0, 0.01, 50000.0, 49500.0)
 print(position_size)
+
+# Async function (when implemented in Phase 6-7)
+# async def main():
+#     position_size = await async_calculate_position_size(100000.0, 0.01, 50000.0, 49500.0)
+#     print(position_size)
+#
+# import asyncio
+# asyncio.run(main())
 ```
 
-### Note
+### Async Support
 
-pyo3-asyncio is not yet available for PyO3 0.28. Currently using sync functions only. Async support will be added when pyo3-asyncio is updated.
+Using `pyo3-async-runtimes` (active fork of pyo3-asyncio) for async function support:
+- Supports PyO3 0.21+ (including 0.28)
+- Full async/await support for event bus, order routing, market data processing
+- Compatible with tokio runtime
 
 ## Performance Targets
 
