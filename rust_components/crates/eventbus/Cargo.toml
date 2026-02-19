@@ -27,3 +27,7 @@ cryptotechnolog-common = { path = "../common" }
 [dev-dependencies]
 tokio-test = { workspace = true }
 criterion = { workspace = true }
+
+[[bench]]
+name = "event_bench"
+harness = false

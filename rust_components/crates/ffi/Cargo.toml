@@ -14,6 +14,10 @@ repository = "https://github.com/your-org/cryptotechnolog"
 name = "cryptotechnolog_rust"
 crate-type = ["cdylib"]
 
+[features]
+default = []
+jemalloc = ["jemallocator"]
+
 [dependencies]
 # Use workspace dependencies
 pyo3 = { workspace = true }
@@ -23,6 +27,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 
+# Optional dependencies
+jemallocator = { workspace = true, optional = true }
+
 # Local dependencies
 cryptotechnolog-common = { path = "../common" }
 cryptotechnolog-risk-ledger = { path = "../risk-ledger" }
@@ -30,3 +37,5 @@ cryptotechnolog-execution-core = { path = "../execution-core" }
 
 [dev-dependencies]
 tokio-test = { workspace = true }
+criterion = { workspace = true }
+jemallocator = { workspace = true }

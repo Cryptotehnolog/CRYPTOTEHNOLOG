@@ -1,7 +1,7 @@
 # ==================== CRYPTOTEHNOLOG Makefile ====================
 # Convenient commands for development and testing
 
-.PHONY: help install install-dev test test-unit test-integration test-e2e lint format type-check security-check clean build run dev-up dev-down dev-logs dev-restart check-env setup-env rust-build rust-test rust-clippy rust-fmt docker-build docker-up docker-down docker-logs docker-clean docker-restart coverage-report
+.PHONY: help install install-dev test test-unit test-integration test-e2e lint format type-check security-check clean build run dev-up dev-down dev-logs dev-restart check-env setup-env rust-build rust-test rust-clippy rust-fmt rust-bench rust-flamegraph docker-build docker-up docker-down docker-logs docker-clean docker-restart coverage-report
 
 # Default target
 help:
@@ -29,6 +29,8 @@ help:
 	@echo "  make rust-test         - Run Rust tests"
 	@echo "  make rust-clippy       - Run Rust linter (clippy)"
 	@echo "  make rust-fmt          - Format Rust code"
+	@echo "  make rust-bench        - Run Rust benchmarks (criterion)"
+	@echo "  make rust-flamegraph   - Generate flamegraph (pprof)"
 	@echo ""
 	@echo "  ==================== Docker ===================="
 	@echo "  make docker-build      - Build Docker images"
@@ -127,6 +129,12 @@ rust-clippy:
 
 rust-fmt:
 	cd rust_components && cargo fmt
+
+rust-bench:
+	cd rust_components && cargo bench
+
+rust-flamegraph:
+	cd rust_components && cargo flamegraph --bench event_bench
 
 # ==================== Docker ====================
 docker-build:

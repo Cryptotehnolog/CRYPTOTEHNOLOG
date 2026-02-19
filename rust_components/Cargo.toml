@@ -54,7 +54,11 @@ pyo3-async-runtimes = { version = "0.28.0", features = ["tokio-runtime"] }
 
 # Testing
 tokio-test = "0.4"
-criterion = "0.5"
+criterion = { version = "0.5", features = ["html_reports"] }
 mockall = "0.12"
+
+# Profiling
+pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
+jemallocator = { version = "0.5", features = ["unprefixed_malloc_on_supported_platforms"] }
 
 # Workspace members can reference these as just "tokio", "serde", etc.
