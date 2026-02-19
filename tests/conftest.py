@@ -2,7 +2,6 @@
 # Pytest configuration and fixtures
 
 import os
-import sys
 from collections.abc import Generator
 from pathlib import Path
 
