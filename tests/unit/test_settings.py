@@ -152,6 +152,51 @@ class TestSettings:
         # Clean up
         os.environ.pop("EVENT_BUS_TYPE", None)
 
+    def test_settings_postgres_pool_settings(self):
+        """Test that PostgreSQL pool settings are configured correctly."""
+        settings = Settings()
+
+        # Check default values
+        assert settings.postgres_pool_min_size == 10
+        assert settings.postgres_pool_max_size == 100
+        assert settings.postgres_pool_max_idle == 300
+        assert settings.postgres_pool_max_inactive_connection_lifetime == 300
+
+        # Test with environment variables
+        os.environ["POSTGRES_POOL_MIN_SIZE"] = "5"
+        os.environ["POSTGRES_POOL_MAX_SIZE"] = "50"
+
+        try:
+            settings = Settings()
+            assert settings.postgres_pool_min_size == 5
+            assert settings.postgres_pool_max_size == 50
+        finally:
+            os.environ.pop("POSTGRES_POOL_MIN_SIZE", None)
+            os.environ.pop("POSTGRES_POOL_MAX_SIZE", None)
+
+    def test_settings_redis_pool_settings(self):
+        """Test that Redis pool settings are configured correctly."""
+        settings = Settings()
+
+        # Check default values
+        assert settings.redis_pool_max_connections == 50
+        assert settings.redis_pool_timeout == 5
+        assert settings.redis_pool_socket_timeout == 5
+        assert settings.redis_pool_socket_connect_timeout == 5
+        assert settings.redis_pool_retry_on_timeout is True
+
+        # Test with environment variables
+        os.environ["REDIS_POOL_MAX_CONNECTIONS"] = "100"
+        os.environ["REDIS_POOL_TIMEOUT"] = "10"
+
+        try:
+            settings = Settings()
+            assert settings.redis_pool_max_connections == 100
+            assert settings.redis_pool_timeout == 10
+        finally:
+            os.environ.pop("REDIS_POOL_MAX_CONNECTIONS", None)
+            os.environ.pop("REDIS_POOL_TIMEOUT", None)
+
     def test_settings_repr_hides_secrets(self):
         """Test that __repr__ hides secret values."""
         settings = Settings()

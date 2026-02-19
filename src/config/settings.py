@@ -59,6 +59,20 @@ class Settings(BaseSettings):
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
+    # ==================== Connection Pooling ====================
+    # PostgreSQL Connection Pool Settings
+    postgres_pool_min_size: int = 10
+    postgres_pool_max_size: int = 100
+    postgres_pool_max_idle: int = 300  # seconds
+    postgres_pool_max_inactive_connection_lifetime: int = 300  # seconds
+
+    # Redis Connection Pool Settings
+    redis_pool_max_connections: int = 50
+    redis_pool_timeout: int = 5  # seconds
+    redis_pool_socket_timeout: int = 5  # seconds
+    redis_pool_socket_connect_timeout: int = 5  # seconds
+    redis_pool_retry_on_timeout: bool = True
+
     # Redis
     redis_host: str = "localhost"
     redis_port: int = 6379
