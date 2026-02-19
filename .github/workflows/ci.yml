@@ -183,8 +183,12 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           uv --version
 
+      - name: Create virtual environment
+        run: uv venv
+
       - name: Run detect-secrets
         run: |
+          source .venv/bin/activate
           uv pip install detect-secrets
           if [ -f .secrets.baseline ]; then
             detect-secrets scan --baseline .secrets.baseline || true
@@ -195,12 +199,14 @@ jobs:
 
       - name: Run Bandit
         run: |
+          source .venv/bin/activate
           uv pip install bandit[toml]
           bandit -r src/ -f json -o bandit-report.json || true
           bandit -r src/ -f screen || true
 
       - name: Run Safety
         run: |
+          source .venv/bin/activate
           uv pip install safety
           safety check -r requirements.txt || true
 

@@ -50,7 +50,7 @@ colorama==0.4.6
     # via
     #   click
     #   uvicorn
-cryptography==43.0.3
+cryptography==44.0.3
     # via
     #   cryptotechnolog (pyproject.toml)
     #   ccxt
