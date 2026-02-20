@@ -45,7 +45,7 @@ except ImportError:
         if price_risk == 0.0:
             raise ValueError("Price risk cannot be zero")
 
-        position_size = risk_amount / price_risk
+        position_size: float = risk_amount / price_risk
         return position_size
 
     def calculate_portfolio_risk(
@@ -65,7 +65,7 @@ except ImportError:
             risk_per_unit = abs(entry - stop)
             total_risk += risk_per_unit * size
 
-        return total_risk
+        return float(total_risk)
 
     def calculate_expected_return(
         win_rate: float,
@@ -85,7 +85,8 @@ except ImportError:
         """
         win_reward = win_rate * avg_risk * reward_risk_ratio
         loss_cost = (1.0 - win_rate) * avg_risk
-        return win_reward - loss_cost
+        result = win_reward - loss_cost
+        return float(result)
 
     async def async_calculate_position_size(
         equity: float,
@@ -110,7 +111,9 @@ except ImportError:
         """
         # Simulate async operation
         await asyncio.sleep(0)
-        return calculate_position_size(equity, risk_percent, entry_price, stop_loss)
+        # Explicit type annotation to satisfy mypy
+        result: float = calculate_position_size(equity, risk_percent, entry_price, stop_loss)
+        return result
 
     async def async_calculate_portfolio_risk(
         positions: list[tuple[float, float, float]],  # (entry, stop, size)
@@ -126,7 +129,9 @@ except ImportError:
         """
         # Simulate async operation
         await asyncio.sleep(0)
-        return calculate_portfolio_risk(positions)
+        # Explicit type annotation to satisfy mypy
+        result: float = calculate_portfolio_risk(positions)
+        return result
 
 
 # ==================== Public API ====================
@@ -141,7 +146,7 @@ def get_rust_version() -> str | None:
         try:
             import cryptotechnolog_rust  # noqa: PLC0415
 
-            return cryptotechnolog_rust.__version__
+            return str(cryptotechnolog_rust.__version__)
         except Exception:
             return None
     return None
@@ -177,7 +182,7 @@ if __name__ == "__main__":
     print(f"Expected return: {expected}")  # Expected: 80.0
 
     # Test async functions
-    async def test_async():
+    async def test_async() -> None:
         size = await async_calculate_position_size(10000.0, 0.01, 100.0, 98.0)
         print(f"Async position size: {size}")  # Expected: 50.0
 

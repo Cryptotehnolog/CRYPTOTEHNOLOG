@@ -3,7 +3,7 @@
 
 import logging
 import sys
-from typing import Any
+from typing import Any, Callable
 
 import structlog
 
@@ -33,8 +33,8 @@ def configure_logging() -> None:
         level=getattr(logging, settings.log_level),
     )
 
-    # Define shared processors
-    shared_processors = [
+    # Define shared processors with explicit type
+    shared_processors: list[Callable[..., Any]] = [
         structlog.stdlib.filter_by_level,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
@@ -78,7 +78,8 @@ def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
     if name is None:
         # Get the calling module's name
         name = "cryptotechnolog"
-    return structlog.get_logger(name)
+    # Cast to BoundLogger to satisfy mypy (structlog.get_logger() returns Any)
+    return structlog.get_logger(name)  # type: ignore[no-any-return]
 
 
 class LogContext:
