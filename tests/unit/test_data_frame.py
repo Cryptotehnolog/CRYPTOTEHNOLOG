@@ -1,16 +1,15 @@
 # ==================== Tests: Data Frame Utilities ====================
 
-import pytest
-
 import pandas as pd
 import polars as pl
+import pytest
 
 from cryptotechnolog.data import (
-    to_polars,
-    to_pandas,
+    benchmark_conversion,
     calculate_returns,
     resample_ohlcv,
-    benchmark_conversion,
+    to_pandas,
+    to_polars,
 )
 
 

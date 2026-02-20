@@ -2,9 +2,13 @@
 
 import logging
 
-import pytest
-
-from cryptotechnolog.config import configure_logging, get_logger, LogContext
+from cryptotechnolog.config import (
+    LogContext,
+    configure_logging,
+    get_logger,
+    log_exception,
+    log_performance,
+)
 
 
 class TestConfigureLogging:
@@ -59,11 +63,10 @@ class TestLogContext:
         """Test that LogContext cleans up after exit."""
         configure_logging()
 
-        with LogContext(request_id="test-123") as logger:
-            bound_logger = logger
+        with LogContext(request_id="test-123"):
+            pass  # Context manager should work
 
-        # After context exit, bound_logger should be None
-        # (This is implementation-specific, so we just check it doesn't raise)
+        # After context exit, should not raise
         assert True
 
 
@@ -79,7 +82,6 @@ class TestLogConvenienceFunctions:
             raise ValueError("Test exception")
         except Exception as e:
             # Should not raise
-            from cryptotechnolog.config import log_exception
             log_exception(logger, e, context="test")
 
         assert True
@@ -90,7 +92,6 @@ class TestLogConvenienceFunctions:
         logger = get_logger("test")
 
         # Should not raise
-        from cryptotechnolog.config import log_performance
         log_performance(logger, "test_operation", 123.45)
 
         assert True
