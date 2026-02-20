@@ -222,13 +222,12 @@ addopts = [
     "-v",
     "--strict-markers",
     "--strict-config",
-    "--cov=src",
-    "--cov-report=xml",
     "--asyncio-mode=auto",
-    # Parallel execution with pytest-xdist
-    "-n", "auto",
-    "--dist", "loadscope",
     "--tb=short",
+    # NOTE: Coverage is disabled by default for faster test runs.
+    # To enable coverage, run: pytest --cov=src --cov-report=xml
+    # NOTE: xdist is disabled by default for unit tests to avoid overhead.
+    # To enable parallel execution, run: pytest -n auto --dist loadscope
 ]
 markers = [
     "unit: Unit tests",

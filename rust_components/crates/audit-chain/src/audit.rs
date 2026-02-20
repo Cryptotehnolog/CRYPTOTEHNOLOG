@@ -12,6 +12,12 @@ pub struct AuditChain {
     placeholder: bool,
 }
 
+impl Default for AuditChain {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AuditChain {
     /// Create a new audit chain
     pub fn new() -> Self {

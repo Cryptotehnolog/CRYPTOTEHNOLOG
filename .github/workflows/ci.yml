@@ -10,7 +10,7 @@ on:
 
 env:
   PYTHON_VERSION: "3.12"
-  RUST_VERSION: "1.75"
+  RUST_VERSION: "1.83"
 
 jobs:
   # ==================== Python Tests ====================

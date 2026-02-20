@@ -260,33 +260,38 @@ settings = Settings()
 
 
 # ==================== Settings Validation ====================
-def validate_settings(settings_to_validate: Settings | None = None) -> bool:
+def validate_settings(
+    settings_to_validate: Settings | None = None,
+    create_dirs: bool = False,
+) -> bool:
     """
     Validate that all required settings are properly configured.
 
     Args:
         settings_to_validate: Settings instance to validate. If None, uses global settings.
+        create_dirs: If True, create required directories. Default: False for performance.
 
     Returns:
         bool: True if settings are valid, False otherwise.
     """
-    validation_errors = []
+    validation_errors: list[str] = []
 
     # Use provided settings or global settings
     s = settings_to_validate if settings_to_validate is not None else settings
 
     # Validate paths exist or can be created
-    required_paths = [
-        ("data_dir", s.data_dir),
-        ("logs_dir", s.logs_dir),
-        ("config_dir", s.config_dir),
-    ]
+    if create_dirs:
+        required_paths = [
+            ("data_dir", s.data_dir),
+            ("logs_dir", s.logs_dir),
+            ("config_dir", s.config_dir),
+        ]
 
-    for path_name, path in required_paths:
-        try:
-            path.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            validation_errors.append(f"Failed to create {path_name} at {path}: {e}")
+        for path_name, path in required_paths:
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                validation_errors.append(f"Failed to create {path_name} at {path}: {e}")
 
     # Validate database settings
     # (No external secrets manager validation required)
@@ -341,7 +346,8 @@ def reload_settings() -> Settings:
     """
     global settings  # noqa: PLW0603 - Required for singleton pattern
     settings = Settings()
-    validate_settings()
+    # Note: validate_settings() is NOT called here to avoid expensive directory creation
+    # during tests. Call validate_settings() explicitly when needed.
     return settings
 
 

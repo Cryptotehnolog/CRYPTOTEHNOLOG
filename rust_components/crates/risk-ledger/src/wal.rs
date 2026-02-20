@@ -91,7 +91,6 @@ impl WriteAheadLog {
         let file = if cfg!(windows) {
             // Use std::fs::File with explicit share modes for Windows
             std::fs::OpenOptions::new()
-                .write(true)
                 .create(true)
                 .append(true)
                 .share_mode(FILE_SHARE_READ)  // Allow concurrent reads
@@ -99,7 +98,6 @@ impl WriteAheadLog {
         } else {
             // Use std::fs::File on Linux/Mac as well (simpler, works for append-only)
             std::fs::OpenOptions::new()
-                .write(true)
                 .create(true)
                 .append(true)
                 .open(&path)?
@@ -217,14 +215,12 @@ impl WriteAheadLog {
         // Replace writer with new one with proper sharing modes
         let file = if cfg!(windows) {
             std::fs::OpenOptions::new()
-                .write(true)
                 .create(true)
                 .append(true)
                 .share_mode(FILE_SHARE_READ)
                 .open(&self.path)?
         } else {
             std::fs::OpenOptions::new()
-                .write(true)
                 .create(true)
                 .append(true)
                 .open(&self.path)?
@@ -247,14 +243,12 @@ impl WriteAheadLog {
     pub async fn reopen(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let file = if cfg!(windows) {
             std::fs::OpenOptions::new()
-                .write(true)
                 .create(true)
                 .append(true)
                 .share_mode(FILE_SHARE_READ)
                 .open(&self.path)?
         } else {
             std::fs::OpenOptions::new()
-                .write(true)
                 .create(true)
                 .append(true)
                 .open(&self.path)?

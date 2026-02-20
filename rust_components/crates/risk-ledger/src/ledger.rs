@@ -148,7 +148,7 @@ impl RiskLedger {
 
     /// Get Merkle root
     pub async fn merkle_root(&self) -> [u8; 32] {
-        let merkle = self.merkle.read().await;
+        let merkle: tokio::sync::RwLockReadGuard<'_, MerkleTree> = self.merkle.read().await;
         merkle.root()
     }
 
@@ -157,8 +157,9 @@ impl RiskLedger {
         let positions = self.positions.read().await;
         let position_ids: Vec<String> = positions.keys().cloned().collect();
         let index = position_ids.iter().position(|id| id == position_id)?;
+        drop(positions);
 
-        let merkle = self.merkle.read().await;
+        let merkle: tokio::sync::RwLockReadGuard<'_, MerkleTree> = self.merkle.read().await;
         merkle.generate_proof(index)
     }
 
@@ -172,7 +173,8 @@ impl RiskLedger {
 
         if let Some(position) = positions.get(position_id) {
             let leaf_hash = Self::hash_position(position);
-            let merkle = self.merkle.read().await;
+            drop(positions);
+            let merkle: tokio::sync::RwLockReadGuard<'_, MerkleTree> = self.merkle.read().await;
             merkle.verify(&leaf_hash, proof)
         } else {
             false
@@ -238,7 +240,7 @@ impl RiskLedger {
         let positions = self.positions.read().await;
         let leaves: Vec<[u8; 32]> = positions
             .values()
-            .map(|p| Self::hash_position(p))
+            .map(Self::hash_position)
             .collect();
         drop(positions);
 

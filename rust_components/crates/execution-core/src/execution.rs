@@ -12,6 +12,12 @@ pub struct ExecutionEngine {
     placeholder: bool,
 }
 
+impl Default for ExecutionEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExecutionEngine {
     /// Create a new execution engine
     pub fn new() -> Self {

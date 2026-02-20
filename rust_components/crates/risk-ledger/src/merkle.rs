@@ -66,7 +66,7 @@ impl MerkleTree {
             }
 
             level_start += level_size;
-            level_size = (level_size + 1) / 2;
+            level_size = level_size.div_ceil(2);
         }
 
         Self {
@@ -116,7 +116,7 @@ impl MerkleTree {
             // Move to parent level
             current_index /= 2;
             level_start += level_size;
-            level_size = (level_size + 1) / 2;
+            level_size = level_size.div_ceil(2);
         }
 
         Some(MerkleProof {
