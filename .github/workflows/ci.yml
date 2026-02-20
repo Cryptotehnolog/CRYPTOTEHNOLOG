@@ -3,7 +3,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [master, develop]
+    branches: ["**"]  # Run on all branches
   pull_request:
     branches: [master, develop]
   workflow_dispatch:
