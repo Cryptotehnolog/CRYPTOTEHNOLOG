@@ -42,8 +42,8 @@ redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 # ZeroMQ (alternative event bus)
 zmq = "0.10"
 
-# UUID
-uuid = { version = "1.6", features = ["v4", "serde"] }
+# UUID (limit version to avoid getrandom 0.4.x which requires edition2024)
+uuid = { version = "=1.6", features = ["v4", "serde"] }
 
 # Time handling
 chrono = { version = "0.4", features = ["serde"] }
