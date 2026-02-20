@@ -1,0 +1,38 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "cryptotechnolog-rust"
+version = "0.1.0"
+description = "High-performance Python bindings for CRYPTOTEHNOLOG"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = {text = "Proprietary - All Rights Reserved"}
+authors = [
+    {name = "CRYPTOTEHNOLOG Team", email = "dev@cryptotechnolog.com"}
+]
+keywords = ["trading", "crypto", "rust", "performance", "high-frequency"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: Other/Proprietary",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Rust",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+
+[project.urls]
+Homepage = "https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG"
+Repository = "https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG"
+Documentation = "https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG/docs"
+
+[tool.maturin]
+module-name = "cryptotechnolog_rust._rust"
+features = ["pyo3/extension-module"]
+
+[tool.maturin.python-source]
+python-version = "3.12"

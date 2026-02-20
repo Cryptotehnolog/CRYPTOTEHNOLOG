@@ -136,6 +136,19 @@ rust-bench:
 rust-flamegraph:
 	cd rust_components && cargo flamegraph --bench event_bench
 
+# ==================== Rust Extension (Python-Rust Bridge) ====================
+rust-extension-build:
+	cd rust_components && maturin develop --release
+
+rust-extension-build-wheel:
+	cd rust_components && maturin build --release
+
+rust-extension-install:
+	uv pip install -e ".[rust]"
+
+rust-extension-clean:
+	cd rust_components && maturin build --release --clean
+
 # ==================== Docker ====================
 docker-build:
 	docker-compose build
