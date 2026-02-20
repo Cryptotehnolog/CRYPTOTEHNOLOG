@@ -165,13 +165,13 @@ fn calculate_expected_return(
 /// ```
 #[pyfunction]
 #[pyo3(signature = (equity, risk_percent, entry_price, stop_loss))]
-fn async_calculate_position_size<'py>(
-    py: Python<'py>,
+fn async_calculate_position_size(
+    py: Python<'_>,
     equity: f64,
     risk_percent: f64,
     entry_price: f64,
     stop_loss: f64,
-) -> PyResult<Bound<'py, PyAny>> {
+) -> PyResult<Bound<'_, PyAny>> {
     future_into_py(py, async move {
         let risk_amount = equity * risk_percent;
         let price_risk = (entry_price - stop_loss).abs();
@@ -197,10 +197,10 @@ fn async_calculate_position_size<'py>(
 ///
 /// Total portfolio risk in currency units
 #[pyfunction]
-fn async_calculate_portfolio_risk<'py>(
-    py: Python<'py>,
+fn async_calculate_portfolio_risk(
+    py: Python<'_>,
     positions: Vec<(f64, f64, f64)>, // (entry, stop, size)
-) -> PyResult<Bound<'py, PyAny>> {
+) -> PyResult<Bound<'_, PyAny>> {
     future_into_py(py, async move {
         let total_risk: f64 = positions
             .iter()
