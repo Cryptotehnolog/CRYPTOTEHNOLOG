@@ -1,7 +1,6 @@
 # ==================== CRYPTOTEHNOLOG Rust Bridge Tests ====================
 # Tests for Python-Rust interop with graceful degradation
 
-import asyncio
 import pytest
 
 from cryptotechnolog.rust_bridge import (

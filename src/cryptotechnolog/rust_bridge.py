@@ -2,7 +2,6 @@
 # Graceful degradation for Python-Rust interop
 
 import asyncio
-from typing import Any
 
 # Try to import Rust extension
 try:
@@ -13,6 +12,7 @@ try:
         calculate_portfolio_risk,
         calculate_position_size,
     )
+
     HAS_RUST = True
 except ImportError:
     HAS_RUST = False
@@ -139,7 +139,7 @@ def get_rust_version() -> str | None:
     """
     if HAS_RUST:
         try:
-            import cryptotechnolog_rust
+            import cryptotechnolog_rust  # noqa: PLC0415
 
             return cryptotechnolog_rust.__version__
         except Exception:
