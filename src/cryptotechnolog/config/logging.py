@@ -3,11 +3,14 @@
 
 import logging
 import sys
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
 from cryptotechnolog.config.settings import get_settings
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def configure_logging() -> None:
