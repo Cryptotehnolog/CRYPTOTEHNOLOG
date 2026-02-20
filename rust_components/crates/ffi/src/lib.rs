@@ -21,21 +21,10 @@
 // Python Support: 3.11, 3.12, 3.13
 // PyO3 Version: 0.28.2
 // pyo3-async-runtimes: 0.28 (fork for PyO3 0.21+ support)
-
-// Use jemallocator for better performance with many small allocations (Unix only)
-// Note: jemalloc is not supported on Windows, so we only enable it on Unix-like systems
-#[cfg(all(
-    not(windows),
-    feature = "jemalloc",
-))]
-use tikv_jemallocator::Jemalloc;
-
-#[cfg(all(
-    not(windows),
-    feature = "jemalloc",
-))]
-#[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
+//
+// Allocator: Uses system allocator (Windows) or jemallocator (Linux/Mac via feature)
+// Note: On Windows, we use the system allocator (Microsoft's Low Fragmentation Heap)
+// which is well-optimized and integrated with the OS.
 
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;

@@ -59,7 +59,6 @@ mockall = "0.12"
 
 # Profiling
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
-jemallocator = { version = "0.5", features = ["unprefixed_malloc_on_supported_platforms"] }
 
 # Lock-free data structures
 crossbeam = "0.8"

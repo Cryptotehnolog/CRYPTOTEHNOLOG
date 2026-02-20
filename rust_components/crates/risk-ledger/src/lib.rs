@@ -1,24 +1,26 @@
 // ==================== CRYPTOTEHNOLOG Risk Ledger Crate ====================
-// High-performance risk calculations and position tracking
+// High-performance risk ledger with WAL, Merkle tree, and double-entry validation
 //
-// This crate will be implemented in Phase 5-6
-//
-// Planned features:
-// - Position tracking and management
-// - Risk calculations (R-multiple, portfolio risk)
-// - Position size calculations
-// - Real-time risk monitoring
-// - Risk limits enforcement
+// Features:
+// - Append-only operations
+// - WAL for durability
+// - Merkle tree for integrity
+// - Double-entry validation for consistency
+// - O(log n) proof generation and verification
 //
 // Performance targets:
 // - 100,000+ position updates per second
 // - Sub-millisecond risk calculations
 // - Zero-copy operations for high-frequency paths
 
-#![allow(dead_code)]
-
-pub mod risk;
+pub mod ledger;
+pub mod merkle;
+pub mod validation;
+pub mod wal;
 
 // ==================== Re-exports ====================
-pub use risk::{RiskCalculator, RiskMetrics};
+pub use ledger::{Position, RiskLedger};
+pub use merkle::{MerkleProof, MerkleTree};
+pub use validation::{DoubleEntryValidator, Transaction, ValidationError};
+pub use wal::{WriteAheadLog, WALEntry};
 
