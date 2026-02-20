@@ -149,7 +149,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: rust_components/target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('rust_components/Cargo.lock') }}
 
       - name: Run fmt check
         working-directory: ./rust_components

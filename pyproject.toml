@@ -186,9 +186,13 @@ ignore = [
     "ARG002",  # Unused method argument
 ]
 
+[tool.ruff.lint.isort]
+known-first-party = ["cryptotechnolog"]
+known-third-party = ["pandas", "polars", "pytest"]
+
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
-"tests/**/*.py" = ["ARG", "PLR2004"]  # Allow unused arguments in tests
+"tests/**/*.py" = ["ARG", "PLR2004", "I001"]  # Allow unused arguments and import formatting in tests
 
 [tool.mypy]
 python_version = "3.12"
