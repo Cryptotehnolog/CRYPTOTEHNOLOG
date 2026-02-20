@@ -6,18 +6,13 @@
 // - Crash recovery capability
 // - Durability guarantees
 // - Sequential writes for performance
-// - Concurrent read/write support on Windows via proper file sharing modes
+// - Cross-platform compatibility (Windows/Linux/Mac)
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::File as StdFile;
 use std::io::Write;
 use std::path::PathBuf;
-
-#[cfg(windows)]
-use std::os::windows::fs::OpenOptionsExt;
-#[cfg(windows)]
-use winapi::um::winnt::FILE_SHARE_READ;
 
 /// WAL entry representing a single operation
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,25 +78,12 @@ pub struct WriteAheadLog {
 }
 
 impl WriteAheadLog {
-    /// Create a new WAL with proper file sharing modes for concurrent read/write
+    /// Create a new WAL
     pub async fn new(path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
-        // Open file with appropriate sharing modes
-        // Windows: FILE_SHARE_READ allows concurrent reads while writing
-        // Linux/Mac: Default behavior already allows concurrent access
-        let file = if cfg!(windows) {
-            // Use std::fs::File with explicit share modes for Windows
-            std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .share_mode(FILE_SHARE_READ)  // Allow concurrent reads
-                .open(&path)?
-        } else {
-            // Use std::fs::File on Linux/Mac as well (simpler, works for append-only)
-            std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&path)?
-        };
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)?;
 
         let writer = std::io::BufWriter::new(file);
 
@@ -131,15 +113,14 @@ impl WriteAheadLog {
         Ok(entry)
     }
 
-    /// Replay WAL from file with concurrent read support
+    /// Replay WAL from file
     ///
     /// This method reads all entries from the WAL file without closing the writer.
-    /// On Windows, we use FILE_SHARE_READ to allow concurrent reading while the
-    /// writer is still open. On Linux/Mac, concurrent access is allowed by default.
+    /// Uses standard synchronous file reading that works on all platforms.
     ///
     /// Returns all entries in the WAL in the order they were written.
     pub async fn replay(&self) -> Result<Vec<WALEntry>, Box<dyn std::error::Error>> {
-        // Use synchronous file reading (works on all platforms with FILE_SHARE_READ)
+        // Use synchronous file reading (works on all platforms)
         let contents = std::fs::read_to_string(&self.path)?;
 
         let mut entries = Vec::new();
@@ -164,14 +145,14 @@ impl WriteAheadLog {
     /// Replay WAL from file path (static method, doesn't open file for writing)
     ///
     /// This is useful for recovery scenarios where you want to read the WAL
-    /// without opening it for writing. On Windows, this avoids file locking issues.
+    /// without opening it for writing.
     ///
     /// Args:
     ///   path: Path to the WAL file
     ///
     /// Returns all entries in the WAL in the order they were written.
     pub async fn replay_from_file(path: &PathBuf) -> Result<Vec<WALEntry>, Box<dyn std::error::Error>> {
-        // Use synchronous file reading
+        // Use synchronous file reading (works on all platforms)
         let contents = std::fs::read_to_string(path)?;
 
         let mut entries = Vec::new();
@@ -212,19 +193,11 @@ impl WriteAheadLog {
         // Truncate file
         std::fs::write(&self.path, b"")?;
 
-        // Replace writer with new one with proper sharing modes
-        let file = if cfg!(windows) {
-            std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .share_mode(FILE_SHARE_READ)
-                .open(&self.path)?
-        } else {
-            std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&self.path)?
-        };
+        // Replace writer with new one
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.path)?;
 
         self.writer = std::io::BufWriter::new(file);
         self.sequence = 0;
@@ -241,18 +214,10 @@ impl WriteAheadLog {
 
     /// Reopen the WAL (after close)
     pub async fn reopen(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let file = if cfg!(windows) {
-            std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .share_mode(FILE_SHARE_READ)
-                .open(&self.path)?
-        } else {
-            std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&self.path)?
-        };
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.path)?;
 
         self.writer = std::io::BufWriter::new(file);
         Ok(())

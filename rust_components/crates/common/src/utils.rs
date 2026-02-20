@@ -118,10 +118,10 @@ where
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// use cryptotechnolog_common::utils;
 ///
-/// let percentage = utils::percentage(50, 100);
+/// let percentage = utils::percentage(50.0, 100.0);
 /// assert_eq!(percentage, 0.5);
 /// ```
 pub fn percentage(value: f64, total: f64) -> f64 {
