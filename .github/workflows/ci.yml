@@ -140,6 +140,7 @@ jobs:
             ${{ runner.os }}-cargo-registry-
 
       - name: Cache cargo build
+        id: cache-build
         if: success()
         uses: actions/cache@v4
         with:
@@ -150,6 +151,11 @@ jobs:
           key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-build-
+
+      - name: Show cache status
+        run: |
+          echo "Cargo registry cache hit: ${{ steps.cache-reg.outputs.cache-hit }}"
+          echo "Cargo build cache hit: ${{ steps.cache-build.outputs.cache-hit }}"
 
       - name: Remove stale cargo cache
         run: |
@@ -176,7 +182,9 @@ jobs:
           ls -la rust_components/crates/audit-chain/src/ || echo "src not found"
           echo "Attempting to build audit-chain directly:"
           cargo build --manifest-path rust_components/crates/audit-chain/Cargo.toml || echo "Build failed"
-          echo "Checking if audit-chain appears in cargo metadata:"
+          echo "Checking if audit-chain appears in cargo metadata (workspace):"
+          cargo metadata --workspace --format-version=1 | grep -o '"name":"cryptotechnolog-audit-chain"' || echo "Not found in metadata"
+          echo "Checking if audit-chain appears in cargo metadata (no workspace):"
           cargo metadata --format-version=1 | grep -o '"name":"cryptotechnolog-audit-chain"' || echo "Not found in metadata"
 
       - name: Run fmt check
@@ -188,8 +196,11 @@ jobs:
           cargo build --package cryptotechnolog-audit-chain --lib
           cargo build --package cryptotechnolog-common --lib
           echo "=== Full dependency tree for risk-ledger (from workspace root) ==="
-          cargo tree --package cryptotechnolog-risk-ledger > /tmp/risk_ledger_tree.txt
+          cargo tree --package cryptotechnolog-risk-ledger --workspace > /tmp/risk_ledger_tree.txt
           cat /tmp/risk_ledger_tree.txt
+          echo ""
+          echo "=== Checking cargo metadata for risk-ledger ==="
+          cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "cryptotechnolog-risk-ledger") | .dependencies[] | select(.name | contains("cryptotechnolog")) | .name'
           echo ""
           echo "=== Checking for audit-chain in tree ==="
           grep -E "(cryptotechnolog-audit-chain|cryptotechnolog_audit_chain)" /tmp/risk_ledger_tree.txt || echo "audit-chain NOT FOUND in dependency tree"

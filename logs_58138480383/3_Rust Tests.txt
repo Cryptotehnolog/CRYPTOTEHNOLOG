@@ -1,0 +1,1915 @@
+﻿2026-02-21T23:19:46.8976836Z Current runner version: '2.331.0'
+2026-02-21T23:19:46.9025660Z ##[group]Runner Image Provisioner
+2026-02-21T23:19:46.9047524Z Hosted Compute Agent
+2026-02-21T23:19:46.9048582Z Version: 20260123.484
+2026-02-21T23:19:46.9049570Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+2026-02-21T23:19:46.9050834Z Build Date: 2026-01-23T19:41:17Z
+2026-02-21T23:19:46.9051954Z Worker ID: {cc880ad9-efb1-4a98-8e69-2d75c136e20a}
+2026-02-21T23:19:46.9053035Z Azure Region: northcentralus
+2026-02-21T23:19:46.9053957Z ##[endgroup]
+2026-02-21T23:19:46.9056362Z ##[group]Operating System
+2026-02-21T23:19:46.9057470Z Ubuntu
+2026-02-21T23:19:46.9058228Z 24.04.3
+2026-02-21T23:19:46.9059132Z LTS
+2026-02-21T23:19:46.9059908Z ##[endgroup]
+2026-02-21T23:19:46.9061329Z ##[group]Runner Image
+2026-02-21T23:19:46.9062469Z Image: ubuntu-24.04
+2026-02-21T23:19:46.9063352Z Version: 20260201.15.1
+2026-02-21T23:19:46.9065610Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+2026-02-21T23:19:46.9068742Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+2026-02-21T23:19:46.9070490Z ##[endgroup]
+2026-02-21T23:19:46.9072366Z ##[group]GITHUB_TOKEN Permissions
+2026-02-21T23:19:46.9075141Z Contents: read
+2026-02-21T23:19:46.9076157Z Metadata: read
+2026-02-21T23:19:46.9077195Z Packages: read
+2026-02-21T23:19:46.9078074Z ##[endgroup]
+2026-02-21T23:19:46.9081064Z Secret source: Actions
+2026-02-21T23:19:46.9082473Z Prepare workflow directory
+2026-02-21T23:19:47.0104729Z Prepare all required actions
+2026-02-21T23:19:47.0162653Z Getting action download info
+2026-02-21T23:19:47.3884376Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-02-21T23:19:47.5026628Z Download action repository 'dtolnay/rust-toolchain@stable' (SHA:631a55b12751854ce901bb631d5902ceb48146f7)
+2026-02-21T23:19:47.7549186Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-02-21T23:19:48.0113116Z Complete job name: Rust Tests
+2026-02-21T23:19:48.0872749Z ##[group]Run actions/checkout@v4
+2026-02-21T23:19:48.0873651Z with:
+2026-02-21T23:19:48.0874047Z   fetch-depth: 0
+2026-02-21T23:19:48.0874506Z   repository: Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:19:48.0875241Z   token: ***
+2026-02-21T23:19:48.0875648Z   ssh-strict: true
+2026-02-21T23:19:48.0876046Z   ssh-user: git
+2026-02-21T23:19:48.0876469Z   persist-credentials: true
+2026-02-21T23:19:48.0877088Z   clean: true
+2026-02-21T23:19:48.0877532Z   sparse-checkout-cone-mode: true
+2026-02-21T23:19:48.0878043Z   fetch-tags: false
+2026-02-21T23:19:48.0878473Z   show-progress: true
+2026-02-21T23:19:48.0878904Z   lfs: false
+2026-02-21T23:19:48.0879298Z   submodules: false
+2026-02-21T23:19:48.0879730Z   set-safe-directory: true
+2026-02-21T23:19:48.0880422Z env:
+2026-02-21T23:19:48.0880827Z   PYTHON_VERSION: 3.12
+2026-02-21T23:19:48.0881254Z ##[endgroup]
+2026-02-21T23:19:48.2038616Z Syncing repository: Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:19:48.2042138Z ##[group]Getting Git version info
+2026-02-21T23:19:48.2043662Z Working directory is '/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG'
+2026-02-21T23:19:48.2045941Z [command]/usr/bin/git version
+2026-02-21T23:19:48.2139277Z git version 2.52.0
+2026-02-21T23:19:48.2169848Z ##[endgroup]
+2026-02-21T23:19:48.2186608Z Temporarily overriding HOME='/home/runner/work/_temp/e1567b99-89a8-4c48-a011-07fdb08b007c' before making global git config changes
+2026-02-21T23:19:48.2190219Z Adding repository directory to the temporary git global config as a safe directory
+2026-02-21T23:19:48.2205808Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:19:48.2252547Z Deleting the contents of '/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG'
+2026-02-21T23:19:48.2258921Z ##[group]Initializing the repository
+2026-02-21T23:19:48.2262936Z [command]/usr/bin/git init /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:19:48.2392714Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-02-21T23:19:48.2395118Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-02-21T23:19:48.2397067Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-02-21T23:19:48.2398477Z hint: call:
+2026-02-21T23:19:48.2399121Z hint:
+2026-02-21T23:19:48.2399929Z hint: 	git config --global init.defaultBranch <name>
+2026-02-21T23:19:48.2400951Z hint:
+2026-02-21T23:19:48.2401993Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-02-21T23:19:48.2403832Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-02-21T23:19:48.2405373Z hint:
+2026-02-21T23:19:48.2406168Z hint: 	git branch -m <name>
+2026-02-21T23:19:48.2407362Z hint:
+2026-02-21T23:19:48.2408608Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-02-21T23:19:48.2412237Z Initialized empty Git repository in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/.git/
+2026-02-21T23:19:48.2417904Z [command]/usr/bin/git remote add origin https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:19:48.2461562Z ##[endgroup]
+2026-02-21T23:19:48.2463307Z ##[group]Disabling automatic garbage collection
+2026-02-21T23:19:48.2465567Z [command]/usr/bin/git config --local gc.auto 0
+2026-02-21T23:19:48.2508215Z ##[endgroup]
+2026-02-21T23:19:48.2509410Z ##[group]Setting up auth
+2026-02-21T23:19:48.2510745Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-02-21T23:19:48.2545924Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-02-21T23:19:48.2934079Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-02-21T23:19:48.2970573Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-02-21T23:19:48.3211599Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-02-21T23:19:48.3245411Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-02-21T23:19:48.3502386Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-02-21T23:19:48.3542385Z ##[endgroup]
+2026-02-21T23:19:48.3545004Z ##[group]Fetching the repository
+2026-02-21T23:19:48.3553555Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-02-21T23:19:48.9766617Z From https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:19:48.9769739Z  * [new branch]      master                  -> origin/master
+2026-02-21T23:19:48.9772559Z  * [new tag]         phase-0-complete-backup -> phase-0-complete-backup
+2026-02-21T23:19:48.9775566Z  * [new tag]         phase-0.2-complete      -> phase-0.2-complete
+2026-02-21T23:19:48.9780460Z  * [new tag]         phase-0.2-start-backup  -> phase-0.2-start-backup
+2026-02-21T23:19:48.9783301Z  * [new tag]         phase-0.3-complete      -> phase-0.3-complete
+2026-02-21T23:19:48.9786002Z  * [new tag]         phase-1-complete        -> phase-1-complete
+2026-02-21T23:19:48.9788808Z  * [new tag]         phase-1-complete-backup -> phase-1-complete-backup
+2026-02-21T23:19:48.9791349Z  * [new tag]         phase-3-complete        -> phase-3-complete
+2026-02-21T23:19:48.9794177Z  * [new tag]         phase-3-complete-backup -> phase-3-complete-backup
+2026-02-21T23:19:48.9799374Z [command]/usr/bin/git branch --list --remote origin/master
+2026-02-21T23:19:48.9801715Z   origin/master
+2026-02-21T23:19:48.9805557Z [command]/usr/bin/git rev-parse refs/remotes/origin/master
+2026-02-21T23:19:48.9808638Z dd4fd385e75cc4df637abc7aaf47fabd2d3ce738
+2026-02-21T23:19:48.9813920Z ##[endgroup]
+2026-02-21T23:19:48.9816420Z ##[group]Determining the checkout info
+2026-02-21T23:19:48.9819535Z ##[endgroup]
+2026-02-21T23:19:48.9821155Z [command]/usr/bin/git sparse-checkout disable
+2026-02-21T23:19:48.9826007Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-02-21T23:19:48.9831949Z ##[group]Checking out the ref
+2026-02-21T23:19:48.9834991Z [command]/usr/bin/git checkout --progress --force -B master refs/remotes/origin/master
+2026-02-21T23:19:48.9873630Z Reset branch 'master'
+2026-02-21T23:19:48.9878645Z branch 'master' set up to track 'origin/master'.
+2026-02-21T23:19:48.9891581Z ##[endgroup]
+2026-02-21T23:19:48.9931122Z [command]/usr/bin/git log -1 --format=%H
+2026-02-21T23:19:48.9955318Z dd4fd385e75cc4df637abc7aaf47fabd2d3ce738
+2026-02-21T23:19:49.0182505Z ##[group]Run sudo apt-get update
+2026-02-21T23:19:49.0184352Z [36;1msudo apt-get update[0m
+2026-02-21T23:19:49.0186640Z [36;1msudo apt-get install -y libzmq3-dev pkg-config python3.12-dev[0m
+2026-02-21T23:19:49.0229522Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:19:49.0230569Z env:
+2026-02-21T23:19:49.0231351Z   PYTHON_VERSION: 3.12
+2026-02-21T23:19:49.0232265Z ##[endgroup]
+2026-02-21T23:19:49.2199353Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-02-21T23:19:49.2559661Z Get:6 https://packages.microsoft.com/repos/azure-cli noble InRelease [3564 B]
+2026-02-21T23:19:49.3001328Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+2026-02-21T23:19:49.3007649Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+2026-02-21T23:19:49.3025935Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+2026-02-21T23:19:49.3140229Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+2026-02-21T23:19:49.3184899Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+2026-02-21T23:19:49.4699367Z Get:8 https://packages.microsoft.com/repos/azure-cli noble/main amd64 Packages [2129 B]
+2026-02-21T23:19:49.6539311Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main all Packages [643 B]
+2026-02-21T23:19:49.6583708Z Get:10 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [72.7 kB]
+2026-02-21T23:19:49.6628717Z Get:11 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [93.3 kB]
+2026-02-21T23:19:49.6678640Z Get:12 https://packages.microsoft.com/ubuntu/24.04/prod noble/main armhf Packages [11.4 kB]
+2026-02-21T23:19:49.7352910Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1771 kB]
+2026-02-21T23:19:49.7461346Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [328 kB]
+2026-02-21T23:19:49.7498022Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [175 kB]
+2026-02-21T23:19:49.7534771Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 c-n-f Metadata [16.5 kB]
+2026-02-21T23:19:49.7560503Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1557 kB]
+2026-02-21T23:19:49.7682626Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [316 kB]
+2026-02-21T23:19:49.7761916Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [386 kB]
+2026-02-21T23:19:49.7766413Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 c-n-f Metadata [32.6 kB]
+2026-02-21T23:19:49.7818499Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [2663 kB]
+2026-02-21T23:19:49.8119993Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [613 kB]
+2026-02-21T23:19:49.8613583Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Components [212 B]
+2026-02-21T23:19:49.8632358Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Packages [32.1 kB]
+2026-02-21T23:19:49.8669718Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse Translation-en [7044 B]
+2026-02-21T23:19:49.8676703Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+2026-02-21T23:19:49.8682113Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [7292 B]
+2026-02-21T23:19:49.8712944Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [10.5 kB]
+2026-02-21T23:19:49.8721209Z Get:29 http://azure.archive.ubuntu.com/ubuntu noble-backports/restricted amd64 Components [216 B]
+2026-02-21T23:19:49.8728033Z Get:30 http://azure.archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Components [212 B]
+2026-02-21T23:19:49.9288355Z Get:31 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1474 kB]
+2026-02-21T23:19:49.9404766Z Get:32 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [237 kB]
+2026-02-21T23:19:49.9412580Z Get:33 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [21.5 kB]
+2026-02-21T23:19:49.9442460Z Get:34 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 c-n-f Metadata [9892 B]
+2026-02-21T23:19:49.9470465Z Get:35 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [935 kB]
+2026-02-21T23:19:49.9582143Z Get:36 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [214 kB]
+2026-02-21T23:19:50.0031085Z Get:37 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [74.2 kB]
+2026-02-21T23:19:50.0073317Z Get:38 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 c-n-f Metadata [20.0 kB]
+2026-02-21T23:19:50.0108203Z Get:39 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [2516 kB]
+2026-02-21T23:19:50.0373307Z Get:40 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [582 kB]
+2026-02-21T23:19:50.0447086Z Get:41 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Components [212 B]
+2026-02-21T23:19:50.0453867Z Get:42 http://azure.archive.ubuntu.com/ubuntu noble-security/multiverse amd64 Components [208 B]
+2026-02-21T23:19:59.8996271Z Fetched 14.6 MB in 2s (6502 kB/s)
+2026-02-21T23:20:00.7568233Z Reading package lists...
+2026-02-21T23:20:00.7951743Z Reading package lists...
+2026-02-21T23:20:01.0263494Z Building dependency tree...
+2026-02-21T23:20:01.0273157Z Reading state information...
+2026-02-21T23:20:01.2645617Z pkg-config is already the newest version (1.8.1-2build1).
+2026-02-21T23:20:01.2648802Z The following additional packages will be installed:
+2026-02-21T23:20:01.2651629Z   comerr-dev cppzmq-dev krb5-multidev libbsd-dev libgssrpc4t64
+2026-02-21T23:20:01.2654321Z   libkadm5clnt-mit12 libkadm5srv-mit12 libkdb5-10t64 libkrb5-dev libmd-dev
+2026-02-21T23:20:01.2657167Z   libnorm-dev libpgm-dev libpython3.12-dev libpython3.12-minimal
+2026-02-21T23:20:01.2660714Z   libpython3.12-stdlib libpython3.12t64 libsodium-dev libsodium23 python3.12
+2026-02-21T23:20:01.2663219Z   python3.12-minimal python3.12-venv
+2026-02-21T23:20:01.2674249Z Suggested packages:
+2026-02-21T23:20:01.2676648Z   doc-base krb5-doc krb5-user libnorm-doc python3.12-doc binfmt-support
+2026-02-21T23:20:01.3263616Z The following NEW packages will be installed:
+2026-02-21T23:20:01.3291356Z   comerr-dev cppzmq-dev krb5-multidev libbsd-dev libgssrpc4t64
+2026-02-21T23:20:01.3295836Z   libkadm5clnt-mit12 libkadm5srv-mit12 libkdb5-10t64 libkrb5-dev libmd-dev
+2026-02-21T23:20:01.3300167Z   libnorm-dev libpgm-dev libsodium-dev libzmq3-dev
+2026-02-21T23:20:01.3304655Z The following packages will be upgraded:
+2026-02-21T23:20:01.3305677Z   libpython3.12-dev libpython3.12-minimal libpython3.12-stdlib
+2026-02-21T23:20:01.3310295Z   libpython3.12t64 libsodium23 python3.12 python3.12-dev python3.12-minimal
+2026-02-21T23:20:01.3311545Z   python3.12-venv
+2026-02-21T23:20:01.3532642Z 9 upgraded, 14 newly installed, 0 to remove and 155 not upgraded.
+2026-02-21T23:20:01.3533560Z Need to get 16.6 MB of archives.
+2026-02-21T23:20:01.3534119Z After this operation, 9145 kB of additional disk space will be used.
+2026-02-21T23:20:01.3535223Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-02-21T23:20:01.3948665Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 python3.12-dev amd64 3.12.3-1ubuntu0.11 [498 kB]
+2026-02-21T23:20:01.4217433Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3.12-dev amd64 3.12.3-1ubuntu0.11 [5683 kB]
+2026-02-21T23:20:01.4857698Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3.12t64 amd64 3.12.3-1ubuntu0.11 [2345 kB]
+2026-02-21T23:20:01.5274896Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 python3.12-venv amd64 3.12.3-1ubuntu0.11 [5680 B]
+2026-02-21T23:20:01.5497225Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 python3.12 amd64 3.12.3-1ubuntu0.11 [651 kB]
+2026-02-21T23:20:01.5860361Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3.12-stdlib amd64 3.12.3-1ubuntu0.11 [2069 kB]
+2026-02-21T23:20:01.6231461Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 python3.12-minimal amd64 3.12.3-1ubuntu0.11 [2342 kB]
+2026-02-21T23:20:01.6675826Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3.12-minimal amd64 3.12.3-1ubuntu0.11 [837 kB]
+2026-02-21T23:20:01.7012705Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libpgm-dev amd64 5.3.128~dfsg-2.1build1 [212 kB]
+2026-02-21T23:20:01.7249083Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libsodium23 amd64 1.0.18-1ubuntu0.24.04.1 [161 kB]
+2026-02-21T23:20:01.7485345Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libsodium-dev amd64 1.0.18-1ubuntu0.24.04.1 [185 kB]
+2026-02-21T23:20:01.7714698Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libnorm-dev amd64 1.5.9+dfsg-3.1build1 [429 kB]
+2026-02-21T23:20:01.7970062Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 comerr-dev amd64 2.1-1.47.0-2.4~exp1ubuntu4.1 [43.8 kB]
+2026-02-21T23:20:01.8285128Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgssrpc4t64 amd64 1.20.1-6ubuntu2.6 [57.6 kB]
+2026-02-21T23:20:01.8514332Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libkadm5clnt-mit12 amd64 1.20.1-6ubuntu2.6 [40.1 kB]
+2026-02-21T23:20:01.8742165Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libkdb5-10t64 amd64 1.20.1-6ubuntu2.6 [40.4 kB]
+2026-02-21T23:20:01.8961232Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libkadm5srv-mit12 amd64 1.20.1-6ubuntu2.6 [53.0 kB]
+2026-02-21T23:20:01.9183359Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 krb5-multidev amd64 1.20.1-6ubuntu2.6 [125 kB]
+2026-02-21T23:20:01.9860659Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libkrb5-dev amd64 1.20.1-6ubuntu2.6 [11.9 kB]
+2026-02-21T23:20:02.0078936Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libmd-dev amd64 1.1.0-2build1.1 [45.5 kB]
+2026-02-21T23:20:02.0341477Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libbsd-dev amd64 0.12.1-1build1.1 [169 kB]
+2026-02-21T23:20:02.0615888Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzmq3-dev amd64 4.3.5-1build2 [527 kB]
+2026-02-21T23:20:02.0957962Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 cppzmq-dev amd64 4.10.0-1build1 [26.0 kB]
+2026-02-21T23:20:02.3949182Z Fetched 16.6 MB in 1s (21.9 MB/s)
+2026-02-21T23:20:02.5295987Z (Reading database ... 
+2026-02-21T23:20:02.5297603Z (Reading database ... 5%
+2026-02-21T23:20:02.5298478Z (Reading database ... 10%
+2026-02-21T23:20:02.5299105Z (Reading database ... 15%
+2026-02-21T23:20:02.5299481Z (Reading database ... 20%
+2026-02-21T23:20:02.5299939Z (Reading database ... 25%
+2026-02-21T23:20:02.5301784Z (Reading database ... 30%
+2026-02-21T23:20:02.5302108Z (Reading database ... 35%
+2026-02-21T23:20:02.5302419Z (Reading database ... 40%
+2026-02-21T23:20:02.5303091Z (Reading database ... 45%
+2026-02-21T23:20:02.5303392Z (Reading database ... 50%
+2026-02-21T23:20:02.6004572Z (Reading database ... 55%
+2026-02-21T23:20:02.9895548Z (Reading database ... 60%
+2026-02-21T23:20:03.2122223Z (Reading database ... 65%
+2026-02-21T23:20:03.2991248Z (Reading database ... 70%
+2026-02-21T23:20:03.4592949Z (Reading database ... 75%
+2026-02-21T23:20:04.0039901Z (Reading database ... 80%
+2026-02-21T23:20:04.6140522Z (Reading database ... 85%
+2026-02-21T23:20:05.1842638Z (Reading database ... 90%
+2026-02-21T23:20:05.7840758Z (Reading database ... 95%
+2026-02-21T23:20:05.7843044Z (Reading database ... 100%
+2026-02-21T23:20:05.7849639Z (Reading database ... 217745 files and directories currently installed.)
+2026-02-21T23:20:05.7892481Z Preparing to unpack .../00-python3.12-dev_3.12.3-1ubuntu0.11_amd64.deb ...
+2026-02-21T23:20:05.7938026Z Unpacking python3.12-dev (3.12.3-1ubuntu0.11) over (3.12.3-1ubuntu0.10) ...
+2026-02-21T23:20:05.8579716Z Preparing to unpack .../01-libpython3.12-dev_3.12.3-1ubuntu0.11_amd64.deb ...
+2026-02-21T23:20:05.8607423Z Unpacking libpython3.12-dev:amd64 (3.12.3-1ubuntu0.11) over (3.12.3-1ubuntu0.10) ...
+2026-02-21T23:20:06.1127964Z Preparing to unpack .../02-libpython3.12t64_3.12.3-1ubuntu0.11_amd64.deb ...
+2026-02-21T23:20:06.1224857Z Unpacking libpython3.12t64:amd64 (3.12.3-1ubuntu0.11) over (3.12.3-1ubuntu0.10) ...
+2026-02-21T23:20:06.2021651Z Preparing to unpack .../03-python3.12-venv_3.12.3-1ubuntu0.11_amd64.deb ...
+2026-02-21T23:20:06.2077335Z Unpacking python3.12-venv (3.12.3-1ubuntu0.11) over (3.12.3-1ubuntu0.10) ...
+2026-02-21T23:20:06.2480774Z Preparing to unpack .../04-python3.12_3.12.3-1ubuntu0.11_amd64.deb ...
+2026-02-21T23:20:06.3433070Z Unpacking python3.12 (3.12.3-1ubuntu0.11) over (3.12.3-1ubuntu0.10) ...
+2026-02-21T23:20:06.4048553Z Preparing to unpack .../05-libpython3.12-stdlib_3.12.3-1ubuntu0.11_amd64.deb ...
+2026-02-21T23:20:06.4493598Z Unpacking libpython3.12-stdlib:amd64 (3.12.3-1ubuntu0.11) over (3.12.3-1ubuntu0.10) ...
+2026-02-21T23:20:06.5958381Z Preparing to unpack .../06-python3.12-minimal_3.12.3-1ubuntu0.11_amd64.deb ...
+2026-02-21T23:20:06.6047380Z Unpacking python3.12-minimal (3.12.3-1ubuntu0.11) over (3.12.3-1ubuntu0.10) ...
+2026-02-21T23:20:06.6898518Z Preparing to unpack .../07-libpython3.12-minimal_3.12.3-1ubuntu0.11_amd64.deb ...
+2026-02-21T23:20:06.7444546Z Unpacking libpython3.12-minimal:amd64 (3.12.3-1ubuntu0.11) over (3.12.3-1ubuntu0.10) ...
+2026-02-21T23:20:06.8466765Z Selecting previously unselected package libpgm-dev:amd64.
+2026-02-21T23:20:06.8610248Z Preparing to unpack .../08-libpgm-dev_5.3.128~dfsg-2.1build1_amd64.deb ...
+2026-02-21T23:20:06.8619239Z Unpacking libpgm-dev:amd64 (5.3.128~dfsg-2.1build1) ...
+2026-02-21T23:20:06.9065129Z Preparing to unpack .../09-libsodium23_1.0.18-1ubuntu0.24.04.1_amd64.deb ...
+2026-02-21T23:20:06.9250326Z Unpacking libsodium23:amd64 (1.0.18-1ubuntu0.24.04.1) over (1.0.18-1build3) ...
+2026-02-21T23:20:06.9544375Z Selecting previously unselected package libsodium-dev:amd64.
+2026-02-21T23:20:06.9688474Z Preparing to unpack .../10-libsodium-dev_1.0.18-1ubuntu0.24.04.1_amd64.deb ...
+2026-02-21T23:20:06.9696869Z Unpacking libsodium-dev:amd64 (1.0.18-1ubuntu0.24.04.1) ...
+2026-02-21T23:20:07.0064877Z Selecting previously unselected package libnorm-dev:amd64.
+2026-02-21T23:20:07.0203059Z Preparing to unpack .../11-libnorm-dev_1.5.9+dfsg-3.1build1_amd64.deb ...
+2026-02-21T23:20:07.0212666Z Unpacking libnorm-dev:amd64 (1.5.9+dfsg-3.1build1) ...
+2026-02-21T23:20:07.0565654Z Selecting previously unselected package comerr-dev:amd64.
+2026-02-21T23:20:07.0704766Z Preparing to unpack .../12-comerr-dev_2.1-1.47.0-2.4~exp1ubuntu4.1_amd64.deb ...
+2026-02-21T23:20:07.0746840Z Unpacking comerr-dev:amd64 (2.1-1.47.0-2.4~exp1ubuntu4.1) ...
+2026-02-21T23:20:07.1257919Z Selecting previously unselected package libgssrpc4t64:amd64.
+2026-02-21T23:20:07.1397848Z Preparing to unpack .../13-libgssrpc4t64_1.20.1-6ubuntu2.6_amd64.deb ...
+2026-02-21T23:20:07.1409392Z Unpacking libgssrpc4t64:amd64 (1.20.1-6ubuntu2.6) ...
+2026-02-21T23:20:07.1663326Z Selecting previously unselected package libkadm5clnt-mit12:amd64.
+2026-02-21T23:20:07.1801403Z Preparing to unpack .../14-libkadm5clnt-mit12_1.20.1-6ubuntu2.6_amd64.deb ...
+2026-02-21T23:20:07.1815579Z Unpacking libkadm5clnt-mit12:amd64 (1.20.1-6ubuntu2.6) ...
+2026-02-21T23:20:07.2062515Z Selecting previously unselected package libkdb5-10t64:amd64.
+2026-02-21T23:20:07.2201382Z Preparing to unpack .../15-libkdb5-10t64_1.20.1-6ubuntu2.6_amd64.deb ...
+2026-02-21T23:20:07.2213250Z Unpacking libkdb5-10t64:amd64 (1.20.1-6ubuntu2.6) ...
+2026-02-21T23:20:07.2459686Z Selecting previously unselected package libkadm5srv-mit12:amd64.
+2026-02-21T23:20:07.2602240Z Preparing to unpack .../16-libkadm5srv-mit12_1.20.1-6ubuntu2.6_amd64.deb ...
+2026-02-21T23:20:07.2615899Z Unpacking libkadm5srv-mit12:amd64 (1.20.1-6ubuntu2.6) ...
+2026-02-21T23:20:07.2871880Z Selecting previously unselected package krb5-multidev:amd64.
+2026-02-21T23:20:07.3013596Z Preparing to unpack .../17-krb5-multidev_1.20.1-6ubuntu2.6_amd64.deb ...
+2026-02-21T23:20:07.3023452Z Unpacking krb5-multidev:amd64 (1.20.1-6ubuntu2.6) ...
+2026-02-21T23:20:07.3436809Z Selecting previously unselected package libkrb5-dev:amd64.
+2026-02-21T23:20:07.3576162Z Preparing to unpack .../18-libkrb5-dev_1.20.1-6ubuntu2.6_amd64.deb ...
+2026-02-21T23:20:07.3585842Z Unpacking libkrb5-dev:amd64 (1.20.1-6ubuntu2.6) ...
+2026-02-21T23:20:07.3971307Z Selecting previously unselected package libmd-dev:amd64.
+2026-02-21T23:20:07.4107640Z Preparing to unpack .../19-libmd-dev_1.1.0-2build1.1_amd64.deb ...
+2026-02-21T23:20:07.4118688Z Unpacking libmd-dev:amd64 (1.1.0-2build1.1) ...
+2026-02-21T23:20:07.4542631Z Selecting previously unselected package libbsd-dev:amd64.
+2026-02-21T23:20:07.4682058Z Preparing to unpack .../20-libbsd-dev_0.12.1-1build1.1_amd64.deb ...
+2026-02-21T23:20:07.4692851Z Unpacking libbsd-dev:amd64 (0.12.1-1build1.1) ...
+2026-02-21T23:20:07.5233910Z Selecting previously unselected package libzmq3-dev:amd64.
+2026-02-21T23:20:07.5396137Z Preparing to unpack .../21-libzmq3-dev_4.3.5-1build2_amd64.deb ...
+2026-02-21T23:20:07.5413197Z Unpacking libzmq3-dev:amd64 (4.3.5-1build2) ...
+2026-02-21T23:20:07.5895028Z Selecting previously unselected package cppzmq-dev:amd64.
+2026-02-21T23:20:07.6035875Z Preparing to unpack .../22-cppzmq-dev_4.10.0-1build1_amd64.deb ...
+2026-02-21T23:20:07.6051657Z Unpacking cppzmq-dev:amd64 (4.10.0-1build1) ...
+2026-02-21T23:20:07.6519901Z Setting up libsodium23:amd64 (1.0.18-1ubuntu0.24.04.1) ...
+2026-02-21T23:20:07.6552642Z Setting up libpython3.12-minimal:amd64 (3.12.3-1ubuntu0.11) ...
+2026-02-21T23:20:07.6603396Z Setting up libnorm-dev:amd64 (1.5.9+dfsg-3.1build1) ...
+2026-02-21T23:20:07.6629650Z Setting up libgssrpc4t64:amd64 (1.20.1-6ubuntu2.6) ...
+2026-02-21T23:20:07.6656498Z Setting up libpgm-dev:amd64 (5.3.128~dfsg-2.1build1) ...
+2026-02-21T23:20:07.6683722Z Setting up comerr-dev:amd64 (2.1-1.47.0-2.4~exp1ubuntu4.1) ...
+2026-02-21T23:20:07.6723668Z Setting up libsodium-dev:amd64 (1.0.18-1ubuntu0.24.04.1) ...
+2026-02-21T23:20:07.6750230Z Setting up libmd-dev:amd64 (1.1.0-2build1.1) ...
+2026-02-21T23:20:07.6777144Z Setting up libbsd-dev:amd64 (0.12.1-1build1.1) ...
+2026-02-21T23:20:07.6803308Z Setting up libkadm5clnt-mit12:amd64 (1.20.1-6ubuntu2.6) ...
+2026-02-21T23:20:07.6833337Z Setting up python3.12-minimal (3.12.3-1ubuntu0.11) ...
+2026-02-21T23:20:08.3876115Z Setting up libpython3.12-stdlib:amd64 (3.12.3-1ubuntu0.11) ...
+2026-02-21T23:20:08.3906227Z Setting up libkdb5-10t64:amd64 (1.20.1-6ubuntu2.6) ...
+2026-02-21T23:20:08.3934716Z Setting up python3.12 (3.12.3-1ubuntu0.11) ...
+2026-02-21T23:20:09.1717902Z Setting up libpython3.12t64:amd64 (3.12.3-1ubuntu0.11) ...
+2026-02-21T23:20:09.1745852Z Setting up libkadm5srv-mit12:amd64 (1.20.1-6ubuntu2.6) ...
+2026-02-21T23:20:09.1774446Z Setting up krb5-multidev:amd64 (1.20.1-6ubuntu2.6) ...
+2026-02-21T23:20:09.1800865Z Setting up python3.12-venv (3.12.3-1ubuntu0.11) ...
+2026-02-21T23:20:09.2308418Z Setting up libpython3.12-dev:amd64 (3.12.3-1ubuntu0.11) ...
+2026-02-21T23:20:09.2336053Z Setting up libkrb5-dev:amd64 (1.20.1-6ubuntu2.6) ...
+2026-02-21T23:20:09.2365255Z Setting up python3.12-dev (3.12.3-1ubuntu0.11) ...
+2026-02-21T23:20:09.2392216Z Setting up libzmq3-dev:amd64 (4.3.5-1build2) ...
+2026-02-21T23:20:09.2421069Z Setting up cppzmq-dev:amd64 (4.10.0-1build1) ...
+2026-02-21T23:20:09.2454400Z Processing triggers for systemd (255.4-1ubuntu8.12) ...
+2026-02-21T23:20:09.2866662Z Processing triggers for man-db (2.12.0-4build2) ...
+2026-02-21T23:20:09.2980430Z Not building database; man-db/auto-update is not 'true'.
+2026-02-21T23:20:09.2997951Z Processing triggers for install-info (7.1-3build2) ...
+2026-02-21T23:20:09.5387371Z Processing triggers for libc-bin (2.39-0ubuntu8.6) ...
+2026-02-21T23:20:10.1517206Z 
+2026-02-21T23:20:10.1519474Z Running kernel seems to be up-to-date.
+2026-02-21T23:20:10.1520067Z 
+2026-02-21T23:20:10.1521895Z Restarting services...
+2026-02-21T23:20:10.1747495Z  systemctl restart php8.3-fpm.service
+2026-02-21T23:20:10.2907997Z 
+2026-02-21T23:20:10.2936786Z Service restarts being deferred:
+2026-02-21T23:20:10.2937745Z  systemctl restart networkd-dispatcher.service
+2026-02-21T23:20:10.2938331Z  systemctl restart walinuxagent.service
+2026-02-21T23:20:10.2938705Z 
+2026-02-21T23:20:10.2939202Z No containers need to be restarted.
+2026-02-21T23:20:10.2939485Z 
+2026-02-21T23:20:10.2939651Z No user sessions are running outdated binaries.
+2026-02-21T23:20:10.2939972Z 
+2026-02-21T23:20:10.2940259Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+2026-02-21T23:20:11.4622377Z ##[group]Run dtolnay/rust-toolchain@stable
+2026-02-21T23:20:11.4622672Z with:
+2026-02-21T23:20:11.4622848Z   components: rustfmt, clippy
+2026-02-21T23:20:11.4623066Z   toolchain: stable
+2026-02-21T23:20:11.4623235Z env:
+2026-02-21T23:20:11.4623398Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:11.4623578Z ##[endgroup]
+2026-02-21T23:20:11.4717155Z ##[group]Run : parse toolchain version
+2026-02-21T23:20:11.4717489Z [36;1m: parse toolchain version[0m
+2026-02-21T23:20:11.4717754Z [36;1mif [[ -z $toolchain ]]; then[0m
+2026-02-21T23:20:11.4718251Z [36;1m  # GitHub does not enforce `required: true` inputs itself. https://github.com/actions/runner/issues/1070[0m
+2026-02-21T23:20:11.4718772Z [36;1m  echo "'toolchain' is a required input" >&2[0m
+2026-02-21T23:20:11.4719045Z [36;1m  exit 1[0m
+2026-02-21T23:20:11.4719344Z [36;1melif [[ $toolchain =~ ^stable' '[0-9]+' '(year|month|week|day)s?' 'ago$ ]]; then[0m
+2026-02-21T23:20:11.4719731Z [36;1m  if [[ Linux == macOS ]]; then[0m
+2026-02-21T23:20:11.4720281Z [36;1m    echo "toolchain=1.$((($(date -v-$(sed 's/stable \([0-9]*\) \(.\).*/\1\2/' <<< $toolchain) +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2026-02-21T23:20:11.4720765Z [36;1m  else[0m
+2026-02-21T23:20:11.4721155Z [36;1m    echo "toolchain=1.$((($(date --date "${toolchain#stable }" +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2026-02-21T23:20:11.4721596Z [36;1m  fi[0m
+2026-02-21T23:20:11.4721863Z [36;1melif [[ $toolchain =~ ^stable' 'minus' '[0-9]+' 'releases?$ ]]; then[0m
+2026-02-21T23:20:11.4722389Z [36;1m  echo "toolchain=1.$((($(date +%s)/60/60/24-16569)/7/6-${toolchain//[^0-9]/}))" >> $GITHUB_OUTPUT[0m
+2026-02-21T23:20:11.4722822Z [36;1melif [[ $toolchain =~ ^1\.[0-9]+$ ]]; then[0m
+2026-02-21T23:20:11.4723320Z [36;1m  echo "toolchain=1.$((i=${toolchain#1.}, c=($(date +%s)/60/60/24-16569)/7/6, i+9*i*(10*i<=c)+90*i*(100*i<=c)))" >> $GITHUB_OUTPUT[0m
+2026-02-21T23:20:11.4723799Z [36;1melse[0m
+2026-02-21T23:20:11.4724022Z [36;1m  echo "toolchain=$toolchain" >> $GITHUB_OUTPUT[0m
+2026-02-21T23:20:11.4724293Z [36;1mfi[0m
+2026-02-21T23:20:11.4757182Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-02-21T23:20:11.4757502Z env:
+2026-02-21T23:20:11.4757672Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:11.4757863Z   toolchain: stable
+2026-02-21T23:20:11.4758041Z ##[endgroup]
+2026-02-21T23:20:11.4876036Z ##[group]Run : construct rustup command line
+2026-02-21T23:20:11.4876341Z [36;1m: construct rustup command line[0m
+2026-02-21T23:20:11.4877538Z [36;1mecho "targets=$(for t in ${targets//,/ }; do echo -n ' --target' $t; done)" >> $GITHUB_OUTPUT[0m
+2026-02-21T23:20:11.4878197Z [36;1mecho "components=$(for c in ${components//,/ }; do echo -n ' --component' $c; done)" >> $GITHUB_OUTPUT[0m
+2026-02-21T23:20:11.4878651Z [36;1mecho "downgrade=" >> $GITHUB_OUTPUT[0m
+2026-02-21T23:20:11.4907075Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-02-21T23:20:11.4907386Z env:
+2026-02-21T23:20:11.4907553Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:11.4907758Z   targets: 
+2026-02-21T23:20:11.4907932Z   components: rustfmt, clippy
+2026-02-21T23:20:11.4908147Z ##[endgroup]
+2026-02-21T23:20:11.4987145Z ##[group]Run : set $CARGO_HOME
+2026-02-21T23:20:11.4987434Z [36;1m: set $CARGO_HOME[0m
+2026-02-21T23:20:11.4987731Z [36;1mecho CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV[0m
+2026-02-21T23:20:11.5016059Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-02-21T23:20:11.5016379Z env:
+2026-02-21T23:20:11.5016547Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:11.5016773Z ##[endgroup]
+2026-02-21T23:20:11.5091674Z ##[group]Run : install rustup if needed
+2026-02-21T23:20:11.5091965Z [36;1m: install rustup if needed[0m
+2026-02-21T23:20:11.5092234Z [36;1mif ! command -v rustup &>/dev/null; then[0m
+2026-02-21T23:20:11.5092971Z [36;1m  curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused --location --silent --show-error --fail https://sh.rustup.rs | sh -s -- --default-toolchain none -y[0m
+2026-02-21T23:20:11.5093888Z [36;1m  echo "$CARGO_HOME/bin" >> $GITHUB_PATH[0m
+2026-02-21T23:20:11.5094156Z [36;1mfi[0m
+2026-02-21T23:20:11.5122375Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-02-21T23:20:11.5122688Z env:
+2026-02-21T23:20:11.5122853Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:11.5123069Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:11.5123283Z ##[endgroup]
+2026-02-21T23:20:11.5196117Z ##[group]Run rustup toolchain install stable --component rustfmt --component clippy --profile minimal --no-self-update
+2026-02-21T23:20:11.5197250Z [36;1mrustup toolchain install stable --component rustfmt --component clippy --profile minimal --no-self-update[0m
+2026-02-21T23:20:11.5225374Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-02-21T23:20:11.5225678Z env:
+2026-02-21T23:20:11.5225846Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:11.5226111Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:11.5226351Z   RUSTUP_PERMIT_COPY_RENAME: 1
+2026-02-21T23:20:11.5226562Z ##[endgroup]
+2026-02-21T23:20:11.8542315Z info: syncing channel updates for 'stable-x86_64-unknown-linux-gnu'
+2026-02-21T23:20:11.9862641Z info: latest update on 2026-02-12, rust version 1.93.1 (01f6ddf75 2026-02-11)
+2026-02-21T23:20:12.0173953Z info: downloading component 'clippy'
+2026-02-21T23:20:12.0466418Z info: downloading component 'rustfmt'
+2026-02-21T23:20:12.0665635Z info: downloading component 'cargo'
+2026-02-21T23:20:12.1150607Z info: downloading component 'rust-std'
+2026-02-21T23:20:12.2361818Z info: downloading component 'rustc'
+2026-02-21T23:20:12.5752692Z info: removing previous version of component 'clippy'
+2026-02-21T23:20:12.5772733Z info: removing previous version of component 'rustfmt'
+2026-02-21T23:20:12.5785897Z info: removing previous version of component 'cargo'
+2026-02-21T23:20:12.5938188Z info: removing previous version of component 'rust-std'
+2026-02-21T23:20:12.5971818Z info: removing previous version of component 'rustc'
+2026-02-21T23:20:12.6029945Z info: installing component 'clippy'
+2026-02-21T23:20:12.9868216Z info: installing component 'rustfmt'
+2026-02-21T23:20:13.2203546Z info: installing component 'cargo'
+2026-02-21T23:20:13.9517801Z info: installing component 'rust-std'
+2026-02-21T23:20:15.8843849Z info: installing component 'rustc'
+2026-02-21T23:20:21.2118734Z 
+2026-02-21T23:20:21.2230214Z   stable-x86_64-unknown-linux-gnu updated - rustc 1.93.1 (01f6ddf75 2026-02-11) (from rustc 1.93.0 (254b59607 2026-01-19))
+2026-02-21T23:20:21.2231238Z 
+2026-02-21T23:20:21.2287788Z ##[group]Run rustup default stable
+2026-02-21T23:20:21.2288322Z [36;1mrustup default stable[0m
+2026-02-21T23:20:21.2319425Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-02-21T23:20:21.2319737Z env:
+2026-02-21T23:20:21.2319912Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:21.2320117Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:21.2320344Z ##[endgroup]
+2026-02-21T23:20:21.2423751Z info: using existing install for 'stable-x86_64-unknown-linux-gnu'
+2026-02-21T23:20:21.2715666Z info: default toolchain set to 'stable-x86_64-unknown-linux-gnu'
+2026-02-21T23:20:21.2718570Z 
+2026-02-21T23:20:21.2810734Z   stable-x86_64-unknown-linux-gnu unchanged - rustc 1.93.1 (01f6ddf75 2026-02-11)
+2026-02-21T23:20:21.2811893Z 
+2026-02-21T23:20:21.2853216Z ##[group]Run : create cachekey
+2026-02-21T23:20:21.2853498Z [36;1m: create cachekey[0m
+2026-02-21T23:20:21.2853989Z [36;1mDATE=$(rustc +stable --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')[0m
+2026-02-21T23:20:21.2854633Z [36;1mHASH=$(rustc +stable --version --verbose | sed -ne 's/^commit-hash: //p')[0m
+2026-02-21T23:20:21.2855145Z [36;1mecho "cachekey=$(echo $DATE$HASH | head -c12)" >> $GITHUB_OUTPUT[0m
+2026-02-21T23:20:21.2886357Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-02-21T23:20:21.2886679Z env:
+2026-02-21T23:20:21.2886850Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:21.2887358Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:21.2887593Z ##[endgroup]
+2026-02-21T23:20:21.3295520Z ##[group]Run : disable incremental compilation
+2026-02-21T23:20:21.3295870Z [36;1m: disable incremental compilation[0m
+2026-02-21T23:20:21.3296186Z [36;1mif [ -z "${CARGO_INCREMENTAL+set}" ]; then[0m
+2026-02-21T23:20:21.3296490Z [36;1m  echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV[0m
+2026-02-21T23:20:21.3296750Z [36;1mfi[0m
+2026-02-21T23:20:21.3328564Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-02-21T23:20:21.3328876Z env:
+2026-02-21T23:20:21.3329044Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:21.3329244Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:21.3329486Z ##[endgroup]
+2026-02-21T23:20:21.3399331Z ##[group]Run : enable colors in Cargo output
+2026-02-21T23:20:21.3399643Z [36;1m: enable colors in Cargo output[0m
+2026-02-21T23:20:21.3399935Z [36;1mif [ -z "${CARGO_TERM_COLOR+set}" ]; then[0m
+2026-02-21T23:20:21.3400252Z [36;1m  echo CARGO_TERM_COLOR=always >> $GITHUB_ENV[0m
+2026-02-21T23:20:21.3400513Z [36;1mfi[0m
+2026-02-21T23:20:21.3428096Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-02-21T23:20:21.3428424Z env:
+2026-02-21T23:20:21.3428594Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:21.3428820Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:21.3429054Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:21.3429242Z ##[endgroup]
+2026-02-21T23:20:21.3498751Z ##[group]Run : enable Cargo sparse registry
+2026-02-21T23:20:21.3499059Z [36;1m: enable Cargo sparse registry[0m
+2026-02-21T23:20:21.3499406Z [36;1m# implemented in 1.66, stabilized in 1.68, made default in 1.70[0m
+2026-02-21T23:20:21.3500111Z [36;1mif [ -z "${CARGO_REGISTRIES_CRATES_IO_PROTOCOL+set}" -o -f "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol ]; then[0m
+2026-02-21T23:20:21.3500810Z [36;1m  if rustc +stable --version --verbose | grep -q '^release: 1\.6[89]\.'; then[0m
+2026-02-21T23:20:21.3501362Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2026-02-21T23:20:21.3501873Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV[0m
+2026-02-21T23:20:21.3502346Z [36;1m  elif rustc +stable --version --verbose | grep -q '^release: 1\.6[67]\.'; then[0m
+2026-02-21T23:20:21.3502883Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2026-02-21T23:20:21.3503375Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git >> $GITHUB_ENV[0m
+2026-02-21T23:20:21.3503700Z [36;1m  fi[0m
+2026-02-21T23:20:21.3503865Z [36;1mfi[0m
+2026-02-21T23:20:21.3531896Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-02-21T23:20:21.3532376Z env:
+2026-02-21T23:20:21.3532545Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:21.3532744Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:21.3532977Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:21.3533165Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:21.3533362Z ##[endgroup]
+2026-02-21T23:20:21.3907421Z ##[group]Run : work around spurious network errors in curl 8.0
+2026-02-21T23:20:21.3907866Z [36;1m: work around spurious network errors in curl 8.0[0m
+2026-02-21T23:20:21.3908401Z [36;1m# https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation[0m
+2026-02-21T23:20:21.3908975Z [36;1mif rustc +stable --version --verbose | grep -q '^release: 1\.7[01]\.'; then[0m
+2026-02-21T23:20:21.3909404Z [36;1m  echo CARGO_HTTP_MULTIPLEXING=false >> $GITHUB_ENV[0m
+2026-02-21T23:20:21.3909677Z [36;1mfi[0m
+2026-02-21T23:20:21.3940962Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-02-21T23:20:21.3941267Z env:
+2026-02-21T23:20:21.3941460Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:21.3941659Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:21.3941887Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:21.3942073Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:21.3942269Z ##[endgroup]
+2026-02-21T23:20:21.4168669Z ##[group]Run rustc +stable --version --verbose
+2026-02-21T23:20:21.4169034Z [36;1mrustc +stable --version --verbose[0m
+2026-02-21T23:20:21.4200348Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-02-21T23:20:21.4200835Z env:
+2026-02-21T23:20:21.4201016Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:21.4201220Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:21.4201465Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:21.4201663Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:21.4201856Z ##[endgroup]
+2026-02-21T23:20:21.4450444Z rustc 1.93.1 (01f6ddf75 2026-02-11)
+2026-02-21T23:20:21.4450925Z binary: rustc
+2026-02-21T23:20:21.4451336Z commit-hash: 01f6ddf7588f42ae2d7eb0a2f21d44e8e96674cf
+2026-02-21T23:20:21.4451891Z commit-date: 2026-02-11
+2026-02-21T23:20:21.4452288Z host: x86_64-unknown-linux-gnu
+2026-02-21T23:20:21.4452659Z release: 1.93.1
+2026-02-21T23:20:21.4452955Z LLVM version: 21.1.8
+2026-02-21T23:20:21.5714621Z ##[group]Run actions/cache@v4
+2026-02-21T23:20:21.5714879Z with:
+2026-02-21T23:20:21.5715089Z   path: ~/.cargo/registry
+~/.cargo/git
+
+2026-02-21T23:20:21.5715551Z   key: Linux-cargo-registry-d3ac12c6075abf0f4dca2bad10030333ba5b4e1257f194d80b1796813566155f
+2026-02-21T23:20:21.5716031Z   restore-keys: Linux-cargo-registry-
+
+2026-02-21T23:20:21.5716289Z   enableCrossOsArchive: false
+2026-02-21T23:20:21.5716525Z   fail-on-cache-miss: false
+2026-02-21T23:20:21.5716733Z   lookup-only: false
+2026-02-21T23:20:21.5717803Z   save-always: false
+2026-02-21T23:20:21.5718029Z env:
+2026-02-21T23:20:21.5718206Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:21.5718423Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:21.5718648Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:21.5718849Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:21.5719039Z ##[endgroup]
+2026-02-21T23:20:21.8374999Z Cache not found for input keys: Linux-cargo-registry-d3ac12c6075abf0f4dca2bad10030333ba5b4e1257f194d80b1796813566155f, Linux-cargo-registry-
+2026-02-21T23:20:22.0003026Z ##[group]Run actions/cache@v4
+2026-02-21T23:20:22.0003477Z with:
+2026-02-21T23:20:22.0003841Z   path: target
+~/.cargo/registry
+~/.cargo/git
+
+2026-02-21T23:20:22.0004738Z   key: Linux-cargo-build-d3ac12c6075abf0f4dca2bad10030333ba5b4e1257f194d80b1796813566155f
+2026-02-21T23:20:22.0005603Z   restore-keys: Linux-cargo-build-
+
+2026-02-21T23:20:22.0006040Z   enableCrossOsArchive: false
+2026-02-21T23:20:22.0006449Z   fail-on-cache-miss: false
+2026-02-21T23:20:22.0006827Z   lookup-only: false
+2026-02-21T23:20:22.0008967Z   save-always: false
+2026-02-21T23:20:22.0009306Z env:
+2026-02-21T23:20:22.0009600Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:22.0009969Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:22.0010401Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:22.0010748Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:22.0011525Z ##[endgroup]
+2026-02-21T23:20:22.2770472Z Cache not found for input keys: Linux-cargo-build-d3ac12c6075abf0f4dca2bad10030333ba5b4e1257f194d80b1796813566155f, Linux-cargo-build-
+2026-02-21T23:20:22.2856402Z ##[group]Run rm -rf ~/.cargo/registry/src/*/cryptotechnolog-* || true
+2026-02-21T23:20:22.2857570Z [36;1mrm -rf ~/.cargo/registry/src/*/cryptotechnolog-* || true[0m
+2026-02-21T23:20:22.2858386Z [36;1mrm -rf ~/.cargo/registry/index/github.com-*/cryptotechnolog-* || true[0m
+2026-02-21T23:20:22.2891384Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:20:22.2891615Z env:
+2026-02-21T23:20:22.2891787Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:22.2891993Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:22.2892248Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:22.2892444Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:22.2892798Z ##[endgroup]
+2026-02-21T23:20:22.3001490Z ##[group]Run echo "=== Pre-building local workspace members ==="
+2026-02-21T23:20:22.3001939Z [36;1mecho "=== Pre-building local workspace members ==="[0m
+2026-02-21T23:20:22.3002360Z [36;1mcargo build --package cryptotechnolog-audit-chain --lib[0m
+2026-02-21T23:20:22.3002766Z [36;1mcargo build --package cryptotechnolog-common --lib[0m
+2026-02-21T23:20:22.3033112Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:20:22.3033329Z env:
+2026-02-21T23:20:22.3033494Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:22.3033704Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:22.3033942Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:22.3034135Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:22.3034338Z ##[endgroup]
+2026-02-21T23:20:22.3084737Z === Pre-building local workspace members ===
+2026-02-21T23:20:22.3829568Z [1m[92m    Updating[0m crates.io index
+2026-02-21T23:20:22.8871117Z [1m[92m Downloading[0m crates ...
+2026-02-21T23:20:22.9286481Z [1m[92m  Downloaded[0m errno v0.3.14
+2026-02-21T23:20:22.9321347Z [1m[92m  Downloaded[0m cfg-if v1.0.4
+2026-02-21T23:20:22.9345837Z [1m[92m  Downloaded[0m hex v0.4.3
+2026-02-21T23:20:22.9379979Z [1m[92m  Downloaded[0m tracing-attributes v0.1.31
+2026-02-21T23:20:22.9441195Z [1m[92m  Downloaded[0m thiserror-impl v1.0.69
+2026-02-21T23:20:22.9490493Z [1m[92m  Downloaded[0m typenum v1.19.0
+2026-02-21T23:20:22.9583229Z [1m[92m  Downloaded[0m uuid v1.6.1
+2026-02-21T23:20:22.9668541Z [1m[92m  Downloaded[0m version_check v0.9.5
+2026-02-21T23:20:22.9704158Z [1m[92m  Downloaded[0m serde_json v1.0.149
+2026-02-21T23:20:22.9830571Z [1m[92m  Downloaded[0m syn v2.0.117
+2026-02-21T23:20:23.0009045Z [1m[92m  Downloaded[0m unicode-ident v1.0.24
+2026-02-21T23:20:23.0060085Z [1m[92m  Downloaded[0m tracing v0.1.44
+2026-02-21T23:20:23.0337430Z [1m[92m  Downloaded[0m signal-hook-registry v1.4.8
+2026-02-21T23:20:23.0360365Z [1m[92m  Downloaded[0m tokio-macros v2.6.0
+2026-02-21T23:20:23.0377675Z [1m[92m  Downloaded[0m memchr v2.8.0
+2026-02-21T23:20:23.0466136Z [1m[92m  Downloaded[0m socket2 v0.6.2
+2026-02-21T23:20:23.0493923Z [1m[92m  Downloaded[0m pin-project-lite v0.2.16
+2026-02-21T23:20:23.0585678Z [1m[92m  Downloaded[0m parking_lot_core v0.9.12
+2026-02-21T23:20:23.0623179Z [1m[92m  Downloaded[0m once_cell v1.21.3
+2026-02-21T23:20:23.0663062Z [1m[92m  Downloaded[0m libc v0.2.182
+2026-02-21T23:20:23.1088743Z [1m[92m  Downloaded[0m digest v0.10.7
+2026-02-21T23:20:23.1108722Z [1m[92m  Downloaded[0m parking_lot v0.12.5
+2026-02-21T23:20:23.1136690Z [1m[92m  Downloaded[0m num-traits v0.2.19
+2026-02-21T23:20:23.1163252Z [1m[92m  Downloaded[0m tokio v1.49.0
+2026-02-21T23:20:23.1596468Z [1m[92m  Downloaded[0m zmij v1.0.21
+2026-02-21T23:20:23.1615191Z [1m[92m  Downloaded[0m bytes v1.11.1
+2026-02-21T23:20:23.1656808Z [1m[92m  Downloaded[0m itoa v1.0.17
+2026-02-21T23:20:23.1671966Z [1m[92m  Downloaded[0m serde_core v1.0.228
+2026-02-21T23:20:23.1699279Z [1m[92m  Downloaded[0m proc-macro2 v1.0.106
+2026-02-21T23:20:23.1728768Z [1m[92m  Downloaded[0m chrono v0.4.43
+2026-02-21T23:20:23.1796247Z [1m[92m  Downloaded[0m generic-array v0.14.7
+2026-02-21T23:20:23.1810528Z [1m[92m  Downloaded[0m mio v1.1.1
+2026-02-21T23:20:23.1873897Z [1m[92m  Downloaded[0m crypto-common v0.1.7
+2026-02-21T23:20:23.1883130Z [1m[92m  Downloaded[0m cpufeatures v0.2.17
+2026-02-21T23:20:23.1896616Z [1m[92m  Downloaded[0m autocfg v1.5.0
+2026-02-21T23:20:23.1915678Z [1m[92m  Downloaded[0m tracing-core v0.1.36
+2026-02-21T23:20:23.1945066Z [1m[92m  Downloaded[0m serde_derive v1.0.228
+2026-02-21T23:20:23.1974906Z [1m[92m  Downloaded[0m serde v1.0.228
+2026-02-21T23:20:23.2009458Z [1m[92m  Downloaded[0m iana-time-zone v0.1.65
+2026-02-21T23:20:23.2037649Z [1m[92m  Downloaded[0m thiserror v1.0.69
+2026-02-21T23:20:23.2092736Z [1m[92m  Downloaded[0m smallvec v1.15.1
+2026-02-21T23:20:23.2114141Z [1m[92m  Downloaded[0m sha2 v0.10.9
+2026-02-21T23:20:23.2139883Z [1m[92m  Downloaded[0m quote v1.0.44
+2026-02-21T23:20:23.2166633Z [1m[92m  Downloaded[0m lock_api v0.4.14
+2026-02-21T23:20:23.2179672Z [1m[92m  Downloaded[0m scopeguard v1.2.0
+2026-02-21T23:20:23.2191357Z [1m[92m  Downloaded[0m getrandom v0.2.17
+2026-02-21T23:20:23.2219966Z [1m[92m  Downloaded[0m block-buffer v0.10.4
+2026-02-21T23:20:23.2473915Z [1m[92m   Compiling[0m proc-macro2 v1.0.106
+2026-02-21T23:20:23.2474744Z [1m[92m   Compiling[0m unicode-ident v1.0.24
+2026-02-21T23:20:23.3062832Z [1m[92m   Compiling[0m quote v1.0.44
+2026-02-21T23:20:23.6028472Z [1m[92m   Compiling[0m libc v0.2.182
+2026-02-21T23:20:24.4448932Z [1m[92m   Compiling[0m syn v2.0.117
+2026-02-21T23:20:24.7760989Z [1m[92m   Compiling[0m version_check v0.9.5
+2026-02-21T23:20:25.0011898Z [1m[92m   Compiling[0m typenum v1.19.0
+2026-02-21T23:20:25.2172385Z [1m[92m   Compiling[0m serde_core v1.0.228
+2026-02-21T23:20:25.4321803Z [1m[92m   Compiling[0m generic-array v0.14.7
+2026-02-21T23:20:25.5250978Z [1m[92m   Compiling[0m cfg-if v1.0.4
+2026-02-21T23:20:28.5377862Z [1m[92m   Compiling[0m serde v1.0.228
+2026-02-21T23:20:29.2866291Z [1m[92m   Compiling[0m serde_derive v1.0.228
+2026-02-21T23:20:29.3008251Z [1m[92m   Compiling[0m parking_lot_core v0.9.12
+2026-02-21T23:20:29.4272682Z [1m[92m   Compiling[0m autocfg v1.5.0
+2026-02-21T23:20:29.7447626Z [1m[92m   Compiling[0m num-traits v0.2.19
+2026-02-21T23:20:29.8451307Z [1m[92m   Compiling[0m zmij v1.0.21
+2026-02-21T23:20:29.9908034Z [1m[92m   Compiling[0m scopeguard v1.2.0
+2026-02-21T23:20:30.0321708Z [1m[92m   Compiling[0m smallvec v1.15.1
+2026-02-21T23:20:30.4024677Z [1m[92m   Compiling[0m lock_api v0.4.14
+2026-02-21T23:20:30.6640683Z [1m[92m   Compiling[0m crypto-common v0.1.7
+2026-02-21T23:20:30.7237248Z [1m[92m   Compiling[0m block-buffer v0.10.4
+2026-02-21T23:20:30.7964082Z [1m[92m   Compiling[0m errno v0.3.14
+2026-02-21T23:20:30.8798623Z [1m[92m   Compiling[0m pin-project-lite v0.2.16
+2026-02-21T23:20:30.9206235Z [1m[92m   Compiling[0m once_cell v1.21.3
+2026-02-21T23:20:31.0650310Z [1m[92m   Compiling[0m serde_json v1.0.149
+2026-02-21T23:20:31.1606095Z [1m[92m   Compiling[0m thiserror v1.0.69
+2026-02-21T23:20:31.3931381Z [1m[92m   Compiling[0m tracing-core v0.1.36
+2026-02-21T23:20:32.0079482Z [1m[92m   Compiling[0m signal-hook-registry v1.4.8
+2026-02-21T23:20:32.2993865Z [1m[92m   Compiling[0m digest v0.10.7
+2026-02-21T23:20:33.1349885Z [1m[92m   Compiling[0m parking_lot v0.12.5
+2026-02-21T23:20:33.2424649Z [1m[92m   Compiling[0m tokio-macros v2.6.0
+2026-02-21T23:20:33.5399951Z [1m[92m   Compiling[0m thiserror-impl v1.0.69
+2026-02-21T23:20:33.7773212Z [1m[92m   Compiling[0m tracing-attributes v0.1.31
+2026-02-21T23:20:34.6076145Z [1m[92m   Compiling[0m getrandom v0.2.17
+2026-02-21T23:20:34.7292688Z [1m[92m   Compiling[0m socket2 v0.6.2
+2026-02-21T23:20:34.9259493Z [1m[92m   Compiling[0m mio v1.1.1
+2026-02-21T23:20:35.2537262Z [1m[92m   Compiling[0m itoa v1.0.17
+2026-02-21T23:20:35.3790228Z [1m[92m   Compiling[0m cpufeatures v0.2.17
+2026-02-21T23:20:35.4107275Z [1m[92m   Compiling[0m iana-time-zone v0.1.65
+2026-02-21T23:20:35.4408679Z [1m[92m   Compiling[0m bytes v1.11.1
+2026-02-21T23:20:35.6299866Z [1m[92m   Compiling[0m memchr v2.8.0
+2026-02-21T23:20:36.3860490Z [1m[92m   Compiling[0m tokio v1.49.0
+2026-02-21T23:20:37.4452625Z [1m[92m   Compiling[0m chrono v0.4.43
+2026-02-21T23:20:39.3162215Z [1m[92m   Compiling[0m sha2 v0.10.9
+2026-02-21T23:20:39.6849095Z [1m[92m   Compiling[0m tracing v0.1.44
+2026-02-21T23:20:39.8709011Z [1m[92m   Compiling[0m uuid v1.6.1
+2026-02-21T23:20:40.1954566Z [1m[92m   Compiling[0m hex v0.4.3
+2026-02-21T23:20:40.6663684Z [1m[92m   Compiling[0m cryptotechnolog-audit-chain v0.1.0 (/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/audit-chain)
+2026-02-21T23:20:42.3340991Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 19.98s
+2026-02-21T23:20:42.4596758Z [1m[92m Downloading[0m crates ...
+2026-02-21T23:20:42.4946518Z [1m[92m  Downloaded[0m anyhow v1.0.102
+2026-02-21T23:20:42.5095082Z [1m[92m   Compiling[0m syn v2.0.117
+2026-02-21T23:20:42.5098162Z [1m[92m   Compiling[0m libc v0.2.182
+2026-02-21T23:20:43.6902777Z [1m[92m   Compiling[0m anyhow v1.0.102
+2026-02-21T23:20:43.9242737Z [1m[92m   Compiling[0m getrandom v0.2.17
+2026-02-21T23:20:44.6272842Z [1m[92m   Compiling[0m serde_derive v1.0.228
+2026-02-21T23:20:44.6275257Z [1m[92m   Compiling[0m thiserror-impl v1.0.69
+2026-02-21T23:20:45.6819134Z [1m[92m   Compiling[0m thiserror v1.0.69
+2026-02-21T23:20:46.8053152Z [1m[92m   Compiling[0m serde v1.0.228
+2026-02-21T23:20:47.1195464Z [1m[92m   Compiling[0m hex v0.4.3
+2026-02-21T23:20:47.1793222Z [1m[92m   Compiling[0m uuid v1.6.1
+2026-02-21T23:20:47.3430333Z [1m[92m   Compiling[0m chrono v0.4.43
+2026-02-21T23:20:48.1051377Z [1m[92m   Compiling[0m cryptotechnolog-common v0.1.0 (/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/common)
+2026-02-21T23:20:48.5039641Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 6.08s
+2026-02-21T23:20:48.5157687Z ##[group]Run echo "Current directory: $(pwd)"
+2026-02-21T23:20:48.5158090Z [36;1mecho "Current directory: $(pwd)"[0m
+2026-02-21T23:20:48.5158496Z [36;1mecho "Root Cargo.toml exists: $(test -f Cargo.toml && echo yes || echo no)"[0m
+2026-02-21T23:20:48.5158919Z [36;1mecho "Root Cargo.toml content (members):"[0m
+2026-02-21T23:20:48.5159285Z [36;1mgrep -A10 "members" Cargo.toml || echo "No members found"[0m
+2026-02-21T23:20:48.5159637Z [36;1mecho "Listing rust_components/crates/:"[0m
+2026-02-21T23:20:48.5159938Z [36;1mls -la rust_components/crates/[0m
+2026-02-21T23:20:48.5160205Z [36;1mecho "Listing audit-chain content:"[0m
+2026-02-21T23:20:48.5160497Z [36;1mls -la rust_components/crates/audit-chain/[0m
+2026-02-21T23:20:48.5160777Z [36;1mecho "Listing audit-chain/src:"[0m
+2026-02-21T23:20:48.5161132Z [36;1mls -la rust_components/crates/audit-chain/src/ || echo "src not found"[0m
+2026-02-21T23:20:48.5161586Z [36;1mecho "Attempting to build audit-chain directly:"[0m
+2026-02-21T23:20:48.5162096Z [36;1mcargo build --manifest-path rust_components/crates/audit-chain/Cargo.toml || echo "Build failed"[0m
+2026-02-21T23:20:48.5162650Z [36;1mecho "Checking if audit-chain appears in cargo metadata:"[0m
+2026-02-21T23:20:48.5163252Z [36;1mcargo metadata --format-version=1 | grep -o '"name":"cryptotechnolog-audit-chain"' || echo "Not found in metadata"[0m
+2026-02-21T23:20:48.5194761Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:20:48.5194984Z env:
+2026-02-21T23:20:48.5195149Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:48.5195354Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:48.5195593Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:48.5195783Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:48.5195984Z ##[endgroup]
+2026-02-21T23:20:48.5251566Z Current directory: /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:20:48.5257378Z Root Cargo.toml exists: yes
+2026-02-21T23:20:48.5259508Z Root Cargo.toml content (members):
+2026-02-21T23:20:48.5270578Z members = [
+2026-02-21T23:20:48.5272791Z     "rust_components/crates/common",
+2026-02-21T23:20:48.5273257Z     "rust_components/crates/eventbus",
+2026-02-21T23:20:48.5275293Z     "rust_components/crates/risk-ledger",
+2026-02-21T23:20:48.5278638Z     "rust_components/crates/audit-chain",
+2026-02-21T23:20:48.5279148Z     "rust_components/crates/execution-core",
+2026-02-21T23:20:48.5279613Z     "rust_components/crates/ffi",
+2026-02-21T23:20:48.5280002Z ]
+2026-02-21T23:20:48.5280158Z 
+2026-02-21T23:20:48.5280304Z # Workspace package metadata
+2026-02-21T23:20:48.5280710Z [workspace.package]
+2026-02-21T23:20:48.5281083Z Listing rust_components/crates/:
+2026-02-21T23:20:48.5289084Z total 32
+2026-02-21T23:20:48.5290644Z drwxr-xr-x 8 runner runner 4096 Feb 21 23:19 .
+2026-02-21T23:20:48.5291411Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:19 ..
+2026-02-21T23:20:48.5294767Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:19 audit-chain
+2026-02-21T23:20:48.5295364Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:19 common
+2026-02-21T23:20:48.5295911Z drwxr-xr-x 4 runner runner 4096 Feb 21 23:19 eventbus
+2026-02-21T23:20:48.5296602Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:19 execution-core
+2026-02-21T23:20:48.5303210Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:19 ffi
+2026-02-21T23:20:48.5303792Z drwxr-xr-x 4 runner runner 4096 Feb 21 23:19 risk-ledger
+2026-02-21T23:20:48.5304310Z Listing audit-chain content:
+2026-02-21T23:20:48.5307716Z total 16
+2026-02-21T23:20:48.5308277Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:19 .
+2026-02-21T23:20:48.5309148Z drwxr-xr-x 8 runner runner 4096 Feb 21 23:19 ..
+2026-02-21T23:20:48.5310258Z -rw-r--r-- 1 runner runner  837 Feb 21 23:19 Cargo.toml
+2026-02-21T23:20:48.5311511Z drwxr-xr-x 2 runner runner 4096 Feb 21 23:19 src
+2026-02-21T23:20:48.5312173Z Listing audit-chain/src:
+2026-02-21T23:20:48.5324083Z total 24
+2026-02-21T23:20:48.5324658Z drwxr-xr-x 2 runner runner 4096 Feb 21 23:19 .
+2026-02-21T23:20:48.5325460Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:19 ..
+2026-02-21T23:20:48.5326608Z -rw-r--r-- 1 runner runner 8960 Feb 21 23:19 audit.rs
+2026-02-21T23:20:48.5327649Z -rw-r--r-- 1 runner runner  676 Feb 21 23:19 lib.rs
+2026-02-21T23:20:48.5328394Z Attempting to build audit-chain directly:
+2026-02-21T23:20:48.6339975Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+2026-02-21T23:20:48.6395647Z Checking if audit-chain appears in cargo metadata:
+2026-02-21T23:20:48.7289818Z [1m[92m Downloading[0m crates ...
+2026-02-21T23:20:48.7761765Z [1m[92m  Downloaded[0m android_system_properties v0.1.5
+2026-02-21T23:20:48.7798519Z [1m[92m  Downloaded[0m async-trait v0.1.89
+2026-02-21T23:20:48.7862950Z [1m[92m  Downloaded[0m same-file v1.0.6
+2026-02-21T23:20:48.7921665Z [1m[92m  Downloaded[0m windows-strings v0.5.1
+2026-02-21T23:20:48.7954083Z [1m[92m  Downloaded[0m redis v0.24.0
+2026-02-21T23:20:48.8058744Z [1m[92m  Downloaded[0m regex v1.12.3
+2026-02-21T23:20:48.8133764Z [1m[92m  Downloaded[0m idna v1.1.0
+2026-02-21T23:20:48.8183022Z [1m[92m  Downloaded[0m windows-interface v0.59.3
+2026-02-21T23:20:48.8206034Z [1m[92m  Downloaded[0m zmq-sys v0.12.0
+2026-02-21T23:20:48.8218775Z [1m[92m  Downloaded[0m zerofrom v0.1.6
+2026-02-21T23:20:48.8229306Z [1m[92m  Downloaded[0m windows-implement v0.60.2
+2026-02-21T23:20:48.8244617Z [1m[92m  Downloaded[0m windows-result v0.4.1
+2026-02-21T23:20:48.8259355Z [1m[92m  Downloaded[0m winapi-util v0.1.11
+2026-02-21T23:20:48.8283192Z [1m[92m  Downloaded[0m yoke-derive v0.8.1
+2026-02-21T23:20:48.8294469Z [1m[92m  Downloaded[0m yoke v0.8.1
+2026-02-21T23:20:48.8313321Z [1m[92m  Downloaded[0m form_urlencoded v1.2.2
+2026-02-21T23:20:48.8324595Z [1m[92m  Downloaded[0m is-terminal v0.4.17
+2026-02-21T23:20:48.8340486Z [1m[92m  Downloaded[0m zerofrom-derive v0.1.6
+2026-02-21T23:20:48.8353671Z [1m[92m  Downloaded[0m windows-link v0.2.1
+2026-02-21T23:20:48.8363310Z [1m[92m  Downloaded[0m ciborium-ll v0.2.2
+2026-02-21T23:20:48.8382730Z [1m[92m  Downloaded[0m wasip2 v1.0.2+wasi-0.2.9
+2026-02-21T23:20:48.8436452Z [1m[92m  Downloaded[0m windows-targets v0.53.5
+2026-02-21T23:20:48.8456533Z [1m[92m  Downloaded[0m utf8_iter v1.0.4
+2026-02-21T23:20:48.8477733Z [1m[92m  Downloaded[0m zerovec-derive v0.11.2
+2026-02-21T23:20:48.8502038Z [1m[92m  Downloaded[0m tokio-stream v0.1.18
+2026-02-21T23:20:48.8563781Z [1m[92m  Downloaded[0m indexmap v2.13.0
+2026-02-21T23:20:48.8614323Z [1m[92m  Downloaded[0m wasm-bindgen-macro-support v0.2.110
+2026-02-21T23:20:48.8649670Z [1m[92m  Downloaded[0m url v2.5.8
+2026-02-21T23:20:48.8680305Z [1m[92m  Downloaded[0m zmq v0.10.0
+2026-02-21T23:20:48.8758670Z [1m[92m  Downloaded[0m zerotrie v0.2.3
+2026-02-21T23:20:48.8801981Z [1m[92m  Downloaded[0m wasm-bindgen v0.2.110
+2026-02-21T23:20:48.8836844Z [1m[92m  Downloaded[0m toml_edit v0.22.27
+2026-02-21T23:20:48.8888975Z [1m[92m  Downloaded[0m zerovec v0.11.5
+2026-02-21T23:20:48.8951036Z [1m[92m  Downloaded[0m zerocopy-derive v0.8.39
+2026-02-21T23:20:48.9058956Z [1m[92m  Downloaded[0m wit-bindgen v0.51.0
+2026-02-21T23:20:48.9100264Z [1m[92m  Downloaded[0m tokio-util v0.7.18
+2026-02-21T23:20:48.9183383Z [1m[92m  Downloaded[0m winnow v0.7.14
+2026-02-21T23:20:48.9290929Z [1m[92m  Downloaded[0m toml v0.8.23
+2026-02-21T23:20:48.9322790Z [1m[92m  Downloaded[0m rayon v1.11.0
+2026-02-21T23:20:48.9422824Z [1m[92m  Downloaded[0m regex-syntax v0.8.9
+2026-02-21T23:20:48.9499400Z [1m[92m  Downloaded[0m combine v4.6.7
+2026-02-21T23:20:48.9564503Z [1m[92m  Downloaded[0m zerocopy v0.8.39
+2026-02-21T23:20:48.9891680Z [1m[92m  Downloaded[0m socket2 v0.4.10
+2026-02-21T23:20:48.9918426Z [1m[92m  Downloaded[0m portable-atomic v1.13.1
+2026-02-21T23:20:49.0008558Z [1m[92m  Downloaded[0m target-lexicon v0.12.16
+2026-02-21T23:20:49.0036425Z [1m[92m  Downloaded[0m system-deps v6.2.2
+2026-02-21T23:20:49.0065345Z [1m[92m  Downloaded[0m plotters v0.3.7
+2026-02-21T23:20:49.0173187Z [1m[92m  Downloaded[0m itertools v0.10.5
+2026-02-21T23:20:49.0246833Z [1m[92m  Downloaded[0m jemalloc-sys v0.5.4+5.3.0-patched
+2026-02-21T23:20:49.0646363Z [1m[92m  Downloaded[0m windows_aarch64_gnullvm v0.53.1
+2026-02-21T23:20:49.0767561Z [1m[92m  Downloaded[0m regex-automata v0.4.14
+2026-02-21T23:20:49.0913737Z [1m[92m  Downloaded[0m cc v1.2.56
+2026-02-21T23:20:49.0949924Z [1m[92m  Downloaded[0m tinytemplate v1.2.1
+2026-02-21T23:20:49.0980546Z [1m[92m  Downloaded[0m tinystr v0.8.2
+2026-02-21T23:20:49.1006226Z [1m[92m  Downloaded[0m rayon-core v1.13.0
+2026-02-21T23:20:49.1049582Z [1m[92m  Downloaded[0m pyo3 v0.28.2
+2026-02-21T23:20:49.1349699Z [1m[92m  Downloaded[0m js-sys v0.3.87
+2026-02-21T23:20:49.1377854Z [1m[92m  Downloaded[0m windows-core v0.62.2
+2026-02-21T23:20:49.1413197Z [1m[92m  Downloaded[0m wasi v0.11.1+wasi-snapshot-preview1
+2026-02-21T23:20:49.1433539Z [1m[92m  Downloaded[0m walkdir v2.5.0
+2026-02-21T23:20:49.1457922Z [1m[92m  Downloaded[0m windows_x86_64_gnullvm v0.53.1
+2026-02-21T23:20:49.1576330Z [1m[92m  Downloaded[0m toml_datetime v0.6.11
+2026-02-21T23:20:49.1591677Z [1m[92m  Downloaded[0m web-sys v0.3.87
+2026-02-21T23:20:49.2745149Z [1m[92m  Downloaded[0m synstructure v0.13.2
+2026-02-21T23:20:49.2758695Z [1m[92m  Downloaded[0m shlex v1.3.0
+2026-02-21T23:20:49.2775393Z [1m[92m  Downloaded[0m pin-project v1.1.10
+2026-02-21T23:20:49.2917989Z [1m[92m  Downloaded[0m hashbrown v0.16.1
+2026-02-21T23:20:49.2982235Z [1m[92m  Downloaded[0m crossbeam-deque v0.8.6
+2026-02-21T23:20:49.3001334Z [1m[92m  Downloaded[0m clap v4.5.60
+2026-02-21T23:20:49.3101070Z [1m[92m  Downloaded[0m cfg-expr v0.15.8
+2026-02-21T23:20:49.3139286Z [1m[92m  Downloaded[0m windows_x86_64_msvc v0.53.1
+2026-02-21T23:20:49.3262017Z [1m[92m  Downloaded[0m tokio-test v0.4.5
+2026-02-21T23:20:49.3280805Z [1m[92m  Downloaded[0m ryu v1.0.23
+2026-02-21T23:20:49.3317920Z [1m[92m  Downloaded[0m pyo3-ffi v0.28.2
+2026-02-21T23:20:49.3395714Z [1m[92m  Downloaded[0m zeromq-src v0.2.6+4.3.4
+2026-02-21T23:20:49.4241567Z [1m[92m  Downloaded[0m windows_i686_msvc v0.53.1
+2026-02-21T23:20:49.4370780Z [1m[92m  Downloaded[0m windows_i686_gnu v0.53.1
+2026-02-21T23:20:49.4568332Z [1m[92m  Downloaded[0m windows_aarch64_msvc v0.53.1
+2026-02-21T23:20:49.4693401Z [1m[92m  Downloaded[0m windows_x86_64_gnu v0.53.1
+2026-02-21T23:20:49.4880122Z [1m[92m  Downloaded[0m windows_i686_gnullvm v0.53.1
+2026-02-21T23:20:49.5002994Z [1m[92m  Downloaded[0m oorandom v11.1.5
+2026-02-21T23:20:49.5014532Z [1m[92m  Downloaded[0m litemap v0.8.1
+2026-02-21T23:20:49.5039811Z [1m[92m  Downloaded[0m jwalk v0.8.1
+2026-02-21T23:20:49.5072048Z [1m[92m  Downloaded[0m futures-channel v0.3.32
+2026-02-21T23:20:49.5094136Z [1m[92m  Downloaded[0m futures v0.3.32
+2026-02-21T23:20:49.5145563Z [1m[92m  Downloaded[0m find-msvc-tools v0.1.9
+2026-02-21T23:20:49.5162835Z [1m[92m  Downloaded[0m either v1.15.0
+2026-02-21T23:20:49.5179851Z [1m[92m  Downloaded[0m ciborium v0.2.2
+2026-02-21T23:20:49.5206658Z [1m[92m  Downloaded[0m tokio-retry v0.3.0
+2026-02-21T23:20:49.5222538Z [1m[92m  Downloaded[0m rand_core v0.6.4
+2026-02-21T23:20:49.5237926Z [1m[92m  Downloaded[0m ppv-lite86 v0.2.21
+2026-02-21T23:20:49.5253434Z [1m[92m  Downloaded[0m pin-project-internal v1.1.10
+2026-02-21T23:20:49.5270346Z [1m[92m  Downloaded[0m winapi v0.3.9
+2026-02-21T23:20:49.5666348Z [1m[92m  Downloaded[0m idna_adapter v1.2.1
+2026-02-21T23:20:49.5676294Z [1m[92m  Downloaded[0m crossbeam v0.8.4
+2026-02-21T23:20:49.5690119Z [1m[92m  Downloaded[0m sha1_smol v1.0.1
+2026-02-21T23:20:49.5707260Z [1m[92m  Downloaded[0m plotters-backend v0.3.7
+2026-02-21T23:20:49.5721394Z [1m[92m  Downloaded[0m pkg-config v0.3.32
+2026-02-21T23:20:49.5739878Z [1m[92m  Downloaded[0m writeable v0.6.2
+2026-02-21T23:20:49.5760016Z [1m[92m  Downloaded[0m wasm-bindgen-macro v0.2.110
+2026-02-21T23:20:49.5770757Z [1m[92m  Downloaded[0m wasm-bindgen-shared v0.2.110
+2026-02-21T23:20:49.5783484Z [1m[92m  Downloaded[0m version-compare v0.2.1
+2026-02-21T23:20:49.5798467Z [1m[92m  Downloaded[0m target-lexicon v0.13.5
+2026-02-21T23:20:49.5817531Z [1m[92m  Downloaded[0m slab v0.4.12
+2026-02-21T23:20:49.5831981Z [1m[92m  Downloaded[0m percent-encoding v2.3.2
+2026-02-21T23:20:49.5841504Z [1m[92m  Downloaded[0m criterion-plot v0.5.0
+2026-02-21T23:20:49.5861944Z [1m[92m  Downloaded[0m cast v0.3.0
+2026-02-21T23:20:49.5878377Z [1m[92m  Downloaded[0m icu_provider v2.1.1
+2026-02-21T23:20:49.5906366Z [1m[92m  Downloaded[0m icu_collections v2.1.1
+2026-02-21T23:20:49.5973639Z [1m[92m  Downloaded[0m hermit-abi v0.5.2
+2026-02-21T23:20:49.5989141Z [1m[92m  Downloaded[0m crunchy v0.2.4
+2026-02-21T23:20:49.6002368Z [1m[92m  Downloaded[0m crossbeam-channel v0.5.15
+2026-02-21T23:20:49.6068126Z [1m[92m  Downloaded[0m rand v0.8.5
+2026-02-21T23:20:49.6119270Z [1m[92m  Downloaded[0m r-efi v5.3.0
+2026-02-21T23:20:49.6197839Z [1m[92m  Downloaded[0m pyo3-macros v0.28.2
+2026-02-21T23:20:49.6213972Z [1m[92m  Downloaded[0m futures-sink v0.3.32
+2026-02-21T23:20:49.6228353Z [1m[92m  Downloaded[0m futures-macro v0.3.32
+2026-02-21T23:20:49.6238650Z [1m[92m  Downloaded[0m futures-executor v0.3.32
+2026-02-21T23:20:49.6279152Z [1m[92m  Downloaded[0m crossbeam-queue v0.3.12
+2026-02-21T23:20:49.6279791Z [1m[92m  Downloaded[0m criterion v0.5.1
+2026-02-21T23:20:49.6391651Z [1m[92m  Downloaded[0m core-foundation-sys v0.8.7
+2026-02-21T23:20:49.6438855Z [1m[92m  Downloaded[0m plotters-svg v0.3.7
+2026-02-21T23:20:49.6449988Z [1m[92m  Downloaded[0m icu_properties_data v2.1.2
+2026-02-21T23:20:49.6563045Z [1m[92m  Downloaded[0m icu_properties v2.1.2
+2026-02-21T23:20:49.6585567Z [1m[92m  Downloaded[0m icu_locale_core v2.1.1
+2026-02-21T23:20:49.6654565Z [1m[92m  Downloaded[0m half v2.7.1
+2026-02-21T23:20:49.6681991Z [1m[92m  Downloaded[0m futures-util v0.3.32
+2026-02-21T23:20:49.6816121Z [1m[92m  Downloaded[0m futures-io v0.3.32
+2026-02-21T23:20:49.6825388Z [1m[92m  Downloaded[0m crossbeam-utils v0.8.21
+2026-02-21T23:20:49.6854394Z [1m[92m  Downloaded[0m clap_builder v4.5.60
+2026-02-21T23:20:49.6919372Z [1m[92m  Downloaded[0m ciborium-io v0.2.2
+2026-02-21T23:20:49.6928221Z [1m[92m  Downloaded[0m bumpalo v3.20.2
+2026-02-21T23:20:49.6955904Z [1m[92m  Downloaded[0m bitflags v2.11.0
+2026-02-21T23:20:49.6999349Z [1m[92m  Downloaded[0m arc-swap v1.8.2
+2026-02-21T23:20:49.7040336Z [1m[92m  Downloaded[0m anstyle v1.0.13
+2026-02-21T23:20:49.7055701Z [1m[92m  Downloaded[0m aho-corasick v1.1.4
+2026-02-21T23:20:49.7110550Z [1m[92m  Downloaded[0m stable_deref_trait v1.2.1
+2026-02-21T23:20:49.7120605Z [1m[92m  Downloaded[0m serde_spanned v0.6.9
+2026-02-21T23:20:49.7131745Z [1m[92m  Downloaded[0m rustversion v1.0.22
+2026-02-21T23:20:49.7161073Z [1m[92m  Downloaded[0m redox_syscall v0.5.18
+2026-02-21T23:20:49.7186516Z [1m[92m  Downloaded[0m rand_chacha v0.3.1
+2026-02-21T23:20:49.7198957Z [1m[92m  Downloaded[0m pyo3-macros-backend v0.28.2
+2026-02-21T23:20:49.7228080Z [1m[92m  Downloaded[0m pyo3-build-config v0.28.2
+2026-02-21T23:20:49.7242404Z [1m[92m  Downloaded[0m pyo3-async-runtimes v0.28.0
+2026-02-21T23:20:49.7279083Z [1m[92m  Downloaded[0m log v0.4.29
+2026-02-21T23:20:49.7304131Z [1m[92m  Downloaded[0m jobserver v0.1.34
+2026-02-21T23:20:49.7325769Z [1m[92m  Downloaded[0m icu_normalizer_data v2.1.1
+2026-02-21T23:20:49.7347281Z [1m[92m  Downloaded[0m icu_normalizer v2.1.1
+2026-02-21T23:20:49.7382800Z [1m[92m  Downloaded[0m getrandom v0.3.4
+2026-02-21T23:20:49.7417115Z [1m[92m  Downloaded[0m dircpy v0.3.19
+2026-02-21T23:20:49.7431198Z [1m[92m  Downloaded[0m crossbeam-epoch v0.9.18
+2026-02-21T23:20:49.7455972Z [1m[92m  Downloaded[0m bitflags v1.3.2
+2026-02-21T23:20:49.7489536Z [1m[92m  Downloaded[0m anes v0.1.6
+2026-02-21T23:20:49.7517757Z [1m[92m  Downloaded[0m potential_utf v0.1.4
+2026-02-21T23:20:49.7528689Z [1m[92m  Downloaded[0m jemallocator v0.5.4
+2026-02-21T23:20:49.7545011Z [1m[92m  Downloaded[0m iana-time-zone-haiku v0.1.2
+2026-02-21T23:20:49.7554849Z [1m[92m  Downloaded[0m heck v0.5.0
+2026-02-21T23:20:49.7568483Z [1m[92m  Downloaded[0m futures-task v0.3.32
+2026-02-21T23:20:49.7581979Z [1m[92m  Downloaded[0m futures-core v0.3.32
+2026-02-21T23:20:49.7596291Z [1m[92m  Downloaded[0m equivalent v1.0.2
+2026-02-21T23:20:49.7607531Z [1m[92m  Downloaded[0m displaydoc v0.2.5
+2026-02-21T23:20:49.7637646Z [1m[92m  Downloaded[0m windows-sys v0.61.2
+2026-02-21T23:20:49.8287547Z [1m[92m  Downloaded[0m windows-sys v0.60.2
+2026-02-21T23:20:49.8934283Z [1m[92m  Downloaded[0m clap_lex v1.0.0
+2026-02-21T23:20:49.8954840Z [1m[92m  Downloaded[0m winapi-i686-pc-windows-gnu v0.4.0
+2026-02-21T23:20:50.0358708Z [1m[92m  Downloaded[0m winapi-x86_64-pc-windows-gnu v0.4.0
+2026-02-21T23:20:50.4561063Z "name":"cryptotechnolog-audit-chain"
+2026-02-21T23:20:50.4563672Z "name":"cryptotechnolog-audit-chain"
+2026-02-21T23:20:50.4599206Z ##[group]Run cargo fmt -- --check || true
+2026-02-21T23:20:50.4599857Z [36;1mcargo fmt -- --check || true[0m
+2026-02-21T23:20:50.4632047Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:20:50.4632275Z env:
+2026-02-21T23:20:50.4632438Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:50.4632663Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:50.4632888Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:50.4633093Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:50.4633284Z ##[endgroup]
+2026-02-21T23:20:50.6165268Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/audit-chain/src/audit.rs:56:
+2026-02-21T23:20:50.6169787Z          };
+2026-02-21T23:20:50.6170081Z  
+2026-02-21T23:20:50.6170341Z          // Create record hash
+2026-02-21T23:20:50.6176825Z -        let record_hash = Self::compute_hash(
+2026-02-21T23:20:50.6177529Z -            &id,
+2026-02-21T23:20:50.6177856Z -            &timestamp,
+2026-02-21T23:20:50.6178207Z -            &event_type,
+2026-02-21T23:20:50.6178624Z -            &data,
+2026-02-21T23:20:50.6178965Z -            &previous_hash,
+2026-02-21T23:20:50.6179339Z -        );
+2026-02-21T23:20:50.6179945Z +        let record_hash = Self::compute_hash(&id, &timestamp, &event_type, &data, &previous_hash);
+2026-02-21T23:20:50.6180674Z  
+2026-02-21T23:20:50.6180930Z          // Create record
+2026-02-21T23:20:50.6181296Z          let record = AuditRecord {
+2026-02-21T23:20:50.6182612Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/audit-chain/src/audit.rs:325:
+2026-02-21T23:20:50.6183890Z          assert_ne!(hash2, "0".repeat(64));
+2026-02-21T23:20:50.6184255Z      }
+2026-02-21T23:20:50.6184486Z  }
+2026-02-21T23:20:50.6184714Z -
+2026-02-21T23:20:50.6184970Z  
+2026-02-21T23:20:50.6259398Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/benches/eventbus_backend_bench.rs:21:
+2026-02-21T23:20:50.6260829Z  
+2026-02-21T23:20:50.6261259Z  /// Benchmark event serialization
+2026-02-21T23:20:50.6261762Z  fn bench_event_serialization(c: &mut Criterion) {
+2026-02-21T23:20:50.6262471Z -    let event = Event::new("TEST_EVENT", "TEST_SOURCE", serde_json::json!({"key": "value"}));
+2026-02-21T23:20:50.6263148Z +    let event = Event::new(
+2026-02-21T23:20:50.6263500Z +        "TEST_EVENT",
+2026-02-21T23:20:50.6263827Z +        "TEST_SOURCE",
+2026-02-21T23:20:50.6264179Z +        serde_json::json!({"key": "value"}),
+2026-02-21T23:20:50.6264607Z +    );
+2026-02-21T23:20:50.6264904Z  
+2026-02-21T23:20:50.6265224Z      c.bench_function("event_serialization", |b| {
+2026-02-21T23:20:50.6265648Z -        b.iter(|| {
+2026-02-21T23:20:50.6266074Z -            black_box(serde_json::to_string(black_box(&event)))
+2026-02-21T23:20:50.6266559Z -        });
+2026-02-21T23:20:50.6267158Z +        b.iter(|| black_box(serde_json::to_string(black_box(&event))));
+2026-02-21T23:20:50.6267694Z      });
+2026-02-21T23:20:50.6267942Z  }
+2026-02-21T23:20:50.6268182Z  
+2026-02-21T23:20:50.6268988Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/benches/eventbus_backend_bench.rs:36:
+2026-02-21T23:20:50.6269929Z          "TEST_EVENT",
+2026-02-21T23:20:50.6270233Z          "TEST_SOURCE",
+2026-02-21T23:20:50.6270574Z          serde_json::json!({"key": "value"}),
+2026-02-21T23:20:50.6270975Z -    )).unwrap();
+2026-02-21T23:20:50.6271248Z +    ))
+2026-02-21T23:20:50.6271492Z +    .unwrap();
+2026-02-21T23:20:50.6271755Z  
+2026-02-21T23:20:50.6272072Z      c.bench_function("event_deserialization", |b| {
+2026-02-21T23:20:50.6272511Z -        b.iter(|| {
+2026-02-21T23:20:50.6272937Z -            black_box(serde_json::from_str::<Event>(black_box(&json)))
+2026-02-21T23:20:50.6273442Z -        });
+2026-02-21T23:20:50.6273866Z +        b.iter(|| black_box(serde_json::from_str::<Event>(black_box(&json))));
+2026-02-21T23:20:50.6274408Z      });
+2026-02-21T23:20:50.6274638Z  }
+2026-02-21T23:20:50.6274863Z  
+2026-02-21T23:20:50.6276023Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/benches/eventbus_backend_bench.rs:328:
+2026-02-21T23:20:50.6277148Z  
+2026-02-21T23:20:50.6277413Z  /// Benchmark event serialization
+2026-02-21T23:20:50.6277875Z  fn bench_event_serialization(c: &mut Criterion) {
+2026-02-21T23:20:50.6278616Z -    let event = Event::new("TEST_EVENT", "TEST_SOURCE", serde_json::json!({"key": "value"}));
+2026-02-21T23:20:50.6279314Z +    let event = Event::new(
+2026-02-21T23:20:50.6279687Z +        "TEST_EVENT",
+2026-02-21T23:20:50.6279994Z +        "TEST_SOURCE",
+2026-02-21T23:20:50.6280399Z +        serde_json::json!({"key": "value"}),
+2026-02-21T23:20:50.6280813Z +    );
+2026-02-21T23:20:50.6281067Z  
+2026-02-21T23:20:50.6281388Z      c.bench_function("event_serialization", |b| {
+2026-02-21T23:20:50.6281861Z -        b.iter(|| {
+2026-02-21T23:20:50.6282299Z -            black_box(serde_json::to_string(black_box(&event)))
+2026-02-21T23:20:50.6282815Z -        });
+2026-02-21T23:20:50.6283262Z +        b.iter(|| black_box(serde_json::to_string(black_box(&event))));
+2026-02-21T23:20:50.6283810Z      });
+2026-02-21T23:20:50.6284071Z  }
+2026-02-21T23:20:50.6284305Z  
+2026-02-21T23:20:50.6285145Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/benches/eventbus_backend_bench.rs:343:
+2026-02-21T23:20:50.6286144Z          "TEST_EVENT",
+2026-02-21T23:20:50.6286476Z          "TEST_SOURCE",
+2026-02-21T23:20:50.6286844Z          serde_json::json!({"key": "value"}),
+2026-02-21T23:20:50.6287789Z -    )).unwrap();
+2026-02-21T23:20:50.6288088Z +    ))
+2026-02-21T23:20:50.6288354Z +    .unwrap();
+2026-02-21T23:20:50.6288638Z  
+2026-02-21T23:20:50.6288982Z      c.bench_function("event_deserialization", |b| {
+2026-02-21T23:20:50.6289468Z -        b.iter(|| {
+2026-02-21T23:20:50.6289941Z -            black_box(serde_json::from_str::<Event>(black_box(&json)))
+2026-02-21T23:20:50.6290490Z -        });
+2026-02-21T23:20:50.6290956Z +        b.iter(|| black_box(serde_json::from_str::<Event>(black_box(&json))));
+2026-02-21T23:20:50.6291539Z      });
+2026-02-21T23:20:50.6291799Z  }
+2026-02-21T23:20:50.6292048Z  
+2026-02-21T23:20:50.6351619Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/src/bus.rs:13:
+2026-02-21T23:20:50.6353899Z  use crate::ring_buffer::LockFreeRingBuffer;
+2026-02-21T23:20:50.6354394Z  
+2026-02-21T23:20:50.6354712Z  // Use crossbeam-channel for broadcast support
+2026-02-21T23:20:50.6355422Z -use crossbeam_channel::{bounded, Receiver, Sender, TrySendError, RecvError};
+2026-02-21T23:20:50.6356366Z +use crossbeam_channel::{bounded, Receiver, RecvError, Sender, TrySendError};
+2026-02-21T23:20:50.6357210Z  
+2026-02-21T23:20:50.6357540Z  // ==================== Backend Types ====================
+2026-02-21T23:20:50.6357996Z  
+2026-02-21T23:20:50.6358689Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/src/bus.rs:86:
+2026-02-21T23:20:50.6359524Z      ///
+2026-02-21T23:20:50.6359820Z      /// A new EventBus instance
+2026-02-21T23:20:50.6360388Z      pub fn new(backend: EventBusBackend, capacity: usize) -> Self {
+2026-02-21T23:20:50.6361267Z -        debug!("Creating EventBus with backend: {:?}, capacity: {}", backend, capacity);
+2026-02-21T23:20:50.6361945Z +        debug!(
+2026-02-21T23:20:50.6362369Z +            "Creating EventBus with backend: {:?}, capacity: {}",
+2026-02-21T23:20:50.6362913Z +            backend, capacity
+2026-02-21T23:20:50.6363279Z +        );
+2026-02-21T23:20:50.6363535Z  
+2026-02-21T23:20:50.6363787Z          match backend {
+2026-02-21T23:20:50.6364179Z -            EventBusBackend::ChannelBased => {
+2026-02-21T23:20:50.6364618Z -                Self {
+2026-02-21T23:20:50.6364918Z -                    backend,
+2026-02-21T23:20:50.6365398Z -                    channel_subscribers: Arc::new(Mutex::new(Vec::new())),
+2026-02-21T23:20:50.6365999Z -                    #[cfg(feature = "lock-free")]
+2026-02-21T23:20:50.6366478Z -                    ring_buffer: None,
+2026-02-21T23:20:50.6367082Z -                    capacity,
+2026-02-21T23:20:50.6367842Z -                }
+2026-02-21T23:20:50.6368169Z -            }
+2026-02-21T23:20:50.6368537Z +            EventBusBackend::ChannelBased => Self {
+2026-02-21T23:20:50.6369010Z +                backend,
+2026-02-21T23:20:50.6369474Z +                channel_subscribers: Arc::new(Mutex::new(Vec::new())),
+2026-02-21T23:20:50.6383175Z +                #[cfg(feature = "lock-free")]
+2026-02-21T23:20:50.6383640Z +                ring_buffer: None,
+2026-02-21T23:20:50.6384051Z +                capacity,
+2026-02-21T23:20:50.6384370Z +            },
+2026-02-21T23:20:50.6384689Z              #[cfg(feature = "lock-free")]
+2026-02-21T23:20:50.6385140Z              EventBusBackend::LockFree => {
+2026-02-21T23:20:50.6385590Z                  if !capacity.is_power_of_two() {
+2026-02-21T23:20:50.6386433Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/src/bus.rs:168:
+2026-02-21T23:20:50.6391375Z                      match buffer.push(event) {
+2026-02-21T23:20:50.6391860Z                          Ok(_) => Ok(()),
+2026-02-21T23:20:50.6392264Z                          Err(e) => {
+2026-02-21T23:20:50.6392899Z -                            warn!("Lock-free ring buffer full, dropping event: {}", e.event_type);
+2026-02-21T23:20:50.6393558Z +                            warn!(
+2026-02-21T23:20:50.6394064Z +                                "Lock-free ring buffer full, dropping event: {}",
+2026-02-21T23:20:50.6394856Z +                                e.event_type
+2026-02-21T23:20:50.6395258Z +                            );
+2026-02-21T23:20:50.6395650Z                              Err(Box::new(e))
+2026-02-21T23:20:50.6396053Z                          }
+2026-02-21T23:20:50.6396383Z                      }
+2026-02-21T23:20:50.6397442Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/src/bus.rs:446:
+2026-02-21T23:20:50.6398273Z  
+2026-02-21T23:20:50.6398564Z          drop(_receiver1);
+2026-02-21T23:20:50.6399086Z          // Note: Disconnected subscribers are only removed on next publish
+2026-02-21T23:20:50.6399902Z -        bus.publish(Event::new("TEST", "SOURCE", serde_json::json!({}))).ok();
+2026-02-21T23:20:50.6400695Z +        bus.publish(Event::new("TEST", "SOURCE", serde_json::json!({})))
+2026-02-21T23:20:50.6401257Z +            .ok();
+2026-02-21T23:20:50.6401552Z  
+2026-02-21T23:20:50.6401936Z          // After publish, disconnected subscribers should be removed
+2026-02-21T23:20:50.6402625Z          // This may not be immediate, so we don't assert exact count
+2026-02-21T23:20:50.6469245Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:1:
+2026-02-21T23:20:50.6471444Z  // ==================== CRYPTOTEHNOLOG Risk Ledger Benchmarks ====================
+2026-02-21T23:20:50.6472157Z  // Benchmarks for RiskLedger integrated performance
+2026-02-21T23:20:50.6472635Z  
+2026-02-21T23:20:50.6473190Z -use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+2026-02-21T23:20:50.6474195Z +use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+2026-02-21T23:20:50.6474981Z  use cryptotechnolog_risk_ledger::ledger::Position;
+2026-02-21T23:20:50.6475585Z  use cryptotechnolog_risk_ledger::ledger::RiskLedger;
+2026-02-21T23:20:50.6476107Z  use tokio::runtime::Runtime;
+2026-02-21T23:20:50.6477261Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:14:
+2026-02-21T23:20:50.6478228Z          rt.block_on(async {
+2026-02-21T23:20:50.6478575Z              b.iter(|| {
+2026-02-21T23:20:50.6478900Z                  rt.block_on(async {
+2026-02-21T23:20:50.6479696Z -                    let path = format!("test_ledger_creation_{}.log", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+2026-02-21T23:20:50.6480575Z +                    let path = format!(
+2026-02-21T23:20:50.6481022Z +                        "test_ledger_creation_{}.log",
+2026-02-21T23:20:50.6481835Z +                        chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+2026-02-21T23:20:50.6482384Z +                    );
+2026-02-21T23:20:50.6482871Z                      black_box(RiskLedger::new(path.into()).await.unwrap())
+2026-02-21T23:20:50.6483423Z                  })
+2026-02-21T23:20:50.6483713Z              });
+2026-02-21T23:20:50.6484545Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:28:
+2026-02-21T23:20:50.6485512Z  
+2026-02-21T23:20:50.6485851Z      c.bench_function("position_update", |b| {
+2026-02-21T23:20:50.6486326Z          rt.block_on(async {
+2026-02-21T23:20:50.6487144Z -            let ledger = RiskLedger::new("test_ledger_update.log".into()).await.unwrap();
+2026-02-21T23:20:50.6487988Z +            let ledger = RiskLedger::new("test_ledger_update.log".into())
+2026-02-21T23:20:50.6488569Z +                .await
+2026-02-21T23:20:50.6488904Z +                .unwrap();
+2026-02-21T23:20:50.6489237Z  
+2026-02-21T23:20:50.6489524Z              let position = Position {
+2026-02-21T23:20:50.6489952Z                  id: "BTC/USDT-1".to_string(),
+2026-02-21T23:20:50.6490844Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:43:
+2026-02-21T23:20:50.6491784Z              b.iter(|| {
+2026-02-21T23:20:50.6492138Z                  rt.block_on(async {
+2026-02-21T23:20:50.6492554Z                      let ledger_ref = &ledger;
+2026-02-21T23:20:50.6493550Z -                    black_box(ledger_ref.update_position(black_box(position.clone())).await.unwrap())
+2026-02-21T23:20:50.6494254Z +                    black_box(
+2026-02-21T23:20:50.6494593Z +                        ledger_ref
+2026-02-21T23:20:50.6495052Z +                            .update_position(black_box(position.clone()))
+2026-02-21T23:20:50.6495562Z +                            .await
+2026-02-21T23:20:50.6495960Z +                            .unwrap(),
+2026-02-21T23:20:50.6496341Z +                    )
+2026-02-21T23:20:50.6496648Z                  })
+2026-02-21T23:20:50.6497109Z              });
+2026-02-21T23:20:50.6497400Z  
+2026-02-21T23:20:50.6498143Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:59:
+2026-02-21T23:20:50.6498999Z  
+2026-02-21T23:20:50.6499306Z      c.bench_function("position_retrieval", |b| {
+2026-02-21T23:20:50.6499739Z          rt.block_on(async {
+2026-02-21T23:20:50.6500330Z -            let ledger = RiskLedger::new("test_ledger_retrieve.log".into()).await.unwrap();
+2026-02-21T23:20:50.6501157Z +            let ledger = RiskLedger::new("test_ledger_retrieve.log".into())
+2026-02-21T23:20:50.6501713Z +                .await
+2026-02-21T23:20:50.6502009Z +                .unwrap();
+2026-02-21T23:20:50.6502327Z  
+2026-02-21T23:20:50.6502587Z              // Add a position first
+2026-02-21T23:20:50.6503005Z              let position = Position {
+2026-02-21T23:20:50.6503909Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:96:
+2026-02-21T23:20:50.6504867Z              let rt = Runtime::new().unwrap();
+2026-02-21T23:20:50.6505283Z  
+2026-02-21T23:20:50.6505554Z              rt.block_on(async {
+2026-02-21T23:20:50.6506329Z -                let ledger = RiskLedger::new(format!("test_ledger_portfolio_{}.log", count).into()).await.unwrap();
+2026-02-21T23:20:50.6507682Z +                let ledger = RiskLedger::new(format!("test_ledger_portfolio_{}.log", count).into())
+2026-02-21T23:20:50.6508413Z +                    .await
+2026-02-21T23:20:50.6508770Z +                    .unwrap();
+2026-02-21T23:20:50.6509116Z  
+2026-02-21T23:20:50.6509385Z                  // Add positions
+2026-02-21T23:20:50.6509767Z                  for i in 0..count {
+2026-02-21T23:20:50.6510694Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:133:
+2026-02-21T23:20:50.6511607Z  
+2026-02-21T23:20:50.6511931Z      c.bench_function("merkle_proof_ledger", |b| {
+2026-02-21T23:20:50.6512595Z          rt.block_on(async {
+2026-02-21T23:20:50.6513258Z -            let ledger = RiskLedger::new("test_ledger_merkle.log".into()).await.unwrap();
+2026-02-21T23:20:50.6514089Z +            let ledger = RiskLedger::new("test_ledger_merkle.log".into())
+2026-02-21T23:20:50.6514644Z +                .await
+2026-02-21T23:20:50.6514953Z +                .unwrap();
+2026-02-21T23:20:50.6515254Z  
+2026-02-21T23:20:50.6515529Z              // Add some positions
+2026-02-21T23:20:50.6515880Z              for i in 0..100 {
+2026-02-21T23:20:50.6516725Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:168:
+2026-02-21T23:20:50.6517827Z  
+2026-02-21T23:20:50.6518161Z      c.bench_function("merkle_verify_ledger", |b| {
+2026-02-21T23:20:50.6518626Z          rt.block_on(async {
+2026-02-21T23:20:50.6519246Z -            let ledger = RiskLedger::new("test_ledger_verify.log".into()).await.unwrap();
+2026-02-21T23:20:50.6520093Z +            let ledger = RiskLedger::new("test_ledger_verify.log".into())
+2026-02-21T23:20:50.6520636Z +                .await
+2026-02-21T23:20:50.6520956Z +                .unwrap();
+2026-02-21T23:20:50.6521277Z  
+2026-02-21T23:20:50.6521549Z              // Add a position
+2026-02-21T23:20:50.6521936Z              let position = Position {
+2026-02-21T23:20:50.6522908Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:188:
+2026-02-21T23:20:50.6524107Z              b.iter(|| {
+2026-02-21T23:20:50.6524460Z                  rt.block_on(async {
+2026-02-21T23:20:50.6524879Z                      let ledger_ref = &ledger;
+2026-02-21T23:20:50.6525597Z -                    black_box(ledger_ref.verify_proof(black_box("BTC/USDT-1"), black_box(&proof)).await)
+2026-02-21T23:20:50.6526336Z +                    black_box(
+2026-02-21T23:20:50.6526701Z +                        ledger_ref
+2026-02-21T23:20:50.6527426Z +                            .verify_proof(black_box("BTC/USDT-1"), black_box(&proof))
+2026-02-21T23:20:50.6528017Z +                            .await,
+2026-02-21T23:20:50.6528395Z +                    )
+2026-02-21T23:20:50.6528701Z                  })
+2026-02-21T23:20:50.6528985Z              });
+2026-02-21T23:20:50.6529252Z  
+2026-02-21T23:20:50.6530006Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:247:
+2026-02-21T23:20:50.6530959Z  
+2026-02-21T23:20:50.6531289Z      c.bench_function("position_lifecycle", |b| {
+2026-02-21T23:20:50.6531777Z          rt.block_on(async {
+2026-02-21T23:20:50.6532407Z -            let ledger = RiskLedger::new("test_ledger_lifecycle.log".into()).await.unwrap();
+2026-02-21T23:20:50.6533236Z +            let ledger = RiskLedger::new("test_ledger_lifecycle.log".into())
+2026-02-21T23:20:50.6533774Z +                .await
+2026-02-21T23:20:50.6534156Z +                .unwrap();
+2026-02-21T23:20:50.6534496Z  
+2026-02-21T23:20:50.6534739Z              b.iter(|| {
+2026-02-21T23:20:50.6535086Z                  rt.block_on(async {
+2026-02-21T23:20:50.6535944Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:254:
+2026-02-21T23:20:50.6536829Z                      // Create
+2026-02-21T23:20:50.6537367Z                      let position = Position {
+2026-02-21T23:20:50.6538079Z -                        id: format!("BTC/USDT-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)),
+2026-02-21T23:20:50.6538787Z +                        id: format!(
+2026-02-21T23:20:50.6539168Z +                            "BTC/USDT-{}",
+2026-02-21T23:20:50.6539711Z +                            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+2026-02-21T23:20:50.6540250Z +                        ),
+2026-02-21T23:20:50.6540620Z                          symbol: "BTC/USDT".to_string(),
+2026-02-21T23:20:50.6541059Z                          size: 100.0,
+2026-02-21T23:20:50.6541464Z                          entry_price: 50000.0,
+2026-02-21T23:20:50.6543647Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/merkle_bench.rs:1:
+2026-02-21T23:20:50.6544856Z  // ==================== CRYPTOTEHNOLOG Merkle Tree Benchmarks ====================
+2026-02-21T23:20:50.6545496Z  // Benchmarks for MerkleTree performance
+2026-02-21T23:20:50.6545927Z  
+2026-02-21T23:20:50.6546469Z -use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+2026-02-21T23:20:50.6547649Z +use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+2026-02-21T23:20:50.6548407Z  use cryptotechnolog_risk_ledger::merkle::MerkleTree;
+2026-02-21T23:20:50.6548907Z  use sha2::{Digest, Sha256};
+2026-02-21T23:20:50.6549252Z  
+2026-02-21T23:20:50.6550036Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/merkle_bench.rs:21:
+2026-02-21T23:20:50.6551178Z          group.bench_with_input(BenchmarkId::from_parameter(count), &count, |b, &count| {
+2026-02-21T23:20:50.6552102Z              let leaves: Vec<[u8; 32]> = (0..count).map(|i| generate_hash(i)).collect();
+2026-02-21T23:20:50.6552660Z  
+2026-02-21T23:20:50.6552884Z -            b.iter(|| {
+2026-02-21T23:20:50.6553374Z -                black_box(MerkleTree::from_leaves(black_box(leaves.clone())))
+2026-02-21T23:20:50.6553913Z -            });
+2026-02-21T23:20:50.6554404Z +            b.iter(|| black_box(MerkleTree::from_leaves(black_box(leaves.clone()))));
+2026-02-21T23:20:50.6555285Z          });
+2026-02-21T23:20:50.6555554Z      }
+2026-02-21T23:20:50.6555824Z      group.finish();
+2026-02-21T23:20:50.6556655Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/merkle_bench.rs:39:
+2026-02-21T23:20:50.6557962Z              let leaves: Vec<[u8; 32]> = (0..count).map(|i| generate_hash(i)).collect();
+2026-02-21T23:20:50.6558670Z              let tree = MerkleTree::from_leaves(leaves);
+2026-02-21T23:20:50.6559114Z  
+2026-02-21T23:20:50.6559376Z -            b.iter(|| {
+2026-02-21T23:20:50.6559727Z -                black_box(tree.root())
+2026-02-21T23:20:50.6560112Z -            });
+2026-02-21T23:20:50.6560442Z +            b.iter(|| black_box(tree.root()));
+2026-02-21T23:20:50.6560853Z          });
+2026-02-21T23:20:50.6561094Z      }
+2026-02-21T23:20:50.6561335Z      group.finish();
+2026-02-21T23:20:50.6562137Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/merkle_bench.rs:78:
+2026-02-21T23:20:50.6563068Z              let index = (count / 2) as usize;
+2026-02-21T23:20:50.6563543Z              let proof = tree.generate_proof(index).unwrap();
+2026-02-21T23:20:50.6563981Z  
+2026-02-21T23:20:50.6564233Z -            b.iter(|| {
+2026-02-21T23:20:50.6564761Z -                black_box(tree.verify(black_box(&leaves[index]), black_box(&proof)))
+2026-02-21T23:20:50.6565382Z -            });
+2026-02-21T23:20:50.6565924Z +            b.iter(|| black_box(tree.verify(black_box(&leaves[index]), black_box(&proof))));
+2026-02-21T23:20:50.6566570Z          });
+2026-02-21T23:20:50.6566841Z      }
+2026-02-21T23:20:50.6567279Z      group.finish();
+2026-02-21T23:20:50.6568113Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/merkle_bench.rs:106:
+2026-02-21T23:20:50.6569205Z                  let proof = black_box(tree.generate_proof(index).unwrap());
+2026-02-21T23:20:50.6569758Z  
+2026-02-21T23:20:50.6570008Z                  // Verify proof
+2026-02-21T23:20:50.6570634Z -                let _verified = black_box(tree.verify(black_box(&leaves[index]), black_box(&proof)));
+2026-02-21T23:20:50.6571330Z +                let _verified =
+2026-02-21T23:20:50.6571879Z +                    black_box(tree.verify(black_box(&leaves[index]), black_box(&proof)));
+2026-02-21T23:20:50.6572446Z              });
+2026-02-21T23:20:50.6572698Z          });
+2026-02-21T23:20:50.6572940Z      }
+2026-02-21T23:20:50.6573693Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/validation_bench.rs:1:
+2026-02-21T23:20:50.6574948Z  // ==================== CRYPTOTEHNOLOG Validation Benchmarks ====================
+2026-02-21T23:20:50.6575663Z  // Benchmarks for double-entry validation performance
+2026-02-21T23:20:50.6576137Z  
+2026-02-21T23:20:50.6576659Z -use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+2026-02-21T23:20:50.6577790Z +use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+2026-02-21T23:20:50.6578777Z  use cryptotechnolog_risk_ledger::validation::{DoubleEntryValidator, Transaction};
+2026-02-21T23:20:50.6579462Z  
+2026-02-21T23:20:50.6579752Z  /// Benchmark double-entry validation
+2026-02-21T23:20:50.6580665Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/validation_bench.rs:19:
+2026-02-21T23:20:50.6581591Z              for i in 0..(count / 2) {
+2026-02-21T23:20:50.6581962Z                  let amount = 100.0;
+2026-02-21T23:20:50.6582646Z                  transactions.push(Transaction::new(format!("ACCOUNT_{}", i), -amount)); // Debit
+2026-02-21T23:20:50.6583710Z -                transactions.push(Transaction::new(format!("ACCOUNT_{}", i + 1000), amount)); // Credit
+2026-02-21T23:20:50.6584698Z +                transactions.push(Transaction::new(format!("ACCOUNT_{}", i + 1000), amount));
+2026-02-21T23:20:50.6585382Z +                // Credit
+2026-02-21T23:20:50.6585697Z              }
+2026-02-21T23:20:50.6586195Z  
+2026-02-21T23:20:50.6586450Z -            b.iter(|| {
+2026-02-21T23:20:50.6587149Z -                black_box(validator.validate(black_box(&transactions)).unwrap())
+2026-02-21T23:20:50.6587745Z -            });
+2026-02-21T23:20:50.6588276Z +            b.iter(|| black_box(validator.validate(black_box(&transactions)).unwrap()));
+2026-02-21T23:20:50.6588886Z          });
+2026-02-21T23:20:50.6589125Z      }
+2026-02-21T23:20:50.6589368Z      group.finish();
+2026-02-21T23:20:50.6590188Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/validation_bench.rs:33:
+2026-02-21T23:20:50.6591146Z  /// Benchmark transaction creation
+2026-02-21T23:20:50.6591630Z  fn bench_transaction_creation(c: &mut Criterion) {
+2026-02-21T23:20:50.6592181Z      c.bench_function("transaction_creation", |b| {
+2026-02-21T23:20:50.6592628Z -        b.iter(|| {
+2026-02-21T23:20:50.6592976Z -            black_box(Transaction::new(
+2026-02-21T23:20:50.6593445Z -                "TEST_ACCOUNT".to_string(),
+2026-02-21T23:20:50.6593854Z -                100.0,
+2026-02-21T23:20:50.6594151Z -            ))
+2026-02-21T23:20:50.6594395Z -        });
+2026-02-21T23:20:50.6594850Z +        b.iter(|| black_box(Transaction::new("TEST_ACCOUNT".to_string(), 100.0)));
+2026-02-21T23:20:50.6595417Z      });
+2026-02-21T23:20:50.6595649Z  }
+2026-02-21T23:20:50.6595868Z  
+2026-02-21T23:20:50.6596606Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/validation_bench.rs:45:
+2026-02-21T23:20:50.6597692Z  /// Benchmark validator creation
+2026-02-21T23:20:50.6598151Z  fn bench_validator_creation(c: &mut Criterion) {
+2026-02-21T23:20:50.6598665Z      c.bench_function("validator_creation", |b| {
+2026-02-21T23:20:50.6599103Z -        b.iter(|| {
+2026-02-21T23:20:50.6599473Z -            black_box(DoubleEntryValidator::new())
+2026-02-21T23:20:50.6599902Z -        });
+2026-02-21T23:20:50.6600258Z +        b.iter(|| black_box(DoubleEntryValidator::new()));
+2026-02-21T23:20:50.6600735Z      });
+2026-02-21T23:20:50.6600988Z  }
+2026-02-21T23:20:50.6601218Z  
+2026-02-21T23:20:50.6602018Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/validation_bench.rs:110:
+2026-02-21T23:20:50.6603079Z      let amounts = vec![0.01, 1.0, 100.0, 10000.0, 1000000.0];
+2026-02-21T23:20:50.6603552Z  
+2026-02-21T23:20:50.6603812Z      for amount in amounts {
+2026-02-21T23:20:50.6604475Z -        group.bench_with_input(BenchmarkId::from_parameter(amount), &amount, |b, &amount| {
+2026-02-21T23:20:50.6605438Z -            let validator = DoubleEntryValidator::new();
+2026-02-21T23:20:50.6605961Z +        group.bench_with_input(
+2026-02-21T23:20:50.6606402Z +            BenchmarkId::from_parameter(amount),
+2026-02-21T23:20:50.6606838Z +            &amount,
+2026-02-21T23:20:50.6607331Z +            |b, &amount| {
+2026-02-21T23:20:50.6607758Z +                let validator = DoubleEntryValidator::new();
+2026-02-21T23:20:50.6608245Z  
+2026-02-21T23:20:50.6608488Z -            b.iter(|| {
+2026-02-21T23:20:50.6608844Z -                let transactions = vec![
+2026-02-21T23:20:50.6609429Z -                    Transaction::new("ACCOUNT_1".to_string(), -amount), // Debit
+2026-02-21T23:20:50.6610181Z -                    Transaction::new("ACCOUNT_2".to_string(), amount),  // Credit
+2026-02-21T23:20:50.6610760Z -                ];
+2026-02-21T23:20:50.6611065Z +                b.iter(|| {
+2026-02-21T23:20:50.6611448Z +                    let transactions = vec![
+2026-02-21T23:20:50.6612056Z +                        Transaction::new("ACCOUNT_1".to_string(), -amount), // Debit
+2026-02-21T23:20:50.6612832Z +                        Transaction::new("ACCOUNT_2".to_string(), amount),  // Credit
+2026-02-21T23:20:50.6613447Z +                    ];
+2026-02-21T23:20:50.6613737Z  
+2026-02-21T23:20:50.6614118Z -                black_box(validator.validate(&transactions).unwrap())
+2026-02-21T23:20:50.6614626Z -            });
+2026-02-21T23:20:50.6615105Z -        });
+2026-02-21T23:20:50.6615509Z +                    black_box(validator.validate(&transactions).unwrap())
+2026-02-21T23:20:50.6616031Z +                });
+2026-02-21T23:20:50.6616315Z +            },
+2026-02-21T23:20:50.6616569Z +        );
+2026-02-21T23:20:50.6616813Z      }
+2026-02-21T23:20:50.6617248Z      group.finish();
+2026-02-21T23:20:50.6617546Z  }
+2026-02-21T23:20:50.6619240Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:1:
+2026-02-21T23:20:50.6620298Z  // ==================== CRYPTOTEHNOLOG WAL Benchmarks ====================
+2026-02-21T23:20:50.6620900Z  // Benchmarks for WriteAheadLog performance
+2026-02-21T23:20:50.6621337Z  
+2026-02-21T23:20:50.6621867Z -use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+2026-02-21T23:20:50.6622804Z +use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+2026-02-21T23:20:50.6623582Z  use cryptotechnolog_risk_ledger::wal::WriteAheadLog;
+2026-02-21T23:20:50.6624090Z  use serde_json::json;
+2026-02-21T23:20:50.6624432Z  use std::path::PathBuf;
+2026-02-21T23:20:50.6625259Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:14:
+2026-02-21T23:20:50.6626183Z  
+2026-02-21T23:20:50.6626452Z          rt.block_on(async {
+2026-02-21T23:20:50.6627093Z              let wal = std::sync::Arc::new(tokio::sync::Mutex::new(
+2026-02-21T23:20:50.6627799Z -                WriteAheadLog::new("test_wal_append.log".into()).await.unwrap()
+2026-02-21T23:20:50.6628489Z +                WriteAheadLog::new("test_wal_append.log".into())
+2026-02-21T23:20:50.6628993Z +                    .await
+2026-02-21T23:20:50.6629326Z +                    .unwrap(),
+2026-02-21T23:20:50.6629667Z              ));
+2026-02-21T23:20:50.6629934Z  
+2026-02-21T23:20:50.6630180Z              b.iter(|| {
+2026-02-21T23:20:50.6631017Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:27:
+2026-02-21T23:20:50.6631933Z  
+2026-02-21T23:20:50.6632206Z                  rt.block_on(async {
+2026-02-21T23:20:50.6632654Z                      let mut wal_lock = wal.lock().await;
+2026-02-21T23:20:50.6633368Z -                    black_box(wal_lock.append("TEST_OPERATION".to_string(), data).await.unwrap())
+2026-02-21T23:20:50.6634035Z +                    black_box(
+2026-02-21T23:20:50.6634392Z +                        wal_lock
+2026-02-21T23:20:50.6634849Z +                            .append("TEST_OPERATION".to_string(), data)
+2026-02-21T23:20:50.6635640Z +                            .await
+2026-02-21T23:20:50.6636065Z +                            .unwrap(),
+2026-02-21T23:20:50.6636448Z +                    )
+2026-02-21T23:20:50.6636762Z                  })
+2026-02-21T23:20:50.6637233Z              });
+2026-02-21T23:20:50.6637514Z  
+2026-02-21T23:20:50.6638272Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:48:
+2026-02-21T23:20:50.6639476Z          group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+2026-02-21T23:20:50.6640155Z              rt.block_on(async {
+2026-02-21T23:20:50.6640651Z                  let wal = std::sync::Arc::new(tokio::sync::Mutex::new(
+2026-02-21T23:20:50.6641439Z -                    WriteAheadLog::new(format!("test_wal_size_{}.log", size).into()).await.unwrap()
+2026-02-21T23:20:50.6642338Z +                    WriteAheadLog::new(format!("test_wal_size_{}.log", size).into())
+2026-02-21T23:20:50.6642961Z +                        .await
+2026-02-21T23:20:50.6643329Z +                        .unwrap(),
+2026-02-21T23:20:50.6643705Z                  ));
+2026-02-21T23:20:50.6643999Z  
+2026-02-21T23:20:50.6644322Z                  // Create payload of specified size
+2026-02-21T23:20:50.6645293Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:61:
+2026-02-21T23:20:50.6646222Z                  b.iter(|| {
+2026-02-21T23:20:50.6646854Z                      rt.block_on(async {
+2026-02-21T23:20:50.6647511Z                          let mut wal_lock = wal.lock().await;
+2026-02-21T23:20:50.6648326Z -                        black_box(wal_lock.append("TEST_OPERATION".to_string(), data.clone()).await.unwrap())
+2026-02-21T23:20:50.6649086Z +                        black_box(
+2026-02-21T23:20:50.6649480Z +                            wal_lock
+2026-02-21T23:20:50.6649991Z +                                .append("TEST_OPERATION".to_string(), data.clone())
+2026-02-21T23:20:50.6650544Z +                                .await
+2026-02-21T23:20:50.6650959Z +                                .unwrap(),
+2026-02-21T23:20:50.6651443Z +                        )
+2026-02-21T23:20:50.6651783Z                      })
+2026-02-21T23:20:50.6652092Z                  });
+2026-02-21T23:20:50.6652383Z  
+2026-02-21T23:20:50.6653148Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:80:
+2026-02-21T23:20:50.6654129Z      c.bench_function("wal_flush", |b| {
+2026-02-21T23:20:50.6654564Z          rt.block_on(async {
+2026-02-21T23:20:50.6655048Z              let wal = std::sync::Arc::new(tokio::sync::Mutex::new(
+2026-02-21T23:20:50.6655763Z -                WriteAheadLog::new("test_wal_flush.log".into()).await.unwrap()
+2026-02-21T23:20:50.6656457Z +                WriteAheadLog::new("test_wal_flush.log".into())
+2026-02-21T23:20:50.6657121Z +                    .await
+2026-02-21T23:20:50.6657468Z +                    .unwrap(),
+2026-02-21T23:20:50.6657819Z              ));
+2026-02-21T23:20:50.6658091Z  
+2026-02-21T23:20:50.6658373Z              // Write some data first
+2026-02-21T23:20:50.6659264Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:88:
+2026-02-21T23:20:50.6660230Z                  let mut wal_lock = wal.lock().await;
+2026-02-21T23:20:50.6660697Z                  for i in 0..100 {
+2026-02-21T23:20:50.6661114Z                      let data = json!({"index": i});
+2026-02-21T23:20:50.6661764Z -                    wal_lock.append("TEST_OPERATION".to_string(), data).await.unwrap();
+2026-02-21T23:20:50.6662402Z +                    wal_lock
+2026-02-21T23:20:50.6662857Z +                        .append("TEST_OPERATION".to_string(), data)
+2026-02-21T23:20:50.6663351Z +                        .await
+2026-02-21T23:20:50.6663695Z +                        .unwrap();
+2026-02-21T23:20:50.6664057Z                  }
+2026-02-21T23:20:50.6664349Z              }
+2026-02-21T23:20:50.6664626Z  
+2026-02-21T23:20:50.6665588Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:121:
+2026-02-21T23:20:50.6666604Z                          "id": format!("TEST-{:04}", i),
+2026-02-21T23:20:50.6667249Z                          "index": i
+2026-02-21T23:20:50.6667619Z                      });
+2026-02-21T23:20:50.6668125Z -                    wal.append("TEST_OPERATION".to_string(), data).await.unwrap();
+2026-02-21T23:20:50.6668856Z +                    wal.append("TEST_OPERATION".to_string(), data)
+2026-02-21T23:20:50.6669373Z +                        .await
+2026-02-21T23:20:50.6669727Z +                        .unwrap();
+2026-02-21T23:20:50.6670090Z                  }
+2026-02-21T23:20:50.6670415Z                  wal.flush().await.unwrap();
+2026-02-21T23:20:50.6670829Z              }
+2026-02-21T23:20:50.6671625Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:145:
+2026-02-21T23:20:50.6672627Z      c.bench_function("wal_concurrent_writes", |b| {
+2026-02-21T23:20:50.6673112Z          rt.block_on(async {
+2026-02-21T23:20:50.6673570Z              let wal = std::sync::Arc::new(tokio::sync::RwLock::new(
+2026-02-21T23:20:50.6674272Z -                WriteAheadLog::new("test_wal_concurrent.log".into()).await.unwrap()
+2026-02-21T23:20:50.6674990Z +                WriteAheadLog::new("test_wal_concurrent.log".into())
+2026-02-21T23:20:50.6675500Z +                    .await
+2026-02-21T23:20:50.6676030Z +                    .unwrap(),
+2026-02-21T23:20:50.6676361Z              ));
+2026-02-21T23:20:50.6676618Z  
+2026-02-21T23:20:50.6676861Z              b.iter(|| {
+2026-02-21T23:20:50.6677832Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:153:
+2026-02-21T23:20:50.6678754Z                  rt.block_on(async move {
+2026-02-21T23:20:50.6679232Z                      let mut wal_guard = wal_clone.write().await;
+2026-02-21T23:20:50.6679879Z                      let data = json!({"timestamp": chrono::Utc::now().timestamp()});
+2026-02-21T23:20:50.6680703Z -                    black_box(wal_guard.append("CONCURRENT_OP".to_string(), data).await.unwrap())
+2026-02-21T23:20:50.6681365Z +                    black_box(
+2026-02-21T23:20:50.6681707Z +                        wal_guard
+2026-02-21T23:20:50.6682149Z +                            .append("CONCURRENT_OP".to_string(), data)
+2026-02-21T23:20:50.6682624Z +                            .await
+2026-02-21T23:20:50.6682994Z +                            .unwrap(),
+2026-02-21T23:20:50.6683349Z +                    )
+2026-02-21T23:20:50.6683633Z                  })
+2026-02-21T23:20:50.6683897Z              });
+2026-02-21T23:20:50.6684156Z  
+2026-02-21T23:20:50.6687477Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/src/ledger.rs:112:
+2026-02-21T23:20:50.6689242Z          // Append to WAL
+2026-02-21T23:20:50.6689670Z          let data = serde_json::to_value(&position)?;
+2026-02-21T23:20:50.6690167Z          let mut wal = self.wal.write().await;
+2026-02-21T23:20:50.6690773Z -        wal.append("UPDATE_POSITION".to_string(), data.clone()).await?;
+2026-02-21T23:20:50.6691460Z +        wal.append("UPDATE_POSITION".to_string(), data.clone())
+2026-02-21T23:20:50.6691966Z +            .await?;
+2026-02-21T23:20:50.6692271Z          wal.flush().await?;
+2026-02-21T23:20:50.6692616Z          drop(wal);
+2026-02-21T23:20:50.6692903Z  
+2026-02-21T23:20:50.6693629Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/src/ledger.rs:264:
+2026-02-21T23:20:50.6694499Z          &self,
+2026-02-21T23:20:50.6694799Z          position_id: &str,
+2026-02-21T23:20:50.6695259Z      ) -> Vec<cryptotechnolog_audit_chain::AuditRecord> {
+2026-02-21T23:20:50.6696160Z -        let all_records: Vec<cryptotechnolog_audit_chain::AuditRecord> = self.audit.get_all_records().await;
+2026-02-21T23:20:50.6697406Z +        let all_records: Vec<cryptotechnolog_audit_chain::AuditRecord> =
+2026-02-21T23:20:50.6698384Z +            self.audit.get_all_records().await;
+2026-02-21T23:20:50.6698880Z          all_records
+2026-02-21T23:20:50.6699207Z              .into_iter()
+2026-02-21T23:20:50.6699688Z              .filter(|r: &cryptotechnolog_audit_chain::AuditRecord| {
+2026-02-21T23:20:50.6700696Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/src/ledger.rs:499:
+2026-02-21T23:20:50.6701737Z          ledger.update_position(position.clone()).await.unwrap();
+2026-02-21T23:20:50.6702297Z  
+2026-02-21T23:20:50.6702604Z          // Get audit records for this position
+2026-02-21T23:20:50.6703074Z -        let audit_records = ledger
+2026-02-21T23:20:50.6703561Z -            .get_audit_records_for_position("BTC/USDT-1")
+2026-02-21T23:20:50.6704046Z -            .await;
+2026-02-21T23:20:50.6704614Z +        let audit_records = ledger.get_audit_records_for_position("BTC/USDT-1").await;
+2026-02-21T23:20:50.6705265Z  
+2026-02-21T23:20:50.6705568Z          assert_eq!(audit_records.len(), 1);
+2026-02-21T23:20:50.6706155Z          assert_eq!(audit_records[0].event_type, "POSITION_UPDATE");
+2026-02-21T23:20:50.6707355Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/src/ledger.rs:542:
+2026-02-21T23:20:50.6708247Z          }
+2026-02-21T23:20:50.6708513Z  
+2026-02-21T23:20:50.6708801Z          // Should have 3 audit records
+2026-02-21T23:20:50.6709230Z -        let audit_records = ledger
+2026-02-21T23:20:50.6709959Z -            .get_audit_records_for_position("BTC/USDT-1")
+2026-02-21T23:20:50.6710428Z -            .await;
+2026-02-21T23:20:50.6710965Z +        let audit_records = ledger.get_audit_records_for_position("BTC/USDT-1").await;
+2026-02-21T23:20:50.6711596Z  
+2026-02-21T23:20:50.6711882Z          assert_eq!(audit_records.len(), 3);
+2026-02-21T23:20:50.6712291Z  
+2026-02-21T23:20:50.6788384Z ##[group]Run echo "=== Building local dependencies first ==="
+2026-02-21T23:20:50.6788815Z [36;1mecho "=== Building local dependencies first ==="[0m
+2026-02-21T23:20:50.6789201Z [36;1mcargo build --package cryptotechnolog-audit-chain --lib[0m
+2026-02-21T23:20:50.6789598Z [36;1mcargo build --package cryptotechnolog-common --lib[0m
+2026-02-21T23:20:50.6790017Z [36;1mecho "=== Full dependency tree for risk-ledger (from workspace root) ==="[0m
+2026-02-21T23:20:50.6790530Z [36;1mcargo tree --package cryptotechnolog-risk-ledger > /tmp/risk_ledger_tree.txt[0m
+2026-02-21T23:20:50.6790939Z [36;1mcat /tmp/risk_ledger_tree.txt[0m
+2026-02-21T23:20:50.6791177Z [36;1mecho ""[0m
+2026-02-21T23:20:50.6791401Z [36;1mecho "=== Checking for audit-chain in tree ==="[0m
+2026-02-21T23:20:50.6792062Z [36;1mgrep -E "(cryptotechnolog-audit-chain|cryptotechnolog_audit_chain)" /tmp/risk_ledger_tree.txt || echo "audit-chain NOT FOUND in dependency tree"[0m
+2026-02-21T23:20:50.6792697Z [36;1mecho ""[0m
+2026-02-21T23:20:50.6792900Z [36;1mecho "=== Checking for common in tree ==="[0m
+2026-02-21T23:20:50.6793483Z [36;1mgrep -E "(cryptotechnolog-common|cryptotechnolog_common)" /tmp/risk_ledger_tree.txt || echo "common NOT FOUND in dependency tree"[0m
+2026-02-21T23:20:50.6824543Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:20:50.6824759Z env:
+2026-02-21T23:20:50.6824923Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:50.6825124Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:50.6825358Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:50.6825543Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:50.6825738Z ##[endgroup]
+2026-02-21T23:20:50.6874038Z === Building local dependencies first ===
+2026-02-21T23:20:50.7854509Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+2026-02-21T23:20:50.8989104Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+2026-02-21T23:20:50.9034506Z === Full dependency tree for risk-ledger (from workspace root) ===
+2026-02-21T23:20:51.0127474Z cryptotechnolog-risk-ledger v0.1.0 (/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger)
+2026-02-21T23:20:51.0129399Z [2m├──[0m chrono v0.4.43
+2026-02-21T23:20:51.0130733Z [2m│[0m   [2m├──[0m iana-time-zone v0.1.65
+2026-02-21T23:20:51.0131333Z [2m│[0m   [2m├──[0m num-traits v0.2.19
+2026-02-21T23:20:51.0131999Z [2m│[0m   [2m│[0m   [94m[1m[build-dependencies][39m[22m
+2026-02-21T23:20:51.0132596Z [2m│[0m   [2m│[0m   [1m[34m└──[0m autocfg v1.5.0
+2026-02-21T23:20:51.0133152Z [2m│[0m   [2m└──[0m serde v1.0.228
+2026-02-21T23:20:51.0133728Z [2m│[0m   [2m [0m   [2m├──[0m serde_core v1.0.228
+2026-02-21T23:20:51.0134447Z [2m│[0m   [2m [0m   [2m└──[0m serde_derive v1.0.228 (proc-macro)
+2026-02-21T23:20:51.0135314Z [2m│[0m   [2m [0m   [2m [0m   [2m├──[0m proc-macro2 v1.0.106
+2026-02-21T23:20:51.0136100Z [2m│[0m   [2m [0m   [2m [0m   [2m│[0m   [2m└──[0m unicode-ident v1.0.24
+2026-02-21T23:20:51.0136874Z [2m│[0m   [2m [0m   [2m [0m   [2m├──[0m quote v1.0.44
+2026-02-21T23:20:51.0137883Z [2m│[0m   [2m [0m   [2m [0m   [2m│[0m   [2m└──[0m proc-macro2 v1.0.106 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0138643Z [2m│[0m   [2m [0m   [2m [0m   [2m└──[0m syn v2.0.117
+2026-02-21T23:20:51.0139483Z [2m│[0m   [2m [0m   [2m [0m   [2m [0m   [2m├──[0m proc-macro2 v1.0.106 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0140418Z [2m│[0m   [2m [0m   [2m [0m   [2m [0m   [2m├──[0m quote v1.0.44 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0141264Z [2m│[0m   [2m [0m   [2m [0m   [2m [0m   [2m└──[0m unicode-ident v1.0.24
+2026-02-21T23:20:51.0142325Z [2m├──[0m hex v0.4.3
+2026-02-21T23:20:51.0142777Z [2m├──[0m serde v1.0.228 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0143290Z [2m├──[0m serde_json v1.0.149
+2026-02-21T23:20:51.0143728Z [2m│[0m   [2m├──[0m itoa v1.0.17
+2026-02-21T23:20:51.0144196Z [2m│[0m   [2m├──[0m memchr v2.8.0
+2026-02-21T23:20:51.0144989Z [2m│[0m   [2m├──[0m serde_core v1.0.228
+2026-02-21T23:20:51.0145528Z [2m│[0m   [2m└──[0m zmij v1.0.21
+2026-02-21T23:20:51.0145968Z [2m├──[0m sha2 v0.10.9
+2026-02-21T23:20:51.0146383Z [2m│[0m   [2m├──[0m cfg-if v1.0.4
+2026-02-21T23:20:51.0147134Z [2m│[0m   [2m├──[0m cpufeatures v0.2.17
+2026-02-21T23:20:51.0147724Z [2m│[0m   [2m└──[0m digest v0.10.7
+2026-02-21T23:20:51.0148398Z [2m│[0m   [2m [0m   [2m├──[0m block-buffer v0.10.4
+2026-02-21T23:20:51.0149075Z [2m│[0m   [2m [0m   [2m│[0m   [2m└──[0m generic-array v0.14.7
+2026-02-21T23:20:51.0149812Z [2m│[0m   [2m [0m   [2m│[0m   [2m [0m   [2m└──[0m typenum v1.19.0
+2026-02-21T23:20:51.0150608Z [2m│[0m   [2m [0m   [2m│[0m   [2m [0m   [94m[1m[build-dependencies][39m[22m
+2026-02-21T23:20:51.0151437Z [2m│[0m   [2m [0m   [2m│[0m   [2m [0m   [1m[34m└──[0m version_check v0.9.5
+2026-02-21T23:20:51.0153326Z [2m│[0m   [2m [0m   [2m└──[0m crypto-common v0.1.7
+2026-02-21T23:20:51.0154191Z [2m│[0m   [2m [0m   [2m [0m   [2m├──[0m generic-array v0.14.7 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0155040Z [2m│[0m   [2m [0m   [2m [0m   [2m└──[0m typenum v1.19.0
+2026-02-21T23:20:51.0155594Z [2m├──[0m tokio v1.49.0
+2026-02-21T23:20:51.0156019Z [2m│[0m   [2m├──[0m bytes v1.11.1
+2026-02-21T23:20:51.0156500Z [2m│[0m   [2m├──[0m libc v0.2.182
+2026-02-21T23:20:51.0157315Z [2m│[0m   [2m├──[0m mio v1.1.1
+2026-02-21T23:20:51.0157860Z [2m│[0m   [2m│[0m   [2m└──[0m libc v0.2.182
+2026-02-21T23:20:51.0158432Z [2m│[0m   [2m├──[0m parking_lot v0.12.5
+2026-02-21T23:20:51.0159007Z [2m│[0m   [2m│[0m   [2m├──[0m lock_api v0.4.14
+2026-02-21T23:20:51.0159739Z [2m│[0m   [2m│[0m   [2m│[0m   [2m└──[0m scopeguard v1.2.0
+2026-02-21T23:20:51.0160452Z [2m│[0m   [2m│[0m   [2m└──[0m parking_lot_core v0.9.12
+2026-02-21T23:20:51.0161110Z [2m│[0m   [2m│[0m   [2m [0m   [2m├──[0m cfg-if v1.0.4
+2026-02-21T23:20:51.0161741Z [2m│[0m   [2m│[0m   [2m [0m   [2m├──[0m libc v0.2.182
+2026-02-21T23:20:51.0162417Z [2m│[0m   [2m│[0m   [2m [0m   [2m└──[0m smallvec v1.15.1
+2026-02-21T23:20:51.0163051Z [2m│[0m   [2m├──[0m pin-project-lite v0.2.16
+2026-02-21T23:20:51.0163652Z [2m│[0m   [2m├──[0m signal-hook-registry v1.4.8
+2026-02-21T23:20:51.0164222Z [2m│[0m   [2m│[0m   [2m├──[0m errno v0.3.14
+2026-02-21T23:20:51.0164821Z [2m│[0m   [2m│[0m   [2m│[0m   [2m└──[0m libc v0.2.182
+2026-02-21T23:20:51.0165438Z [2m│[0m   [2m│[0m   [2m└──[0m libc v0.2.182
+2026-02-21T23:20:51.0165949Z [2m│[0m   [2m├──[0m socket2 v0.6.2
+2026-02-21T23:20:51.0166444Z [2m│[0m   [2m│[0m   [2m└──[0m libc v0.2.182
+2026-02-21T23:20:51.0167367Z [2m│[0m   [2m└──[0m tokio-macros v2.6.0 (proc-macro)
+2026-02-21T23:20:51.0169537Z [2m│[0m   [2m [0m   [2m├──[0m proc-macro2 v1.0.106 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0171159Z [2m│[0m   [2m [0m   [2m├──[0m quote v1.0.44 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0171595Z [2m│[0m   [2m [0m   [2m└──[0m syn v2.0.117 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0171943Z [2m├──[0m tracing v0.1.44
+2026-02-21T23:20:51.0172233Z [2m│[0m   [2m├──[0m pin-project-lite v0.2.16
+2026-02-21T23:20:51.0172612Z [2m│[0m   [2m├──[0m tracing-attributes v0.1.31 (proc-macro)
+2026-02-21T23:20:51.0173044Z [2m│[0m   [2m│[0m   [2m├──[0m proc-macro2 v1.0.106 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0173460Z [2m│[0m   [2m│[0m   [2m├──[0m quote v1.0.44 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0173850Z [2m│[0m   [2m│[0m   [2m└──[0m syn v2.0.117 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0174191Z [2m│[0m   [2m└──[0m tracing-core v0.1.36
+2026-02-21T23:20:51.0174693Z [2m│[0m   [2m [0m   [2m└──[0m once_cell v1.21.3
+2026-02-21T23:20:51.0174980Z [2m└──[0m uuid v1.6.1
+2026-02-21T23:20:51.0175215Z [2m [0m   [2m├──[0m getrandom v0.2.17
+2026-02-21T23:20:51.0175509Z [2m [0m   [2m│[0m   [2m├──[0m cfg-if v1.0.4
+2026-02-21T23:20:51.0175814Z [2m [0m   [2m│[0m   [2m└──[0m libc v0.2.182
+2026-02-21T23:20:51.0176285Z [2m [0m   [2m└──[0m serde v1.0.228 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0176612Z [96m[1m[dev-dependencies][39m[22m
+2026-02-21T23:20:51.0176875Z [1m[36m├──[0m criterion v0.5.1
+2026-02-21T23:20:51.0177545Z [1m[36m│[0m   [2m├──[0m anes v0.1.6
+2026-02-21T23:20:51.0177968Z [1m[36m│[0m   [2m├──[0m cast v0.3.0
+2026-02-21T23:20:51.0178251Z [1m[36m│[0m   [2m├──[0m ciborium v0.2.2
+2026-02-21T23:20:51.0178577Z [1m[36m│[0m   [2m│[0m   [2m├──[0m ciborium-io v0.2.2
+2026-02-21T23:20:51.0178931Z [1m[36m│[0m   [2m│[0m   [2m├──[0m ciborium-ll v0.2.2
+2026-02-21T23:20:51.0179318Z [1m[36m│[0m   [2m│[0m   [2m│[0m   [2m├──[0m ciborium-io v0.2.2
+2026-02-21T23:20:51.0179726Z [1m[36m│[0m   [2m│[0m   [2m│[0m   [2m└──[0m half v2.7.1
+2026-02-21T23:20:51.0180123Z [1m[36m│[0m   [2m│[0m   [2m│[0m   [2m [0m   [2m├──[0m cfg-if v1.0.4
+2026-02-21T23:20:51.0180547Z [1m[36m│[0m   [2m│[0m   [2m│[0m   [2m [0m   [2m└──[0m zerocopy v0.8.39
+2026-02-21T23:20:51.0181073Z [1m[36m│[0m   [2m│[0m   [2m│[0m   [2m [0m   [2m [0m   [2m└──[0m zerocopy-derive v0.8.39 (proc-macro)
+2026-02-21T23:20:51.0181703Z [1m[36m│[0m   [2m│[0m   [2m│[0m   [2m [0m   [2m [0m   [2m [0m   [2m├──[0m proc-macro2 v1.0.106 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0182359Z [1m[36m│[0m   [2m│[0m   [2m│[0m   [2m [0m   [2m [0m   [2m [0m   [2m├──[0m quote v1.0.44 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0182980Z [1m[36m│[0m   [2m│[0m   [2m│[0m   [2m [0m   [2m [0m   [2m [0m   [2m└──[0m syn v2.0.117 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0183485Z [1m[36m│[0m   [2m│[0m   [2m└──[0m serde v1.0.228 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0183851Z [1m[36m│[0m   [2m├──[0m clap v4.5.60
+2026-02-21T23:20:51.0184171Z [1m[36m│[0m   [2m│[0m   [2m└──[0m clap_builder v4.5.60
+2026-02-21T23:20:51.0184547Z [1m[36m│[0m   [2m│[0m   [2m [0m   [2m├──[0m anstyle v1.0.13
+2026-02-21T23:20:51.0184933Z [1m[36m│[0m   [2m│[0m   [2m [0m   [2m└──[0m clap_lex v1.0.0
+2026-02-21T23:20:51.0185293Z [1m[36m│[0m   [2m├──[0m criterion-plot v0.5.0
+2026-02-21T23:20:51.0185628Z [1m[36m│[0m   [2m│[0m   [2m├──[0m cast v0.3.0
+2026-02-21T23:20:51.0185962Z [1m[36m│[0m   [2m│[0m   [2m└──[0m itertools v0.10.5
+2026-02-21T23:20:51.0186328Z [1m[36m│[0m   [2m│[0m   [2m [0m   [2m└──[0m either v1.15.0
+2026-02-21T23:20:51.0186667Z [1m[36m│[0m   [2m├──[0m is-terminal v0.4.17
+2026-02-21T23:20:51.0187259Z [1m[36m│[0m   [2m│[0m   [2m└──[0m libc v0.2.182
+2026-02-21T23:20:51.0187785Z [1m[36m│[0m   [2m├──[0m itertools v0.10.5 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0188206Z [1m[36m│[0m   [2m├──[0m num-traits v0.2.19 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0188555Z [1m[36m│[0m   [2m├──[0m once_cell v1.21.3
+2026-02-21T23:20:51.0188848Z [1m[36m│[0m   [2m├──[0m oorandom v11.1.5
+2026-02-21T23:20:51.0189139Z [1m[36m│[0m   [2m├──[0m plotters v0.3.7
+2026-02-21T23:20:51.0189510Z [1m[36m│[0m   [2m│[0m   [2m├──[0m num-traits v0.2.19 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0189929Z [1m[36m│[0m   [2m│[0m   [2m├──[0m plotters-backend v0.3.7
+2026-02-21T23:20:51.0190304Z [1m[36m│[0m   [2m│[0m   [2m└──[0m plotters-svg v0.3.7
+2026-02-21T23:20:51.0190699Z [1m[36m│[0m   [2m│[0m   [2m [0m   [2m└──[0m plotters-backend v0.3.7
+2026-02-21T23:20:51.0191047Z [1m[36m│[0m   [2m├──[0m rayon v1.11.0
+2026-02-21T23:20:51.0191365Z [1m[36m│[0m   [2m│[0m   [2m├──[0m either v1.15.0
+2026-02-21T23:20:51.0191708Z [1m[36m│[0m   [2m│[0m   [2m└──[0m rayon-core v1.13.0
+2026-02-21T23:20:51.0192093Z [1m[36m│[0m   [2m│[0m   [2m [0m   [2m├──[0m crossbeam-deque v0.8.6
+2026-02-21T23:20:51.0192735Z [1m[36m│[0m   [2m│[0m   [2m [0m   [2m│[0m   [2m├──[0m crossbeam-epoch v0.9.18
+2026-02-21T23:20:51.0193237Z [1m[36m│[0m   [2m│[0m   [2m [0m   [2m│[0m   [2m│[0m   [2m└──[0m crossbeam-utils v0.8.21
+2026-02-21T23:20:51.0193839Z [1m[36m│[0m   [2m│[0m   [2m [0m   [2m│[0m   [2m└──[0m crossbeam-utils v0.8.21
+2026-02-21T23:20:51.0194284Z [1m[36m│[0m   [2m│[0m   [2m [0m   [2m└──[0m crossbeam-utils v0.8.21
+2026-02-21T23:20:51.0194629Z [1m[36m│[0m   [2m├──[0m regex v1.12.3
+2026-02-21T23:20:51.0194958Z [1m[36m│[0m   [2m│[0m   [2m├──[0m regex-automata v0.4.14
+2026-02-21T23:20:51.0195345Z [1m[36m│[0m   [2m│[0m   [2m│[0m   [2m└──[0m regex-syntax v0.8.9
+2026-02-21T23:20:51.0195724Z [1m[36m│[0m   [2m│[0m   [2m└──[0m regex-syntax v0.8.9
+2026-02-21T23:20:51.0196085Z [1m[36m│[0m   [2m├──[0m serde v1.0.228 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0196545Z [1m[36m│[0m   [2m├──[0m serde_derive v1.0.228 (proc-macro) [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0197322Z [1m[36m│[0m   [2m├──[0m serde_json v1.0.149 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0197695Z [1m[36m│[0m   [2m├──[0m tinytemplate v1.2.1
+2026-02-21T23:20:51.0198086Z [1m[36m│[0m   [2m│[0m   [2m├──[0m serde v1.0.228 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0198533Z [1m[36m│[0m   [2m│[0m   [2m└──[0m serde_json v1.0.149 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0198897Z [1m[36m│[0m   [2m└──[0m walkdir v2.5.0
+2026-02-21T23:20:51.0199209Z [1m[36m│[0m   [2m [0m   [2m└──[0m same-file v1.0.6
+2026-02-21T23:20:51.0199516Z [1m[36m└──[0m tokio-test v0.4.5
+2026-02-21T23:20:51.0199796Z [1m[36m [0m   [2m├──[0m futures-core v0.3.32
+2026-02-21T23:20:51.0200143Z [1m[36m [0m   [2m├──[0m tokio v1.49.0 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0200479Z [1m[36m [0m   [2m└──[0m tokio-stream v0.1.18
+2026-02-21T23:20:51.0200811Z [1m[36m [0m   [2m [0m   [2m├──[0m futures-core v0.3.32
+2026-02-21T23:20:51.0201203Z [1m[36m [0m   [2m [0m   [2m├──[0m pin-project-lite v0.2.16
+2026-02-21T23:20:51.0201598Z [1m[36m [0m   [2m [0m   [2m└──[0m tokio v1.49.0 [33m[2m(*)[39m[22m
+2026-02-21T23:20:51.0201833Z 
+2026-02-21T23:20:51.0201921Z === Checking for audit-chain in tree ===
+2026-02-21T23:20:51.0202175Z audit-chain NOT FOUND in dependency tree
+2026-02-21T23:20:51.0202363Z 
+2026-02-21T23:20:51.0202445Z === Checking for common in tree ===
+2026-02-21T23:20:51.0202695Z common NOT FOUND in dependency tree
+2026-02-21T23:20:51.0224623Z ##[group]Run echo "=== risk-ledger/Cargo.toml dependencies section ==="
+2026-02-21T23:20:51.0225134Z [36;1mecho "=== risk-ledger/Cargo.toml dependencies section ==="[0m
+2026-02-21T23:20:51.0225629Z [36;1mcat rust_components/crates/risk-ledger/Cargo.toml | grep -A20 "\[dependencies\]"[0m
+2026-02-21T23:20:51.0256619Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:20:51.0256839Z env:
+2026-02-21T23:20:51.0257267Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:51.0257661Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:51.0257895Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:51.0258098Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:51.0258294Z ##[endgroup]
+2026-02-21T23:20:51.0306223Z === risk-ledger/Cargo.toml dependencies section ===
+2026-02-21T23:20:51.0322598Z [dependencies]
+2026-02-21T23:20:51.0324231Z # Use workspace dependencies
+2026-02-21T23:20:51.0324634Z tokio = { workspace = true }
+2026-02-21T23:20:51.0325135Z serde = { workspace = true }
+2026-02-21T23:20:51.0326644Z serde_json = { workspace = true }
+2026-02-21T23:20:51.0328396Z chrono = { workspace = true }
+2026-02-21T23:20:51.0328933Z tracing = { workspace = true }
+2026-02-21T23:20:51.0329319Z uuid = { workspace = true }
+2026-02-21T23:20:51.0329557Z 
+2026-02-21T23:20:51.0329738Z # Cryptographic dependencies for Merkle tree
+2026-02-21T23:20:51.0330159Z sha2 = "0.10"
+2026-02-21T23:20:51.0330426Z hex = "0.4"
+2026-02-21T23:20:51.0330581Z 
+2026-02-21T23:20:51.0330767Z # Windows-specific dependencies for file sharing
+2026-02-21T23:20:51.0331274Z [target.'cfg(windows)'.dependencies]
+2026-02-21T23:20:51.0331717Z winapi = { version = "0.3", features = ["winnt"] }
+2026-02-21T23:20:51.0332057Z 
+2026-02-21T23:20:51.0332156Z # Local dependencies - workspace members
+2026-02-21T23:20:51.0332448Z cryptotechnolog-common = { path = "../common" }
+2026-02-21T23:20:51.0332803Z cryptotechnolog-audit-chain = { path = "../audit-chain" }
+2026-02-21T23:20:51.0333050Z 
+2026-02-21T23:20:51.0366102Z ##[group]Run echo "=== Building audit-chain explicitly ==="
+2026-02-21T23:20:51.0366509Z [36;1mecho "=== Building audit-chain explicitly ==="[0m
+2026-02-21T23:20:51.0367171Z [36;1mcargo build --package cryptotechnolog-audit-chain --lib[0m
+2026-02-21T23:20:51.0395245Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:20:51.0395468Z env:
+2026-02-21T23:20:51.0395629Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:51.0395847Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:51.0396076Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:51.0396263Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:51.0396475Z ##[endgroup]
+2026-02-21T23:20:51.0444463Z === Building audit-chain explicitly ===
+2026-02-21T23:20:51.1440318Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+2026-02-21T23:20:51.1520306Z ##[group]Run echo "=== Checking audit-chain crate ==="
+2026-02-21T23:20:51.1520703Z [36;1mecho "=== Checking audit-chain crate ==="[0m
+2026-02-21T23:20:51.1521106Z [36;1mcargo check --package cryptotechnolog-audit-chain --lib --verbose[0m
+2026-02-21T23:20:51.1552208Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:20:51.1552440Z env:
+2026-02-21T23:20:51.1552602Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:51.1552816Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:51.1553041Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:51.1553232Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:51.1553422Z ##[endgroup]
+2026-02-21T23:20:51.1602170Z === Checking audit-chain crate ===
+2026-02-21T23:20:51.2673015Z [1m[92m       Fresh[0m unicode-ident v1.0.24
+2026-02-21T23:20:51.2676667Z [1m[92m       Fresh[0m proc-macro2 v1.0.106
+2026-02-21T23:20:51.2678551Z [1m[92m       Fresh[0m quote v1.0.44
+2026-02-21T23:20:51.2679031Z [1m[92m       Fresh[0m syn v2.0.117
+2026-02-21T23:20:51.2679504Z [1m[92m    Checking[0m libc v0.2.182
+2026-02-21T23:20:51.2679957Z [1m[92m       Fresh[0m version_check v0.9.5
+2026-02-21T23:20:51.2694552Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name libc --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libc-0.2.182/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 '--allow=clippy::used_underscore_binding' --allow=unused_qualifications '--warn=clippy::unnecessary_semicolon' '--allow=clippy::unnecessary_cast' '--allow=clippy::uninlined_format_args' '--warn=clippy::ptr_as_ptr' '--allow=clippy::non_minimal_cfg' '--allow=clippy::missing_safety_doc' '--warn=clippy::map_unwrap_or' '--warn=clippy::manual_assert' '--allow=clippy::identity_op' '--warn=clippy::explicit_iter_loop' '--allow=clippy::expl_impl_clone_on_copy' --cfg 'feature="default"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("align", "const-extern-fn", "default", "extra_traits", "rustc-dep-of-std", "rustc-std-workspace-core", "std", "use_std"))' -C metadata=75ac35889fae5ca0 -C extra-filename=-615dd1ae383c1f11 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow --cfg freebsd12 --check-cfg 'cfg(emscripten_old_stat_abi)' --check-cfg 'cfg(espidf_time32)' --check-cfg 'cfg(freebsd10)' --check-cfg 'cfg(freebsd11)' --check-cfg 'cfg(freebsd12)' --check-cfg 'cfg(freebsd13)' --check-cfg 'cfg(freebsd14)' --check-cfg 'cfg(freebsd15)' --check-cfg 'cfg(gnu_file_offset_bits64)' --check-cfg 'cfg(gnu_time_bits64)' --check-cfg 'cfg(libc_deny_warnings)' --check-cfg 'cfg(linux_time_bits64)' --check-cfg 'cfg(musl_v1_2_3)' --check-cfg 'cfg(musl32_time64)' --check-cfg 'cfg(vxworks_lt_25_09)' --check-cfg 'cfg(target_os,values("switch","aix","ohos","hurd","rtems","visionos","nuttx","cygwin","qurt"))' --check-cfg 'cfg(target_env,values("illumos","wasi","aix","ohos","nto71_iosock","nto80"))' --check-cfg 'cfg(target_arch,values("loongarch64","mips32r6","mips64r6","csky"))'`
+2026-02-21T23:20:51.2727959Z [1m[92m    Checking[0m cfg-if v1.0.4
+2026-02-21T23:20:51.2733351Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name cfg_if --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cfg-if-1.0.4/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("core", "rustc-dep-of-std"))' -C metadata=ff9090875984aa51 -C extra-filename=-1dd76fae51940b68 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-21T23:20:51.2914936Z [1m[92m    Checking[0m typenum v1.19.0
+2026-02-21T23:20:51.2921111Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name typenum --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/typenum-1.19.0/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("const-generics", "force_unix_path_separator", "i128", "no_std", "scale-info", "scale_info", "strict"))' -C metadata=b10d1381f70829d6 -C extra-filename=-5897179dbd7f1237 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-21T23:20:51.8426818Z [1m[92m    Checking[0m serde_core v1.0.228
+2026-02-21T23:20:51.8464378Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name serde_core --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_core-1.0.228/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="result"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("alloc", "default", "rc", "result", "std", "unstable"))' -C metadata=3805da22434a7e95 -C extra-filename=-c45b4833e4cd2ced --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow --check-cfg 'cfg(if_docsrs_then_no_serde_core)' --check-cfg 'cfg(no_core_cstr)' --check-cfg 'cfg(no_core_error)' --check-cfg 'cfg(no_core_net)' --check-cfg 'cfg(no_core_num_saturating)' --check-cfg 'cfg(no_diagnostic_namespace)' --check-cfg 'cfg(no_serde_derive)' --check-cfg 'cfg(no_std_atomic)' --check-cfg 'cfg(no_std_atomic64)' --check-cfg 'cfg(no_target_has_atomic)'`
+2026-02-21T23:20:52.2824924Z [1m[92m    Checking[0m generic-array v0.14.7
+2026-02-21T23:20:52.2838089Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name generic_array --edition=2015 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/generic-array-0.14.7/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="more_lengths"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("more_lengths", "serde", "zeroize"))' -C metadata=147b1cbfd03577da -C extra-filename=-ca63266564d72c57 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern typenum=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtypenum-5897179dbd7f1237.rmeta --cap-lints allow --cfg relaxed_coherence`
+2026-02-21T23:20:52.8198932Z [1m[92m       Fresh[0m serde_derive v1.0.228
+2026-02-21T23:20:52.8200191Z [1m[92m       Fresh[0m autocfg v1.5.0
+2026-02-21T23:20:52.8218580Z [1m[92m    Checking[0m smallvec v1.15.1
+2026-02-21T23:20:52.8234445Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name smallvec --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/smallvec-1.15.1/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("arbitrary", "bincode", "const_generics", "const_new", "debugger_visualizer", "drain_filter", "drain_keep_rest", "impl_bincode", "malloc_size_of", "may_dangle", "serde", "specialization", "union", "unty", "write"))' -C metadata=2e657be76e059ac0 -C extra-filename=-1334b260477b0c37 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-21T23:20:52.9749820Z [1m[92m    Checking[0m scopeguard v1.2.0
+2026-02-21T23:20:52.9796786Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name scopeguard --edition=2015 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scopeguard-1.2.0/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "use_std"))' -C metadata=47b685dc19241855 -C extra-filename=-8a0a7bd2a81ee994 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-21T23:20:53.0145316Z [1m[92m    Checking[0m lock_api v0.4.14
+2026-02-21T23:20:53.0165321Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name lock_api --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lock_api-0.4.14/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="atomic_usize"' --cfg 'feature="default"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("arc_lock", "atomic_usize", "default", "nightly", "owning_ref", "serde"))' -C metadata=415d06ca3f0526db -C extra-filename=-f911d1bae82dd445 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern scopeguard=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libscopeguard-8a0a7bd2a81ee994.rmeta --cap-lints allow`
+2026-02-21T23:20:53.1800514Z [1m[92m    Checking[0m parking_lot_core v0.9.12
+2026-02-21T23:20:53.1824579Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name parking_lot_core --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/parking_lot_core-0.9.12/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("backtrace", "deadlock_detection", "nightly", "petgraph"))' -C metadata=3e79fc755d5d02e4 -C extra-filename=-8df1bc202525f0bb --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern cfg_if=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libcfg_if-1dd76fae51940b68.rmeta --extern libc=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/liblibc-615dd1ae383c1f11.rmeta --extern smallvec=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libsmallvec-1334b260477b0c37.rmeta --cap-lints allow --check-cfg 'cfg(tsan_enabled)'`
+2026-02-21T23:20:53.3171582Z [1m[92m    Checking[0m block-buffer v0.10.4
+2026-02-21T23:20:53.3184719Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name block_buffer --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block-buffer-0.10.4/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=3cedccc96f00ddba -C extra-filename=-e56fd2da8d4bd510 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern generic_array=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libgeneric_array-ca63266564d72c57.rmeta --cap-lints allow`
+2026-02-21T23:20:53.3814515Z [1m[92m    Checking[0m crypto-common v0.1.7
+2026-02-21T23:20:53.3854925Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name crypto_common --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crypto-common-0.1.7/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("getrandom", "rand_core", "std"))' -C metadata=14d16b463f81d245 -C extra-filename=-9e7096b6b51d0de7 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern generic_array=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libgeneric_array-ca63266564d72c57.rmeta --extern typenum=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtypenum-5897179dbd7f1237.rmeta --cap-lints allow`
+2026-02-21T23:20:53.4345067Z [1m[92m    Checking[0m errno v0.3.14
+2026-02-21T23:20:53.4362228Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name errno --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/errno-0.3.14/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(target_os, values("cygwin"))' --cfg 'feature="default"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "std"))' -C metadata=ffb48aefa012b959 -C extra-filename=-3d53664cf0be054b --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern libc=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/liblibc-615dd1ae383c1f11.rmeta --cap-lints allow`
+2026-02-21T23:20:53.4930479Z [1m[92m    Checking[0m once_cell v1.21.3
+2026-02-21T23:20:53.4955659Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name once_cell --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.3/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="alloc"' --cfg 'feature="default"' --cfg 'feature="race"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("alloc", "atomic-polyfill", "critical-section", "default", "parking_lot", "portable-atomic", "race", "std", "unstable"))' -C metadata=494ac329b0cfe6fb -C extra-filename=-7b9a110c0e7fa83c --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-21T23:20:53.6069781Z [1m[92m    Checking[0m pin-project-lite v0.2.16
+2026-02-21T23:20:53.6096788Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name pin_project_lite --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pin-project-lite-0.2.16/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --warn=unreachable_pub --warn=unexpected_cfgs '--warn=clippy::undocumented_unsafe_blocks' '--warn=clippy::transmute_undefined_repr' '--warn=clippy::trailing_empty_array' --warn=single_use_lifetimes --warn=rust_2018_idioms '--warn=clippy::pedantic' --warn=non_ascii_idents '--warn=clippy::inline_asm_x86_att_syntax' --warn=improper_ctypes_definitions --warn=improper_ctypes --warn=deprecated_safe '--warn=clippy::default_union_representation' '--warn=clippy::as_underscore' '--warn=clippy::as_ptr_cast_mut' '--warn=clippy::all' '--allow=clippy::unreadable_literal' '--allow=clippy::type_complexity' '--allow=clippy::too_many_lines' '--allow=clippy::too_many_arguments' '--allow=clippy::struct_field_names' '--allow=clippy::struct_excessive_bools' '--allow=clippy::single_match_else' '--allow=clippy::single_match' '--allow=clippy::similar_names' '--allow=clippy::range_plus_one' '--allow=clippy::nonminimal_bool' '--allow=clippy::naive_bytecount' '--allow=clippy::module_name_repetitions' '--allow=clippy::missing_errors_doc' '--allow=clippy::manual_range_contains' '--allow=clippy::manual_assert' '--allow=clippy::lint_groups_priority' '--allow=clippy::incompatible_msrv' '--allow=clippy::float_cmp' '--allow=clippy::doc_markdown' '--allow=clippy::declare_interior_mutable_const' '--allow=clippy::cast_lossless' '--allow=clippy::borrow_as_ptr' '--allow=clippy::bool_assert_comparison' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=d0857a2da8458a79 -C extra-filename=-f15b5ff60ac403e5 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-21T23:20:53.6409562Z [1m[92m    Checking[0m tracing-core v0.1.36
+2026-02-21T23:20:53.6431206Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracing_core --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-core-0.1.36/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(flaky_tests)' --check-cfg 'cfg(tracing_unstable)' --check-cfg 'cfg(unsound_local_offset)' --cfg 'feature="once_cell"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "once_cell", "std", "valuable"))' -C metadata=9880c2407341855b -C extra-filename=-5a90ed7a0191518e --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern once_cell=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libonce_cell-7b9a110c0e7fa83c.rmeta --cap-lints allow`
+2026-02-21T23:20:53.9025733Z [1m[92m    Checking[0m signal-hook-registry v1.4.8
+2026-02-21T23:20:53.9058092Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name signal_hook_registry --edition=2015 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 '--allow=clippy::unnecessary_clippy_cfg' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=d93fbaae46fd0c63 -C extra-filename=-48c8ac3352bd6b86 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern errno=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/liberrno-3d53664cf0be054b.rmeta --extern libc=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/liblibc-615dd1ae383c1f11.rmeta --cap-lints allow`
+2026-02-21T23:20:53.9210172Z [1m[92m    Checking[0m serde v1.0.228
+2026-02-21T23:20:53.9244839Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name serde --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="default"' --cfg 'feature="derive"' --cfg 'feature="serde_derive"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("alloc", "default", "derive", "rc", "serde_derive", "std", "unstable"))' -C metadata=b4c31c24d16d149e -C extra-filename=-c8965ee8ee9e0eb1 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern serde_core=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde_core-c45b4833e4cd2ced.rmeta --extern serde_derive=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde_derive-8ecd57ebde535a80.so --cap-lints allow --cfg if_docsrs_then_no_serde_core --check-cfg 'cfg(feature, values("result"))' --check-cfg 'cfg(if_docsrs_then_no_serde_core)' --check-cfg 'cfg(no_core_cstr)' --check-cfg 'cfg(no_core_error)' --check-cfg 'cfg(no_core_net)' --check-cfg 'cfg(no_core_num_saturating)' --check-cfg 'cfg(no_diagnostic_namespace)' --check-cfg 'cfg(no_serde_derive)' --check-cfg 'cfg(no_std_atomic)' --check-cfg 'cfg(no_std_atomic64)' --check-cfg 'cfg(no_target_has_atomic)'`
+2026-02-21T23:20:54.0075971Z [1m[92m    Checking[0m digest v0.10.7
+2026-02-21T23:20:54.0118680Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name digest --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/digest-0.10.7/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="alloc"' --cfg 'feature="block-buffer"' --cfg 'feature="core-api"' --cfg 'feature="default"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("alloc", "blobby", "block-buffer", "const-oid", "core-api", "default", "dev", "mac", "oid", "rand_core", "std", "subtle"))' -C metadata=8e9a31dfe78310c6 -C extra-filename=-89f9ec62bb4f2bd2 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern block_buffer=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libblock_buffer-e56fd2da8d4bd510.rmeta --extern crypto_common=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libcrypto_common-9e7096b6b51d0de7.rmeta --cap-lints allow`
+2026-02-21T23:20:54.1369437Z [1m[92m    Checking[0m num-traits v0.2.19
+2026-02-21T23:20:54.1376009Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name num_traits --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/num-traits-0.2.19/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "i128", "libm", "std"))' -C metadata=c93578c77d43d4c0 -C extra-filename=-8dc318dbb424569b --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow --cfg has_total_cmp --check-cfg 'cfg(has_total_cmp)'`
+2026-02-21T23:20:54.3901836Z [1m[92m    Checking[0m zmij v1.0.21
+2026-02-21T23:20:54.3914005Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name zmij --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zmij-1.0.21/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("no-panic"))' -C metadata=ce4e7e8fce77a728 -C extra-filename=-48636007c9a5b87c --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow --check-cfg 'cfg(exhaustive)' --check-cfg 'cfg(zmij_no_select_unpredictable)'`
+2026-02-21T23:20:54.6013013Z [1m[92m    Checking[0m parking_lot v0.12.5
+2026-02-21T23:20:54.6025999Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name parking_lot --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/parking_lot-0.12.5/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="default"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("arc_lock", "deadlock_detection", "default", "hardware-lock-elision", "nightly", "owning_ref", "send_guard", "serde"))' -C metadata=06bae0cda757e85f -C extra-filename=-be522b7e042862d7 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern lock_api=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/liblock_api-f911d1bae82dd445.rmeta --extern parking_lot_core=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libparking_lot_core-8df1bc202525f0bb.rmeta --cap-lints allow`
+2026-02-21T23:20:54.7003275Z [1m[92m    Checking[0m getrandom v0.2.17
+2026-02-21T23:20:54.7024380Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name getrandom --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("compiler_builtins", "core", "custom", "js", "js-sys", "linux_disable_fallback", "rdrand", "rustc-dep-of-std", "std", "test-in-browser", "wasm-bindgen"))' -C metadata=32a0522bd5bfe3c7 -C extra-filename=-e5c5c1b0a2f4e97d --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern cfg_if=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libcfg_if-1dd76fae51940b68.rmeta --extern libc=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/liblibc-615dd1ae383c1f11.rmeta --cap-lints allow`
+2026-02-21T23:20:54.7417915Z [1m[92m    Checking[0m socket2 v0.6.2
+2026-02-21T23:20:54.7440668Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name socket2 --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.2/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="all"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("all"))' -C metadata=cb8aa9ff66aa4e32 -C extra-filename=-d851a9761031b9f2 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern libc=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/liblibc-615dd1ae383c1f11.rmeta --cap-lints allow`
+2026-02-21T23:20:54.7793190Z [1m[92m    Checking[0m mio v1.1.1
+2026-02-21T23:20:54.7801105Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name mio --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mio-1.1.1/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(mio_unsupported_force_poll_poll)' --check-cfg 'cfg(mio_unsupported_force_waker_pipe)' --cfg 'feature="net"' --cfg 'feature="os-ext"' --cfg 'feature="os-poll"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "log", "net", "os-ext", "os-poll"))' -C metadata=ceafc4627d724922 -C extra-filename=-2e3325d89b8ed339 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern libc=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/liblibc-615dd1ae383c1f11.rmeta --cap-lints allow`
+2026-02-21T23:20:54.9850735Z [1m[92m       Fresh[0m tokio-macros v2.6.0
+2026-02-21T23:20:54.9858396Z [1m[92m       Fresh[0m thiserror-impl v1.0.69
+2026-02-21T23:20:54.9863035Z [1m[92m       Fresh[0m tracing-attributes v0.1.31
+2026-02-21T23:20:54.9867890Z [1m[92m    Checking[0m cpufeatures v0.2.17
+2026-02-21T23:20:54.9894229Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name cpufeatures --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cpufeatures-0.2.17/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=c129f0a0f667391d -C extra-filename=-9ff718ada3326dc9 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-21T23:20:55.0148091Z [1m[92m    Checking[0m itoa v1.0.17
+2026-02-21T23:20:55.0159956Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name itoa --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/itoa-1.0.17/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("no-panic"))' -C metadata=d22e1b173bbdab9e -C extra-filename=-9bbf33538efe6fa8 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-21T23:20:55.0275294Z [1m[92m    Checking[0m memchr v2.8.0
+2026-02-21T23:20:55.0294678Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name memchr --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memchr-2.8.0/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="alloc"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("alloc", "core", "default", "libc", "logging", "rustc-dep-of-std", "std", "use_std"))' -C metadata=7d54c38dc9e53b39 -C extra-filename=-d9d3c03d73bd55d5 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-21T23:20:55.1046649Z [1m[92m    Checking[0m iana-time-zone v0.1.65
+2026-02-21T23:20:55.1055360Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name iana_time_zone --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iana-time-zone-0.1.65/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="fallback"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("fallback"))' -C metadata=51857bc2fdfa0e46 -C extra-filename=-85535520433e0483 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-21T23:20:55.1710598Z [1m[92m    Checking[0m bytes v1.11.1
+2026-02-21T23:20:55.1717551Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name bytes --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.11.1/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(loom)' --cfg 'feature="default"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "extra-platforms", "serde", "std"))' -C metadata=282acce39bd40f5b -C extra-filename=-faf46870370fd987 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-21T23:20:55.4219495Z [1m[92m    Checking[0m serde_json v1.0.149
+2026-02-21T23:20:55.4236245Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name serde_json --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.149/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="default"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("alloc", "arbitrary_precision", "default", "float_roundtrip", "indexmap", "preserve_order", "raw_value", "std", "unbounded_depth"))' -C metadata=70ee7b2a4871bb0b -C extra-filename=-1cdee1288465c9de --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern itoa=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libitoa-9bbf33538efe6fa8.rmeta --extern memchr=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libmemchr-d9d3c03d73bd55d5.rmeta --extern serde_core=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde_core-c45b4833e4cd2ced.rmeta --extern zmij=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libzmij-48636007c9a5b87c.rmeta --cap-lints allow --cfg 'fast_arithmetic="64"' --check-cfg 'cfg(fast_arithmetic, values("32", "64"))'`
+2026-02-21T23:20:55.6581064Z [1m[92m    Checking[0m tokio v1.49.0
+2026-02-21T23:20:55.6638780Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name tokio --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.49.0/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(fuzzing)' --check-cfg 'cfg(loom)' --check-cfg 'cfg(mio_unsupported_force_poll_poll)' --check-cfg 'cfg(tokio_allow_from_blocking_fd)' --check-cfg 'cfg(tokio_internal_mt_counters)' --check-cfg 'cfg(tokio_no_parking_lot)' --check-cfg 'cfg(tokio_no_tuning_tests)' --check-cfg 'cfg(tokio_unstable)' --check-cfg 'cfg(target_os, values("cygwin"))' --cfg 'feature="bytes"' --cfg 'feature="default"' --cfg 'feature="fs"' --cfg 'feature="full"' --cfg 'feature="io-std"' --cfg 'feature="io-util"' --cfg 'feature="libc"' --cfg 'feature="macros"' --cfg 'feature="mio"' --cfg 'feature="net"' --cfg 'feature="parking_lot"' --cfg 'feature="process"' --cfg 'feature="rt"' --cfg 'feature="rt-multi-thread"' --cfg 'feature="signal"' --cfg 'feature="signal-hook-registry"' --cfg 'feature="socket2"' --cfg 'feature="sync"' --cfg 'feature="time"' --cfg 'feature="tokio-macros"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("bytes", "default", "fs", "full", "io-std", "io-uring", "io-util", "libc", "macros", "mio", "net", "parking_lot", "process", "rt", "rt-multi-thread", "signal", "signal-hook-registry", "socket2", "sync", "taskdump", "test-util", "time", "tokio-macros", "tracing", "windows-sys"))' -C metadata=c1b87bc648a35831 -C extra-filename=-137c0c47b9ddf88f --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern bytes=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libbytes-faf46870370fd987.rmeta --extern libc=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/liblibc-615dd1ae383c1f11.rmeta --extern mio=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libmio-2e3325d89b8ed339.rmeta --extern parking_lot=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libparking_lot-be522b7e042862d7.rmeta --extern pin_project_lite=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libpin_project_lite-f15b5ff60ac403e5.rmeta --extern signal_hook_registry=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libsignal_hook_registry-48c8ac3352bd6b86.rmeta --extern socket2=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libsocket2-d851a9761031b9f2.rmeta --extern tokio_macros=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtokio_macros-a81628be03891436.so --cap-lints allow`
+2026-02-21T23:20:56.1586249Z [1m[92m    Checking[0m chrono v0.4.43
+2026-02-21T23:20:56.1616690Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name chrono --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/chrono-0.4.43/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="alloc"' --cfg 'feature="clock"' --cfg 'feature="default"' --cfg 'feature="iana-time-zone"' --cfg 'feature="js-sys"' --cfg 'feature="now"' --cfg 'feature="oldtime"' --cfg 'feature="serde"' --cfg 'feature="std"' --cfg 'feature="wasm-bindgen"' --cfg 'feature="wasmbind"' --cfg 'feature="winapi"' --cfg 'feature="windows-link"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("__internal_bench", "alloc", "arbitrary", "clock", "core-error", "default", "defmt", "iana-time-zone", "js-sys", "libc", "now", "oldtime", "pure-rust-locales", "rkyv", "rkyv-16", "rkyv-32", "rkyv-64", "rkyv-validation", "serde", "std", "unstable-locales", "wasm-bindgen", "wasmbind", "winapi", "windows-link"))' -C metadata=34400ac42d819401 -C extra-filename=-da7a59d9fcb8ea1d --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern iana_time_zone=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libiana_time_zone-85535520433e0483.rmeta --extern num_traits=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libnum_traits-8dc318dbb424569b.rmeta --extern serde=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde-c8965ee8ee9e0eb1.rmeta --cap-lints allow`
+2026-02-21T23:20:57.2110668Z [1m[92m    Checking[0m sha2 v0.10.9
+2026-02-21T23:20:57.2120493Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name sha2 --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sha2-0.10.9/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="default"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("asm", "asm-aarch64", "compress", "default", "force-soft", "force-soft-compact", "loongarch64_asm", "oid", "sha2-asm", "std"))' -C metadata=5ce3017e4d658d15 -C extra-filename=-09d0f13c5907af41 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern cfg_if=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libcfg_if-1dd76fae51940b68.rmeta --extern cpufeatures=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libcpufeatures-9ff718ada3326dc9.rmeta --extern digest=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libdigest-89f9ec62bb4f2bd2.rmeta --cap-lints allow`
+2026-02-21T23:20:57.4489197Z [1m[92m    Checking[0m tracing v0.1.44
+2026-02-21T23:20:57.4520805Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracing --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-0.1.44/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(flaky_tests)' --check-cfg 'cfg(tracing_unstable)' --check-cfg 'cfg(unsound_local_offset)' --cfg 'feature="attributes"' --cfg 'feature="default"' --cfg 'feature="std"' --cfg 'feature="tracing-attributes"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("async-await", "attributes", "default", "log", "log-always", "max_level_debug", "max_level_error", "max_level_info", "max_level_off", "max_level_trace", "max_level_warn", "release_max_level_debug", "release_max_level_error", "release_max_level_info", "release_max_level_off", "release_max_level_trace", "release_max_level_warn", "std", "tracing-attributes", "valuable"))' -C metadata=4a3acef60c83bc5b -C extra-filename=-7638c49d282178ad --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern pin_project_lite=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libpin_project_lite-f15b5ff60ac403e5.rmeta --extern tracing_attributes=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtracing_attributes-96ae768de6bfc6d8.so --extern tracing_core=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtracing_core-5a90ed7a0191518e.rmeta --cap-lints allow`
+2026-02-21T23:20:57.5837813Z [1m[92m    Checking[0m thiserror v1.0.69
+2026-02-21T23:20:57.5849831Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name thiserror --edition=2021 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=cb7affb7adafe601 -C extra-filename=-dcc83ef3b50e5e41 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern thiserror_impl=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libthiserror_impl-a61c6b340123b926.so --cap-lints allow --check-cfg 'cfg(error_generic_member_access)' --check-cfg 'cfg(thiserror_nightly_testing)'`
+2026-02-21T23:20:57.6220321Z [1m[92m    Checking[0m uuid v1.6.1
+2026-02-21T23:20:57.6232735Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name uuid --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.6.1/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="default"' --cfg 'feature="getrandom"' --cfg 'feature="rng"' --cfg 'feature="serde"' --cfg 'feature="std"' --cfg 'feature="v4"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("arbitrary", "atomic", "borsh", "bytemuck", "default", "fast-rng", "getrandom", "js", "macro-diagnostics", "md-5", "md5", "rand", "rng", "serde", "sha1", "sha1_smol", "slog", "std", "uuid-macro-internal", "v1", "v3", "v4", "v5", "v6", "v7", "v8", "wasm-bindgen", "zerocopy"))' -C metadata=24cc188cc521104f -C extra-filename=-8875611f18652df5 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern getrandom=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libgetrandom-e5c5c1b0a2f4e97d.rmeta --extern serde=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde-c8965ee8ee9e0eb1.rmeta --cap-lints allow`
+2026-02-21T23:20:57.8388067Z [1m[92m    Checking[0m hex v0.4.3
+2026-02-21T23:20:57.8394090Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name hex --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hex-0.4.3/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="alloc"' --cfg 'feature="default"' --cfg 'feature="serde"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("alloc", "default", "serde", "std"))' -C metadata=b42db1db5eafca88 -C extra-filename=-a2b9ba6df759be7f --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern serde=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde-c8965ee8ee9e0eb1.rmeta --cap-lints allow`
+2026-02-21T23:20:59.1548719Z [1m[92m    Checking[0m cryptotechnolog-audit-chain v0.1.0 (/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/audit-chain)
+2026-02-21T23:20:59.1564252Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name cryptotechnolog_audit_chain --edition=2021 rust_components/crates/audit-chain/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=9298752e30192b9b -C extra-filename=-0dfcf2a1c4c6fa69 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern chrono=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libchrono-da7a59d9fcb8ea1d.rmeta --extern hex=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libhex-a2b9ba6df759be7f.rmeta --extern serde=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde-c8965ee8ee9e0eb1.rmeta --extern serde_json=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde_json-1cdee1288465c9de.rmeta --extern sha2=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libsha2-09d0f13c5907af41.rmeta --extern thiserror=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libthiserror-dcc83ef3b50e5e41.rmeta --extern tokio=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtokio-137c0c47b9ddf88f.rmeta --extern tracing=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtracing-7638c49d282178ad.rmeta --extern uuid=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libuuid-8875611f18652df5.rmeta`
+2026-02-21T23:20:59.2546867Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 8.05s
+2026-02-21T23:20:59.2680845Z ##[group]Run echo "=== Checking risk-ledger explicitly (from workspace root) ==="
+2026-02-21T23:20:59.2681857Z [36;1mecho "=== Checking risk-ledger explicitly (from workspace root) ==="[0m
+2026-02-21T23:20:59.2682598Z [36;1mecho "=== Building audit-chain first ==="[0m
+2026-02-21T23:20:59.2683274Z [36;1mcargo build --package cryptotechnolog-audit-chain --lib[0m
+2026-02-21T23:20:59.2683952Z [36;1mecho "=== Building common first ==="[0m
+2026-02-21T23:20:59.2684560Z [36;1mcargo build --package cryptotechnolog-common --lib[0m
+2026-02-21T23:20:59.2685187Z [36;1mecho "=== Now checking risk-ledger ==="[0m
+2026-02-21T23:20:59.2685862Z [36;1mcargo check --package cryptotechnolog-risk-ledger --lib --verbose[0m
+2026-02-21T23:20:59.2728038Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:20:59.2728272Z env:
+2026-02-21T23:20:59.2728446Z   PYTHON_VERSION: 3.12
+2026-02-21T23:20:59.2728664Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:20:59.2728897Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:20:59.2729120Z   CARGO_TERM_COLOR: always
+2026-02-21T23:20:59.2729315Z ##[endgroup]
+2026-02-21T23:20:59.2807868Z === Checking risk-ledger explicitly (from workspace root) ===
+2026-02-21T23:20:59.2808987Z === Building audit-chain first ===
+2026-02-21T23:20:59.3855006Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+2026-02-21T23:20:59.3919875Z === Building common first ===
+2026-02-21T23:20:59.4920406Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+2026-02-21T23:20:59.4994196Z === Now checking risk-ledger ===
+2026-02-21T23:20:59.6023383Z [1m[92m       Fresh[0m unicode-ident v1.0.24
+2026-02-21T23:20:59.6037222Z [1m[92m       Fresh[0m proc-macro2 v1.0.106
+2026-02-21T23:20:59.6037877Z [1m[92m       Fresh[0m quote v1.0.44
+2026-02-21T23:20:59.6038374Z [1m[92m       Fresh[0m libc v0.2.182
+2026-02-21T23:20:59.6038855Z [1m[92m       Fresh[0m syn v2.0.117
+2026-02-21T23:20:59.6039349Z [1m[92m       Fresh[0m version_check v0.9.5
+2026-02-21T23:20:59.6039874Z [1m[92m       Fresh[0m cfg-if v1.0.4
+2026-02-21T23:20:59.6040300Z [1m[92m       Fresh[0m typenum v1.19.0
+2026-02-21T23:20:59.6040735Z [1m[92m       Fresh[0m serde_core v1.0.228
+2026-02-21T23:20:59.6041188Z [1m[92m       Fresh[0m generic-array v0.14.7
+2026-02-21T23:20:59.6041620Z [1m[92m       Fresh[0m autocfg v1.5.0
+2026-02-21T23:20:59.6042344Z [1m[92m       Fresh[0m serde_derive v1.0.228
+2026-02-21T23:20:59.6042771Z [1m[92m       Fresh[0m smallvec v1.15.1
+2026-02-21T23:20:59.6043201Z [1m[92m       Fresh[0m scopeguard v1.2.0
+2026-02-21T23:20:59.6043616Z [1m[92m       Fresh[0m lock_api v0.4.14
+2026-02-21T23:20:59.6044056Z [1m[92m       Fresh[0m parking_lot_core v0.9.12
+2026-02-21T23:20:59.6044507Z [1m[92m       Fresh[0m serde v1.0.228
+2026-02-21T23:20:59.6044933Z [1m[92m       Fresh[0m block-buffer v0.10.4
+2026-02-21T23:20:59.6045377Z [1m[92m       Fresh[0m crypto-common v0.1.7
+2026-02-21T23:20:59.6045798Z [1m[92m       Fresh[0m errno v0.3.14
+2026-02-21T23:20:59.6046203Z [1m[92m       Fresh[0m once_cell v1.21.3
+2026-02-21T23:20:59.6046648Z [1m[92m       Fresh[0m pin-project-lite v0.2.16
+2026-02-21T23:20:59.6047337Z [1m[92m       Fresh[0m tracing-core v0.1.36
+2026-02-21T23:20:59.6047815Z [1m[92m       Fresh[0m signal-hook-registry v1.4.8
+2026-02-21T23:20:59.6048281Z [1m[92m       Fresh[0m digest v0.10.7
+2026-02-21T23:20:59.6048722Z [1m[92m       Fresh[0m num-traits v0.2.19
+2026-02-21T23:20:59.6049156Z [1m[92m       Fresh[0m parking_lot v0.12.5
+2026-02-21T23:20:59.6049611Z [1m[92m       Fresh[0m zmij v1.0.21
+2026-02-21T23:20:59.6050054Z [1m[92m       Fresh[0m getrandom v0.2.17
+2026-02-21T23:20:59.6050599Z [1m[92m       Fresh[0m tracing-attributes v0.1.31
+2026-02-21T23:20:59.6051133Z [1m[92m       Fresh[0m tokio-macros v2.6.0
+2026-02-21T23:20:59.6051602Z [1m[92m       Fresh[0m mio v1.1.1
+2026-02-21T23:20:59.6052044Z [1m[92m       Fresh[0m socket2 v0.6.2
+2026-02-21T23:20:59.6052657Z [1m[92m       Fresh[0m bytes v1.11.1
+2026-02-21T23:20:59.6053132Z [1m[92m       Fresh[0m itoa v1.0.17
+2026-02-21T23:20:59.6053600Z [1m[92m       Fresh[0m cpufeatures v0.2.17
+2026-02-21T23:20:59.6054115Z [1m[92m       Fresh[0m iana-time-zone v0.1.65
+2026-02-21T23:20:59.6054601Z [1m[92m       Fresh[0m memchr v2.8.0
+2026-02-21T23:20:59.6055045Z [1m[92m       Fresh[0m sha2 v0.10.9
+2026-02-21T23:20:59.6055516Z [1m[92m       Fresh[0m serde_json v1.0.149
+2026-02-21T23:20:59.6055994Z [1m[92m       Fresh[0m chrono v0.4.43
+2026-02-21T23:20:59.6056444Z [1m[92m       Fresh[0m tokio v1.49.0
+2026-02-21T23:20:59.6057228Z [1m[92m       Fresh[0m tracing v0.1.44
+2026-02-21T23:20:59.6057767Z [1m[92m       Fresh[0m uuid v1.6.1
+2026-02-21T23:20:59.6058206Z [1m[92m    Checking[0m hex v0.4.3
+2026-02-21T23:20:59.6067091Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name hex --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hex-0.4.3/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="alloc"' --cfg 'feature="default"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("alloc", "default", "serde", "std"))' -C metadata=ff1b65c147de2680 -C extra-filename=-cef34422a11f1fa7 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-21T23:20:59.7228684Z [1m[92m    Checking[0m cryptotechnolog-risk-ledger v0.1.0 (/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger)
+2026-02-21T23:20:59.7242089Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name cryptotechnolog_risk_ledger --edition=2021 rust_components/crates/risk-ledger/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=f65d93d747d4d0f9 -C extra-filename=-30b665f0082da3d8 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern chrono=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libchrono-da7a59d9fcb8ea1d.rmeta --extern hex=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libhex-cef34422a11f1fa7.rmeta --extern serde=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde-c8965ee8ee9e0eb1.rmeta --extern serde_json=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde_json-1cdee1288465c9de.rmeta --extern sha2=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libsha2-09d0f13c5907af41.rmeta --extern tokio=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtokio-137c0c47b9ddf88f.rmeta --extern tracing=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtracing-7638c49d282178ad.rmeta --extern uuid=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libuuid-8875611f18652df5.rmeta`
+2026-02-21T23:20:59.7440099Z [1m[91merror[E0463][0m[1m: can't find crate for `cryptotechnolog_audit_chain`[0m
+2026-02-21T23:20:59.7442573Z   [1m[94m--> [0mrust_components/crates/risk-ledger/src/lib.rs:17:1
+2026-02-21T23:20:59.7443177Z    [1m[94m|[0m
+2026-02-21T23:20:59.7443694Z [1m[94m17[0m [1m[94m|[0m extern crate cryptotechnolog_audit_chain;
+2026-02-21T23:20:59.7444591Z    [1m[94m|[0m [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mcan't find crate[0m
+2026-02-21T23:20:59.7445051Z 
+2026-02-21T23:20:59.7445479Z [1m[91merror[E0463][0m[1m: can't find crate for `cryptotechnolog_common`[0m
+2026-02-21T23:20:59.7446599Z   [1m[94m--> [0mrust_components/crates/risk-ledger/src/lib.rs:18:1
+2026-02-21T23:20:59.7447524Z    [1m[94m|[0m
+2026-02-21T23:20:59.7448047Z [1m[94m18[0m [1m[94m|[0m extern crate cryptotechnolog_common;
+2026-02-21T23:20:59.7448881Z    [1m[94m|[0m [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mcan't find crate[0m
+2026-02-21T23:20:59.7449343Z 
+2026-02-21T23:20:59.9480325Z [1mFor more information about this error, try `rustc --explain E0463`.[0m
+2026-02-21T23:20:59.9536573Z [1m[91merror[0m: could not compile `cryptotechnolog-risk-ledger` (lib) due to 2 previous errors
+2026-02-21T23:20:59.9538968Z 
+2026-02-21T23:20:59.9539123Z Caused by:
+2026-02-21T23:20:59.9548748Z   process didn't exit successfully: `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name cryptotechnolog_risk_ledger --edition=2021 rust_components/crates/risk-ledger/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=f65d93d747d4d0f9 -C extra-filename=-30b665f0082da3d8 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern chrono=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libchrono-da7a59d9fcb8ea1d.rmeta --extern hex=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libhex-cef34422a11f1fa7.rmeta --extern serde=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde-c8965ee8ee9e0eb1.rmeta --extern serde_json=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde_json-1cdee1288465c9de.rmeta --extern sha2=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libsha2-09d0f13c5907af41.rmeta --extern tokio=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtokio-137c0c47b9ddf88f.rmeta --extern tracing=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtracing-7638c49d282178ad.rmeta --extern uuid=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libuuid-8875611f18652df5.rmeta` (exit status: 1)
+2026-02-21T23:20:59.9640000Z ##[error]Process completed with exit code 101.
+2026-02-21T23:20:59.9735650Z Post job cleanup.
+2026-02-21T23:21:00.0728725Z [command]/usr/bin/git version
+2026-02-21T23:21:00.0771604Z git version 2.52.0
+2026-02-21T23:21:00.0820316Z Temporarily overriding HOME='/home/runner/work/_temp/ba9e5133-ca04-4105-b796-66eb5172a388' before making global git config changes
+2026-02-21T23:21:00.0823128Z Adding repository directory to the temporary git global config as a safe directory
+2026-02-21T23:21:00.0837079Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:21:00.0878589Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-02-21T23:21:00.0917965Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-02-21T23:21:00.1176361Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-02-21T23:21:00.1202650Z http.https://github.com/.extraheader
+2026-02-21T23:21:00.1217617Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-02-21T23:21:00.1253661Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-02-21T23:21:00.1493395Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-02-21T23:21:00.1527923Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-02-21T23:21:00.1964532Z Cleaning up orphan processes

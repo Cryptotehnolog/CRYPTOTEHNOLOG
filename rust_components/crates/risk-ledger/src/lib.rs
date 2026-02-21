@@ -13,10 +13,6 @@
 // - Sub-millisecond risk calculations
 // - Zero-copy operations for high-frequency paths
 
-// Local dependencies - must be imported at crate level for cargo to recognize them
-extern crate cryptotechnolog_audit_chain;
-extern crate cryptotechnolog_common;
-
 pub mod ledger;
 pub mod merkle;
 pub mod validation;

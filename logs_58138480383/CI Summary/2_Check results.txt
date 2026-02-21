@@ -1,0 +1,21 @@
+﻿2026-02-21T23:21:12.8232041Z ##[group]Run echo "CI Pipeline Complete!"
+2026-02-21T23:21:12.8233377Z [36;1mecho "CI Pipeline Complete!"[0m
+2026-02-21T23:21:12.8234241Z [36;1mecho "===================="[0m
+2026-02-21T23:21:12.8235117Z [36;1mecho "Python Tests: success"[0m
+2026-02-21T23:21:12.8236470Z [36;1mecho "Rust Tests: failure"[0m
+2026-02-21T23:21:12.8237347Z [36;1mecho "Security Scan: success"[0m
+2026-02-21T23:21:12.8238374Z [36;1mecho "Dependency Check: success"[0m
+2026-02-21T23:21:12.8239302Z [36;1mecho "Docker Build: success"[0m
+2026-02-21T23:21:12.8240503Z [36;1mecho "Code Quality: success"[0m
+2026-02-21T23:21:12.8969278Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:21:12.8970852Z env:
+2026-02-21T23:21:12.8971708Z   PYTHON_VERSION: 3.12
+2026-02-21T23:21:12.8972452Z ##[endgroup]
+2026-02-21T23:21:12.9284236Z CI Pipeline Complete!
+2026-02-21T23:21:12.9286430Z ====================
+2026-02-21T23:21:12.9288841Z Python Tests: success
+2026-02-21T23:21:12.9289807Z Rust Tests: failure
+2026-02-21T23:21:12.9290527Z Security Scan: success
+2026-02-21T23:21:12.9291464Z Dependency Check: success
+2026-02-21T23:21:12.9292237Z Docker Build: success
+2026-02-21T23:21:12.9293031Z Code Quality: success
