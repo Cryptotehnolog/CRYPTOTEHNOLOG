@@ -219,7 +219,8 @@ impl WriteAheadLog {
         self.writer.flush()?;
         // Use platform-specific null device
         let null_device = if cfg!(windows) { "NUL" } else { "/dev/null" };
-        let _ = std::mem::replace(&mut self.writer, std::io::BufWriter::new(std::fs::File::open(null_device)?));
+        let null_file = std::fs::File::open(null_device)?;
+        let _ = std::mem::replace(&mut self.writer, std::io::BufWriter::new(null_file));
         Ok(())
     }
 
