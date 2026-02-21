@@ -156,6 +156,10 @@ jobs:
       - name: Run fmt check
         run: cargo fmt -- --check || true
 
+      - name: Check audit-chain crate explicitly (debug)
+        run: |
+          cargo check --package cryptotechnolog-audit-chain --lib --verbose
+
       - name: Check workspace dependencies (early detection)
         run: |
           # Clean to ensure fresh build (avoid stale cache issues)
