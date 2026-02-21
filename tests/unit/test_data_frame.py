@@ -2,9 +2,8 @@
 
 # Diagnostic output to understand import order and sys.path
 import sys
-from pathlib import Path
 
-print(f"[test_data_frame] Module loading started")
+print("[test_data_frame] Module loading started")
 print(f"[test_data_frame] sys.path[0:3] = {sys.path[:3]}")
 print(f"[test_data_frame] cryptotechnolog in sys.modules = {'cryptotechnolog' in sys.modules}")
 
@@ -17,7 +16,7 @@ try:
         to_pandas,
         to_polars,
     )
-    print(f"[test_data_frame] Successfully imported cryptotechnolog.data")
+    print("[test_data_frame] Successfully imported cryptotechnolog.data")
 except ImportError as e:
     print(f"[test_data_frame] FAILED to import cryptotechnolog.data: {e}")
     print(f"[test_data_frame] cryptotechnolog in sys.modules: {'cryptotechnolog' in sys.modules}")
@@ -26,11 +25,11 @@ except ImportError as e:
         print(f"[test_data_frame] cryptotechnolog.__path__: {getattr(sys.modules['cryptotechnolog'], '__path__', 'NO PATH')}")
     raise
 
-import pandas as pd
-import polars as pl
-import pytest
+import pandas as pd  # noqa: E402
+import polars as pl  # noqa: E402
+import pytest  # noqa: E402
 
-print(f"[test_data_frame] All imports completed")
+print("[test_data_frame] All imports completed")
 
 
 class TestConversion:
