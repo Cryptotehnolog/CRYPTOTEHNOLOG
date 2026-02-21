@@ -155,6 +155,8 @@ jobs:
       - name: Check workspace dependencies (early detection)
         working-directory: ./rust_components
         run: |
+          # Clean to ensure fresh build (avoid stale cache issues)
+          cargo clean
           # Check all targets for early detection of dependency issues
           cargo check --workspace --all-targets
 

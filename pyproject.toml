@@ -194,6 +194,7 @@ force-sort-within-sections = true
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
 "tests/**/*.py" = ["ARG", "PLR2004"]  # Allow unused arguments in tests
+"**/*.pyi" = ["F401", "I001"]  # Allow unused imports and unsorted imports in type stubs (TYPE_CHECKING blocks)
 
 [tool.mypy]
 python_version = "3.12"
