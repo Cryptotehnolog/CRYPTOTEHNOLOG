@@ -57,6 +57,7 @@ uv.lock
 .vscode/settings.json
 
 # ==================== Rust ====================
+target/
 rust_components/target/
 rust_components/**/target/
 **/*.rs.bk

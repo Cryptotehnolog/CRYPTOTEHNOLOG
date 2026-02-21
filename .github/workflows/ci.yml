@@ -133,7 +133,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust_components/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -144,22 +144,19 @@ jobs:
           path: |
             rust_components/target
             ~/.cargo/bin
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('rust_components/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-build-
 
       - name: Remove stale cargo cache
-        working-directory: ./rust_components
         run: |
           rm -rf ~/.cargo/registry/src/*/cryptotechnolog-* || true
           rm -rf ~/.cargo/registry/index/github.com-*/cryptotechnolog-* || true
 
       - name: Run fmt check
-        working-directory: ./rust_components
         run: cargo fmt -- --check || true
 
       - name: Check workspace dependencies (early detection)
-        working-directory: ./rust_components
         run: |
           # Clean to ensure fresh build (avoid stale cache issues)
           cargo clean
@@ -167,15 +164,12 @@ jobs:
           cargo check --workspace --lib
 
       - name: Build workspace
-        working-directory: ./rust_components
         run: cargo build --workspace
 
       - name: Run clippy
-        working-directory: ./rust_components
         run: cargo clippy --workspace -- -D warnings
 
       - name: Run tests
-        working-directory: ./rust_components
         # Exclude ffi crate (requires Python C API linking - tested via Python pytest)
         run: cargo test --workspace --exclude cryptotechnolog-ffi --lib --quiet
 
