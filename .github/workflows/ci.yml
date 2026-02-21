@@ -78,12 +78,15 @@ jobs:
       - name: Run type checker (mypy)
         run: |
           .venv/bin/mypy src/ --ignore-missing-imports
+        env:
+          PYTHONPATH: src
         continue-on-error: true
 
       - name: Run unit tests
         run: |
           .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
         env:
+          PYTHONPATH: src
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
@@ -91,6 +94,7 @@ jobs:
         run: |
           .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
         env:
+          PYTHONPATH: src
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
@@ -305,6 +309,8 @@ jobs:
         run: |
           uv pip install radon
           .venv/bin/radon cc src/ -a -nb
+        env:
+          PYTHONPATH: src
 
       - name: Check code duplication (jscpd)
         run: |
