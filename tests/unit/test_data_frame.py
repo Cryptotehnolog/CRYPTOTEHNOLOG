@@ -3,8 +3,8 @@
 
 # Diagnostic output to understand import order and sys.path
 import importlib
-import sys
 from pathlib import Path
+import sys
 
 print("[test_data_frame] Module loading started")
 print(f"[test_data_frame] sys.path[0:3] = {sys.path[:3]}")
