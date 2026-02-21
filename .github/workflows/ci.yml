@@ -122,23 +122,26 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Cache cargo registry
+      - name: Cache cargo registry and index
+        if: success()
         uses: actions/cache@v4
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust_components/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
       - name: Cache cargo build
+        if: success()
         uses: actions/cache@v4
         with:
           path: rust_components/target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('rust_components/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('rust_components/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+          save-if: always()
 
       - name: Run fmt check
         working-directory: ./rust_components

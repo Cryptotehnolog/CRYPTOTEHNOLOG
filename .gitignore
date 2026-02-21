@@ -61,6 +61,8 @@ rust_components/target/
 rust_components/**/target/
 **/*.rs.bk
 Cargo.lock
+# Exception: allow workspace Cargo.lock for reproducible builds
+!rust_components/Cargo.lock
 
 # ==================== Data & Logs ====================
 logs/
