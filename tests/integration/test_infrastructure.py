@@ -5,9 +5,9 @@ import asyncio
 import json
 import uuid
 
+from asyncpg import connect as asyncpg_connect
 import pytest
 import redis.asyncio as redis
-from asyncpg import connect as asyncpg_connect
 
 
 @pytest.mark.integration

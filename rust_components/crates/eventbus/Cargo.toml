@@ -32,9 +32,6 @@ arrayvec = { workspace = true, optional = true }
 # Local dependencies
 cryptotechnolog-common = { path = "../common" }
 
-[build-dependencies]
-pkg-config = "0.3"
-
 [dev-dependencies]
 tokio-test = { workspace = true }
 criterion = { workspace = true }

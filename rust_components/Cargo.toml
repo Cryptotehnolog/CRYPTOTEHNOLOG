@@ -37,9 +37,13 @@ sha2 = "0.10"
 hex = "0.4"
 
 # Redis (for event bus)
-redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+# Updated to 0.27.2 to avoid future incompatibility warnings
+redis = { version = "0.27.2", features = ["tokio-comp", "connection-manager"] }
 
 # ZeroMQ (alternative event bus)
+# Using 0.10.0 (latest on crates.io) - requires system library
+# For CI: install libzmq3-dev (already configured in .github/workflows/ci.yml)
+# For Windows: install via vcpkg or use prebuilt binaries
 zmq = "0.10"
 
 # UUID (limit version to avoid getrandom 0.4.x which requires edition2024)

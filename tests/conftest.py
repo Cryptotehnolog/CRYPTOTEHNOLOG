@@ -1,8 +1,8 @@
 # ==================== CRYPTOTEHNOLOG Test Configuration ====================
 # Pytest configuration and fixtures
 
-import os
 from collections.abc import Generator
+import os
 from pathlib import Path
 
 import pytest
