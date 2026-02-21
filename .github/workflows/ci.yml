@@ -141,7 +141,7 @@ jobs:
           key: ${{ runner.os }}-cargo-build-${{ hashFiles('rust_components/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-build-
-          save-if: always()
+          save-always: true
 
       - name: Run fmt check
         working-directory: ./rust_components
