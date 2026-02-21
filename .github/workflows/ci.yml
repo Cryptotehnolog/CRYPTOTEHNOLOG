@@ -177,6 +177,9 @@ jobs:
 
       - name: Check dependency tree for risk-ledger
         run: |
+          echo "=== Cleaning cargo metadata cache ==="
+          rm -rf ~/.cargo/registry/src/.cargo-cache
+          rm -rf target/
           echo "=== Full dependency tree for risk-ledger (from workspace root) ==="
           cargo tree --package cryptotechnolog-risk-ledger > /tmp/risk_ledger_tree.txt
           cat /tmp/risk_ledger_tree.txt

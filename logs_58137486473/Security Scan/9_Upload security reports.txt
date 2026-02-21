@@ -1,0 +1,23 @@
+﻿2026-02-21T22:55:38.8419448Z ##[group]Run actions/upload-artifact@v4
+2026-02-21T22:55:38.8419752Z with:
+2026-02-21T22:55:38.8419937Z   name: security-reports
+2026-02-21T22:55:38.8420173Z   path: bandit-report.json
+
+2026-02-21T22:55:38.8420415Z   if-no-files-found: warn
+2026-02-21T22:55:38.8420636Z   compression-level: 6
+2026-02-21T22:55:38.8420838Z   overwrite: false
+2026-02-21T22:55:38.8421051Z   include-hidden-files: false
+2026-02-21T22:55:38.8421272Z env:
+2026-02-21T22:55:38.8421439Z   PYTHON_VERSION: 3.12
+2026-02-21T22:55:38.8421633Z ##[endgroup]
+2026-02-21T22:55:39.0797623Z With the provided path, there will be 1 file uploaded
+2026-02-21T22:55:39.0805765Z Artifact name is valid!
+2026-02-21T22:55:39.0807741Z Root directory input is valid!
+2026-02-21T22:55:39.2200339Z Beginning upload of artifact content to blob storage
+2026-02-21T22:55:39.3593581Z Uploaded bytes 474
+2026-02-21T22:55:39.3970437Z Finished uploading artifact content to blob storage!
+2026-02-21T22:55:39.3974957Z SHA256 digest of uploaded artifact zip is fc73581bf89a4e83d78c70871aa9274afcbdb0b0bbaf74171a72c50d955598dc
+2026-02-21T22:55:39.3978592Z Finalizing artifact upload
+2026-02-21T22:55:39.4921663Z Artifact security-reports.zip successfully finalized. Artifact ID 5603729184
+2026-02-21T22:55:39.4923667Z Artifact security-reports has been successfully uploaded! Final size is 474 bytes. Artifact ID is 5603729184
+2026-02-21T22:55:39.4931542Z Artifact download URL: https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG/actions/runs/22265953617/artifacts/5603729184

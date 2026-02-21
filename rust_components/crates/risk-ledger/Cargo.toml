@@ -15,6 +15,10 @@ repository = "https://github.com/your-org/cryptotechnolog"
 # Explicitly specify workspace root for docs.rs
 rustdoc-args = ["--document-private-items"]
 
+[package.metadata.cargo-udeps.ignore]
+# Ensure local path dependencies are not considered unused
+normal = ["cryptotechnolog-audit-chain", "cryptotechnolog-common"]
+
 [dependencies]
 # Use workspace dependencies
 tokio = { workspace = true }

@@ -1,0 +1,58 @@
+﻿2026-02-21T22:56:49.5026993Z Current runner version: '2.331.0'
+2026-02-21T22:56:49.5062080Z ##[group]Runner Image Provisioner
+2026-02-21T22:56:49.5063281Z Hosted Compute Agent
+2026-02-21T22:56:49.5064200Z Version: 20260123.484
+2026-02-21T22:56:49.5065152Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+2026-02-21T22:56:49.5066534Z Build Date: 2026-01-23T19:41:17Z
+2026-02-21T22:56:49.5067699Z Worker ID: {7d61c1a9-30a3-4000-917a-2e0bd6f0b725}
+2026-02-21T22:56:49.5068788Z Azure Region: eastus2
+2026-02-21T22:56:49.5069636Z ##[endgroup]
+2026-02-21T22:56:49.5072130Z ##[group]Operating System
+2026-02-21T22:56:49.5073096Z Ubuntu
+2026-02-21T22:56:49.5073756Z 24.04.3
+2026-02-21T22:56:49.5074535Z LTS
+2026-02-21T22:56:49.5075237Z ##[endgroup]
+2026-02-21T22:56:49.5076234Z ##[group]Runner Image
+2026-02-21T22:56:49.5077264Z Image: ubuntu-24.04
+2026-02-21T22:56:49.5078155Z Version: 20260201.15.1
+2026-02-21T22:56:49.5080156Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+2026-02-21T22:56:49.5082640Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+2026-02-21T22:56:49.5084257Z ##[endgroup]
+2026-02-21T22:56:49.5086294Z ##[group]GITHUB_TOKEN Permissions
+2026-02-21T22:56:49.5089126Z Contents: read
+2026-02-21T22:56:49.5090097Z Metadata: read
+2026-02-21T22:56:49.5090816Z Packages: read
+2026-02-21T22:56:49.5091556Z ##[endgroup]
+2026-02-21T22:56:49.5094503Z Secret source: Actions
+2026-02-21T22:56:49.5096336Z Prepare workflow directory
+2026-02-21T22:56:49.5648133Z Prepare all required actions
+2026-02-21T22:56:49.5726767Z Complete job name: CI Summary
+2026-02-21T22:56:49.6768412Z ##[group]Run echo "CI Pipeline Complete!"
+2026-02-21T22:56:49.6769555Z [36;1mecho "CI Pipeline Complete!"[0m
+2026-02-21T22:56:49.6770694Z [36;1mecho "===================="[0m
+2026-02-21T22:56:49.6771675Z [36;1mecho "Python Tests: success"[0m
+2026-02-21T22:56:49.6772828Z [36;1mecho "Rust Tests: failure"[0m
+2026-02-21T22:56:49.6774003Z [36;1mecho "Security Scan: success"[0m
+2026-02-21T22:56:49.6775021Z [36;1mecho "Dependency Check: success"[0m
+2026-02-21T22:56:49.6776350Z [36;1mecho "Docker Build: success"[0m
+2026-02-21T22:56:49.6777502Z [36;1mecho "Code Quality: success"[0m
+2026-02-21T22:56:49.7432391Z shell: /usr/bin/bash -e {0}
+2026-02-21T22:56:49.7433918Z env:
+2026-02-21T22:56:49.7434995Z   PYTHON_VERSION: 3.12
+2026-02-21T22:56:49.7436097Z ##[endgroup]
+2026-02-21T22:56:49.7924749Z CI Pipeline Complete!
+2026-02-21T22:56:49.7927750Z ====================
+2026-02-21T22:56:49.7946860Z Python Tests: success
+2026-02-21T22:56:49.7948215Z Rust Tests: failure
+2026-02-21T22:56:49.7949415Z Security Scan: success
+2026-02-21T22:56:49.7950933Z Dependency Check: success
+2026-02-21T22:56:49.7952226Z Docker Build: success
+2026-02-21T22:56:49.7953507Z Code Quality: success
+2026-02-21T22:56:49.8170291Z ##[group]Run exit 1
+2026-02-21T22:56:49.8171245Z [36;1mexit 1[0m
+2026-02-21T22:56:49.8219081Z shell: /usr/bin/bash -e {0}
+2026-02-21T22:56:49.8219984Z env:
+2026-02-21T22:56:49.8220759Z   PYTHON_VERSION: 3.12
+2026-02-21T22:56:49.8221738Z ##[endgroup]
+2026-02-21T22:56:49.8343128Z ##[error]Process completed with exit code 1.
+2026-02-21T22:56:49.8641492Z Cleaning up orphan processes
