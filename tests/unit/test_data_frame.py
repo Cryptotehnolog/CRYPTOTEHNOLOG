@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 # ==================== Tests: Data Frame Utilities ====================
 
 # Diagnostic output to understand import order and sys.path
@@ -25,9 +26,9 @@ except ImportError as e:
         print(f"[test_data_frame] cryptotechnolog.__path__: {getattr(sys.modules['cryptotechnolog'], '__path__', 'NO PATH')}")
     raise
 
-import pandas as pd  # noqa: E402
-import polars as pl  # noqa: E402
-import pytest  # noqa: E402
+import pandas as pd
+import polars as pl
+import pytest
 
 print("[test_data_frame] All imports completed")
 
