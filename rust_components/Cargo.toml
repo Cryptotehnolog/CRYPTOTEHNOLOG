@@ -12,6 +12,11 @@ members = [
     "crates/ffi",
 ]
 
+# Workspace package metadata
+[workspace.package]
+rust-version = "1.83"
+edition = "2021"
+
 # Workspace-level dependencies (shared across all crates)
 [workspace.dependencies]
 # Async runtime
@@ -37,12 +42,8 @@ sha2 = "0.10"
 hex = "0.4"
 
 # Redis (for event bus)
-# Updated to 0.27.2 to avoid future incompatibility warnings
-redis = { version = "0.27.2", features = ["tokio-comp", "connection-manager"] }
-
-# Backon (retry mechanism) - pinned to <1.6.0 for Rust 1.83 compatibility
-# backon 1.6.0+ requires edition2024 which is unstable in Rust 1.83
-backon = "<1.6.0"
+# Using 0.24.0 for compatibility with Rust 1.83 (backon 1.6.0+ requires edition2024)
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 
 # ZeroMQ (alternative event bus)
 # Using 0.10.0 (latest on crates.io) - requires system library

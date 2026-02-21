@@ -10,7 +10,6 @@ on:
 
 env:
   PYTHON_VERSION: "3.12"
-  RUST_VERSION: "1.83"
 
 jobs:
   # ==================== Python Tests ====================
@@ -130,7 +129,6 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt, clippy
 
       - name: Cache cargo registry
@@ -157,11 +155,11 @@ jobs:
 
       - name: Run clippy
         working-directory: ./rust_components
-        run: cargo clippy -- -D warnings || true
+        run: cargo clippy -- -D warnings
 
       - name: Run tests
         working-directory: ./rust_components
-        run: cargo test --quiet || true
+        run: cargo test --quiet
 
   # ==================== Security Scan ====================
   security-scan:

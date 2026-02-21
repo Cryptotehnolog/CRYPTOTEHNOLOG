@@ -5,6 +5,7 @@
 name = "cryptotechnolog-risk-ledger"
 version = "0.1.0"
 edition = "2021"
+rust-version.workspace = true
 authors = ["CRYPTOTEHNOLOG Team"]
 license = "Proprietary - All Rights Reserved"
 description = "Risk ledger and calculations for CRYPTOTEHNOLOG"
