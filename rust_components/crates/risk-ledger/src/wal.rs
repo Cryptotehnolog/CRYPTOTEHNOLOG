@@ -151,9 +151,18 @@ impl WriteAheadLog {
     ///   path: Path to the WAL file
     ///
     /// Returns all entries in the WAL in the order they were written.
+    /// Returns an empty vector if the file doesn't exist.
     pub async fn replay_from_file(path: &PathBuf) -> Result<Vec<WALEntry>, Box<dyn std::error::Error>> {
         // Use synchronous file reading (works on all platforms)
-        let contents = std::fs::read_to_string(path)?;
+        // Return empty vector if file doesn't exist (not an error)
+        let contents = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // File doesn't exist - return empty entries
+                return Ok(Vec::new());
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         let mut entries = Vec::new();
 
@@ -208,7 +217,9 @@ impl WriteAheadLog {
     /// Close the WAL (release file handle)
     pub async fn close(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.writer.flush()?;
-        let _ = std::mem::replace(&mut self.writer, std::io::BufWriter::new(std::fs::File::open("NUL")?));
+        // Use platform-specific null device
+        let null_device = if cfg!(windows) { "NUL" } else { "/dev/null" };
+        let _ = std::mem::replace(&mut self.writer, std::io::BufWriter::new(std::fs::File::open(null_device)?));
         Ok(())
     }
 
