@@ -26,6 +26,9 @@ tracing = { workspace = true }
 redis = { workspace = true }
 zmq = { workspace = true }
 
+# Crossbeam channel for broadcast support
+crossbeam-channel = "0.5"
+
 # Lock-free data structures (optional)
 crossbeam = { workspace = true, optional = true }
 arrayvec = { workspace = true, optional = true }
@@ -43,5 +46,10 @@ harness = false
 
 [[bench]]
 name = "ring_buffer_bench"
+harness = false
+required-features = ["lock-free"]
+
+[[bench]]
+name = "eventbus_backend_bench"
 harness = false
 required-features = ["lock-free"]
