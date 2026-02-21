@@ -144,8 +144,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            rust_components/target
-            ~/.cargo/bin
+            target
+            ~/.cargo/registry
+            ~/.cargo/git
           key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-build-
@@ -154,6 +155,12 @@ jobs:
         run: |
           rm -rf ~/.cargo/registry/src/*/cryptotechnolog-* || true
           rm -rf ~/.cargo/registry/index/github.com-*/cryptotechnolog-* || true
+
+      - name: Build local dependencies first
+        run: |
+          echo "=== Pre-building local workspace members ==="
+          cargo build --package cryptotechnolog-audit-chain --lib
+          cargo build --package cryptotechnolog-common --lib
 
       - name: Debug workspace and audit-chain
         run: |
@@ -177,9 +184,9 @@ jobs:
 
       - name: Check dependency tree for risk-ledger
         run: |
-          echo "=== Cleaning cargo metadata cache ==="
-          rm -rf ~/.cargo/registry/src/.cargo-cache
-          rm -rf target/
+          echo "=== Building local dependencies first ==="
+          cargo build --package cryptotechnolog-audit-chain --lib
+          cargo build --package cryptotechnolog-common --lib
           echo "=== Full dependency tree for risk-ledger (from workspace root) ==="
           cargo tree --package cryptotechnolog-risk-ledger > /tmp/risk_ledger_tree.txt
           cat /tmp/risk_ledger_tree.txt
@@ -217,10 +224,6 @@ jobs:
 
       - name: Check workspace dependencies (early detection)
         run: |
-          # Clean to ensure fresh build (avoid stale cache issues)
-          cargo clean
-          # Build audit-chain first to ensure it's in the build cache
-          cargo build --package cryptotechnolog-audit-chain --lib
           # Check lib targets for dependency issues (all-targets can be too strict)
           cargo check --workspace --lib
 
