@@ -1,13 +1,22 @@
 # ==================== CRYPTOTEHNOLOG Test Configuration ====================
 # Pytest configuration and fixtures
 
+import sys
 from collections.abc import Generator
 import os
 from pathlib import Path
 
 import pytest
 
-from cryptotechnolog.config.settings import Settings
+# Add src directory to Python path for pytest-xdist compatibility
+# This is required because pytest pythonpath in pyproject.toml doesn't work
+# reliably with pytest-xdist (parallel test execution).
+# See: https://github.com/pytest-dev/pytest-xdist/issues/32
+_src_path = Path(__file__).parent.parent / "src"
+if str(_src_path) not in sys.path:
+    sys.path.insert(0, str(_src_path))
+
+from cryptotechnolog.config.settings import Settings  # noqa: E402
 
 # Set test environment
 os.environ["ENVIRONMENT"] = "test"
