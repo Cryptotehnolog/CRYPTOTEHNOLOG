@@ -155,11 +155,29 @@ jobs:
           rm -rf ~/.cargo/registry/src/*/cryptotechnolog-* || true
           rm -rf ~/.cargo/registry/index/github.com-*/cryptotechnolog-* || true
 
+      - name: Debug workspace and audit-chain
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Root Cargo.toml exists: $(test -f Cargo.toml && echo yes || echo no)"
+          echo "Root Cargo.toml content (members):"
+          grep -A10 "members" Cargo.toml || echo "No members found"
+          echo "Listing rust_components/crates/:"
+          ls -la rust_components/crates/
+          echo "Listing audit-chain content:"
+          ls -la rust_components/crates/audit-chain/
+          echo "Listing audit-chain/src:"
+          ls -la rust_components/crates/audit-chain/src/ || echo "src not found"
+          echo "Attempting to build audit-chain directly:"
+          cargo build --manifest-path rust_components/crates/audit-chain/Cargo.toml || echo "Build failed"
+          echo "Checking if audit-chain appears in cargo metadata:"
+          cargo metadata --format-version=1 | grep -o '"name":"cryptotechnolog-audit-chain"' || echo "Not found in metadata"
+
       - name: Run fmt check
         run: cargo fmt -- --check || true
 
       - name: Check audit-chain crate explicitly (debug)
         run: |
+          echo "=== Checking audit-chain crate ==="
           cargo check --package cryptotechnolog-audit-chain --lib --verbose
 
       - name: Check workspace dependencies (early detection)
