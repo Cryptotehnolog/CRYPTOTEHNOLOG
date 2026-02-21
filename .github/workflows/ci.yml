@@ -68,33 +68,28 @@ jobs:
 
       - name: Install dependencies
         run: |
-          source .venv/bin/activate
-          pip install --upgrade pip
-          pip install -e ".[dev]"
+          uv pip install -e ".[dev]"
 
       - name: Run linter (ruff)
         run: |
-          source .venv/bin/activate
-          ruff check src/ tests/
-          ruff format --check src/ tests/
+          .venv/bin/ruff check src/ tests/
+          .venv/bin/ruff format --check src/ tests/
 
       - name: Run type checker (mypy)
         run: |
-          source .venv/bin/activate
-          mypy src/ --ignore-missing-imports
+          .venv/bin/mypy src/ --ignore-missing-imports
         continue-on-error: true
 
       - name: Run unit tests
         run: |
-          source .venv/bin/activate
-          pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
+          .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
         env:
-          PYTHONPATH: src
+          REDIS_HOST: localhost
+          POSTGRES_HOST: localhost
 
       - name: Run integration tests
         run: |
-          source .venv/bin/activate
-          pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
+          .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
         env:
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
@@ -187,27 +182,24 @@ jobs:
 
       - name: Run detect-secrets
         run: |
-          source .venv/bin/activate
           uv pip install detect-secrets
           if [ -f .secrets.baseline ]; then
-            detect-secrets scan --baseline .secrets.baseline || true
+            .venv/bin/detect-secrets scan --baseline .secrets.baseline || true
           else
-            detect-secrets scan || true
+            .venv/bin/detect-secrets scan || true
           fi
         continue-on-error: true
 
       - name: Run Bandit
         run: |
-          source .venv/bin/activate
           uv pip install bandit[toml]
-          bandit -r src/ -f json -o bandit-report.json || true
-          bandit -r src/ -f screen || true
+          .venv/bin/bandit -r src/ -f json -o bandit-report.json || true
+          .venv/bin/bandit -r src/ -f screen || true
 
       - name: Run Safety
         run: |
-          source .venv/bin/activate
           uv pip install safety
-          safety check -r requirements.txt || true
+          .venv/bin/safety check -r requirements.txt || true
 
       - name: Upload security reports
         uses: actions/upload-artifact@v4
@@ -242,20 +234,16 @@ jobs:
 
       - name: Install dependencies
         run: |
-          source .venv/bin/activate
-          uv pip install --upgrade pip
           uv pip install pip-audit
           uv pip install safety
 
       - name: Run pip-audit
         run: |
-          source .venv/bin/activate
-          pip-audit -r requirements.txt || true
+          .venv/bin/pip-audit -r requirements.txt || true
 
       - name: Run safety
         run: |
-          source .venv/bin/activate
-          safety check -r requirements.txt || true
+          .venv/bin/safety check -r requirements.txt || true
 
   # ==================== Docker Build Test ====================
   docker-build:
@@ -311,17 +299,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          source .venv/bin/activate
-          uv pip install --upgrade pip
           uv pip install -e ".[dev]"
 
       - name: Check code complexity (radon)
         run: |
-          source .venv/bin/activate
           uv pip install radon
-          radon cc src/ -a -nb
-        env:
-          PYTHONPATH: .
+          .venv/bin/radon cc src/ -a -nb
 
       - name: Check code duplication (jscpd)
         run: |
