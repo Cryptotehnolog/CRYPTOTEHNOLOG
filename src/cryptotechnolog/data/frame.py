@@ -128,10 +128,7 @@ def benchmark_conversion(
             results["to_pandas"].append(time.time() - start)
 
     # Calculate means
-    return {
-        key: (sum(values) / len(values) if values else 0.0)
-        for key, values in results.items()
-    }
+    return {key: (sum(values) / len(values) if values else 0.0) for key, values in results.items()}
 
 
 # ==================== Trading Data Utilities ====================
@@ -171,15 +168,19 @@ def resample_ohlcv(
     else:
         pd_df = to_pandas(df)
         df_typed = pd_df.set_index("timestamp")
-        return df_typed.resample(timeframe).agg(
-            {
-                "open": "first",
-                "high": "max",
-                "low": "min",
-                "close": "last",
-                "volume": "sum",
-            }
-        ).reset_index()
+        return (
+            df_typed.resample(timeframe)
+            .agg(
+                {
+                    "open": "first",
+                    "high": "max",
+                    "low": "min",
+                    "close": "last",
+                    "volume": "sum",
+                }
+            )
+            .reset_index()
+        )
 
 
 def calculate_returns(
@@ -203,9 +204,7 @@ def calculate_returns(
         # Cast to DataFrame to satisfy mypy (Series can't have with_columns)
         if isinstance(pl_df, pl.Series):
             raise TypeError("Cannot calculate returns on Series, use DataFrame")
-        return pl_df.with_columns(
-            (pl.col(column) / pl.col(column).shift(1) - 1).alias("returns")
-        )
+        return pl_df.with_columns((pl.col(column) / pl.col(column).shift(1) - 1).alias("returns"))
     else:
         pd_df = to_pandas(df)
         # Ensure we have a DataFrame, not a Series
