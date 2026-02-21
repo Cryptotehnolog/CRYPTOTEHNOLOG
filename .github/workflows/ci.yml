@@ -79,14 +79,14 @@ jobs:
         run: |
           .venv/bin/mypy src/ --ignore-missing-imports
         env:
-          PYTHONPATH: src
+          PYTHONPATH: ${{ github.workspace }}/src
         continue-on-error: true
 
       - name: Run unit tests
         run: |
           .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --import-mode=importlib --cov=src --cov-report=xml
         env:
-          PYTHONPATH: src
+          PYTHONPATH: ${{ github.workspace }}/src
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
@@ -94,7 +94,7 @@ jobs:
         run: |
           .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --import-mode=importlib --cov=src --cov-append --cov-report=xml
         env:
-          PYTHONPATH: src
+          PYTHONPATH: ${{ github.workspace }}/src
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
@@ -310,7 +310,7 @@ jobs:
           uv pip install radon
           .venv/bin/radon cc src/ -a -nb
         env:
-          PYTHONPATH: src
+          PYTHONPATH: ${{ github.workspace }}/src
 
       - name: Check code duplication (jscpd)
         run: |
