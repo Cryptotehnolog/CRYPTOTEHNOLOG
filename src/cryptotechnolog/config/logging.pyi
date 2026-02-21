@@ -15,7 +15,6 @@ def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
     """Get a configured structlog logger."""
     ...
 
-
 class LogContext:
     """Context manager for adding temporary log context."""
 
@@ -30,7 +29,6 @@ class LogContext:
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Exit the context and unbind the context."""
         ...
-
 
 def log_exception(
     logger: structlog.stdlib.BoundLogger,

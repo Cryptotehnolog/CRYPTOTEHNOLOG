@@ -202,6 +202,7 @@ class TestErrorHandling:
 # ==================== Future Tests (for when FFI is implemented) ====================
 # These tests will be activated once the actual Rust FFI is implemented
 
+
 class TestFutureEventBusIntegration:
     """Future tests for EventBus integration (pending FFI implementation)."""
 

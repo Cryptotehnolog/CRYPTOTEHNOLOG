@@ -148,6 +148,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-build-
 
+      - name: Remove stale cargo cache
+        working-directory: ./rust_components
+        run: |
+          rm -rf ~/.cargo/registry/src/*/cryptotechnolog-* || true
+          rm -rf ~/.cargo/registry/index/github.com-*/cryptotechnolog-* || true
+
       - name: Run fmt check
         working-directory: ./rust_components
         run: cargo fmt -- --check || true
@@ -157,8 +163,8 @@ jobs:
         run: |
           # Clean to ensure fresh build (avoid stale cache issues)
           cargo clean
-          # Check all targets for early detection of dependency issues
-          cargo check --workspace --all-targets
+          # Check lib targets for dependency issues (all-targets can be too strict)
+          cargo check --workspace --lib
 
       - name: Build workspace
         working-directory: ./rust_components

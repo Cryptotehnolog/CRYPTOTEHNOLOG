@@ -1,19 +1,17 @@
-# ==================== CRYPTOTEHNOLOG Rust Workspace ====================
-# Cargo workspace for high-performance trading platform components
+# ==================== CRYPTOTEHNOLOG Root Workspace ====================
+# Root workspace configuration for the entire project
+# This ensures all Rust crates are visible from the repository root
 
 [workspace]
 resolver = "2"
 members = [
-    "crates/common",
-    "crates/eventbus",
-    "crates/risk-ledger",
-    "crates/audit-chain",
-    "crates/execution-core",
-    "crates/ffi",
+    "rust_components/crates/common",
+    "rust_components/crates/eventbus",
+    "rust_components/crates/risk-ledger",
+    "rust_components/crates/audit-chain",
+    "rust_components/crates/execution-core",
+    "rust_components/crates/ffi",
 ]
-
-# Ensure all workspace crates are always built together
-exclude = []
 
 # Workspace package metadata
 [workspace.package]
@@ -79,5 +77,3 @@ jemallocator = { version = "0.5", features = ["unprefixed_malloc_on_supported_pl
 # Lock-free data structures
 crossbeam = "0.8"
 arrayvec = "0.7"
-
-# Workspace members can reference these as just "tokio", "serde", etc.

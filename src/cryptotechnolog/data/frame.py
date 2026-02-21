@@ -147,16 +147,17 @@ def _convert_timeframe_for_polars(timeframe: str) -> str:
     """
     # Map common Pandas formats to Polars formats
     conversion_map = {
-        "min": "m",      # minutes
-        "H": "h",        # hours
-        "D": "d",        # days
-        "W": "w",        # weeks
-        "M": "mo",       # months
-        "Y": "y",        # years
+        "min": "m",  # minutes
+        "H": "h",  # hours
+        "D": "d",  # days
+        "W": "w",  # weeks
+        "M": "mo",  # months
+        "Y": "y",  # years
     }
 
     # Check if it's a number followed by unit (e.g., "5min", "1H")
     import re
+
     match = re.match(r"^(\d+)([a-zA-Z]+)$", timeframe)
     if match:
         number = match.group(1)

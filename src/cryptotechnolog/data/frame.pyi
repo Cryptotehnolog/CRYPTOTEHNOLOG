@@ -19,7 +19,6 @@ else:
     DataFrame = Any
     Series = Any
 
-
 # ==================== Conversion Functions ====================
 def to_polars(df: DataFrame | Series) -> pl.DataFrame | pl.Series:
     """Convert DataFrame or Series to Polars."""
@@ -28,7 +27,6 @@ def to_polars(df: DataFrame | Series) -> pl.DataFrame | pl.Series:
 def to_pandas(df: DataFrame | Series) -> pd.DataFrame | pd.Series:
     """Convert DataFrame or Series to Pandas."""
     ...
-
 
 # ==================== DataFrame Operations ====================
 def read_csv(
@@ -47,7 +45,6 @@ def read_parquet(
     """Read Parquet file using Polars or Pandas."""
     ...
 
-
 # ==================== Performance Utilities ====================
 def benchmark_conversion(
     df: DataFrame,
@@ -55,7 +52,6 @@ def benchmark_conversion(
 ) -> dict[str, float]:
     """Benchmark conversion between Polars and Pandas."""
     ...
-
 
 # ==================== Trading Data Utilities ====================
 def _convert_timeframe_for_polars(timeframe: str) -> str:

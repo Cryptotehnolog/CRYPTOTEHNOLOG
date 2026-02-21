@@ -138,10 +138,8 @@ class Settings(BaseSettings):
         """String representation of settings."""
         ...
 
-
 # ==================== Global Settings Instance ====================
 settings: Settings
-
 
 # ==================== Functions ====================
 def validate_settings(
