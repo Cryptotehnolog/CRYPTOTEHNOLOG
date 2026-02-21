@@ -1,16 +1,36 @@
 # ==================== Tests: Data Frame Utilities ====================
 
+# Diagnostic output to understand import order and sys.path
+import sys
+from pathlib import Path
+
+print(f"[test_data_frame] Module loading started")
+print(f"[test_data_frame] sys.path[0:3] = {sys.path[:3]}")
+print(f"[test_data_frame] cryptotechnolog in sys.modules = {'cryptotechnolog' in sys.modules}")
+
+# Try to import cryptotechnolog.data FIRST
+try:
+    from cryptotechnolog.data import (
+        benchmark_conversion,
+        calculate_returns,
+        resample_ohlcv,
+        to_pandas,
+        to_polars,
+    )
+    print(f"[test_data_frame] Successfully imported cryptotechnolog.data")
+except ImportError as e:
+    print(f"[test_data_frame] FAILED to import cryptotechnolog.data: {e}")
+    print(f"[test_data_frame] cryptotechnolog in sys.modules: {'cryptotechnolog' in sys.modules}")
+    if 'cryptotechnolog' in sys.modules:
+        print(f"[test_data_frame] cryptotechnolog.__file__: {getattr(sys.modules['cryptotechnolog'], '__file__', 'NO FILE')}")
+        print(f"[test_data_frame] cryptotechnolog.__path__: {getattr(sys.modules['cryptotechnolog'], '__path__', 'NO PATH')}")
+    raise
+
 import pandas as pd
 import polars as pl
 import pytest
 
-from cryptotechnolog.data import (
-    benchmark_conversion,
-    calculate_returns,
-    resample_ohlcv,
-    to_pandas,
-    to_polars,
-)
+print(f"[test_data_frame] All imports completed")
 
 
 class TestConversion:

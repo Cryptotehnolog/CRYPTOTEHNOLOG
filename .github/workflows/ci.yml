@@ -81,9 +81,16 @@ jobs:
           .venv/bin/mypy src/ --ignore-missing-imports
         continue-on-error: true
 
-      - name: Run unit tests
+      - name: Run unit tests (sequential - for debugging)
         run: |
-          .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
+          .venv/bin/python -m pytest tests/unit/ -v --cov=src --cov-report=xml
+        env:
+          REDIS_HOST: localhost
+          POSTGRES_HOST: localhost
+
+      - name: Run unit tests (parallel - for debugging)
+        run: |
+          .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
         env:
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
