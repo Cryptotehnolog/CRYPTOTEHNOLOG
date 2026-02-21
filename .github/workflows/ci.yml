@@ -66,28 +66,28 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          uv sync --extra dev
+          uv pip install -e ".[dev]"
 
       - name: Run linter (ruff)
         run: |
-          uv run ruff check src/ tests/
-          uv run ruff format --check src/ tests/
+          .venv/bin/ruff check src/ tests/
+          .venv/bin/ruff format --check src/ tests/
 
       - name: Run type checker (mypy)
         run: |
-          uv run mypy src/ --ignore-missing-imports
+          .venv/bin/mypy src/ --ignore-missing-imports
         continue-on-error: true
 
       - name: Run unit tests
         run: |
-          uv run pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
+          .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
         env:
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
       - name: Run integration tests
         run: |
-          uv run pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
+          .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
         env:
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
@@ -178,21 +178,26 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          uv sync --extra dev
+          uv pip install -e ".[dev]"
+          uv pip install detect-secrets bandit[toml] safety
 
       - name: Run detect-secrets
         run: |
-          uv run --with detect-secrets detect-secrets scan --baseline .secrets.baseline || uv run --with detect-secrets detect-secrets scan || true
+          if [ -f .secrets.baseline ]; then
+            .venv/bin/detect-secrets scan --baseline .secrets.baseline || true
+          else
+            .venv/bin/detect-secrets scan || true
+          fi
         continue-on-error: true
 
       - name: Run Bandit
         run: |
-          uv run --with bandit[toml] bandit -r src/ -f json -o bandit-report.json || true
-          uv run --with bandit[toml] bandit -r src/ -f screen || true
+          .venv/bin/bandit -r src/ -f json -o bandit-report.json || true
+          .venv/bin/bandit -r src/ -f screen || true
 
       - name: Run Safety
         run: |
-          uv run --with safety safety check -r requirements.txt || true
+          .venv/bin/safety check -r requirements.txt || true
 
       - name: Upload security reports
         uses: actions/upload-artifact@v4
@@ -225,15 +230,16 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          uv sync --extra dev
+          uv pip install -e ".[dev]"
+          uv pip install pip-audit safety
 
       - name: Run pip-audit
         run: |
-          uv run --with pip-audit pip-audit -r requirements.txt || true
+          .venv/bin/pip-audit -r requirements.txt || true
 
       - name: Run safety
         run: |
-          uv run --with safety safety check -r requirements.txt || true
+          .venv/bin/safety check -r requirements.txt || true
 
   # ==================== Docker Build Test ====================
   docker-build:
@@ -287,11 +293,12 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          uv sync --extra dev
+          uv pip install -e ".[dev]"
+          uv pip install radon
 
       - name: Check code complexity (radon)
         run: |
-          uv run --with radon radon cc src/ -a -nb
+          .venv/bin/radon cc src/ -a -nb
 
       - name: Check code duplication (jscpd)
         run: |
