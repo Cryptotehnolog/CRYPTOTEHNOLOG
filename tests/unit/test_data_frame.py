@@ -3,10 +3,17 @@
 
 # Diagnostic output to understand import order and sys.path
 import sys
+import importlib
+import os
 
 print("[test_data_frame] Module loading started")
 print(f"[test_data_frame] sys.path[0:3] = {sys.path[:3]}")
 print(f"[test_data_frame] cryptotechnolog in sys.modules = {'cryptotechnolog' in sys.modules}")
+
+# Check if data directory exists
+src_cryptotechnolog_data = "/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/src/cryptotechnolog/data"
+print(f"[test_data_frame] src/cryptotechnolog/data exists: {os.path.exists(src_cryptotechnolog_data)}")
+print(f"[test_data_frame] src/cryptotechnolog/data/__init__.py exists: {os.path.exists(os.path.join(src_cryptotechnolog_data, '__init__.py'))}")
 
 # Try to import cryptotechnolog.data FIRST
 try:
@@ -29,6 +36,24 @@ except ImportError as e:
         print(
             f"[test_data_frame] cryptotechnolog.__path__: {getattr(sys.modules['cryptotechnolog'], '__path__', 'NO PATH')}"
         )
+
+    # Try to import with importlib for more details
+    print("[test_data_frame] Trying importlib.import_module...")
+    try:
+        data_module = importlib.import_module("cryptotechnolog.data")
+        print(f"[test_data_frame] importlib succeeded: {data_module}")
+    except ImportError as ie:
+        print(f"[test_data_frame] importlib failed: {ie}")
+
+    # Try to list submodules
+    import pkgutil
+
+    cryptotechnolog_module = sys.modules.get("cryptotechnolog")
+    if cryptotechnolog_module:
+        print(f"[test_data_frame] cryptotechnolog submodules:")
+        for finder, name, ispkg in pkgutil.iter_modules(cryptotechnolog_module.__path__):
+            print(f"  - {name} (package: {ispkg})")
+
     raise
 
 import pandas as pd
