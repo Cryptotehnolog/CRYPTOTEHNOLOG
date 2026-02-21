@@ -11,9 +11,13 @@ print(f"[test_data_frame] sys.path[0:3] = {sys.path[:3]}")
 print(f"[test_data_frame] cryptotechnolog in sys.modules = {'cryptotechnolog' in sys.modules}")
 
 # Check if data directory exists
-src_cryptotechnolog_data = Path("/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/src/cryptotechnolog/data")
+src_cryptotechnolog_data = Path(
+    "/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/src/cryptotechnolog/data"
+)
 print(f"[test_data_frame] src/cryptotechnolog/data exists: {src_cryptotechnolog_data.exists()}")
-print(f"[test_data_frame] src/cryptotechnolog/data/__init__.py exists: {(src_cryptotechnolog_data / '__init__.py').exists()}")
+print(
+    f"[test_data_frame] src/cryptotechnolog/data/__init__.py exists: {(src_cryptotechnolog_data / '__init__.py').exists()}"
+)
 
 # Try to import cryptotechnolog.data FIRST
 try:
