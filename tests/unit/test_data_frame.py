@@ -2,18 +2,18 @@
 # ==================== Tests: Data Frame Utilities ====================
 
 # Diagnostic output to understand import order and sys.path
-import sys
 import importlib
-import os
+import sys
+from pathlib import Path
 
 print("[test_data_frame] Module loading started")
 print(f"[test_data_frame] sys.path[0:3] = {sys.path[:3]}")
 print(f"[test_data_frame] cryptotechnolog in sys.modules = {'cryptotechnolog' in sys.modules}")
 
 # Check if data directory exists
-src_cryptotechnolog_data = "/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/src/cryptotechnolog/data"
-print(f"[test_data_frame] src/cryptotechnolog/data exists: {os.path.exists(src_cryptotechnolog_data)}")
-print(f"[test_data_frame] src/cryptotechnolog/data/__init__.py exists: {os.path.exists(os.path.join(src_cryptotechnolog_data, '__init__.py'))}")
+src_cryptotechnolog_data = Path("/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/src/cryptotechnolog/data")
+print(f"[test_data_frame] src/cryptotechnolog/data exists: {src_cryptotechnolog_data.exists()}")
+print(f"[test_data_frame] src/cryptotechnolog/data/__init__.py exists: {(src_cryptotechnolog_data / '__init__.py').exists()}")
 
 # Try to import cryptotechnolog.data FIRST
 try:
@@ -50,8 +50,8 @@ except ImportError as e:
 
     cryptotechnolog_module = sys.modules.get("cryptotechnolog")
     if cryptotechnolog_module:
-        print(f"[test_data_frame] cryptotechnolog submodules:")
-        for finder, name, ispkg in pkgutil.iter_modules(cryptotechnolog_module.__path__):
+        print("[test_data_frame] cryptotechnolog submodules:")
+        for _finder, name, ispkg in pkgutil.iter_modules(cryptotechnolog_module.__path__):
             print(f"  - {name} (package: {ispkg})")
 
     raise
