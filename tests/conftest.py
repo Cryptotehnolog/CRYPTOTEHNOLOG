@@ -4,19 +4,10 @@
 from collections.abc import Generator
 import os
 from pathlib import Path
-import sys
 
 import pytest
 
-# Add src directory to Python path for pytest-xdist compatibility
-# This is required because pytest pythonpath in pyproject.toml and PYTHONPATH env var
-# don't work reliably with pytest-xdist (parallel test execution).
-# Each worker process loads conftest.py, so sys.path.insert() is executed in all workers.
-_src_path = Path(__file__).parent.parent / "src"
-if str(_src_path) not in sys.path:
-    sys.path.insert(0, str(_src_path))
-
-from cryptotechnolog.config.settings import Settings  # noqa: E402
+from cryptotechnolog.config.settings import Settings
 
 # Set test environment
 os.environ["ENVIRONMENT"] = "test"

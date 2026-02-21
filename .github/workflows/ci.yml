@@ -66,7 +66,10 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          uv pip install -e ".[dev]"
+          # Remove old version if exists (to avoid site-packages conflicts)
+          uv pip uninstall cryptotechnolog --yes || true
+          # Install in editable mode with force-reinstall
+          uv pip install -e ".[dev]" --force-reinstall
 
       - name: Run linter (ruff)
         run: |
@@ -82,7 +85,6 @@ jobs:
         run: |
           .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
         env:
-          PYTHONPATH: ${{ github.workspace }}/src
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
@@ -90,7 +92,6 @@ jobs:
         run: |
           .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
         env:
-          PYTHONPATH: ${{ github.workspace }}/src
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
@@ -180,7 +181,10 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          uv pip install -e ".[dev]"
+          # Remove old version if exists (to avoid site-packages conflicts)
+          uv pip uninstall cryptotechnolog --yes || true
+          # Install in editable mode with force-reinstall
+          uv pip install -e ".[dev]" --force-reinstall
           uv pip install detect-secrets bandit[toml] safety
 
       - name: Run detect-secrets
@@ -232,7 +236,10 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          uv pip install -e ".[dev]"
+          # Remove old version if exists (to avoid site-packages conflicts)
+          uv pip uninstall cryptotechnolog --yes || true
+          # Install in editable mode with force-reinstall
+          uv pip install -e ".[dev]" --force-reinstall
           uv pip install pip-audit safety
 
       - name: Run pip-audit
@@ -295,7 +302,10 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          uv pip install -e ".[dev]"
+          # Remove old version if exists (to avoid site-packages conflicts)
+          uv pip uninstall cryptotechnolog --yes || true
+          # Install in editable mode with force-reinstall
+          uv pip install -e ".[dev]" --force-reinstall
           uv pip install radon
 
       - name: Check code complexity (radon)
