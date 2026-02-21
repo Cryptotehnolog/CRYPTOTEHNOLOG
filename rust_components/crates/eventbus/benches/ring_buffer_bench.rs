@@ -15,13 +15,17 @@ fn bench_ring_buffer_push(c: &mut Criterion) {
     let mut group = c.benchmark_group("ring_buffer_push");
 
     for capacity in [16, 256, 1024, 4096].iter() {
-        group.bench_with_input(BenchmarkId::from_parameter(capacity), capacity, |b, &_cap| {
-            let buffer: LockFreeRingBuffer<i32, 4096> = LockFreeRingBuffer::new();
+        group.bench_with_input(
+            BenchmarkId::from_parameter(capacity),
+            capacity,
+            |b, &_cap| {
+                let buffer: LockFreeRingBuffer<i32, 4096> = LockFreeRingBuffer::new();
 
-            b.iter(|| {
-                black_box(buffer.push(black_box(42))).ok();
-            })
-        });
+                b.iter(|| {
+                    black_box(buffer.push(black_box(42))).ok();
+                })
+            },
+        );
     }
 
     group.finish();
@@ -33,18 +37,22 @@ fn bench_ring_buffer_pop(c: &mut Criterion) {
     let mut group = c.benchmark_group("ring_buffer_pop");
 
     for capacity in [16, 256, 1024, 4096].iter() {
-        group.bench_with_input(BenchmarkId::from_parameter(capacity), capacity, |b, &cap| {
-            let buffer: LockFreeRingBuffer<i32, 4096> = LockFreeRingBuffer::new();
+        group.bench_with_input(
+            BenchmarkId::from_parameter(capacity),
+            capacity,
+            |b, &cap| {
+                let buffer: LockFreeRingBuffer<i32, 4096> = LockFreeRingBuffer::new();
 
-            // Pre-fill buffer
-            for i in 0..cap {
-                buffer.push(i).unwrap();
-            }
+                // Pre-fill buffer
+                for i in 0..cap {
+                    buffer.push(i).unwrap();
+                }
 
-            b.iter(|| {
-                black_box(buffer.pop());
-            })
-        });
+                b.iter(|| {
+                    black_box(buffer.pop());
+                })
+            },
+        );
     }
 
     group.finish();
@@ -55,13 +63,17 @@ fn bench_vecdeque_push(c: &mut Criterion) {
     let mut group = c.benchmark_group("vecdeque_push");
 
     for capacity in [16, 256, 1024, 4096].iter() {
-        group.bench_with_input(BenchmarkId::from_parameter(capacity), capacity, |b, &cap| {
-            let mut deque = VecDeque::with_capacity(cap);
+        group.bench_with_input(
+            BenchmarkId::from_parameter(capacity),
+            capacity,
+            |b, &cap| {
+                let mut deque = VecDeque::with_capacity(cap);
 
-            b.iter(|| {
-                black_box(deque.push_back(black_box(42)));
-            })
-        });
+                b.iter(|| {
+                    black_box(deque.push_back(black_box(42)));
+                })
+            },
+        );
     }
 
     group.finish();
@@ -72,13 +84,17 @@ fn bench_vecdeque_pop(c: &mut Criterion) {
     let mut group = c.benchmark_group("vecdeque_pop");
 
     for capacity in [16, 256, 1024, 4096].iter() {
-        group.bench_with_input(BenchmarkId::from_parameter(capacity), capacity, |b, &cap| {
-            let mut deque: VecDeque<i32> = (0..cap).collect();
+        group.bench_with_input(
+            BenchmarkId::from_parameter(capacity),
+            capacity,
+            |b, &cap| {
+                let mut deque: VecDeque<i32> = (0..cap).collect();
 
-            b.iter(|| {
-                black_box(deque.pop_front());
-            })
-        });
+                b.iter(|| {
+                    black_box(deque.pop_front());
+                })
+            },
+        );
     }
 
     group.finish();
@@ -89,14 +105,18 @@ fn bench_mutex_vecdeque_push(c: &mut Criterion) {
     let mut group = c.benchmark_group("mutex_vecdeque_push");
 
     for capacity in [16, 256, 1024, 4096].iter() {
-        group.bench_with_input(BenchmarkId::from_parameter(capacity), capacity, |b, &cap| {
-            let deque = Mutex::new(VecDeque::with_capacity(cap));
+        group.bench_with_input(
+            BenchmarkId::from_parameter(capacity),
+            capacity,
+            |b, &cap| {
+                let deque = Mutex::new(VecDeque::with_capacity(cap));
 
-            b.iter(|| {
-                let mut d = deque.lock().unwrap();
-                black_box(d.push_back(black_box(42)));
-            })
-        });
+                b.iter(|| {
+                    let mut d = deque.lock().unwrap();
+                    black_box(d.push_back(black_box(42)));
+                })
+            },
+        );
     }
 
     group.finish();
@@ -107,14 +127,18 @@ fn bench_mutex_vecdeque_pop(c: &mut Criterion) {
     let mut group = c.benchmark_group("mutex_vecdeque_pop");
 
     for capacity in [16, 256, 1024, 4096].iter() {
-        group.bench_with_input(BenchmarkId::from_parameter(capacity), capacity, |b, &cap| {
-            let deque = Mutex::new((0..cap).collect::<VecDeque<i32>>());
+        group.bench_with_input(
+            BenchmarkId::from_parameter(capacity),
+            capacity,
+            |b, &cap| {
+                let deque = Mutex::new((0..cap).collect::<VecDeque<i32>>());
 
-            b.iter(|| {
-                let mut d = deque.lock().unwrap();
-                black_box(d.pop_front());
-            })
-        });
+                b.iter(|| {
+                    let mut d = deque.lock().unwrap();
+                    black_box(d.pop_front());
+                })
+            },
+        );
     }
 
     group.finish();

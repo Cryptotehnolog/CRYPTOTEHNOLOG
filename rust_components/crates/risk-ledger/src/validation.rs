@@ -33,7 +33,11 @@ pub enum ValidationError {
 impl std::fmt::Display for ValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValidationError::Imbalance { total_debit, total_credit, difference } => {
+            ValidationError::Imbalance {
+                total_debit,
+                total_credit,
+                difference,
+            } => {
                 write!(
                     f,
                     "Balance mismatch: debits={}, credits={}, difference={}",
@@ -46,7 +50,11 @@ impl std::fmt::Display for ValidationError {
             ValidationError::InvalidAccount { account } => {
                 write!(f, "Invalid account: {}", account)
             }
-            ValidationError::InsufficientBalance { account, balance, required } => {
+            ValidationError::InsufficientBalance {
+                account,
+                balance,
+                required,
+            } => {
                 write!(
                     f,
                     "Insufficient balance for {}: balance={}, required={}",
@@ -108,9 +116,7 @@ pub struct DoubleEntryValidator {
 impl DoubleEntryValidator {
     /// Create a new validator with default tolerance
     pub fn new() -> Self {
-        Self {
-            tolerance: 1e-9,
-        }
+        Self { tolerance: 1e-9 }
     }
 
     /// Create a new validator with custom tolerance
@@ -224,7 +230,12 @@ mod tests {
         let result = validator.validate(&transactions);
         assert!(result.is_err());
 
-        if let Err(ValidationError::Imbalance { total_debit, total_credit, difference }) = result {
+        if let Err(ValidationError::Imbalance {
+            total_debit,
+            total_credit,
+            difference,
+        }) = result
+        {
             assert_eq!(total_debit, 100.0);
             assert_eq!(total_credit, 90.0);
             assert_eq!(difference, 10.0);
@@ -254,7 +265,9 @@ mod tests {
     fn test_validate_balance_success() {
         let validator = DoubleEntryValidator::new();
 
-        assert!(validator.validate_balance("account1", 1000.0, 500.0).is_ok());
+        assert!(validator
+            .validate_balance("account1", 1000.0, 500.0)
+            .is_ok());
     }
 
     #[test]
@@ -264,7 +277,12 @@ mod tests {
         let result = validator.validate_balance("account1", 100.0, 500.0);
         assert!(result.is_err());
 
-        if let Err(ValidationError::InsufficientBalance { account, balance, required }) = result {
+        if let Err(ValidationError::InsufficientBalance {
+            account,
+            balance,
+            required,
+        }) = result
+        {
             assert_eq!(account, "account1");
             assert_eq!(balance, 100.0);
             assert_eq!(required, 500.0);
@@ -279,7 +297,7 @@ mod tests {
 
         let transactions = vec![
             Transaction::new("account1".to_string(), -100.0), // Debit
-            Transaction::new("account2".to_string(), 100.005),  // Credit (0.005 over)
+            Transaction::new("account2".to_string(), 100.005), // Credit (0.005 over)
         ];
 
         // Should pass within tolerance

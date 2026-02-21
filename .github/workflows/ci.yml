@@ -133,15 +133,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Cache cargo build
+      - name: Restore cargo build cache
         if: success()
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: rust_components/target
           key: ${{ runner.os }}-cargo-build-${{ hashFiles('rust_components/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-build-
-          save-always: true
+
+      - name: Save cargo build cache
+        if: always() && success()
+        uses: actions/cache/save@v4
+        with:
+          path: rust_components/target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('rust_components/Cargo.lock') }}
 
       - name: Run fmt check
         working-directory: ./rust_components

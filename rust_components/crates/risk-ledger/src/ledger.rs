@@ -91,7 +91,10 @@ impl RiskLedger {
     }
 
     /// Add or update a position
-    pub async fn update_position(&self, position: Position) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn update_position(
+        &self,
+        position: Position,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // Create transactions for double-entry validation
         let transactions = vec![
             Transaction::new(position.id.clone(), position.size),
@@ -238,10 +241,7 @@ impl RiskLedger {
     /// Update Merkle tree with current positions
     async fn update_merkle(&self) -> Result<(), Box<dyn std::error::Error>> {
         let positions = self.positions.read().await;
-        let leaves: Vec<[u8; 32]> = positions
-            .values()
-            .map(Self::hash_position)
-            .collect();
+        let leaves: Vec<[u8; 32]> = positions.values().map(Self::hash_position).collect();
         drop(positions);
 
         let mut merkle = self.merkle.write().await;

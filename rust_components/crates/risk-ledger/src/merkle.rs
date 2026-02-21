@@ -207,10 +207,7 @@ mod tests {
 
     #[test]
     fn test_merkle_tree_root() {
-        let leaves = vec![
-            hash_data("leaf1"),
-            hash_data("leaf2"),
-        ];
+        let leaves = vec![hash_data("leaf1"), hash_data("leaf2")];
 
         let tree = MerkleTree::from_leaves(leaves);
         let root = tree.root();
@@ -255,11 +252,7 @@ mod tests {
 
     #[test]
     fn test_merkle_tree_odd_leaves() {
-        let leaves = vec![
-            hash_data("leaf1"),
-            hash_data("leaf2"),
-            hash_data("leaf3"),
-        ];
+        let leaves = vec![hash_data("leaf1"), hash_data("leaf2"), hash_data("leaf3")];
 
         let tree = MerkleTree::from_leaves(leaves);
 

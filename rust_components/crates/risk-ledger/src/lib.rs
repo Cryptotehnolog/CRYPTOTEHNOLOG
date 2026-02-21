@@ -22,5 +22,4 @@ pub mod wal;
 pub use ledger::{Position, RiskLedger};
 pub use merkle::{MerkleProof, MerkleTree};
 pub use validation::{DoubleEntryValidator, Transaction, ValidationError};
-pub use wal::{WriteAheadLog, WALEntry};
-
+pub use wal::{WALEntry, WriteAheadLog};

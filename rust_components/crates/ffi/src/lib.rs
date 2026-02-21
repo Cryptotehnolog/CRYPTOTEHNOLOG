@@ -26,8 +26,8 @@
 // Note: On Windows, we use the system allocator (Microsoft's Low Fragmentation Heap)
 // which is well-optimized and integrated with the OS.
 
-use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
 use pyo3_async_runtimes::tokio::future_into_py;
 
 // ==================== Synchronous Functions ====================

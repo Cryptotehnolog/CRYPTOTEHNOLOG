@@ -1,7 +1,7 @@
 // ==================== CRYPTOTEHNOLOG Event Bus Benchmarks ====================
 // Criterion benchmarks for event bus performance
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
 // Placeholder imports - will be updated when eventbus is implemented
 // use cryptotechnolog_eventbus::{Event, EventBus};
@@ -43,7 +43,8 @@ fn bench_event_deserialization(c: &mut Criterion) {
         "source": "TEST_SOURCE",
         "timestamp": chrono::Utc::now(),
         "data": {"key": "value"}
-    })).unwrap();
+    }))
+    .unwrap();
 
     c.bench_function("event_deserialization", |b| {
         b.iter(|| {

@@ -62,7 +62,8 @@ impl WALEntry {
 
     /// Verify entry hash
     pub fn verify(&self) -> bool {
-        let computed_hash = Self::compute_hash(&self.sequence, &self.timestamp, &self.operation, &self.data);
+        let computed_hash =
+            Self::compute_hash(&self.sequence, &self.timestamp, &self.operation, &self.data);
         computed_hash == self.hash
     }
 }
@@ -95,7 +96,11 @@ impl WriteAheadLog {
     }
 
     /// Append an entry to the WAL
-    pub async fn append(&mut self, operation: String, data: serde_json::Value) -> Result<WALEntry, Box<dyn std::error::Error>> {
+    pub async fn append(
+        &mut self,
+        operation: String,
+        data: serde_json::Value,
+    ) -> Result<WALEntry, Box<dyn std::error::Error>> {
         let entry = WALEntry::new(self.sequence, operation, data);
 
         // Serialize entry
@@ -152,7 +157,9 @@ impl WriteAheadLog {
     ///
     /// Returns all entries in the WAL in the order they were written.
     /// Returns an empty vector if the file doesn't exist.
-    pub async fn replay_from_file(path: &PathBuf) -> Result<Vec<WALEntry>, Box<dyn std::error::Error>> {
+    pub async fn replay_from_file(
+        path: &PathBuf,
+    ) -> Result<Vec<WALEntry>, Box<dyn std::error::Error>> {
         // Use synchronous file reading (works on all platforms)
         // Return empty vector if file doesn't exist (not an error)
         let contents = match std::fs::read_to_string(path) {
@@ -262,7 +269,10 @@ mod tests {
 
         // Append entry
         let data = serde_json::json!({"position": "BTC/USDT", "size": 100.0});
-        let entry = wal.append("UPDATE_POSITION".to_string(), data).await.unwrap();
+        let entry = wal
+            .append("UPDATE_POSITION".to_string(), data)
+            .await
+            .unwrap();
 
         assert_eq!(entry.sequence, 0);
 
