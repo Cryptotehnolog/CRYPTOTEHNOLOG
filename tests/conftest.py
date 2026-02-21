@@ -4,17 +4,10 @@
 from collections.abc import Generator
 import os
 from pathlib import Path
-import sys
 
 import pytest
 
-# Add src directory to Python path for module imports
-# This is required for src-layout projects when running tests
-_src_path = Path(__file__).parent.parent / "src"
-if str(_src_path) not in sys.path:
-    sys.path.insert(0, str(_src_path))
-
-from cryptotechnolog.config.settings import Settings  # noqa: E402
+from cryptotechnolog.config.settings import Settings
 
 # Set test environment
 os.environ["ENVIRONMENT"] = "test"

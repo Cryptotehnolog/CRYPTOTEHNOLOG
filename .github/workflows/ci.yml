@@ -63,38 +63,32 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           uv --version
 
-      - name: Create virtual environment
-        run: uv venv
-
-      - name: Install dependencies
+      - name: Create virtual environment and install dependencies
         run: |
-          uv pip install -e ".[dev]"
+          uv venv
+          uv sync --extra dev
 
       - name: Run linter (ruff)
         run: |
-          .venv/bin/ruff check src/ tests/
-          .venv/bin/ruff format --check src/ tests/
+          uv run ruff check src/ tests/
+          uv run ruff format --check src/ tests/
 
       - name: Run type checker (mypy)
         run: |
-          .venv/bin/mypy src/ --ignore-missing-imports
-        env:
-          PYTHONPATH: ${{ github.workspace }}/src
+          uv run mypy src/ --ignore-missing-imports
         continue-on-error: true
 
       - name: Run unit tests
         run: |
-          .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --import-mode=importlib --cov=src --cov-report=xml
+          uv run pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
         env:
-          PYTHONPATH: ${{ github.workspace }}/src
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
       - name: Run integration tests
         run: |
-          .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --import-mode=importlib --cov=src --cov-append --cov-report=xml
+          uv run pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
         env:
-          PYTHONPATH: ${{ github.workspace }}/src
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
@@ -181,29 +175,24 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           uv --version
 
-      - name: Create virtual environment
-        run: uv venv
+      - name: Create virtual environment and install dependencies
+        run: |
+          uv venv
+          uv sync --extra dev
 
       - name: Run detect-secrets
         run: |
-          uv pip install detect-secrets
-          if [ -f .secrets.baseline ]; then
-            .venv/bin/detect-secrets scan --baseline .secrets.baseline || true
-          else
-            .venv/bin/detect-secrets scan || true
-          fi
+          uv run --with detect-secrets detect-secrets scan --baseline .secrets.baseline || uv run --with detect-secrets detect-secrets scan || true
         continue-on-error: true
 
       - name: Run Bandit
         run: |
-          uv pip install bandit[toml]
-          .venv/bin/bandit -r src/ -f json -o bandit-report.json || true
-          .venv/bin/bandit -r src/ -f screen || true
+          uv run --with bandit[toml] bandit -r src/ -f json -o bandit-report.json || true
+          uv run --with bandit[toml] bandit -r src/ -f screen || true
 
       - name: Run Safety
         run: |
-          uv pip install safety
-          .venv/bin/safety check -r requirements.txt || true
+          uv run --with safety safety check -r requirements.txt || true
 
       - name: Upload security reports
         uses: actions/upload-artifact@v4
@@ -233,21 +222,18 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           uv --version
 
-      - name: Create virtual environment
-        run: uv venv
-
-      - name: Install dependencies
+      - name: Create virtual environment and install dependencies
         run: |
-          uv pip install pip-audit
-          uv pip install safety
+          uv venv
+          uv sync --extra dev
 
       - name: Run pip-audit
         run: |
-          .venv/bin/pip-audit -r requirements.txt || true
+          uv run --with pip-audit pip-audit -r requirements.txt || true
 
       - name: Run safety
         run: |
-          .venv/bin/safety check -r requirements.txt || true
+          uv run --with safety safety check -r requirements.txt || true
 
   # ==================== Docker Build Test ====================
   docker-build:
@@ -298,19 +284,14 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           uv --version
 
-      - name: Create virtual environment
-        run: uv venv
-
-      - name: Install dependencies
+      - name: Create virtual environment and install dependencies
         run: |
-          uv pip install -e ".[dev]"
+          uv venv
+          uv sync --extra dev
 
       - name: Check code complexity (radon)
         run: |
-          uv pip install radon
-          .venv/bin/radon cc src/ -a -nb
-        env:
-          PYTHONPATH: ${{ github.workspace }}/src
+          uv run --with radon radon cc src/ -a -nb
 
       - name: Check code duplication (jscpd)
         run: |
