@@ -34,3 +34,20 @@ cryptotechnolog-common = { path = "../common" }
 [dev-dependencies]
 tokio-test = { workspace = true }
 criterion = { workspace = true }
+
+# Benchmark configuration
+[[bench]]
+name = "wal_bench"
+harness = false
+
+[[bench]]
+name = "merkle_bench"
+harness = false
+
+[[bench]]
+name = "validation_bench"
+harness = false
+
+[[bench]]
+name = "ledger_bench"
+harness = false

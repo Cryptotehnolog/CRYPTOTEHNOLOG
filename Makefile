@@ -1,7 +1,7 @@
 # ==================== CRYPTOTEHNOLOG Makefile ====================
 # Convenient commands for development and testing
 
-.PHONY: help install install-dev test test-unit test-integration test-e2e lint format type-check security-check clean build run dev-up dev-down dev-logs dev-restart check-env setup-env rust-build rust-test rust-clippy rust-fmt rust-bench rust-flamegraph docker-build docker-up docker-down docker-logs docker-clean docker-restart coverage-report
+.PHONY: help install install-dev test test-unit test-integration test-e2e lint format type-check security-check clean build run dev-up dev-down dev-logs dev-restart check-env setup-env rust-build rust-test rust-clippy rust-fmt rust-bench rust-bench-eventbus rust-bench-risk-ledger rust-flamegraph rust-flamegraph-eventbus rust-flamegraph-risk-ledger rust-flamegraph-risk-ledger-all docker-build docker-up docker-down docker-logs docker-clean docker-restart coverage-report
 
 # Default target
 help:
@@ -29,8 +29,13 @@ help:
 	@echo "  make rust-test         - Run Rust tests"
 	@echo "  make rust-clippy       - Run Rust linter (clippy)"
 	@echo "  make rust-fmt          - Format Rust code"
-	@echo "  make rust-bench        - Run Rust benchmarks (criterion)"
-	@echo "  make rust-flamegraph   - Generate flamegraph (pprof)"
+	@echo "  make rust-bench        - Run all Rust benchmarks (criterion)"
+	@echo "  make rust-bench-eventbus    - Run eventbus benchmarks"
+	@echo "  make rust-bench-risk-ledger - Run risk-ledger benchmarks"
+	@echo "  make rust-flamegraph        - Generate flamegraph for eventbus"
+	@echo "  make rust-flamegraph-eventbus    - Generate flamegraph for eventbus"
+	@echo "  make rust-flamegraph-risk-ledger - Generate flamegraph for risk-ledger WAL"
+	@echo "  make rust-flamegraph-risk-ledger-all - Generate all risk-ledger flamegraphs"
 	@echo ""
 	@echo "  ==================== Docker ===================="
 	@echo "  make docker-build      - Build Docker images"
@@ -133,8 +138,28 @@ rust-fmt:
 rust-bench:
 	cd rust_components && cargo bench
 
+rust-bench-eventbus:
+	cd rust_components/crates/eventbus && cargo bench
+
+rust-bench-risk-ledger:
+	cd rust_components/crates/risk-ledger && cargo bench
+
 rust-flamegraph:
 	cd rust_components && cargo flamegraph --bench event_bench
+
+rust-flamegraph-eventbus:
+	cd rust_components/crates/eventbus && cargo flamegraph --bench event_bench
+
+rust-flamegraph-risk-ledger:
+	cd rust_components/crates/risk-ledger && cargo flamegraph --bench wal_bench
+
+rust-flamegraph-risk-ledger-all:
+	@echo "Generating flamegraphs for all risk-ledger benchmarks..."
+	cd rust_components/crates/risk-ledger && cargo flamegraph --bench wal_bench
+	cd rust_components/crates/risk-ledger && cargo flamegraph --bench merkle_bench
+	cd rust_components/crates/risk-ledger && cargo flamegraph --bench validation_bench
+	cd rust_components/crates/risk-ledger && cargo flamegraph --bench ledger_bench
+	@echo "✅ All flamegraphs generated in rust_components/crates/risk-ledger/"
 
 # ==================== Rust Extension (Python-Rust Bridge) ====================
 rust-extension-build:

@@ -22,13 +22,23 @@
 // PyO3 Version: 0.28.2
 // pyo3-async-runtimes: 0.28 (fork for PyO3 0.21+ support)
 //
-// Allocator: Uses system allocator (Windows) or jemallocator (Linux/Mac via feature)
-// Note: On Windows, we use the system allocator (Microsoft's Low Fragmentation Heap)
-// which is well-optimized and integrated with the OS.
+// Allocator: Uses jemallocator on Linux/Mac for optimal performance,
+//            system allocator on Windows (Microsoft's Low Fragmentation Heap)
+//            which is well-optimized and integrated with the OS.
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3_async_runtimes::tokio::future_into_py;
+
+// ==================== Global Allocator ====================
+// Use jemallocator on non-Windows platforms for optimal performance
+// Windows uses the system allocator which is well-optimized
+#[cfg(not(windows))]
+use jemallocator::Jemalloc;
+
+#[cfg(not(windows))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 
 // ==================== Synchronous Functions ====================
 
