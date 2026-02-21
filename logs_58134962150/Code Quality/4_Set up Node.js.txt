@@ -1,0 +1,21 @@
+﻿2026-02-21T22:09:23.6814298Z ##[group]Run actions/setup-node@v4
+2026-02-21T22:09:23.6816043Z with:
+2026-02-21T22:09:23.6817390Z   node-version: 20
+2026-02-21T22:09:23.6818808Z   always-auth: false
+2026-02-21T22:09:23.6820286Z   check-latest: false
+2026-02-21T22:09:23.6822252Z   token: ***
+2026-02-21T22:09:23.6823950Z env:
+2026-02-21T22:09:23.6825268Z   PYTHON_VERSION: 3.12
+2026-02-21T22:09:23.6827088Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T22:09:23.6829819Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T22:09:23.6832571Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T22:09:23.6835180Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T22:09:23.6837681Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T22:09:23.6840135Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T22:09:23.6842348Z ##[endgroup]
+2026-02-21T22:09:23.9018750Z Found in cache @ /opt/hostedtoolcache/node/20.20.0/x64
+2026-02-21T22:09:23.9028292Z ##[group]Environment details
+2026-02-21T22:09:24.3719619Z node: v20.20.0
+2026-02-21T22:09:24.3723081Z npm: 10.8.2
+2026-02-21T22:09:24.3724335Z yarn: 1.22.22
+2026-02-21T22:09:24.3726498Z ##[endgroup]

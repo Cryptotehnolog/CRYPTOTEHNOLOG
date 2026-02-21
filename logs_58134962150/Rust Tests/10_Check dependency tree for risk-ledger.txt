@@ -1,0 +1,13 @@
+﻿2026-02-21T22:10:29.2017192Z ##[group]Run echo "=== Dependency tree for risk-ledger ==="
+2026-02-21T22:10:29.2017700Z [36;1mecho "=== Dependency tree for risk-ledger ==="[0m
+2026-02-21T22:10:29.2018041Z [36;1mcd rust_components/crates/risk-ledger[0m
+2026-02-21T22:10:29.2018651Z [36;1mcargo tree | grep -E "(cryptotechnolog-audit-chain|cryptotechnolog_audit_chain)" || echo "audit-chain NOT FOUND in dependency tree"[0m
+2026-02-21T22:10:29.2050195Z shell: /usr/bin/bash -e {0}
+2026-02-21T22:10:29.2050432Z env:
+2026-02-21T22:10:29.2050608Z   PYTHON_VERSION: 3.12
+2026-02-21T22:10:29.2050818Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T22:10:29.2051061Z   CARGO_INCREMENTAL: 0
+2026-02-21T22:10:29.2051261Z   CARGO_TERM_COLOR: always
+2026-02-21T22:10:29.2051463Z ##[endgroup]
+2026-02-21T22:10:29.2105318Z === Dependency tree for risk-ledger ===
+2026-02-21T22:10:29.3185651Z audit-chain NOT FOUND in dependency tree

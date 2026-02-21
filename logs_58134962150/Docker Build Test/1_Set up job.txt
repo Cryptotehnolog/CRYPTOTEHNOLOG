@@ -1,0 +1,32 @@
+﻿2026-02-21T22:09:21.7859461Z Current runner version: '2.331.0'
+2026-02-21T22:09:21.7936396Z ##[group]Runner Image Provisioner
+2026-02-21T22:09:21.7938116Z Hosted Compute Agent
+2026-02-21T22:09:21.7939142Z Version: 20260123.484
+2026-02-21T22:09:21.7940080Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+2026-02-21T22:09:21.7941234Z Build Date: 2026-01-23T19:41:17Z
+2026-02-21T22:09:21.7942390Z Worker ID: {f2a6e1f7-7c6f-4776-8a11-9c1445f735bf}
+2026-02-21T22:09:21.7943700Z Azure Region: northcentralus
+2026-02-21T22:09:21.7944625Z ##[endgroup]
+2026-02-21T22:09:21.7967310Z ##[group]Operating System
+2026-02-21T22:09:21.7968426Z Ubuntu
+2026-02-21T22:09:21.7969204Z 24.04.3
+2026-02-21T22:09:21.7970064Z LTS
+2026-02-21T22:09:21.7970814Z ##[endgroup]
+2026-02-21T22:09:21.7971691Z ##[group]Runner Image
+2026-02-21T22:09:21.7972675Z Image: ubuntu-24.04
+2026-02-21T22:09:21.7973585Z Version: 20260201.15.1
+2026-02-21T22:09:21.7975307Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+2026-02-21T22:09:21.7978421Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+2026-02-21T22:09:21.7979994Z ##[endgroup]
+2026-02-21T22:09:21.7981938Z ##[group]GITHUB_TOKEN Permissions
+2026-02-21T22:09:21.7984786Z Contents: read
+2026-02-21T22:09:21.7985585Z Metadata: read
+2026-02-21T22:09:21.8006910Z Packages: read
+2026-02-21T22:09:21.8008022Z ##[endgroup]
+2026-02-21T22:09:21.8011095Z Secret source: Actions
+2026-02-21T22:09:21.8012719Z Prepare workflow directory
+2026-02-21T22:09:21.9039399Z Prepare all required actions
+2026-02-21T22:09:21.9097801Z Getting action download info
+2026-02-21T22:09:22.2104898Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-02-21T22:09:22.3154414Z Download action repository 'docker/setup-buildx-action@v3' (SHA:8d2750c68a42422c14e847fe6c8ac0403b4cbd6f)
+2026-02-21T22:09:22.8816182Z Complete job name: Docker Build Test

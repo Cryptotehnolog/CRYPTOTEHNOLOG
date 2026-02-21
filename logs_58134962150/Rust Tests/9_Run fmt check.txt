@@ -1,0 +1,581 @@
+﻿2026-02-21T22:10:28.9846400Z ##[group]Run cargo fmt -- --check || true
+2026-02-21T22:10:28.9846948Z [36;1mcargo fmt -- --check || true[0m
+2026-02-21T22:10:28.9883092Z shell: /usr/bin/bash -e {0}
+2026-02-21T22:10:28.9883325Z env:
+2026-02-21T22:10:28.9883500Z   PYTHON_VERSION: 3.12
+2026-02-21T22:10:28.9883730Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T22:10:28.9883970Z   CARGO_INCREMENTAL: 0
+2026-02-21T22:10:28.9884173Z   CARGO_TERM_COLOR: always
+2026-02-21T22:10:28.9884383Z ##[endgroup]
+2026-02-21T22:10:29.1390864Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/audit-chain/src/audit.rs:56:
+2026-02-21T22:10:29.1392979Z          };
+2026-02-21T22:10:29.1393283Z  
+2026-02-21T22:10:29.1393566Z          // Create record hash
+2026-02-21T22:10:29.1399940Z -        let record_hash = Self::compute_hash(
+2026-02-21T22:10:29.1400436Z -            &id,
+2026-02-21T22:10:29.1400753Z -            &timestamp,
+2026-02-21T22:10:29.1401108Z -            &event_type,
+2026-02-21T22:10:29.1401460Z -            &data,
+2026-02-21T22:10:29.1401865Z -            &previous_hash,
+2026-02-21T22:10:29.1402235Z -        );
+2026-02-21T22:10:29.1402848Z +        let record_hash = Self::compute_hash(&id, &timestamp, &event_type, &data, &previous_hash);
+2026-02-21T22:10:29.1403565Z  
+2026-02-21T22:10:29.1403842Z          // Create record
+2026-02-21T22:10:29.1404214Z          let record = AuditRecord {
+2026-02-21T22:10:29.1405099Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/audit-chain/src/audit.rs:325:
+2026-02-21T22:10:29.1406276Z          assert_ne!(hash2, "0".repeat(64));
+2026-02-21T22:10:29.1406710Z      }
+2026-02-21T22:10:29.1406973Z  }
+2026-02-21T22:10:29.1407230Z -
+2026-02-21T22:10:29.1407488Z  
+2026-02-21T22:10:29.1480476Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/benches/eventbus_backend_bench.rs:21:
+2026-02-21T22:10:29.1482681Z  
+2026-02-21T22:10:29.1482994Z  /// Benchmark event serialization
+2026-02-21T22:10:29.1483506Z  fn bench_event_serialization(c: &mut Criterion) {
+2026-02-21T22:10:29.1484304Z -    let event = Event::new("TEST_EVENT", "TEST_SOURCE", serde_json::json!({"key": "value"}));
+2026-02-21T22:10:29.1485051Z +    let event = Event::new(
+2026-02-21T22:10:29.1485435Z +        "TEST_EVENT",
+2026-02-21T22:10:29.1486163Z +        "TEST_SOURCE",
+2026-02-21T22:10:29.1486568Z +        serde_json::json!({"key": "value"}),
+2026-02-21T22:10:29.1487021Z +    );
+2026-02-21T22:10:29.1487299Z  
+2026-02-21T22:10:29.1487639Z      c.bench_function("event_serialization", |b| {
+2026-02-21T22:10:29.1488561Z -        b.iter(|| {
+2026-02-21T22:10:29.1489021Z -            black_box(serde_json::to_string(black_box(&event)))
+2026-02-21T22:10:29.1489527Z -        });
+2026-02-21T22:10:29.1489989Z +        b.iter(|| black_box(serde_json::to_string(black_box(&event))));
+2026-02-21T22:10:29.1490552Z      });
+2026-02-21T22:10:29.1490812Z  }
+2026-02-21T22:10:29.1491064Z  
+2026-02-21T22:10:29.1491911Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/benches/eventbus_backend_bench.rs:36:
+2026-02-21T22:10:29.1492932Z          "TEST_EVENT",
+2026-02-21T22:10:29.1493265Z          "TEST_SOURCE",
+2026-02-21T22:10:29.1493651Z          serde_json::json!({"key": "value"}),
+2026-02-21T22:10:29.1494090Z -    )).unwrap();
+2026-02-21T22:10:29.1494380Z +    ))
+2026-02-21T22:10:29.1494653Z +    .unwrap();
+2026-02-21T22:10:29.1494942Z  
+2026-02-21T22:10:29.1495288Z      c.bench_function("event_deserialization", |b| {
+2026-02-21T22:10:29.1496082Z -        b.iter(|| {
+2026-02-21T22:10:29.1496596Z -            black_box(serde_json::from_str::<Event>(black_box(&json)))
+2026-02-21T22:10:29.1497148Z -        });
+2026-02-21T22:10:29.1497625Z +        b.iter(|| black_box(serde_json::from_str::<Event>(black_box(&json))));
+2026-02-21T22:10:29.1498212Z      });
+2026-02-21T22:10:29.1498477Z  }
+2026-02-21T22:10:29.1498769Z  
+2026-02-21T22:10:29.1499626Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/benches/eventbus_backend_bench.rs:328:
+2026-02-21T22:10:29.1500991Z  
+2026-02-21T22:10:29.1501282Z  /// Benchmark event serialization
+2026-02-21T22:10:29.1501781Z  fn bench_event_serialization(c: &mut Criterion) {
+2026-02-21T22:10:29.1502595Z -    let event = Event::new("TEST_EVENT", "TEST_SOURCE", serde_json::json!({"key": "value"}));
+2026-02-21T22:10:29.1503319Z +    let event = Event::new(
+2026-02-21T22:10:29.1503680Z +        "TEST_EVENT",
+2026-02-21T22:10:29.1503997Z +        "TEST_SOURCE",
+2026-02-21T22:10:29.1504346Z +        serde_json::json!({"key": "value"}),
+2026-02-21T22:10:29.1504784Z +    );
+2026-02-21T22:10:29.1505040Z  
+2026-02-21T22:10:29.1505367Z      c.bench_function("event_serialization", |b| {
+2026-02-21T22:10:29.1506005Z -        b.iter(|| {
+2026-02-21T22:10:29.1506455Z -            black_box(serde_json::to_string(black_box(&event)))
+2026-02-21T22:10:29.1506946Z -        });
+2026-02-21T22:10:29.1507373Z +        b.iter(|| black_box(serde_json::to_string(black_box(&event))));
+2026-02-21T22:10:29.1507921Z      });
+2026-02-21T22:10:29.1508192Z  }
+2026-02-21T22:10:29.1508431Z  
+2026-02-21T22:10:29.1509245Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/benches/eventbus_backend_bench.rs:343:
+2026-02-21T22:10:29.1510268Z          "TEST_EVENT",
+2026-02-21T22:10:29.1510578Z          "TEST_SOURCE",
+2026-02-21T22:10:29.1510950Z          serde_json::json!({"key": "value"}),
+2026-02-21T22:10:29.1511382Z -    )).unwrap();
+2026-02-21T22:10:29.1511677Z +    ))
+2026-02-21T22:10:29.1511944Z +    .unwrap();
+2026-02-21T22:10:29.1512251Z  
+2026-02-21T22:10:29.1512596Z      c.bench_function("event_deserialization", |b| {
+2026-02-21T22:10:29.1513103Z -        b.iter(|| {
+2026-02-21T22:10:29.1513596Z -            black_box(serde_json::from_str::<Event>(black_box(&json)))
+2026-02-21T22:10:29.1514124Z -        });
+2026-02-21T22:10:29.1514587Z +        b.iter(|| black_box(serde_json::from_str::<Event>(black_box(&json))));
+2026-02-21T22:10:29.1515140Z      });
+2026-02-21T22:10:29.1515396Z  }
+2026-02-21T22:10:29.1515649Z  
+2026-02-21T22:10:29.1562945Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/src/bus.rs:13:
+2026-02-21T22:10:29.1564235Z  use crate::ring_buffer::LockFreeRingBuffer;
+2026-02-21T22:10:29.1565406Z  
+2026-02-21T22:10:29.1566171Z  // Use crossbeam-channel for broadcast support
+2026-02-21T22:10:29.1567044Z -use crossbeam_channel::{bounded, Receiver, Sender, TrySendError, RecvError};
+2026-02-21T22:10:29.1568248Z +use crossbeam_channel::{bounded, Receiver, RecvError, Sender, TrySendError};
+2026-02-21T22:10:29.1570980Z  
+2026-02-21T22:10:29.1571318Z  // ==================== Backend Types ====================
+2026-02-21T22:10:29.1571790Z  
+2026-02-21T22:10:29.1572483Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/src/bus.rs:86:
+2026-02-21T22:10:29.1573294Z      ///
+2026-02-21T22:10:29.1573577Z      /// A new EventBus instance
+2026-02-21T22:10:29.1574108Z      pub fn new(backend: EventBusBackend, capacity: usize) -> Self {
+2026-02-21T22:10:29.1574966Z -        debug!("Creating EventBus with backend: {:?}, capacity: {}", backend, capacity);
+2026-02-21T22:10:29.1575657Z +        debug!(
+2026-02-21T22:10:29.1576283Z +            "Creating EventBus with backend: {:?}, capacity: {}",
+2026-02-21T22:10:29.1576831Z +            backend, capacity
+2026-02-21T22:10:29.1577191Z +        );
+2026-02-21T22:10:29.1577457Z  
+2026-02-21T22:10:29.1577734Z          match backend {
+2026-02-21T22:10:29.1578142Z -            EventBusBackend::ChannelBased => {
+2026-02-21T22:10:29.1578616Z -                Self {
+2026-02-21T22:10:29.1578948Z -                    backend,
+2026-02-21T22:10:29.1579427Z -                    channel_subscribers: Arc::new(Mutex::new(Vec::new())),
+2026-02-21T22:10:29.1580011Z -                    #[cfg(feature = "lock-free")]
+2026-02-21T22:10:29.1580481Z -                    ring_buffer: None,
+2026-02-21T22:10:29.1580912Z -                    capacity,
+2026-02-21T22:10:29.1581367Z -                }
+2026-02-21T22:10:29.1581980Z -            }
+2026-02-21T22:10:29.1582374Z +            EventBusBackend::ChannelBased => Self {
+2026-02-21T22:10:29.1582862Z +                backend,
+2026-02-21T22:10:29.1583351Z +                channel_subscribers: Arc::new(Mutex::new(Vec::new())),
+2026-02-21T22:10:29.1583932Z +                #[cfg(feature = "lock-free")]
+2026-02-21T22:10:29.1584389Z +                ring_buffer: None,
+2026-02-21T22:10:29.1584799Z +                capacity,
+2026-02-21T22:10:29.1585137Z +            },
+2026-02-21T22:10:29.1585466Z              #[cfg(feature = "lock-free")]
+2026-02-21T22:10:29.1599576Z              EventBusBackend::LockFree => {
+2026-02-21T22:10:29.1600108Z                  if !capacity.is_power_of_two() {
+2026-02-21T22:10:29.1601007Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/src/bus.rs:168:
+2026-02-21T22:10:29.1601895Z                      match buffer.push(event) {
+2026-02-21T22:10:29.1602349Z                          Ok(_) => Ok(()),
+2026-02-21T22:10:29.1602760Z                          Err(e) => {
+2026-02-21T22:10:29.1603383Z -                            warn!("Lock-free ring buffer full, dropping event: {}", e.event_type);
+2026-02-21T22:10:29.1604038Z +                            warn!(
+2026-02-21T22:10:29.1604545Z +                                "Lock-free ring buffer full, dropping event: {}",
+2026-02-21T22:10:29.1605125Z +                                e.event_type
+2026-02-21T22:10:29.1605541Z +                            );
+2026-02-21T22:10:29.1606261Z                              Err(Box::new(e))
+2026-02-21T22:10:29.1606717Z                          }
+2026-02-21T22:10:29.1607058Z                      }
+2026-02-21T22:10:29.1607812Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/eventbus/src/bus.rs:446:
+2026-02-21T22:10:29.1608653Z  
+2026-02-21T22:10:29.1608927Z          drop(_receiver1);
+2026-02-21T22:10:29.1609476Z          // Note: Disconnected subscribers are only removed on next publish
+2026-02-21T22:10:29.1610293Z -        bus.publish(Event::new("TEST", "SOURCE", serde_json::json!({}))).ok();
+2026-02-21T22:10:29.1611106Z +        bus.publish(Event::new("TEST", "SOURCE", serde_json::json!({})))
+2026-02-21T22:10:29.1611675Z +            .ok();
+2026-02-21T22:10:29.1611965Z  
+2026-02-21T22:10:29.1612370Z          // After publish, disconnected subscribers should be removed
+2026-02-21T22:10:29.1613057Z          // This may not be immediate, so we don't assert exact count
+2026-02-21T22:10:29.1680627Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:1:
+2026-02-21T22:10:29.1699718Z  // ==================== CRYPTOTEHNOLOG Risk Ledger Benchmarks ====================
+2026-02-21T22:10:29.1700410Z  // Benchmarks for RiskLedger integrated performance
+2026-02-21T22:10:29.1700881Z  
+2026-02-21T22:10:29.1701416Z -use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+2026-02-21T22:10:29.1702398Z +use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+2026-02-21T22:10:29.1703220Z  use cryptotechnolog_risk_ledger::ledger::Position;
+2026-02-21T22:10:29.1703819Z  use cryptotechnolog_risk_ledger::ledger::RiskLedger;
+2026-02-21T22:10:29.1704319Z  use tokio::runtime::Runtime;
+2026-02-21T22:10:29.1705152Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:14:
+2026-02-21T22:10:29.1706246Z          rt.block_on(async {
+2026-02-21T22:10:29.1706634Z              b.iter(|| {
+2026-02-21T22:10:29.1707029Z                  rt.block_on(async {
+2026-02-21T22:10:29.1707886Z -                    let path = format!("test_ledger_creation_{}.log", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+2026-02-21T22:10:29.1708711Z +                    let path = format!(
+2026-02-21T22:10:29.1709148Z +                        "test_ledger_creation_{}.log",
+2026-02-21T22:10:29.1709709Z +                        chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+2026-02-21T22:10:29.1710460Z +                    );
+2026-02-21T22:10:29.1710912Z                      black_box(RiskLedger::new(path.into()).await.unwrap())
+2026-02-21T22:10:29.1711443Z                  })
+2026-02-21T22:10:29.1711723Z              });
+2026-02-21T22:10:29.1712503Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:28:
+2026-02-21T22:10:29.1713415Z  
+2026-02-21T22:10:29.1713739Z      c.bench_function("position_update", |b| {
+2026-02-21T22:10:29.1714198Z          rt.block_on(async {
+2026-02-21T22:10:29.1714806Z -            let ledger = RiskLedger::new("test_ledger_update.log".into()).await.unwrap();
+2026-02-21T22:10:29.1715615Z +            let ledger = RiskLedger::new("test_ledger_update.log".into())
+2026-02-21T22:10:29.1716378Z +                .await
+2026-02-21T22:10:29.1716705Z +                .unwrap();
+2026-02-21T22:10:29.1717042Z  
+2026-02-21T22:10:29.1717345Z              let position = Position {
+2026-02-21T22:10:29.1717804Z                  id: "BTC/USDT-1".to_string(),
+2026-02-21T22:10:29.1718777Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:43:
+2026-02-21T22:10:29.1719758Z              b.iter(|| {
+2026-02-21T22:10:29.1720125Z                  rt.block_on(async {
+2026-02-21T22:10:29.1720557Z                      let ledger_ref = &ledger;
+2026-02-21T22:10:29.1721281Z -                    black_box(ledger_ref.update_position(black_box(position.clone())).await.unwrap())
+2026-02-21T22:10:29.1722000Z +                    black_box(
+2026-02-21T22:10:29.1722373Z +                        ledger_ref
+2026-02-21T22:10:29.1722866Z +                            .update_position(black_box(position.clone()))
+2026-02-21T22:10:29.1723399Z +                            .await
+2026-02-21T22:10:29.1723776Z +                            .unwrap(),
+2026-02-21T22:10:29.1724155Z +                    )
+2026-02-21T22:10:29.1724462Z                  })
+2026-02-21T22:10:29.1724733Z              });
+2026-02-21T22:10:29.1725004Z  
+2026-02-21T22:10:29.1725964Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:59:
+2026-02-21T22:10:29.1726877Z  
+2026-02-21T22:10:29.1727204Z      c.bench_function("position_retrieval", |b| {
+2026-02-21T22:10:29.1727657Z          rt.block_on(async {
+2026-02-21T22:10:29.1728283Z -            let ledger = RiskLedger::new("test_ledger_retrieve.log".into()).await.unwrap();
+2026-02-21T22:10:29.1729144Z +            let ledger = RiskLedger::new("test_ledger_retrieve.log".into())
+2026-02-21T22:10:29.1729983Z +                .await
+2026-02-21T22:10:29.1730310Z +                .unwrap();
+2026-02-21T22:10:29.1730651Z  
+2026-02-21T22:10:29.1730949Z              // Add a position first
+2026-02-21T22:10:29.1731392Z              let position = Position {
+2026-02-21T22:10:29.1732345Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:96:
+2026-02-21T22:10:29.1733352Z              let rt = Runtime::new().unwrap();
+2026-02-21T22:10:29.1733782Z  
+2026-02-21T22:10:29.1734054Z              rt.block_on(async {
+2026-02-21T22:10:29.1734795Z -                let ledger = RiskLedger::new(format!("test_ledger_portfolio_{}.log", count).into()).await.unwrap();
+2026-02-21T22:10:29.1756912Z +                let ledger = RiskLedger::new(format!("test_ledger_portfolio_{}.log", count).into())
+2026-02-21T22:10:29.1757658Z +                    .await
+2026-02-21T22:10:29.1758024Z +                    .unwrap();
+2026-02-21T22:10:29.1758400Z  
+2026-02-21T22:10:29.1758678Z                  // Add positions
+2026-02-21T22:10:29.1759076Z                  for i in 0..count {
+2026-02-21T22:10:29.1759959Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:133:
+2026-02-21T22:10:29.1760829Z  
+2026-02-21T22:10:29.1761149Z      c.bench_function("merkle_proof_ledger", |b| {
+2026-02-21T22:10:29.1761605Z          rt.block_on(async {
+2026-02-21T22:10:29.1762426Z -            let ledger = RiskLedger::new("test_ledger_merkle.log".into()).await.unwrap();
+2026-02-21T22:10:29.1763222Z +            let ledger = RiskLedger::new("test_ledger_merkle.log".into())
+2026-02-21T22:10:29.1763821Z +                .await
+2026-02-21T22:10:29.1764167Z +                .unwrap();
+2026-02-21T22:10:29.1764514Z  
+2026-02-21T22:10:29.1764805Z              // Add some positions
+2026-02-21T22:10:29.1765208Z              for i in 0..100 {
+2026-02-21T22:10:29.1766272Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:168:
+2026-02-21T22:10:29.1767219Z  
+2026-02-21T22:10:29.1767572Z      c.bench_function("merkle_verify_ledger", |b| {
+2026-02-21T22:10:29.1768056Z          rt.block_on(async {
+2026-02-21T22:10:29.1768669Z -            let ledger = RiskLedger::new("test_ledger_verify.log".into()).await.unwrap();
+2026-02-21T22:10:29.1769487Z +            let ledger = RiskLedger::new("test_ledger_verify.log".into())
+2026-02-21T22:10:29.1770063Z +                .await
+2026-02-21T22:10:29.1770367Z +                .unwrap();
+2026-02-21T22:10:29.1770687Z  
+2026-02-21T22:10:29.1770949Z              // Add a position
+2026-02-21T22:10:29.1771323Z              let position = Position {
+2026-02-21T22:10:29.1772232Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:188:
+2026-02-21T22:10:29.1773127Z              b.iter(|| {
+2026-02-21T22:10:29.1773477Z                  rt.block_on(async {
+2026-02-21T22:10:29.1773913Z                      let ledger_ref = &ledger;
+2026-02-21T22:10:29.1774647Z -                    black_box(ledger_ref.verify_proof(black_box("BTC/USDT-1"), black_box(&proof)).await)
+2026-02-21T22:10:29.1775381Z +                    black_box(
+2026-02-21T22:10:29.1775919Z +                        ledger_ref
+2026-02-21T22:10:29.1776478Z +                            .verify_proof(black_box("BTC/USDT-1"), black_box(&proof))
+2026-02-21T22:10:29.1777057Z +                            .await,
+2026-02-21T22:10:29.1777448Z +                    )
+2026-02-21T22:10:29.1777740Z                  })
+2026-02-21T22:10:29.1778024Z              });
+2026-02-21T22:10:29.1778305Z  
+2026-02-21T22:10:29.1779076Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:247:
+2026-02-21T22:10:29.1779981Z  
+2026-02-21T22:10:29.1780319Z      c.bench_function("position_lifecycle", |b| {
+2026-02-21T22:10:29.1780777Z          rt.block_on(async {
+2026-02-21T22:10:29.1781633Z -            let ledger = RiskLedger::new("test_ledger_lifecycle.log".into()).await.unwrap();
+2026-02-21T22:10:29.1782444Z +            let ledger = RiskLedger::new("test_ledger_lifecycle.log".into())
+2026-02-21T22:10:29.1782980Z +                .await
+2026-02-21T22:10:29.1783289Z +                .unwrap();
+2026-02-21T22:10:29.1783605Z  
+2026-02-21T22:10:29.1783860Z              b.iter(|| {
+2026-02-21T22:10:29.1784225Z                  rt.block_on(async {
+2026-02-21T22:10:29.1785185Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/ledger_bench.rs:254:
+2026-02-21T22:10:29.1786309Z                      // Create
+2026-02-21T22:10:29.1786712Z                      let position = Position {
+2026-02-21T22:10:29.1787432Z -                        id: format!("BTC/USDT-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)),
+2026-02-21T22:10:29.1788158Z +                        id: format!(
+2026-02-21T22:10:29.1788575Z +                            "BTC/USDT-{}",
+2026-02-21T22:10:29.1789109Z +                            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+2026-02-21T22:10:29.1789644Z +                        ),
+2026-02-21T22:10:29.1790031Z                          symbol: "BTC/USDT".to_string(),
+2026-02-21T22:10:29.1790462Z                          size: 100.0,
+2026-02-21T22:10:29.1790858Z                          entry_price: 50000.0,
+2026-02-21T22:10:29.1809064Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/merkle_bench.rs:1:
+2026-02-21T22:10:29.1814261Z  // ==================== CRYPTOTEHNOLOG Merkle Tree Benchmarks ====================
+2026-02-21T22:10:29.1814942Z  // Benchmarks for MerkleTree performance
+2026-02-21T22:10:29.1815383Z  
+2026-02-21T22:10:29.1816144Z -use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+2026-02-21T22:10:29.1817156Z +use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+2026-02-21T22:10:29.1817968Z  use cryptotechnolog_risk_ledger::merkle::MerkleTree;
+2026-02-21T22:10:29.1818463Z  use sha2::{Digest, Sha256};
+2026-02-21T22:10:29.1818807Z  
+2026-02-21T22:10:29.1819575Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/merkle_bench.rs:21:
+2026-02-21T22:10:29.1820773Z          group.bench_with_input(BenchmarkId::from_parameter(count), &count, |b, &count| {
+2026-02-21T22:10:29.1821688Z              let leaves: Vec<[u8; 32]> = (0..count).map(|i| generate_hash(i)).collect();
+2026-02-21T22:10:29.1822317Z  
+2026-02-21T22:10:29.1822590Z -            b.iter(|| {
+2026-02-21T22:10:29.1823126Z -                black_box(MerkleTree::from_leaves(black_box(leaves.clone())))
+2026-02-21T22:10:29.1823743Z -            });
+2026-02-21T22:10:29.1824291Z +            b.iter(|| black_box(MerkleTree::from_leaves(black_box(leaves.clone()))));
+2026-02-21T22:10:29.1824897Z          });
+2026-02-21T22:10:29.1825176Z      }
+2026-02-21T22:10:29.1825461Z      group.finish();
+2026-02-21T22:10:29.1826479Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/merkle_bench.rs:39:
+2026-02-21T22:10:29.1827624Z              let leaves: Vec<[u8; 32]> = (0..count).map(|i| generate_hash(i)).collect();
+2026-02-21T22:10:29.1828322Z              let tree = MerkleTree::from_leaves(leaves);
+2026-02-21T22:10:29.1828807Z  
+2026-02-21T22:10:29.1829095Z -            b.iter(|| {
+2026-02-21T22:10:29.1829482Z -                black_box(tree.root())
+2026-02-21T22:10:29.1829918Z -            });
+2026-02-21T22:10:29.1830248Z +            b.iter(|| black_box(tree.root()));
+2026-02-21T22:10:29.1830689Z          });
+2026-02-21T22:10:29.1830975Z      }
+2026-02-21T22:10:29.1831242Z      group.finish();
+2026-02-21T22:10:29.1832079Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/merkle_bench.rs:78:
+2026-02-21T22:10:29.1833063Z              let index = (count / 2) as usize;
+2026-02-21T22:10:29.1833596Z              let proof = tree.generate_proof(index).unwrap();
+2026-02-21T22:10:29.1834336Z  
+2026-02-21T22:10:29.1834622Z -            b.iter(|| {
+2026-02-21T22:10:29.1835195Z -                black_box(tree.verify(black_box(&leaves[index]), black_box(&proof)))
+2026-02-21T22:10:29.1836007Z -            });
+2026-02-21T22:10:29.1836568Z +            b.iter(|| black_box(tree.verify(black_box(&leaves[index]), black_box(&proof))));
+2026-02-21T22:10:29.1837217Z          });
+2026-02-21T22:10:29.1837488Z      }
+2026-02-21T22:10:29.1837782Z      group.finish();
+2026-02-21T22:10:29.1838647Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/merkle_bench.rs:106:
+2026-02-21T22:10:29.1839773Z                  let proof = black_box(tree.generate_proof(index).unwrap());
+2026-02-21T22:10:29.1840446Z  
+2026-02-21T22:10:29.1840738Z                  // Verify proof
+2026-02-21T22:10:29.1841427Z -                let _verified = black_box(tree.verify(black_box(&leaves[index]), black_box(&proof)));
+2026-02-21T22:10:29.1842207Z +                let _verified =
+2026-02-21T22:10:29.1842818Z +                    black_box(tree.verify(black_box(&leaves[index]), black_box(&proof)));
+2026-02-21T22:10:29.1843467Z              });
+2026-02-21T22:10:29.1843761Z          });
+2026-02-21T22:10:29.1844042Z      }
+2026-02-21T22:10:29.1844866Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/validation_bench.rs:1:
+2026-02-21T22:10:29.1847579Z  // ==================== CRYPTOTEHNOLOG Validation Benchmarks ====================
+2026-02-21T22:10:29.1848567Z  // Benchmarks for double-entry validation performance
+2026-02-21T22:10:29.1849072Z  
+2026-02-21T22:10:29.1849628Z -use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+2026-02-21T22:10:29.1850640Z +use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+2026-02-21T22:10:29.1851637Z  use cryptotechnolog_risk_ledger::validation::{DoubleEntryValidator, Transaction};
+2026-02-21T22:10:29.1852351Z  
+2026-02-21T22:10:29.1852654Z  /// Benchmark double-entry validation
+2026-02-21T22:10:29.1853631Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/validation_bench.rs:19:
+2026-02-21T22:10:29.1854624Z              for i in 0..(count / 2) {
+2026-02-21T22:10:29.1855046Z                  let amount = 100.0;
+2026-02-21T22:10:29.1856013Z                  transactions.push(Transaction::new(format!("ACCOUNT_{}", i), -amount)); // Debit
+2026-02-21T22:10:29.1857119Z -                transactions.push(Transaction::new(format!("ACCOUNT_{}", i + 1000), amount)); // Credit
+2026-02-21T22:10:29.1858158Z +                transactions.push(Transaction::new(format!("ACCOUNT_{}", i + 1000), amount));
+2026-02-21T22:10:29.1858860Z +                // Credit
+2026-02-21T22:10:29.1859214Z              }
+2026-02-21T22:10:29.1859504Z  
+2026-02-21T22:10:29.1859764Z -            b.iter(|| {
+2026-02-21T22:10:29.1860299Z -                black_box(validator.validate(black_box(&transactions)).unwrap())
+2026-02-21T22:10:29.1860933Z -            });
+2026-02-21T22:10:29.1861482Z +            b.iter(|| black_box(validator.validate(black_box(&transactions)).unwrap()));
+2026-02-21T22:10:29.1862131Z          });
+2026-02-21T22:10:29.1862416Z      }
+2026-02-21T22:10:29.1862688Z      group.finish();
+2026-02-21T22:10:29.1863562Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/validation_bench.rs:33:
+2026-02-21T22:10:29.1864586Z  /// Benchmark transaction creation
+2026-02-21T22:10:29.1865092Z  fn bench_transaction_creation(c: &mut Criterion) {
+2026-02-21T22:10:29.1865654Z      c.bench_function("transaction_creation", |b| {
+2026-02-21T22:10:29.1866430Z -        b.iter(|| {
+2026-02-21T22:10:29.1866801Z -            black_box(Transaction::new(
+2026-02-21T22:10:29.1867259Z -                "TEST_ACCOUNT".to_string(),
+2026-02-21T22:10:29.1867712Z -                100.0,
+2026-02-21T22:10:29.1868041Z -            ))
+2026-02-21T22:10:29.1868563Z -        });
+2026-02-21T22:10:29.1869060Z +        b.iter(|| black_box(Transaction::new("TEST_ACCOUNT".to_string(), 100.0)));
+2026-02-21T22:10:29.1869697Z      });
+2026-02-21T22:10:29.1869971Z  }
+2026-02-21T22:10:29.1870218Z  
+2026-02-21T22:10:29.1871034Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/validation_bench.rs:45:
+2026-02-21T22:10:29.1872058Z  /// Benchmark validator creation
+2026-02-21T22:10:29.1872534Z  fn bench_validator_creation(c: &mut Criterion) {
+2026-02-21T22:10:29.1873085Z      c.bench_function("validator_creation", |b| {
+2026-02-21T22:10:29.1873554Z -        b.iter(|| {
+2026-02-21T22:10:29.1873943Z -            black_box(DoubleEntryValidator::new())
+2026-02-21T22:10:29.1874454Z -        });
+2026-02-21T22:10:29.1874863Z +        b.iter(|| black_box(DoubleEntryValidator::new()));
+2026-02-21T22:10:29.1875346Z      });
+2026-02-21T22:10:29.1875589Z  }
+2026-02-21T22:10:29.1876020Z  
+2026-02-21T22:10:29.1876807Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/validation_bench.rs:110:
+2026-02-21T22:10:29.1877847Z      let amounts = vec![0.01, 1.0, 100.0, 10000.0, 1000000.0];
+2026-02-21T22:10:29.1878310Z  
+2026-02-21T22:10:29.1878583Z      for amount in amounts {
+2026-02-21T22:10:29.1879241Z -        group.bench_with_input(BenchmarkId::from_parameter(amount), &amount, |b, &amount| {
+2026-02-21T22:10:29.1880015Z -            let validator = DoubleEntryValidator::new();
+2026-02-21T22:10:29.1880731Z +        group.bench_with_input(
+2026-02-21T22:10:29.1881155Z +            BenchmarkId::from_parameter(amount),
+2026-02-21T22:10:29.1881574Z +            &amount,
+2026-02-21T22:10:29.1881878Z +            |b, &amount| {
+2026-02-21T22:10:29.1882293Z +                let validator = DoubleEntryValidator::new();
+2026-02-21T22:10:29.1882751Z  
+2026-02-21T22:10:29.1882994Z -            b.iter(|| {
+2026-02-21T22:10:29.1883344Z -                let transactions = vec![
+2026-02-21T22:10:29.1883909Z -                    Transaction::new("ACCOUNT_1".to_string(), -amount), // Debit
+2026-02-21T22:10:29.1884636Z -                    Transaction::new("ACCOUNT_2".to_string(), amount),  // Credit
+2026-02-21T22:10:29.1885187Z -                ];
+2026-02-21T22:10:29.1885493Z +                b.iter(|| {
+2026-02-21T22:10:29.1886013Z +                    let transactions = vec![
+2026-02-21T22:10:29.1886596Z +                        Transaction::new("ACCOUNT_1".to_string(), -amount), // Debit
+2026-02-21T22:10:29.1887333Z +                        Transaction::new("ACCOUNT_2".to_string(), amount),  // Credit
+2026-02-21T22:10:29.1887903Z +                    ];
+2026-02-21T22:10:29.1888197Z  
+2026-02-21T22:10:29.1888574Z -                black_box(validator.validate(&transactions).unwrap())
+2026-02-21T22:10:29.1889090Z -            });
+2026-02-21T22:10:29.1889360Z -        });
+2026-02-21T22:10:29.1889755Z +                    black_box(validator.validate(&transactions).unwrap())
+2026-02-21T22:10:29.1890529Z +                });
+2026-02-21T22:10:29.1890831Z +            },
+2026-02-21T22:10:29.1891104Z +        );
+2026-02-21T22:10:29.1891359Z      }
+2026-02-21T22:10:29.1891614Z      group.finish();
+2026-02-21T22:10:29.1891923Z  }
+2026-02-21T22:10:29.1892676Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:1:
+2026-02-21T22:10:29.1893734Z  // ==================== CRYPTOTEHNOLOG WAL Benchmarks ====================
+2026-02-21T22:10:29.1894348Z  // Benchmarks for WriteAheadLog performance
+2026-02-21T22:10:29.1894814Z  
+2026-02-21T22:10:29.1895373Z -use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+2026-02-21T22:10:29.1904983Z +use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+2026-02-21T22:10:29.1906082Z  use cryptotechnolog_risk_ledger::wal::WriteAheadLog;
+2026-02-21T22:10:29.1906667Z  use serde_json::json;
+2026-02-21T22:10:29.1907035Z  use std::path::PathBuf;
+2026-02-21T22:10:29.1907875Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:14:
+2026-02-21T22:10:29.1908990Z  
+2026-02-21T22:10:29.1909249Z          rt.block_on(async {
+2026-02-21T22:10:29.1909734Z              let wal = std::sync::Arc::new(tokio::sync::Mutex::new(
+2026-02-21T22:10:29.1910458Z -                WriteAheadLog::new("test_wal_append.log".into()).await.unwrap()
+2026-02-21T22:10:29.1911184Z +                WriteAheadLog::new("test_wal_append.log".into())
+2026-02-21T22:10:29.1911708Z +                    .await
+2026-02-21T22:10:29.1912067Z +                    .unwrap(),
+2026-02-21T22:10:29.1912428Z              ));
+2026-02-21T22:10:29.1912718Z  
+2026-02-21T22:10:29.1912995Z              b.iter(|| {
+2026-02-21T22:10:29.1913849Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:27:
+2026-02-21T22:10:29.1914765Z  
+2026-02-21T22:10:29.1915048Z                  rt.block_on(async {
+2026-02-21T22:10:29.1915510Z                      let mut wal_lock = wal.lock().await;
+2026-02-21T22:10:29.1916454Z -                    black_box(wal_lock.append("TEST_OPERATION".to_string(), data).await.unwrap())
+2026-02-21T22:10:29.1917180Z +                    black_box(
+2026-02-21T22:10:29.1917572Z +                        wal_lock
+2026-02-21T22:10:29.1918063Z +                            .append("TEST_OPERATION".to_string(), data)
+2026-02-21T22:10:29.1918577Z +                            .await
+2026-02-21T22:10:29.1919248Z +                            .unwrap(),
+2026-02-21T22:10:29.1919656Z +                    )
+2026-02-21T22:10:29.1919973Z                  })
+2026-02-21T22:10:29.1920275Z              });
+2026-02-21T22:10:29.1920560Z  
+2026-02-21T22:10:29.1921326Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:48:
+2026-02-21T22:10:29.1922528Z          group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+2026-02-21T22:10:29.1923219Z              rt.block_on(async {
+2026-02-21T22:10:29.1923738Z                  let wal = std::sync::Arc::new(tokio::sync::Mutex::new(
+2026-02-21T22:10:29.1924546Z -                    WriteAheadLog::new(format!("test_wal_size_{}.log", size).into()).await.unwrap()
+2026-02-21T22:10:29.1925449Z +                    WriteAheadLog::new(format!("test_wal_size_{}.log", size).into())
+2026-02-21T22:10:29.1926226Z +                        .await
+2026-02-21T22:10:29.1926570Z +                        .unwrap(),
+2026-02-21T22:10:29.1926949Z                  ));
+2026-02-21T22:10:29.1927246Z  
+2026-02-21T22:10:29.1927561Z                  // Create payload of specified size
+2026-02-21T22:10:29.1928536Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:61:
+2026-02-21T22:10:29.1929486Z                  b.iter(|| {
+2026-02-21T22:10:29.1929873Z                      rt.block_on(async {
+2026-02-21T22:10:29.1930343Z                          let mut wal_lock = wal.lock().await;
+2026-02-21T22:10:29.1931156Z -                        black_box(wal_lock.append("TEST_OPERATION".to_string(), data.clone()).await.unwrap())
+2026-02-21T22:10:29.1931923Z +                        black_box(
+2026-02-21T22:10:29.1932314Z +                            wal_lock
+2026-02-21T22:10:29.1932842Z +                                .append("TEST_OPERATION".to_string(), data.clone())
+2026-02-21T22:10:29.1933408Z +                                .await
+2026-02-21T22:10:29.1933824Z +                                .unwrap(),
+2026-02-21T22:10:29.1934242Z +                        )
+2026-02-21T22:10:29.1934589Z                      })
+2026-02-21T22:10:29.1934914Z                  });
+2026-02-21T22:10:29.1935211Z  
+2026-02-21T22:10:29.1936202Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:80:
+2026-02-21T22:10:29.1937176Z      c.bench_function("wal_flush", |b| {
+2026-02-21T22:10:29.1937622Z          rt.block_on(async {
+2026-02-21T22:10:29.1938128Z              let wal = std::sync::Arc::new(tokio::sync::Mutex::new(
+2026-02-21T22:10:29.1939108Z -                WriteAheadLog::new("test_wal_flush.log".into()).await.unwrap()
+2026-02-21T22:10:29.1939827Z +                WriteAheadLog::new("test_wal_flush.log".into())
+2026-02-21T22:10:29.1940435Z +                    .await
+2026-02-21T22:10:29.1940795Z +                    .unwrap(),
+2026-02-21T22:10:29.1941160Z              ));
+2026-02-21T22:10:29.1941451Z  
+2026-02-21T22:10:29.1941745Z              // Write some data first
+2026-02-21T22:10:29.1942672Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:88:
+2026-02-21T22:10:29.1943663Z                  let mut wal_lock = wal.lock().await;
+2026-02-21T22:10:29.1944137Z                  for i in 0..100 {
+2026-02-21T22:10:29.1944571Z                      let data = json!({"index": i});
+2026-02-21T22:10:29.1945228Z -                    wal_lock.append("TEST_OPERATION".to_string(), data).await.unwrap();
+2026-02-21T22:10:29.1946074Z +                    wal_lock
+2026-02-21T22:10:29.1946508Z +                        .append("TEST_OPERATION".to_string(), data)
+2026-02-21T22:10:29.1946982Z +                        .await
+2026-02-21T22:10:29.1947316Z +                        .unwrap();
+2026-02-21T22:10:29.1947676Z                  }
+2026-02-21T22:10:29.1947965Z              }
+2026-02-21T22:10:29.1948231Z  
+2026-02-21T22:10:29.1948965Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:121:
+2026-02-21T22:10:29.1950130Z                          "id": format!("TEST-{:04}", i),
+2026-02-21T22:10:29.1950534Z                          "index": i
+2026-02-21T22:10:29.1950877Z                      });
+2026-02-21T22:10:29.1951336Z -                    wal.append("TEST_OPERATION".to_string(), data).await.unwrap();
+2026-02-21T22:10:29.1951998Z +                    wal.append("TEST_OPERATION".to_string(), data)
+2026-02-21T22:10:29.1952467Z +                        .await
+2026-02-21T22:10:29.1952835Z +                        .unwrap();
+2026-02-21T22:10:29.1953199Z                  }
+2026-02-21T22:10:29.1953510Z                  wal.flush().await.unwrap();
+2026-02-21T22:10:29.1953872Z              }
+2026-02-21T22:10:29.1954564Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:145:
+2026-02-21T22:10:29.1955498Z      c.bench_function("wal_concurrent_writes", |b| {
+2026-02-21T22:10:29.1956290Z          rt.block_on(async {
+2026-02-21T22:10:29.1956793Z              let wal = std::sync::Arc::new(tokio::sync::RwLock::new(
+2026-02-21T22:10:29.1957501Z -                WriteAheadLog::new("test_wal_concurrent.log".into()).await.unwrap()
+2026-02-21T22:10:29.1958227Z +                WriteAheadLog::new("test_wal_concurrent.log".into())
+2026-02-21T22:10:29.1958726Z +                    .await
+2026-02-21T22:10:29.1959037Z +                    .unwrap(),
+2026-02-21T22:10:29.1959334Z              ));
+2026-02-21T22:10:29.1959581Z  
+2026-02-21T22:10:29.1959820Z              b.iter(|| {
+2026-02-21T22:10:29.1960579Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/benches/wal_bench.rs:153:
+2026-02-21T22:10:29.1961489Z                  rt.block_on(async move {
+2026-02-21T22:10:29.1961969Z                      let mut wal_guard = wal_clone.write().await;
+2026-02-21T22:10:29.1962581Z                      let data = json!({"timestamp": chrono::Utc::now().timestamp()});
+2026-02-21T22:10:29.1963358Z -                    black_box(wal_guard.append("CONCURRENT_OP".to_string(), data).await.unwrap())
+2026-02-21T22:10:29.1964041Z +                    black_box(
+2026-02-21T22:10:29.1964398Z +                        wal_guard
+2026-02-21T22:10:29.1964849Z +                            .append("CONCURRENT_OP".to_string(), data)
+2026-02-21T22:10:29.1965336Z +                            .await
+2026-02-21T22:10:29.1965850Z +                            .unwrap(),
+2026-02-21T22:10:29.1966221Z +                    )
+2026-02-21T22:10:29.1966761Z                  })
+2026-02-21T22:10:29.1967020Z              });
+2026-02-21T22:10:29.1967262Z  
+2026-02-21T22:10:29.1967921Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/src/ledger.rs:112:
+2026-02-21T22:10:29.1968772Z          // Append to WAL
+2026-02-21T22:10:29.1969186Z          let data = serde_json::to_value(&position)?;
+2026-02-21T22:10:29.1969673Z          let mut wal = self.wal.write().await;
+2026-02-21T22:10:29.1970240Z -        wal.append("UPDATE_POSITION".to_string(), data.clone()).await?;
+2026-02-21T22:10:29.1970886Z +        wal.append("UPDATE_POSITION".to_string(), data.clone())
+2026-02-21T22:10:29.1971373Z +            .await?;
+2026-02-21T22:10:29.1971673Z          wal.flush().await?;
+2026-02-21T22:10:29.1972012Z          drop(wal);
+2026-02-21T22:10:29.1972293Z  
+2026-02-21T22:10:29.1972961Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/src/ledger.rs:264:
+2026-02-21T22:10:29.1973784Z          &self,
+2026-02-21T22:10:29.1974108Z          position_id: &str,
+2026-02-21T22:10:29.1974549Z      ) -> Vec<cryptotechnolog_audit_chain::AuditRecord> {
+2026-02-21T22:10:29.1975399Z -        let all_records: Vec<cryptotechnolog_audit_chain::AuditRecord> = self.audit.get_all_records().await;
+2026-02-21T22:10:29.1976370Z +        let all_records: Vec<cryptotechnolog_audit_chain::AuditRecord> =
+2026-02-21T22:10:29.1976918Z +            self.audit.get_all_records().await;
+2026-02-21T22:10:29.1977463Z          all_records
+2026-02-21T22:10:29.1977772Z              .into_iter()
+2026-02-21T22:10:29.1978234Z              .filter(|r: &cryptotechnolog_audit_chain::AuditRecord| {
+2026-02-21T22:10:29.1979197Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/src/ledger.rs:499:
+2026-02-21T22:10:29.1980161Z          ledger.update_position(position.clone()).await.unwrap();
+2026-02-21T22:10:29.1980640Z  
+2026-02-21T22:10:29.1980913Z          // Get audit records for this position
+2026-02-21T22:10:29.1981356Z -        let audit_records = ledger
+2026-02-21T22:10:29.1981784Z -            .get_audit_records_for_position("BTC/USDT-1")
+2026-02-21T22:10:29.1982216Z -            .await;
+2026-02-21T22:10:29.1982724Z +        let audit_records = ledger.get_audit_records_for_position("BTC/USDT-1").await;
+2026-02-21T22:10:29.1983352Z  
+2026-02-21T22:10:29.1983635Z          assert_eq!(audit_records.len(), 1);
+2026-02-21T22:10:29.1984172Z          assert_eq!(audit_records[0].event_type, "POSITION_UPDATE");
+2026-02-21T22:10:29.1985108Z Diff in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger/src/ledger.rs:542:
+2026-02-21T22:10:29.1986172Z          }
+2026-02-21T22:10:29.1986424Z  
+2026-02-21T22:10:29.1986683Z          // Should have 3 audit records
+2026-02-21T22:10:29.1987092Z -        let audit_records = ledger
+2026-02-21T22:10:29.1987544Z -            .get_audit_records_for_position("BTC/USDT-1")
+2026-02-21T22:10:29.1987980Z -            .await;
+2026-02-21T22:10:29.1988486Z +        let audit_records = ledger.get_audit_records_for_position("BTC/USDT-1").await;
+2026-02-21T22:10:29.1989083Z  
+2026-02-21T22:10:29.1989370Z          assert_eq!(audit_records.len(), 3);
+2026-02-21T22:10:29.1989802Z  

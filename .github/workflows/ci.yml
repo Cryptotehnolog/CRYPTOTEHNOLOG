@@ -177,9 +177,18 @@ jobs:
 
       - name: Check dependency tree for risk-ledger
         run: |
-          echo "=== Dependency tree for risk-ledger ==="
+          echo "=== Full dependency tree for risk-ledger ==="
           cd rust_components/crates/risk-ledger
-          cargo tree | grep -E "(cryptotechnolog-audit-chain|cryptotechnolog_audit_chain)" || echo "audit-chain NOT FOUND in dependency tree"
+          cargo tree > /tmp/risk_ledger_tree.txt
+          cat /tmp/risk_ledger_tree.txt
+          echo ""
+          echo "=== Checking for audit-chain in tree ==="
+          grep -E "(cryptotechnolog-audit-chain|cryptotechnolog_audit_chain)" /tmp/risk_ledger_tree.txt || echo "audit-chain NOT FOUND in dependency tree"
+
+      - name: Check risk-ledger Cargo.toml content
+        run: |
+          echo "=== risk-ledger/Cargo.toml dependencies section ==="
+          cat rust_components/crates/risk-ledger/Cargo.toml | grep -A20 "\[dependencies\]"
 
       - name: Build audit-chain explicitly first
         run: |
