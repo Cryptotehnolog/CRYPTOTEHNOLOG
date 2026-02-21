@@ -1,0 +1,60 @@
+﻿2026-02-21T23:05:53.1621361Z ##[group]Run echo "=== Building audit-chain explicitly ==="
+2026-02-21T23:05:53.1621783Z [36;1mecho "=== Building audit-chain explicitly ==="[0m
+2026-02-21T23:05:53.1622185Z [36;1mcargo build --package cryptotechnolog-audit-chain --lib[0m
+2026-02-21T23:05:53.1651437Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:05:53.1651676Z env:
+2026-02-21T23:05:53.1651859Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:53.1652091Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:05:53.1652341Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:05:53.1652551Z   CARGO_TERM_COLOR: always
+2026-02-21T23:05:53.1652766Z ##[endgroup]
+2026-02-21T23:05:53.1701614Z === Building audit-chain explicitly ===
+2026-02-21T23:05:53.3066824Z [1m[92m   Compiling[0m proc-macro2 v1.0.106
+2026-02-21T23:05:53.3068660Z [1m[92m   Compiling[0m quote v1.0.44
+2026-02-21T23:05:53.4508122Z [1m[92m   Compiling[0m unicode-ident v1.0.24
+2026-02-21T23:05:53.5255680Z [1m[92m   Compiling[0m libc v0.2.182
+2026-02-21T23:05:54.3791864Z [1m[92m   Compiling[0m syn v2.0.117
+2026-02-21T23:05:54.8935400Z [1m[92m   Compiling[0m typenum v1.19.0
+2026-02-21T23:05:55.0898069Z [1m[92m   Compiling[0m serde_core v1.0.228
+2026-02-21T23:05:55.2679712Z [1m[92m   Compiling[0m version_check v0.9.5
+2026-02-21T23:05:55.5102022Z [1m[92m   Compiling[0m generic-array v0.14.7
+2026-02-21T23:05:55.6388074Z [1m[92m   Compiling[0m cfg-if v1.0.4
+2026-02-21T23:05:58.7089079Z [1m[92m   Compiling[0m serde v1.0.228
+2026-02-21T23:05:59.3336477Z [1m[92m   Compiling[0m serde_derive v1.0.228
+2026-02-21T23:05:59.4439309Z [1m[92m   Compiling[0m parking_lot_core v0.9.12
+2026-02-21T23:05:59.5718534Z [1m[92m   Compiling[0m autocfg v1.5.0
+2026-02-21T23:05:59.8962065Z [1m[92m   Compiling[0m num-traits v0.2.19
+2026-02-21T23:05:59.9951587Z [1m[92m   Compiling[0m smallvec v1.15.1
+2026-02-21T23:06:00.1611590Z [1m[92m   Compiling[0m zmij v1.0.21
+2026-02-21T23:06:00.3123848Z [1m[92m   Compiling[0m scopeguard v1.2.0
+2026-02-21T23:06:00.3531888Z [1m[92m   Compiling[0m lock_api v0.4.14
+2026-02-21T23:06:00.8221901Z [1m[92m   Compiling[0m crypto-common v0.1.7
+2026-02-21T23:06:00.8834135Z [1m[92m   Compiling[0m block-buffer v0.10.4
+2026-02-21T23:06:00.9576854Z [1m[92m   Compiling[0m errno v0.3.14
+2026-02-21T23:06:01.0446503Z [1m[92m   Compiling[0m serde_json v1.0.149
+2026-02-21T23:06:01.1387165Z [1m[92m   Compiling[0m once_cell v1.21.3
+2026-02-21T23:06:01.2904552Z [1m[92m   Compiling[0m thiserror v1.0.69
+2026-02-21T23:06:01.4694010Z [1m[92m   Compiling[0m pin-project-lite v0.2.16
+2026-02-21T23:06:01.5520771Z [1m[92m   Compiling[0m tracing-core v0.1.36
+2026-02-21T23:06:02.2204939Z [1m[92m   Compiling[0m signal-hook-registry v1.4.8
+2026-02-21T23:06:02.4506106Z [1m[92m   Compiling[0m digest v0.10.7
+2026-02-21T23:06:03.0637931Z [1m[92m   Compiling[0m parking_lot v0.12.5
+2026-02-21T23:06:03.4666482Z [1m[92m   Compiling[0m thiserror-impl v1.0.69
+2026-02-21T23:06:03.5209702Z [1m[92m   Compiling[0m tokio-macros v2.6.0
+2026-02-21T23:06:04.0676354Z [1m[92m   Compiling[0m tracing-attributes v0.1.31
+2026-02-21T23:06:04.5446797Z [1m[92m   Compiling[0m getrandom v0.2.17
+2026-02-21T23:06:04.6662663Z [1m[92m   Compiling[0m mio v1.1.1
+2026-02-21T23:06:05.1619763Z [1m[92m   Compiling[0m socket2 v0.6.2
+2026-02-21T23:06:05.2805490Z [1m[92m   Compiling[0m iana-time-zone v0.1.65
+2026-02-21T23:06:05.4961656Z [1m[92m   Compiling[0m cpufeatures v0.2.17
+2026-02-21T23:06:05.5255689Z [1m[92m   Compiling[0m memchr v2.8.0
+2026-02-21T23:06:05.6580655Z [1m[92m   Compiling[0m itoa v1.0.17
+2026-02-21T23:06:05.7878852Z [1m[92m   Compiling[0m bytes v1.11.1
+2026-02-21T23:06:06.2791319Z [1m[92m   Compiling[0m tokio v1.49.0
+2026-02-21T23:06:07.6890952Z [1m[92m   Compiling[0m sha2 v0.10.9
+2026-02-21T23:06:08.0694118Z [1m[92m   Compiling[0m chrono v0.4.43
+2026-02-21T23:06:09.8961798Z [1m[92m   Compiling[0m tracing v0.1.44
+2026-02-21T23:06:10.0664366Z [1m[92m   Compiling[0m uuid v1.6.1
+2026-02-21T23:06:10.3945937Z [1m[92m   Compiling[0m hex v0.4.3
+2026-02-21T23:06:10.6135886Z [1m[92m   Compiling[0m cryptotechnolog-audit-chain v0.1.0 (/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/audit-chain)
+2026-02-21T23:06:12.2175952Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 19.00s

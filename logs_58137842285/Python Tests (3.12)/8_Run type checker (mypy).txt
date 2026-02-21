@@ -1,0 +1,20 @@
+﻿2026-02-21T23:05:32.4688942Z ##[group]Run .venv/bin/mypy src/ --ignore-missing-imports
+2026-02-21T23:05:32.4689358Z [36;1m.venv/bin/mypy src/ --ignore-missing-imports[0m
+2026-02-21T23:05:32.4721453Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:05:32.4721676Z env:
+2026-02-21T23:05:32.4721843Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:32.4722107Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:32.4722512Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:05:32.4722919Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:32.4723292Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:32.4723643Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:32.4724000Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:05:32.4724298Z ##[endgroup]
+2026-02-21T23:05:38.8379425Z src/cryptotechnolog/data/__init__.pyi:12: error: Name "frame" already defined (possibly by an import)  [no-redef]
+2026-02-21T23:05:38.8388130Z src/cryptotechnolog/config/__init__.pyi:13: error: Name "logging" already defined (possibly by an import)  [no-redef]
+2026-02-21T23:05:38.8390224Z src/cryptotechnolog/config/__init__.pyi:14: error: Name "settings" already defined (possibly by an import)  [no-redef]
+2026-02-21T23:05:38.8397247Z src/cryptotechnolog/__init__.pyi:17: error: Name "config" already defined (possibly by an import)  [no-redef]
+2026-02-21T23:05:38.8398963Z src/cryptotechnolog/__init__.pyi:18: error: Name "data" already defined (possibly by an import)  [no-redef]
+2026-02-21T23:05:38.8402646Z src/cryptotechnolog/__init__.pyi:19: error: Name "rust_bridge" already defined (possibly by an import)  [no-redef]
+2026-02-21T23:05:45.8297358Z Found 6 errors in 3 files (checked 9 source files)
+2026-02-21T23:05:45.8603562Z ##[error]Process completed with exit code 1.

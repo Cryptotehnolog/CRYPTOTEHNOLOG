@@ -36,9 +36,9 @@ hex = "0.4"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winnt"] }
 
-# Local dependencies
-cryptotechnolog-common = { path = "../common" }
-cryptotechnolog-audit-chain = { path = "../audit-chain" }
+# Local dependencies - workspace members
+cryptotechnolog-common = { path = "../common", workspace = true }
+cryptotechnolog-audit-chain = { path = "../audit-chain", workspace = true }
 
 [dev-dependencies]
 tokio-test = { workspace = true }

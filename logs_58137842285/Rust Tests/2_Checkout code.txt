@@ -1,0 +1,86 @@
+﻿2026-02-21T23:04:47.7928527Z ##[group]Run actions/checkout@v4
+2026-02-21T23:04:47.7929376Z with:
+2026-02-21T23:04:47.7929739Z   fetch-depth: 0
+2026-02-21T23:04:47.7930216Z   repository: Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:04:47.7930925Z   token: ***
+2026-02-21T23:04:47.7931291Z   ssh-strict: true
+2026-02-21T23:04:47.7931661Z   ssh-user: git
+2026-02-21T23:04:47.7932051Z   persist-credentials: true
+2026-02-21T23:04:47.7932473Z   clean: true
+2026-02-21T23:04:47.7932852Z   sparse-checkout-cone-mode: true
+2026-02-21T23:04:47.7933301Z   fetch-tags: false
+2026-02-21T23:04:47.7933688Z   show-progress: true
+2026-02-21T23:04:47.7934074Z   lfs: false
+2026-02-21T23:04:47.7934422Z   submodules: false
+2026-02-21T23:04:47.7935013Z   set-safe-directory: true
+2026-02-21T23:04:47.7935678Z env:
+2026-02-21T23:04:47.7936036Z   PYTHON_VERSION: 3.12
+2026-02-21T23:04:47.7936433Z ##[endgroup]
+2026-02-21T23:04:47.9098497Z Syncing repository: Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:04:47.9104597Z ##[group]Getting Git version info
+2026-02-21T23:04:47.9106099Z Working directory is '/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG'
+2026-02-21T23:04:47.9107868Z [command]/usr/bin/git version
+2026-02-21T23:04:47.9173942Z git version 2.52.0
+2026-02-21T23:04:47.9203321Z ##[endgroup]
+2026-02-21T23:04:47.9221202Z Temporarily overriding HOME='/home/runner/work/_temp/6f102ae1-e901-4f16-841e-65c8c64a9296' before making global git config changes
+2026-02-21T23:04:47.9225927Z Adding repository directory to the temporary git global config as a safe directory
+2026-02-21T23:04:47.9240504Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:04:47.9284133Z Deleting the contents of '/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG'
+2026-02-21T23:04:47.9290137Z ##[group]Initializing the repository
+2026-02-21T23:04:47.9295962Z [command]/usr/bin/git init /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:04:47.9402879Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-02-21T23:04:47.9405334Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-02-21T23:04:47.9406965Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-02-21T23:04:47.9408269Z hint: call:
+2026-02-21T23:04:47.9408896Z hint:
+2026-02-21T23:04:47.9409703Z hint: 	git config --global init.defaultBranch <name>
+2026-02-21T23:04:47.9410676Z hint:
+2026-02-21T23:04:47.9411644Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-02-21T23:04:47.9413159Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-02-21T23:04:47.9414399Z hint:
+2026-02-21T23:04:47.9415166Z hint: 	git branch -m <name>
+2026-02-21T23:04:47.9415883Z hint:
+2026-02-21T23:04:47.9416829Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-02-21T23:04:47.9418602Z Initialized empty Git repository in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/.git/
+2026-02-21T23:04:47.9422600Z [command]/usr/bin/git remote add origin https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:04:47.9464265Z ##[endgroup]
+2026-02-21T23:04:47.9465862Z ##[group]Disabling automatic garbage collection
+2026-02-21T23:04:47.9471766Z [command]/usr/bin/git config --local gc.auto 0
+2026-02-21T23:04:47.9508793Z ##[endgroup]
+2026-02-21T23:04:47.9509990Z ##[group]Setting up auth
+2026-02-21T23:04:47.9518813Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-02-21T23:04:47.9554582Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-02-21T23:04:47.9904379Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-02-21T23:04:47.9941940Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-02-21T23:04:48.0185325Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-02-21T23:04:48.0231712Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-02-21T23:04:48.0479950Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-02-21T23:04:48.0520561Z ##[endgroup]
+2026-02-21T23:04:48.0521893Z ##[group]Fetching the repository
+2026-02-21T23:04:48.0531229Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-02-21T23:04:48.3732313Z From https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:04:48.3735574Z  * [new branch]      master                  -> origin/master
+2026-02-21T23:04:48.3741454Z  * [new tag]         phase-0-complete-backup -> phase-0-complete-backup
+2026-02-21T23:04:48.3743420Z  * [new tag]         phase-0.2-complete      -> phase-0.2-complete
+2026-02-21T23:04:48.3745629Z  * [new tag]         phase-0.2-start-backup  -> phase-0.2-start-backup
+2026-02-21T23:04:48.3747391Z  * [new tag]         phase-0.3-complete      -> phase-0.3-complete
+2026-02-21T23:04:48.3748936Z  * [new tag]         phase-1-complete        -> phase-1-complete
+2026-02-21T23:04:48.3750801Z  * [new tag]         phase-1-complete-backup -> phase-1-complete-backup
+2026-02-21T23:04:48.3752866Z  * [new tag]         phase-3-complete        -> phase-3-complete
+2026-02-21T23:04:48.3755084Z  * [new tag]         phase-3-complete-backup -> phase-3-complete-backup
+2026-02-21T23:04:48.3787477Z [command]/usr/bin/git branch --list --remote origin/master
+2026-02-21T23:04:48.3814304Z   origin/master
+2026-02-21T23:04:48.3825878Z [command]/usr/bin/git rev-parse refs/remotes/origin/master
+2026-02-21T23:04:48.3847102Z ed393adf7a0ece2492b66178b4821831a7761151
+2026-02-21T23:04:48.3856361Z ##[endgroup]
+2026-02-21T23:04:48.3858379Z ##[group]Determining the checkout info
+2026-02-21T23:04:48.3860998Z ##[endgroup]
+2026-02-21T23:04:48.3862503Z [command]/usr/bin/git sparse-checkout disable
+2026-02-21T23:04:48.3903541Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-02-21T23:04:48.3934306Z ##[group]Checking out the ref
+2026-02-21T23:04:48.3938393Z [command]/usr/bin/git checkout --progress --force -B master refs/remotes/origin/master
+2026-02-21T23:04:48.4242729Z Reset branch 'master'
+2026-02-21T23:04:48.4247364Z branch 'master' set up to track 'origin/master'.
+2026-02-21T23:04:48.4259269Z ##[endgroup]
+2026-02-21T23:04:48.4302603Z [command]/usr/bin/git log -1 --format=%H
+2026-02-21T23:04:48.4329026Z ed393adf7a0ece2492b66178b4821831a7761151

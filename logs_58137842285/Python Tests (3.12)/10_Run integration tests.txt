@@ -1,0 +1,52 @@
+﻿2026-02-21T23:05:54.4563827Z ##[group]Run .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
+2026-02-21T23:05:54.4565599Z [36;1m.venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml[0m
+2026-02-21T23:05:54.4612937Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:05:54.4613317Z env:
+2026-02-21T23:05:54.4613656Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:54.4614133Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:54.4614864Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:05:54.4615599Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:54.4616233Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:54.4617494Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:54.4618170Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:05:54.4618843Z   REDIS_HOST: localhost
+2026-02-21T23:05:54.4619217Z   POSTGRES_HOST: localhost
+2026-02-21T23:05:54.4619579Z ##[endgroup]
+2026-02-21T23:05:58.7761645Z ============================= test session starts ==============================
+2026-02-21T23:05:58.7763305Z platform linux -- Python 3.12.12, pytest-8.4.2, pluggy-1.6.0 -- /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/.venv/bin/python
+2026-02-21T23:05:58.7765326Z cachedir: .pytest_cache
+2026-02-21T23:05:58.7765802Z rootdir: /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:05:58.7766339Z configfile: pyproject.toml
+2026-02-21T23:05:58.7767022Z plugins: cov-5.0.0, xdist-3.8.0, mock-3.15.1, anyio-4.12.1, asyncio-0.26.0
+2026-02-21T23:05:58.7767978Z asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+2026-02-21T23:05:58.7768852Z created: 2/2 workers
+2026-02-21T23:05:58.7769177Z 2 workers [10 items]
+2026-02-21T23:05:58.7769382Z 
+2026-02-21T23:05:58.7769556Z scheduling tests via LoadScopeScheduling
+2026-02-21T23:05:58.7769874Z 
+2026-02-21T23:05:58.7770334Z tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_connection 
+2026-02-21T23:05:58.8108507Z tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_connection 
+2026-02-21T23:05:58.8172791Z [gw0] [ 10%] PASSED tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_connection 
+2026-02-21T23:05:58.8348504Z tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_set_get 
+2026-02-21T23:05:58.8399725Z [gw0] [ 20%] PASSED tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_set_get 
+2026-02-21T23:05:58.8583583Z tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_list_operations 
+2026-02-21T23:05:58.8633136Z [gw0] [ 30%] PASSED tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_list_operations 
+2026-02-21T23:05:58.8822493Z tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_hash_operations 
+2026-02-21T23:05:58.8864153Z [gw0] [ 40%] PASSED tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_hash_operations 
+2026-02-21T23:05:58.8974468Z tests/integration/test_infrastructure.py::TestInfrastructureIntegration::test_redis_postgresql_integration 
+2026-02-21T23:05:58.9083850Z [gw1] [ 50%] PASSED tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_connection 
+2026-02-21T23:05:59.0096690Z tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_create_table 
+2026-02-21T23:05:59.0147442Z [gw0] [ 60%] PASSED tests/integration/test_infrastructure.py::TestInfrastructureIntegration::test_redis_postgresql_integration 
+2026-02-21T23:05:59.0319763Z tests/integration/test_infrastructure.py::TestInfrastructureIntegration::test_concurrent_operations 
+2026-02-21T23:05:59.0416538Z [gw1] [ 70%] PASSED tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_create_table 
+2026-02-21T23:05:59.0709951Z tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_jsonb_operations 
+2026-02-21T23:05:59.1563494Z [gw0] [ 80%] PASSED tests/integration/test_infrastructure.py::TestInfrastructureIntegration::test_concurrent_operations 
+2026-02-21T23:05:59.1650911Z [gw1] [ 90%] PASSED tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_jsonb_operations 
+2026-02-21T23:05:59.2706446Z tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_transaction 
+2026-02-21T23:05:59.7738240Z [gw1] [100%] PASSED tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_transaction 
+2026-02-21T23:05:59.7739135Z 
+2026-02-21T23:05:59.7739463Z ---------- coverage: platform linux, python 3.12.12-final-0 ----------
+2026-02-21T23:05:59.7740120Z Coverage XML written to file coverage.xml
+2026-02-21T23:05:59.7740869Z 
+2026-02-21T23:05:59.7740882Z 
+2026-02-21T23:05:59.7741126Z ============================== 10 passed in 4.61s ==============================

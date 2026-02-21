@@ -1,0 +1,11 @@
+﻿2026-02-21T23:06:08.7411778Z ##[group]Run docker run --rm cryptotechnolog:test python --version
+2026-02-21T23:06:08.7412305Z [36;1mdocker run --rm cryptotechnolog:test python --version[0m
+2026-02-21T23:06:08.7412749Z [36;1mdocker run --rm cryptotechnolog:test pip list | grep pydantic[0m
+2026-02-21T23:06:08.7444196Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:06:08.7444418Z env:
+2026-02-21T23:06:08.7444593Z   PYTHON_VERSION: 3.12
+2026-02-21T23:06:08.7444795Z ##[endgroup]
+2026-02-21T23:06:08.8956834Z Python 3.11.14
+2026-02-21T23:06:09.8314889Z pydantic           2.12.5
+2026-02-21T23:06:09.8317585Z pydantic_core      2.41.5
+2026-02-21T23:06:09.8318752Z pydantic-settings  2.13.1

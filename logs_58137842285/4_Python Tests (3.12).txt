@@ -1,0 +1,959 @@
+﻿2026-02-21T23:04:46.8954431Z Current runner version: '2.331.0'
+2026-02-21T23:04:46.9028405Z ##[group]Runner Image Provisioner
+2026-02-21T23:04:46.9029708Z Hosted Compute Agent
+2026-02-21T23:04:46.9030618Z Version: 20260123.484
+2026-02-21T23:04:46.9031745Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+2026-02-21T23:04:46.9032950Z Build Date: 2026-01-23T19:41:17Z
+2026-02-21T23:04:46.9034023Z Worker ID: {761275f3-723e-40d6-aed6-659c68ecd180}
+2026-02-21T23:04:46.9035298Z Azure Region: centralus
+2026-02-21T23:04:46.9036294Z ##[endgroup]
+2026-02-21T23:04:46.9058896Z ##[group]Operating System
+2026-02-21T23:04:46.9060014Z Ubuntu
+2026-02-21T23:04:46.9060990Z 24.04.3
+2026-02-21T23:04:46.9061697Z LTS
+2026-02-21T23:04:46.9062417Z ##[endgroup]
+2026-02-21T23:04:46.9063277Z ##[group]Runner Image
+2026-02-21T23:04:46.9064212Z Image: ubuntu-24.04
+2026-02-21T23:04:46.9065013Z Version: 20260201.15.1
+2026-02-21T23:04:46.9067719Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+2026-02-21T23:04:46.9070176Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+2026-02-21T23:04:46.9071846Z ##[endgroup]
+2026-02-21T23:04:46.9073652Z ##[group]GITHUB_TOKEN Permissions
+2026-02-21T23:04:46.9076465Z Contents: read
+2026-02-21T23:04:46.9097765Z Metadata: read
+2026-02-21T23:04:46.9098751Z Packages: read
+2026-02-21T23:04:46.9099664Z ##[endgroup]
+2026-02-21T23:04:46.9102921Z Secret source: Actions
+2026-02-21T23:04:46.9104001Z Prepare workflow directory
+2026-02-21T23:04:47.0231360Z Prepare all required actions
+2026-02-21T23:04:47.0368341Z Getting action download info
+2026-02-21T23:04:47.4368446Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-02-21T23:04:47.5569508Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-02-21T23:04:47.6437431Z Download action repository 'codecov/codecov-action@v4' (SHA:b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238)
+2026-02-21T23:04:48.2197338Z Complete job name: Python Tests (3.12)
+2026-02-21T23:04:48.2615115Z ##[group]Checking docker version
+2026-02-21T23:04:48.2628401Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-02-21T23:04:48.3606637Z '1.48'
+2026-02-21T23:04:48.3617976Z Docker daemon API version: '1.48'
+2026-02-21T23:04:48.3618701Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-02-21T23:04:48.3800296Z '1.48'
+2026-02-21T23:04:48.3813382Z Docker client API version: '1.48'
+2026-02-21T23:04:48.3819713Z ##[endgroup]
+2026-02-21T23:04:48.3822631Z ##[group]Clean up resources from previous jobs
+2026-02-21T23:04:48.3828146Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=341da2"
+2026-02-21T23:04:48.3983964Z ##[command]/usr/bin/docker network prune --force --filter "label=341da2"
+2026-02-21T23:04:48.4133527Z ##[endgroup]
+2026-02-21T23:04:48.4134028Z ##[group]Create local container network
+2026-02-21T23:04:48.4144488Z ##[command]/usr/bin/docker network create --label 341da2 github_network_7e611e8dfbd74ab8b2874d73457f698e
+2026-02-21T23:04:48.4943268Z d9631e1ddf3acf7f25c88bee54eec56ecfeebc379c2843303dd06efbee294dcd
+2026-02-21T23:04:48.4954725Z ##[endgroup]
+2026-02-21T23:04:48.4997589Z ##[group]Starting redis service container
+2026-02-21T23:04:48.5024394Z ##[command]/usr/bin/docker pull redis:7-alpine
+2026-02-21T23:04:49.1640250Z 7-alpine: Pulling from library/redis
+2026-02-21T23:04:49.3256334Z bc1da058f299: Pulling fs layer
+2026-02-21T23:04:49.3257509Z def98d582f1f: Pulling fs layer
+2026-02-21T23:04:49.3258290Z cca95a886512: Pulling fs layer
+2026-02-21T23:04:49.3259145Z 04e58ffa5f99: Pulling fs layer
+2026-02-21T23:04:49.3259974Z b2e30ba0e4d5: Pulling fs layer
+2026-02-21T23:04:49.3260796Z ffb88afeb5f0: Pulling fs layer
+2026-02-21T23:04:49.3261547Z 4f4fb700ef54: Pulling fs layer
+2026-02-21T23:04:49.3262105Z 9590d98bd1ae: Pulling fs layer
+2026-02-21T23:04:49.3262683Z b2e30ba0e4d5: Waiting
+2026-02-21T23:04:49.3263220Z ffb88afeb5f0: Waiting
+2026-02-21T23:04:49.3263722Z 04e58ffa5f99: Waiting
+2026-02-21T23:04:49.3269189Z 9590d98bd1ae: Waiting
+2026-02-21T23:04:49.5258037Z cca95a886512: Verifying Checksum
+2026-02-21T23:04:49.5261506Z cca95a886512: Download complete
+2026-02-21T23:04:49.5500862Z def98d582f1f: Verifying Checksum
+2026-02-21T23:04:49.5502470Z def98d582f1f: Download complete
+2026-02-21T23:04:49.6048439Z bc1da058f299: Verifying Checksum
+2026-02-21T23:04:49.6051211Z bc1da058f299: Download complete
+2026-02-21T23:04:49.7570246Z 04e58ffa5f99: Verifying Checksum
+2026-02-21T23:04:49.7582441Z 04e58ffa5f99: Download complete
+2026-02-21T23:04:49.7814435Z bc1da058f299: Pull complete
+2026-02-21T23:04:49.8189078Z ffb88afeb5f0: Verifying Checksum
+2026-02-21T23:04:49.8190675Z ffb88afeb5f0: Download complete
+2026-02-21T23:04:49.9409940Z b2e30ba0e4d5: Verifying Checksum
+2026-02-21T23:04:49.9413578Z b2e30ba0e4d5: Download complete
+2026-02-21T23:04:49.9716656Z 4f4fb700ef54: Verifying Checksum
+2026-02-21T23:04:49.9718245Z 4f4fb700ef54: Download complete
+2026-02-21T23:04:50.0256380Z 9590d98bd1ae: Download complete
+2026-02-21T23:04:51.4675653Z def98d582f1f: Pull complete
+2026-02-21T23:04:51.6200677Z cca95a886512: Pull complete
+2026-02-21T23:04:51.6602755Z 04e58ffa5f99: Pull complete
+2026-02-21T23:04:51.8770624Z b2e30ba0e4d5: Pull complete
+2026-02-21T23:04:51.8872110Z ffb88afeb5f0: Pull complete
+2026-02-21T23:04:51.9030748Z 4f4fb700ef54: Pull complete
+2026-02-21T23:04:51.9182900Z 9590d98bd1ae: Pull complete
+2026-02-21T23:04:51.9249052Z Digest: sha256:02f2cc4882f8bf87c79a220ac958f58c700bdec0dfb9b9ea61b62fb0e8f1bfcf
+2026-02-21T23:04:51.9273575Z Status: Downloaded newer image for redis:7-alpine
+2026-02-21T23:04:51.9281603Z docker.io/library/redis:7-alpine
+2026-02-21T23:04:51.9329272Z ##[command]/usr/bin/docker create --name 6d3c03d8eaa8476eb88905c6b697f6d0_redis7alpine_3f9ba7 --label 341da2 --network github_network_7e611e8dfbd74ab8b2874d73457f698e --network-alias redis -p 6379:6379 --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5 -e GITHUB_ACTIONS=true -e CI=true redis:7-alpine
+2026-02-21T23:04:51.9636087Z 9cd8ab9c3517ba5401002bb68ad1b9c3183e726a00343a31370dc61fe18bc585
+2026-02-21T23:04:51.9659114Z ##[command]/usr/bin/docker start 9cd8ab9c3517ba5401002bb68ad1b9c3183e726a00343a31370dc61fe18bc585
+2026-02-21T23:04:52.2168803Z 9cd8ab9c3517ba5401002bb68ad1b9c3183e726a00343a31370dc61fe18bc585
+2026-02-21T23:04:52.2182229Z ##[command]/usr/bin/docker ps --all --filter id=9cd8ab9c3517ba5401002bb68ad1b9c3183e726a00343a31370dc61fe18bc585 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-02-21T23:04:52.2322933Z 9cd8ab9c3517ba5401002bb68ad1b9c3183e726a00343a31370dc61fe18bc585 Up Less than a second (health: starting)
+2026-02-21T23:04:52.2343643Z ##[command]/usr/bin/docker port 9cd8ab9c3517ba5401002bb68ad1b9c3183e726a00343a31370dc61fe18bc585
+2026-02-21T23:04:52.2466724Z 6379/tcp -> 0.0.0.0:6379
+2026-02-21T23:04:52.2468294Z 6379/tcp -> [::]:6379
+2026-02-21T23:04:52.2512265Z ##[endgroup]
+2026-02-21T23:04:52.2513488Z ##[group]Starting postgres service container
+2026-02-21T23:04:52.2514752Z ##[command]/usr/bin/docker pull timescale/timescaledb:latest-pg15
+2026-02-21T23:04:52.7980162Z latest-pg15: Pulling from timescale/timescaledb
+2026-02-21T23:04:52.9617485Z 0a9a5dfd008f: Pulling fs layer
+2026-02-21T23:04:52.9618136Z c259fdfe51e9: Pulling fs layer
+2026-02-21T23:04:52.9622506Z 678cff7daef4: Pulling fs layer
+2026-02-21T23:04:52.9624261Z 6035710dcfda: Pulling fs layer
+2026-02-21T23:04:52.9624663Z 8a1f652aba56: Pulling fs layer
+2026-02-21T23:04:52.9625033Z d54f6bea316d: Pulling fs layer
+2026-02-21T23:04:52.9625405Z 6cdeafa72762: Pulling fs layer
+2026-02-21T23:04:52.9625787Z 6c40c6e3a2de: Pulling fs layer
+2026-02-21T23:04:52.9626213Z c6e1fc4b8983: Pulling fs layer
+2026-02-21T23:04:52.9626586Z 937c3e5e5624: Pulling fs layer
+2026-02-21T23:04:52.9627198Z 8c09314ad148: Pulling fs layer
+2026-02-21T23:04:52.9627569Z 56a61a0edbaf: Pulling fs layer
+2026-02-21T23:04:52.9627933Z 060cd9d13fa0: Pulling fs layer
+2026-02-21T23:04:52.9628292Z 8dec6c909801: Pulling fs layer
+2026-02-21T23:04:52.9629090Z 4d08199f34ec: Pulling fs layer
+2026-02-21T23:04:52.9629471Z c2c18feb057f: Pulling fs layer
+2026-02-21T23:04:52.9629828Z 4fedd94270c1: Pulling fs layer
+2026-02-21T23:04:52.9630196Z 7de3cbfa5378: Pulling fs layer
+2026-02-21T23:04:52.9630573Z 6035710dcfda: Waiting
+2026-02-21T23:04:52.9630876Z 8a1f652aba56: Waiting
+2026-02-21T23:04:52.9631183Z d54f6bea316d: Waiting
+2026-02-21T23:04:52.9631485Z 6cdeafa72762: Waiting
+2026-02-21T23:04:52.9631788Z 6c40c6e3a2de: Waiting
+2026-02-21T23:04:52.9632116Z c6e1fc4b8983: Waiting
+2026-02-21T23:04:52.9632404Z 937c3e5e5624: Waiting
+2026-02-21T23:04:52.9632682Z 8c09314ad148: Waiting
+2026-02-21T23:04:52.9633000Z 56a61a0edbaf: Waiting
+2026-02-21T23:04:52.9633303Z 060cd9d13fa0: Waiting
+2026-02-21T23:04:52.9633608Z 8dec6c909801: Waiting
+2026-02-21T23:04:52.9633906Z 4d08199f34ec: Waiting
+2026-02-21T23:04:52.9634210Z c2c18feb057f: Waiting
+2026-02-21T23:04:52.9634495Z 4fedd94270c1: Waiting
+2026-02-21T23:04:52.9634887Z 7de3cbfa5378: Waiting
+2026-02-21T23:04:53.1336382Z c259fdfe51e9: Verifying Checksum
+2026-02-21T23:04:53.1337184Z c259fdfe51e9: Download complete
+2026-02-21T23:04:53.1921203Z 0a9a5dfd008f: Verifying Checksum
+2026-02-21T23:04:53.1927464Z 0a9a5dfd008f: Download complete
+2026-02-21T23:04:53.2241325Z 678cff7daef4: Verifying Checksum
+2026-02-21T23:04:53.2246956Z 678cff7daef4: Download complete
+2026-02-21T23:04:53.3373014Z 6035710dcfda: Verifying Checksum
+2026-02-21T23:04:53.3377154Z 6035710dcfda: Download complete
+2026-02-21T23:04:53.3393087Z 0a9a5dfd008f: Pull complete
+2026-02-21T23:04:53.3702528Z 8a1f652aba56: Verifying Checksum
+2026-02-21T23:04:53.3703181Z 8a1f652aba56: Download complete
+2026-02-21T23:04:53.3705146Z c259fdfe51e9: Pull complete
+2026-02-21T23:04:53.4148752Z 678cff7daef4: Pull complete
+2026-02-21T23:04:53.4285084Z 6035710dcfda: Pull complete
+2026-02-21T23:04:53.4427287Z 8a1f652aba56: Pull complete
+2026-02-21T23:04:53.5188657Z 6cdeafa72762: Verifying Checksum
+2026-02-21T23:04:53.5196528Z 6cdeafa72762: Download complete
+2026-02-21T23:04:53.5862498Z 6c40c6e3a2de: Verifying Checksum
+2026-02-21T23:04:53.5863546Z 6c40c6e3a2de: Download complete
+2026-02-21T23:04:53.7214291Z c6e1fc4b8983: Verifying Checksum
+2026-02-21T23:04:53.7216216Z c6e1fc4b8983: Download complete
+2026-02-21T23:04:53.7945454Z 937c3e5e5624: Verifying Checksum
+2026-02-21T23:04:53.7954230Z 937c3e5e5624: Download complete
+2026-02-21T23:04:53.8978123Z 8c09314ad148: Verifying Checksum
+2026-02-21T23:04:53.8980156Z 8c09314ad148: Download complete
+2026-02-21T23:04:54.0529182Z 56a61a0edbaf: Verifying Checksum
+2026-02-21T23:04:54.0535788Z 56a61a0edbaf: Download complete
+2026-02-21T23:04:54.2425214Z 8dec6c909801: Verifying Checksum
+2026-02-21T23:04:54.2427480Z 8dec6c909801: Download complete
+2026-02-21T23:04:54.2746214Z 060cd9d13fa0: Verifying Checksum
+2026-02-21T23:04:54.2747836Z 060cd9d13fa0: Download complete
+2026-02-21T23:04:54.3728208Z d54f6bea316d: Verifying Checksum
+2026-02-21T23:04:54.3729569Z d54f6bea316d: Download complete
+2026-02-21T23:04:54.5491136Z 4d08199f34ec: Verifying Checksum
+2026-02-21T23:04:54.5493667Z 4d08199f34ec: Download complete
+2026-02-21T23:04:54.9228559Z 7de3cbfa5378: Verifying Checksum
+2026-02-21T23:04:54.9231553Z 7de3cbfa5378: Download complete
+2026-02-21T23:04:55.1852185Z 4fedd94270c1: Verifying Checksum
+2026-02-21T23:04:55.1858132Z 4fedd94270c1: Download complete
+2026-02-21T23:04:55.9380836Z c2c18feb057f: Verifying Checksum
+2026-02-21T23:04:55.9381514Z c2c18feb057f: Download complete
+2026-02-21T23:04:59.8295657Z d54f6bea316d: Pull complete
+2026-02-21T23:04:59.8486271Z 6cdeafa72762: Pull complete
+2026-02-21T23:04:59.8696371Z 6c40c6e3a2de: Pull complete
+2026-02-21T23:04:59.8860656Z c6e1fc4b8983: Pull complete
+2026-02-21T23:04:59.9020549Z 937c3e5e5624: Pull complete
+2026-02-21T23:04:59.9146998Z 8c09314ad148: Pull complete
+2026-02-21T23:04:59.9406154Z 56a61a0edbaf: Pull complete
+2026-02-21T23:05:00.3391682Z 060cd9d13fa0: Pull complete
+2026-02-21T23:05:00.3530620Z 8dec6c909801: Pull complete
+2026-02-21T23:05:00.4548535Z 4d08199f34ec: Pull complete
+2026-02-21T23:05:05.7627522Z c2c18feb057f: Pull complete
+2026-02-21T23:05:11.1657092Z 4fedd94270c1: Pull complete
+2026-02-21T23:05:11.4146276Z 7de3cbfa5378: Pull complete
+2026-02-21T23:05:11.4203467Z Digest: sha256:dd082cffdbec5fe14228bb9c31fe87bb6b94e263d069f4e270438cc413c39916
+2026-02-21T23:05:11.4227395Z Status: Downloaded newer image for timescale/timescaledb:latest-pg15
+2026-02-21T23:05:11.4239691Z docker.io/timescale/timescaledb:latest-pg15
+2026-02-21T23:05:11.4284202Z ##[command]/usr/bin/docker create --name 7d530903f6fc4f42964522919023c262_timescaletimescaledblatestpg15_57b420 --label 341da2 --network github_network_7e611e8dfbd74ab8b2874d73457f698e --network-alias postgres -p 5432:5432 --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5 -e "POSTGRES_USER=bot_user" -e "POSTGRES_PASSWORD=bot_password_dev" -e "POSTGRES_DB=trading_dev" -e GITHUB_ACTIONS=true -e CI=true timescale/timescaledb:latest-pg15
+2026-02-21T23:05:11.4656959Z 7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2
+2026-02-21T23:05:11.4671896Z ##[command]/usr/bin/docker start 7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2
+2026-02-21T23:05:11.6138793Z 7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2
+2026-02-21T23:05:11.6159430Z ##[command]/usr/bin/docker ps --all --filter id=7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-02-21T23:05:11.6402913Z 7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2 Up Less than a second (health: starting)
+2026-02-21T23:05:11.6429470Z ##[command]/usr/bin/docker port 7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2
+2026-02-21T23:05:11.6723513Z 5432/tcp -> 0.0.0.0:5432
+2026-02-21T23:05:11.6739019Z 5432/tcp -> [::]:5432
+2026-02-21T23:05:11.6798206Z ##[endgroup]
+2026-02-21T23:05:11.6811634Z ##[group]Waiting for all services to be ready
+2026-02-21T23:05:11.6830529Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 9cd8ab9c3517ba5401002bb68ad1b9c3183e726a00343a31370dc61fe18bc585
+2026-02-21T23:05:11.7029500Z healthy
+2026-02-21T23:05:11.7065948Z redis service is healthy.
+2026-02-21T23:05:11.7068439Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2
+2026-02-21T23:05:11.7231436Z starting
+2026-02-21T23:05:11.7257712Z postgres service is starting, waiting 2 seconds before checking again.
+2026-02-21T23:05:13.7260719Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2
+2026-02-21T23:05:13.7480673Z starting
+2026-02-21T23:05:13.7507750Z postgres service is starting, waiting 3 seconds before checking again.
+2026-02-21T23:05:17.5685169Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2
+2026-02-21T23:05:17.5846500Z starting
+2026-02-21T23:05:17.5864726Z postgres service is starting, waiting 7 seconds before checking again.
+2026-02-21T23:05:24.9375240Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2
+2026-02-21T23:05:24.9508080Z healthy
+2026-02-21T23:05:24.9522552Z postgres service is healthy.
+2026-02-21T23:05:24.9523311Z ##[endgroup]
+2026-02-21T23:05:24.9765752Z ##[group]Run actions/checkout@v4
+2026-02-21T23:05:24.9766274Z with:
+2026-02-21T23:05:24.9766451Z   fetch-depth: 0
+2026-02-21T23:05:24.9766671Z   repository: Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:05:24.9767241Z   token: ***
+2026-02-21T23:05:24.9767419Z   ssh-strict: true
+2026-02-21T23:05:24.9767594Z   ssh-user: git
+2026-02-21T23:05:24.9767776Z   persist-credentials: true
+2026-02-21T23:05:24.9767974Z   clean: true
+2026-02-21T23:05:24.9768160Z   sparse-checkout-cone-mode: true
+2026-02-21T23:05:24.9768601Z   fetch-tags: false
+2026-02-21T23:05:24.9768786Z   show-progress: true
+2026-02-21T23:05:24.9768968Z   lfs: false
+2026-02-21T23:05:24.9769124Z   submodules: false
+2026-02-21T23:05:24.9769306Z   set-safe-directory: true
+2026-02-21T23:05:24.9769761Z env:
+2026-02-21T23:05:24.9769926Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:24.9770106Z ##[endgroup]
+2026-02-21T23:05:25.0900369Z Syncing repository: Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:05:25.0902093Z ##[group]Getting Git version info
+2026-02-21T23:05:25.0902784Z Working directory is '/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG'
+2026-02-21T23:05:25.0903854Z [command]/usr/bin/git version
+2026-02-21T23:05:25.1029777Z git version 2.52.0
+2026-02-21T23:05:25.1061017Z ##[endgroup]
+2026-02-21T23:05:25.1073712Z Temporarily overriding HOME='/home/runner/work/_temp/88d38971-d238-4e72-8d77-5a3cf7ba8339' before making global git config changes
+2026-02-21T23:05:25.1076373Z Adding repository directory to the temporary git global config as a safe directory
+2026-02-21T23:05:25.1091629Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:05:25.1138185Z Deleting the contents of '/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG'
+2026-02-21T23:05:25.1142180Z ##[group]Initializing the repository
+2026-02-21T23:05:25.1147205Z [command]/usr/bin/git init /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:05:25.1287332Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-02-21T23:05:25.1289474Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-02-21T23:05:25.1291410Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-02-21T23:05:25.1292075Z hint: call:
+2026-02-21T23:05:25.1292594Z hint:
+2026-02-21T23:05:25.1293076Z hint: 	git config --global init.defaultBranch <name>
+2026-02-21T23:05:25.1293616Z hint:
+2026-02-21T23:05:25.1294099Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-02-21T23:05:25.1295033Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-02-21T23:05:25.1295700Z hint:
+2026-02-21T23:05:25.1296004Z hint: 	git branch -m <name>
+2026-02-21T23:05:25.1296370Z hint:
+2026-02-21T23:05:25.1297139Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-02-21T23:05:25.1299451Z Initialized empty Git repository in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/.git/
+2026-02-21T23:05:25.1305097Z [command]/usr/bin/git remote add origin https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:05:25.1363670Z ##[endgroup]
+2026-02-21T23:05:25.1366305Z ##[group]Disabling automatic garbage collection
+2026-02-21T23:05:25.1368586Z [command]/usr/bin/git config --local gc.auto 0
+2026-02-21T23:05:25.1405637Z ##[endgroup]
+2026-02-21T23:05:25.1408923Z ##[group]Setting up auth
+2026-02-21T23:05:25.1419793Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-02-21T23:05:25.1460130Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-02-21T23:05:25.1849842Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-02-21T23:05:25.1882272Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-02-21T23:05:25.2112733Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-02-21T23:05:25.2146126Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-02-21T23:05:25.2391427Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-02-21T23:05:25.2427953Z ##[endgroup]
+2026-02-21T23:05:25.2428954Z ##[group]Fetching the repository
+2026-02-21T23:05:25.2437180Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-02-21T23:05:25.7688611Z From https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:05:25.7689289Z  * [new branch]      master                  -> origin/master
+2026-02-21T23:05:25.7689975Z  * [new tag]         phase-0-complete-backup -> phase-0-complete-backup
+2026-02-21T23:05:25.7690704Z  * [new tag]         phase-0.2-complete      -> phase-0.2-complete
+2026-02-21T23:05:25.7691516Z  * [new tag]         phase-0.2-start-backup  -> phase-0.2-start-backup
+2026-02-21T23:05:25.7692217Z  * [new tag]         phase-0.3-complete      -> phase-0.3-complete
+2026-02-21T23:05:25.7692881Z  * [new tag]         phase-1-complete        -> phase-1-complete
+2026-02-21T23:05:25.7693565Z  * [new tag]         phase-1-complete-backup -> phase-1-complete-backup
+2026-02-21T23:05:25.7694252Z  * [new tag]         phase-3-complete        -> phase-3-complete
+2026-02-21T23:05:25.7694944Z  * [new tag]         phase-3-complete-backup -> phase-3-complete-backup
+2026-02-21T23:05:25.7753854Z [command]/usr/bin/git branch --list --remote origin/master
+2026-02-21T23:05:25.7759532Z   origin/master
+2026-02-21T23:05:25.7769559Z [command]/usr/bin/git rev-parse refs/remotes/origin/master
+2026-02-21T23:05:25.7790187Z ed393adf7a0ece2492b66178b4821831a7761151
+2026-02-21T23:05:25.7797999Z ##[endgroup]
+2026-02-21T23:05:25.7799677Z ##[group]Determining the checkout info
+2026-02-21T23:05:25.7801662Z ##[endgroup]
+2026-02-21T23:05:25.7803797Z [command]/usr/bin/git sparse-checkout disable
+2026-02-21T23:05:25.7846002Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-02-21T23:05:25.7873973Z ##[group]Checking out the ref
+2026-02-21T23:05:25.7878533Z [command]/usr/bin/git checkout --progress --force -B master refs/remotes/origin/master
+2026-02-21T23:05:25.8200205Z Reset branch 'master'
+2026-02-21T23:05:25.8202066Z branch 'master' set up to track 'origin/master'.
+2026-02-21T23:05:25.8203382Z ##[endgroup]
+2026-02-21T23:05:25.8235011Z [command]/usr/bin/git log -1 --format=%H
+2026-02-21T23:05:25.8258155Z ed393adf7a0ece2492b66178b4821831a7761151
+2026-02-21T23:05:25.8474073Z ##[group]Run actions/setup-python@v5
+2026-02-21T23:05:25.8474358Z with:
+2026-02-21T23:05:25.8474547Z   python-version: 3.12
+2026-02-21T23:05:25.8474758Z   check-latest: false
+2026-02-21T23:05:25.8475081Z   token: ***
+2026-02-21T23:05:25.8475269Z   update-environment: true
+2026-02-21T23:05:25.8475497Z   allow-prereleases: false
+2026-02-21T23:05:25.8475707Z   freethreaded: false
+2026-02-21T23:05:25.8475900Z env:
+2026-02-21T23:05:25.8476060Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:25.8476255Z ##[endgroup]
+2026-02-21T23:05:26.0559981Z ##[group]Installed versions
+2026-02-21T23:05:26.0630325Z Successfully set up CPython (3.12.12)
+2026-02-21T23:05:26.0632194Z ##[endgroup]
+2026-02-21T23:05:26.0740161Z ##[group]Run curl -LsSf https://astral.sh/uv/install.sh | sh
+2026-02-21T23:05:26.0740659Z [36;1mcurl -LsSf https://astral.sh/uv/install.sh | sh[0m
+2026-02-21T23:05:26.0741003Z [36;1mecho "$HOME/.local/bin" >> $GITHUB_PATH[0m
+2026-02-21T23:05:26.0741269Z [36;1muv --version[0m
+2026-02-21T23:05:26.0791138Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:05:26.0791382Z env:
+2026-02-21T23:05:26.0791541Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:26.0791813Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:26.0792236Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:05:26.0792642Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:26.0792983Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:26.0793334Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:26.0793684Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:05:26.0794022Z ##[endgroup]
+2026-02-21T23:05:26.4700785Z downloading uv 0.10.4 x86_64-unknown-linux-gnu
+2026-02-21T23:05:26.7941012Z no checksums to verify
+2026-02-21T23:05:27.2265284Z installing to /home/runner/.local/bin
+2026-02-21T23:05:27.2310147Z   uv
+2026-02-21T23:05:27.2332604Z   uvx
+2026-02-21T23:05:27.2333988Z everything's installed!
+2026-02-21T23:05:27.2444155Z uv 0.10.4
+2026-02-21T23:05:27.2491152Z ##[group]Run uv venv
+2026-02-21T23:05:27.2491434Z [36;1muv venv[0m
+2026-02-21T23:05:27.2491729Z [36;1m# Remove old version if exists (to avoid site-packages conflicts)[0m
+2026-02-21T23:05:27.2492150Z [36;1muv pip uninstall cryptotechnolog --yes || true[0m
+2026-02-21T23:05:27.2492497Z [36;1m# Install in editable mode with force-reinstall[0m
+2026-02-21T23:05:27.2492822Z [36;1muv pip install -e ".[dev]" --force-reinstall[0m
+2026-02-21T23:05:27.2525838Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:05:27.2526061Z env:
+2026-02-21T23:05:27.2526226Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:27.2526504Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:27.2527153Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:05:27.2527586Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:27.2527938Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:27.2528326Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:27.2528688Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:05:27.2528981Z ##[endgroup]
+2026-02-21T23:05:27.7034625Z Using CPython 3.12.12 interpreter at: /opt/hostedtoolcache/Python/3.12.12/x64/bin/python3
+2026-02-21T23:05:27.7035959Z Creating virtual environment at: .venv
+2026-02-21T23:05:27.7042023Z Activate with: .venv/bin/activate
+2026-02-21T23:05:27.7106401Z error: unexpected argument '--yes' found
+2026-02-21T23:05:27.7108289Z 
+2026-02-21T23:05:27.7108520Z   tip: to pass '--yes' as a value, use '-- --yes'
+2026-02-21T23:05:27.7108878Z 
+2026-02-21T23:05:27.7109183Z Usage: uv pip uninstall <PACKAGE|--requirements <REQUIREMENTS>>
+2026-02-21T23:05:27.7109669Z 
+2026-02-21T23:05:27.7109823Z For more information, try '--help'.
+2026-02-21T23:05:28.5102154Z Resolved 104 packages in 714ms
+2026-02-21T23:05:28.5139305Z    Building cryptotechnolog @ file:///home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:05:28.5358703Z Downloading polars (27.5MiB)
+2026-02-21T23:05:28.5393801Z Downloading ruff (10.6MiB)
+2026-02-21T23:05:28.5396539Z Downloading mypy (13.0MiB)
+2026-02-21T23:05:28.5399466Z Downloading pygments (1.2MiB)
+2026-02-21T23:05:28.5401944Z Downloading aiohttp (1.7MiB)
+2026-02-21T23:05:28.5410090Z Downloading pyarrow (40.1MiB)
+2026-02-21T23:05:28.5413971Z Downloading asyncpg (3.4MiB)
+2026-02-21T23:05:28.5416437Z Downloading uvloop (4.2MiB)
+2026-02-21T23:05:28.5424548Z Downloading scipy (39.0MiB)
+2026-02-21T23:05:28.5429016Z Downloading pydantic-core (2.0MiB)
+2026-02-21T23:05:28.5449864Z Downloading psycopg2-binary (4.0MiB)
+2026-02-21T23:05:28.5457657Z Downloading virtualenv (5.6MiB)
+2026-02-21T23:05:28.5460527Z Downloading sqlalchemy (3.2MiB)
+2026-02-21T23:05:28.5533286Z Downloading cryptography (4.0MiB)
+2026-02-21T23:05:28.5542835Z Downloading black (1.7MiB)
+2026-02-21T23:05:28.5557432Z Downloading pandas (12.1MiB)
+2026-02-21T23:05:28.5557997Z Downloading coincurve (1.5MiB)
+2026-02-21T23:05:28.5558412Z Downloading jedi (1.5MiB)
+2026-02-21T23:05:28.5558770Z Downloading numpy (18.3MiB)
+2026-02-21T23:05:28.5572996Z Downloading ccxt (6.1MiB)
+2026-02-21T23:05:29.2098253Z  Downloaded coincurve
+2026-02-21T23:05:29.2541475Z  Downloaded aiohttp
+2026-02-21T23:05:29.3030357Z  Downloaded pydantic-core
+2026-02-21T23:05:29.3388730Z  Downloaded black
+2026-02-21T23:05:29.3941559Z  Downloaded pygments
+2026-02-21T23:05:29.6254706Z  Downloaded asyncpg
+2026-02-21T23:05:29.6279641Z  Downloaded sqlalchemy
+2026-02-21T23:05:29.6926533Z  Downloaded psycopg2-binary
+2026-02-21T23:05:29.7632212Z  Downloaded uvloop
+2026-02-21T23:05:29.8138075Z  Downloaded cryptography
+2026-02-21T23:05:29.8718666Z  Downloaded virtualenv
+2026-02-21T23:05:30.2224378Z  Downloaded ccxt
+2026-02-21T23:05:30.4380319Z  Downloaded ruff
+2026-02-21T23:05:31.0151446Z  Downloaded numpy
+2026-02-21T23:05:31.1339154Z  Downloaded pandas
+2026-02-21T23:05:31.3423636Z       Built cryptotechnolog @ file:///home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:05:31.3436203Z  Downloaded polars
+2026-02-21T23:05:31.7649285Z  Downloaded jedi
+2026-02-21T23:05:32.0456597Z  Downloaded pyarrow
+2026-02-21T23:05:32.0912791Z  Downloaded mypy
+2026-02-21T23:05:32.1458196Z  Downloaded scipy
+2026-02-21T23:05:32.1458806Z Prepared 104 packages in 3.63s
+2026-02-21T23:05:32.3656155Z Installed 104 packages in 220ms
+2026-02-21T23:05:32.3668897Z  + aiodns==4.0.0
+2026-02-21T23:05:32.3671316Z  + aiofiles==24.1.0
+2026-02-21T23:05:32.3673550Z  + aiogram==3.25.0
+2026-02-21T23:05:32.3675799Z  + aiohappyeyeballs==2.6.1
+2026-02-21T23:05:32.3678405Z  + aiohttp==3.13.3
+2026-02-21T23:05:32.3680679Z  + aiosignal==1.4.0
+2026-02-21T23:05:32.3682219Z  + annotated-doc==0.0.4
+2026-02-21T23:05:32.3684180Z  + annotated-types==0.7.0
+2026-02-21T23:05:32.3686220Z  + anyio==4.12.1
+2026-02-21T23:05:32.3686523Z  + asttokens==3.0.1
+2026-02-21T23:05:32.3688126Z  + asyncpg==0.31.0
+2026-02-21T23:05:32.3692089Z  + attrs==25.4.0
+2026-02-21T23:05:32.3693546Z  + black==24.10.0
+2026-02-21T23:05:32.3693966Z  + ccxt==4.5.39
+2026-02-21T23:05:32.3695480Z  + certifi==2026.1.4
+2026-02-21T23:05:32.3695977Z  + cffi==2.0.0
+2026-02-21T23:05:32.3697596Z  + cfgv==3.5.0
+2026-02-21T23:05:32.3698092Z  + charset-normalizer==3.4.4
+2026-02-21T23:05:32.3698632Z  + click==8.3.1
+2026-02-21T23:05:32.3700235Z  + coincurve==21.0.0
+2026-02-21T23:05:32.3701055Z  + coverage==7.13.4
+2026-02-21T23:05:32.3701502Z  + cryptography==44.0.3
+2026-02-21T23:05:32.3702201Z  + cryptotechnolog==1.0.0 (from file:///home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG)
+2026-02-21T23:05:32.3703958Z  + decorator==5.2.1
+2026-02-21T23:05:32.3705582Z  + distlib==0.4.0
+2026-02-21T23:05:32.3706157Z  + execnet==2.1.2
+2026-02-21T23:05:32.3707777Z  + executing==2.2.1
+2026-02-21T23:05:32.3708632Z  + fastapi==0.129.2
+2026-02-21T23:05:32.3709145Z  + filelock==3.24.3
+2026-02-21T23:05:32.3709570Z  + frozenlist==1.8.0
+2026-02-21T23:05:32.3711010Z  + greenlet==3.3.2
+2026-02-21T23:05:32.3711519Z  + h11==0.16.0
+2026-02-21T23:05:32.3713110Z  + httptools==0.7.1
+2026-02-21T23:05:32.3713539Z  + hvac==2.4.0
+2026-02-21T23:05:32.3714966Z  + identify==2.6.16
+2026-02-21T23:05:32.3715419Z  + idna==3.11
+2026-02-21T23:05:32.3716975Z  + iniconfig==2.3.0
+2026-02-21T23:05:32.3717498Z  + ipdb==0.13.13
+2026-02-21T23:05:32.3718021Z  + ipython==8.38.0
+2026-02-21T23:05:32.3720511Z  + jedi==0.19.2
+2026-02-21T23:05:32.3721021Z  + librt==0.8.1
+2026-02-21T23:05:32.3721657Z  + magic-filter==1.0.12
+2026-02-21T23:05:32.3722506Z  + matplotlib-inline==0.2.1
+2026-02-21T23:05:32.3723176Z  + multidict==6.7.1
+2026-02-21T23:05:32.3733789Z  + mypy==1.19.1
+2026-02-21T23:05:32.3734585Z  + mypy-extensions==1.1.0
+2026-02-21T23:05:32.3735301Z  + nodeenv==1.10.0
+2026-02-21T23:05:32.3735826Z  + numpy==2.0.2
+2026-02-21T23:05:32.3744032Z  + packaging==26.0
+2026-02-21T23:05:32.3744399Z  + pandas==2.2.3
+2026-02-21T23:05:32.3744698Z  + parso==0.8.6
+2026-02-21T23:05:32.3744993Z  + pathspec==1.0.4
+2026-02-21T23:05:32.3745302Z  + pexpect==4.9.0
+2026-02-21T23:05:32.3745618Z  + platformdirs==4.9.2
+2026-02-21T23:05:32.3745938Z  + pluggy==1.6.0
+2026-02-21T23:05:32.3746250Z  + polars==0.20.31
+2026-02-21T23:05:32.3746545Z  + pre-commit==3.8.0
+2026-02-21T23:05:32.3755594Z  + prometheus-client==0.24.1
+2026-02-21T23:05:32.3756179Z  + prompt-toolkit==3.0.52
+2026-02-21T23:05:32.3756532Z  + propcache==0.4.1
+2026-02-21T23:05:32.3757100Z  + psycopg2-binary==2.9.11
+2026-02-21T23:05:32.3757461Z  + ptyprocess==0.7.0
+2026-02-21T23:05:32.3793606Z  + pure-eval==0.2.3
+2026-02-21T23:05:32.3793943Z  + pyarrow==19.0.1
+2026-02-21T23:05:32.3794336Z  + pycares==5.0.1
+2026-02-21T23:05:32.3794645Z  + pycparser==3.0
+2026-02-21T23:05:32.3794948Z  + pydantic==2.12.5
+2026-02-21T23:05:32.3795264Z  + pydantic-core==2.41.5
+2026-02-21T23:05:32.3795641Z  + pydantic-settings==2.13.1
+2026-02-21T23:05:32.3795993Z  + pygments==2.19.2
+2026-02-21T23:05:32.3796588Z  + pyjwt==2.11.0
+2026-02-21T23:05:32.3797091Z  + pytest==8.4.2
+2026-02-21T23:05:32.3797416Z  + pytest-asyncio==0.26.0
+2026-02-21T23:05:32.3797763Z  + pytest-cov==5.0.0
+2026-02-21T23:05:32.3798095Z  + pytest-mock==3.15.1
+2026-02-21T23:05:32.3798650Z  + pytest-xdist==3.8.0
+2026-02-21T23:05:32.3799007Z  + python-dateutil==2.9.0.post0
+2026-02-21T23:05:32.3799405Z  + python-dotenv==1.2.1
+2026-02-21T23:05:32.3799828Z  + pytz==2025.2
+2026-02-21T23:05:32.3800123Z  + pyyaml==6.0.3
+2026-02-21T23:05:32.3800403Z  + redis==5.3.1
+2026-02-21T23:05:32.3800686Z  + requests==2.32.5
+2026-02-21T23:05:32.3800968Z  + ruff==0.15.2
+2026-02-21T23:05:32.3801247Z  + scipy==1.14.1
+2026-02-21T23:05:32.3801535Z  + setuptools==82.0.0
+2026-02-21T23:05:32.3801845Z  + six==1.17.0
+2026-02-21T23:05:32.3802136Z  + sqlalchemy==2.0.46
+2026-02-21T23:05:32.3802438Z  + sqlmodel==0.0.37
+2026-02-21T23:05:32.3802731Z  + stack-data==0.6.3
+2026-02-21T23:05:32.3803034Z  + starlette==0.52.1
+2026-02-21T23:05:32.3803354Z  + structlog==24.4.0
+2026-02-21T23:05:32.3803655Z  + timescaledb==0.0.4
+2026-02-21T23:05:32.3803972Z  + traitlets==5.14.3
+2026-02-21T23:05:32.3804297Z  + typing-extensions==4.15.0
+2026-02-21T23:05:32.3804676Z  + typing-inspection==0.4.2
+2026-02-21T23:05:32.3805021Z  + tzdata==2025.3
+2026-02-21T23:05:32.3805319Z  + urllib3==2.6.3
+2026-02-21T23:05:32.3805614Z  + uvicorn==0.41.0
+2026-02-21T23:05:32.3805899Z  + uvloop==0.22.1
+2026-02-21T23:05:32.3806195Z  + virtualenv==20.38.0
+2026-02-21T23:05:32.3806507Z  + watchfiles==1.1.1
+2026-02-21T23:05:32.3809875Z  + wcwidth==0.6.0
+2026-02-21T23:05:32.3810277Z  + websockets==13.1
+2026-02-21T23:05:32.3810596Z  + yarl==1.22.0
+2026-02-21T23:05:32.4074835Z ##[group]Run # Check for undefined names (F821) and missing required imports (I002)
+2026-02-21T23:05:32.4075656Z [36;1m# Check for undefined names (F821) and missing required imports (I002)[0m
+2026-02-21T23:05:32.4076297Z [36;1m.venv/bin/ruff check src/ tests/ --select F821,I002[0m
+2026-02-21T23:05:32.4076922Z [36;1m# Run full ruff check[0m
+2026-02-21T23:05:32.4077409Z [36;1m.venv/bin/ruff check src/ tests/[0m
+2026-02-21T23:05:32.4077776Z [36;1m# Check formatting[0m
+2026-02-21T23:05:32.4078136Z [36;1m.venv/bin/ruff format --check src/ tests/[0m
+2026-02-21T23:05:32.4118214Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:05:32.4118529Z env:
+2026-02-21T23:05:32.4118775Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:32.4119165Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:32.4119776Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:05:32.4120360Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:32.4120949Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:32.4121481Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:32.4122018Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:05:32.4122453Z ##[endgroup]
+2026-02-21T23:05:32.4364273Z All checks passed!
+2026-02-21T23:05:32.4524155Z All checks passed!
+2026-02-21T23:05:32.4654612Z 21 files already formatted
+2026-02-21T23:05:32.4688952Z ##[group]Run .venv/bin/mypy src/ --ignore-missing-imports
+2026-02-21T23:05:32.4689361Z [36;1m.venv/bin/mypy src/ --ignore-missing-imports[0m
+2026-02-21T23:05:32.4721459Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:05:32.4721678Z env:
+2026-02-21T23:05:32.4721845Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:32.4722110Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:32.4722514Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:05:32.4722921Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:32.4723294Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:32.4723651Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:32.4724002Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:05:32.4724301Z ##[endgroup]
+2026-02-21T23:05:38.8379569Z src/cryptotechnolog/data/__init__.pyi:12: error: Name "frame" already defined (possibly by an import)  [no-redef]
+2026-02-21T23:05:38.8388152Z src/cryptotechnolog/config/__init__.pyi:13: error: Name "logging" already defined (possibly by an import)  [no-redef]
+2026-02-21T23:05:38.8390237Z src/cryptotechnolog/config/__init__.pyi:14: error: Name "settings" already defined (possibly by an import)  [no-redef]
+2026-02-21T23:05:38.8397265Z src/cryptotechnolog/__init__.pyi:17: error: Name "config" already defined (possibly by an import)  [no-redef]
+2026-02-21T23:05:38.8398974Z src/cryptotechnolog/__init__.pyi:18: error: Name "data" already defined (possibly by an import)  [no-redef]
+2026-02-21T23:05:38.8402659Z src/cryptotechnolog/__init__.pyi:19: error: Name "rust_bridge" already defined (possibly by an import)  [no-redef]
+2026-02-21T23:05:45.8297398Z Found 6 errors in 3 files (checked 9 source files)
+2026-02-21T23:05:45.8603589Z ##[error]Process completed with exit code 1.
+2026-02-21T23:05:45.8655441Z ##[group]Run .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
+2026-02-21T23:05:45.8656208Z [36;1m.venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml[0m
+2026-02-21T23:05:45.8688034Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:05:45.8688253Z env:
+2026-02-21T23:05:45.8688421Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:45.8688689Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:45.8689102Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:05:45.8689519Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:45.8689879Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:45.8690233Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:45.8690590Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:05:45.8690893Z   REDIS_HOST: localhost
+2026-02-21T23:05:45.8691133Z   POSTGRES_HOST: localhost
+2026-02-21T23:05:45.8691337Z ##[endgroup]
+2026-02-21T23:05:53.3479474Z ============================= test session starts ==============================
+2026-02-21T23:05:53.3480841Z platform linux -- Python 3.12.12, pytest-8.4.2, pluggy-1.6.0 -- /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/.venv/bin/python
+2026-02-21T23:05:53.3481963Z cachedir: .pytest_cache
+2026-02-21T23:05:53.3482552Z rootdir: /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:05:53.3483225Z configfile: pyproject.toml
+2026-02-21T23:05:53.3483889Z plugins: cov-5.0.0, xdist-3.8.0, mock-3.15.1, anyio-4.12.1, asyncio-0.26.0
+2026-02-21T23:05:53.3485030Z asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+2026-02-21T23:05:53.3485965Z created: 2/2 workers
+2026-02-21T23:05:53.3486380Z 2 workers [50 items]
+2026-02-21T23:05:53.3486692Z 
+2026-02-21T23:05:53.3487222Z scheduling tests via LoadScopeScheduling
+2026-02-21T23:05:53.3487991Z 
+2026-02-21T23:05:53.3488614Z tests/unit/test_settings.py::TestSettings::test_settings_load_default_values 
+2026-02-21T23:05:53.3546055Z tests/unit/test_rust_bridge.py::TestRustBridge::test_rust_availability 
+2026-02-21T23:05:53.3602801Z [gw1] [  2%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_rust_availability 
+2026-02-21T23:05:53.3659771Z tests/unit/test_rust_bridge.py::TestRustBridge::test_get_rust_version 
+2026-02-21T23:05:53.3689628Z [gw1] [  4%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_get_rust_version 
+2026-02-21T23:05:53.3691704Z [gw0] [  6%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_load_default_values 
+2026-02-21T23:05:53.3718896Z tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_position_size 
+2026-02-21T23:05:53.3725929Z tests/unit/test_settings.py::TestSettings::test_settings_load_from_environment 
+2026-02-21T23:05:53.3772066Z [gw1] [  8%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_position_size 
+2026-02-21T23:05:53.3807730Z tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_portfolio_risk 
+2026-02-21T23:05:53.3842165Z [gw1] [ 10%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_portfolio_risk 
+2026-02-21T23:05:53.3891150Z tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_expected_return 
+2026-02-21T23:05:53.3893159Z [gw1] [ 12%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_expected_return 
+2026-02-21T23:05:53.3911233Z [gw0] [ 14%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_load_from_environment 
+2026-02-21T23:05:53.3923571Z tests/unit/test_settings.py::TestSettings::test_settings_postgres_url_construction 
+2026-02-21T23:05:53.3992097Z tests/unit/test_rust_bridge.py::TestRustBridge::test_async_calculate_position_size 
+2026-02-21T23:05:53.4033810Z [gw1] [ 16%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_async_calculate_position_size 
+2026-02-21T23:05:53.4072037Z tests/unit/test_rust_bridge.py::TestRustBridge::test_async_calculate_portfolio_risk 
+2026-02-21T23:05:53.4075679Z [gw0] [ 18%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_postgres_url_construction 
+2026-02-21T23:05:53.4111511Z [gw1] [ 20%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_async_calculate_portfolio_risk 
+2026-02-21T23:05:53.4144418Z tests/unit/test_settings.py::TestSettings::test_settings_postgres_async_url_construction 
+2026-02-21T23:05:53.4156490Z tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_position_size_large_values 
+2026-02-21T23:05:53.4199928Z [gw1] [ 22%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_position_size_large_values 
+2026-02-21T23:05:53.4242307Z tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_portfolio_risk_many_positions 
+2026-02-21T23:05:53.4262352Z [gw1] [ 24%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_portfolio_risk_many_positions 
+2026-02-21T23:05:53.4278182Z tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_expected_return_edge_cases 
+2026-02-21T23:05:53.4293740Z [gw0] [ 26%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_postgres_async_url_construction 
+2026-02-21T23:05:53.4336470Z [gw1] [ 28%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_expected_return_edge_cases 
+2026-02-21T23:05:53.4339151Z tests/unit/test_settings.py::TestSettings::test_settings_redis_url_construction 
+2026-02-21T23:05:53.4468744Z tests/unit/test_data_frame.py::TestConversion::test_pandas_to_polars 
+2026-02-21T23:05:53.4486063Z [gw1] [ 30%] PASSED tests/unit/test_data_frame.py::TestConversion::test_pandas_to_polars 
+2026-02-21T23:05:53.4511394Z [gw0] [ 32%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_redis_url_construction 
+2026-02-21T23:05:53.4592833Z tests/unit/test_data_frame.py::TestConversion::test_polars_to_pandas 
+2026-02-21T23:05:53.4692362Z tests/unit/test_settings.py::TestSettings::test_settings_redis_url_with_password 
+2026-02-21T23:05:53.4709209Z [gw0] [ 34%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_redis_url_with_password 
+2026-02-21T23:05:53.4923955Z tests/unit/test_settings.py::TestSettings::test_settings_log_level_validation 
+2026-02-21T23:05:53.4966446Z [gw1] [ 36%] PASSED tests/unit/test_data_frame.py::TestConversion::test_polars_to_pandas 
+2026-02-21T23:05:53.5017682Z tests/unit/test_data_frame.py::TestConversion::test_polars_to_polars 
+2026-02-21T23:05:53.5050254Z [gw1] [ 38%] PASSED tests/unit/test_data_frame.py::TestConversion::test_polars_to_polars 
+2026-02-21T23:05:53.5075151Z tests/unit/test_data_frame.py::TestConversion::test_pandas_to_pandas 
+2026-02-21T23:05:53.5119233Z [gw1] [ 40%] PASSED tests/unit/test_data_frame.py::TestConversion::test_pandas_to_pandas 
+2026-02-21T23:05:53.5149809Z tests/unit/test_data_frame.py::TestConversion::test_invalid_type_to_polars 
+2026-02-21T23:05:53.5193995Z [gw1] [ 42%] PASSED tests/unit/test_data_frame.py::TestConversion::test_invalid_type_to_polars 
+2026-02-21T23:05:53.5240239Z tests/unit/test_data_frame.py::TestConversion::test_invalid_type_to_pandas 
+2026-02-21T23:05:53.5261860Z [gw1] [ 44%] PASSED tests/unit/test_data_frame.py::TestConversion::test_invalid_type_to_pandas 
+2026-02-21T23:05:53.5418000Z tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_success 
+2026-02-21T23:05:53.5441238Z [gw0] [ 46%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_log_level_validation 
+2026-02-21T23:05:53.5483071Z tests/unit/test_settings.py::TestSettings::test_settings_log_format_validation 
+2026-02-21T23:05:53.5542417Z [gw1] [ 48%] PASSED tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_success 
+2026-02-21T23:05:53.5785299Z tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_base_r_percent 
+2026-02-21T23:05:53.5834530Z [gw1] [ 50%] PASSED tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_base_r_percent 
+2026-02-21T23:05:53.5837522Z [gw0] [ 52%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_log_format_validation 
+2026-02-21T23:05:53.5862210Z tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_max_r_per_trade 
+2026-02-21T23:05:53.6097804Z tests/unit/test_settings.py::TestSettings::test_settings_event_bus_type_validation 
+2026-02-21T23:05:53.6148719Z [gw1] [ 54%] PASSED tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_max_r_per_trade 
+2026-02-21T23:05:53.6252222Z tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_leverage 
+2026-02-21T23:05:53.6297805Z [gw0] [ 56%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_event_bus_type_validation 
+2026-02-21T23:05:53.6390798Z tests/unit/test_settings.py::TestSettings::test_settings_postgres_pool_settings 
+2026-02-21T23:05:53.6433873Z [gw1] [ 58%] PASSED tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_leverage 
+2026-02-21T23:05:53.6558017Z tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_slippage_tolerance 
+2026-02-21T23:05:53.6585783Z [gw0] [ 60%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_postgres_pool_settings 
+2026-02-21T23:05:53.6710706Z tests/unit/test_settings.py::TestSettings::test_settings_redis_pool_settings 
+2026-02-21T23:05:53.6771381Z [gw1] [ 62%] PASSED tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_slippage_tolerance 
+2026-02-21T23:05:53.6801099Z tests/unit/test_logging.py::TestConfigureLogging::test_configure_logging 
+2026-02-21T23:05:53.6842570Z [gw1] [ 64%] PASSED tests/unit/test_logging.py::TestConfigureLogging::test_configure_logging 
+2026-02-21T23:05:53.6875875Z tests/unit/test_logging.py::TestConfigureLogging::test_get_logger_returns_logger 
+2026-02-21T23:05:53.6878221Z [gw1] [ 66%] PASSED tests/unit/test_logging.py::TestConfigureLogging::test_get_logger_returns_logger 
+2026-02-21T23:05:53.6906606Z [gw0] [ 68%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_redis_pool_settings 
+2026-02-21T23:05:53.6936908Z tests/unit/test_logging.py::TestConfigureLogging::test_get_logger_default_name 
+2026-02-21T23:05:53.6942272Z tests/unit/test_settings.py::TestSettings::test_settings_repr_hides_secrets 
+2026-02-21T23:05:53.6982776Z [gw1] [ 70%] PASSED tests/unit/test_logging.py::TestConfigureLogging::test_get_logger_default_name 
+2026-02-21T23:05:53.7012344Z tests/unit/test_logging.py::TestConfigureLogging::test_get_logger_custom_name 
+2026-02-21T23:05:53.7060743Z [gw1] [ 72%] PASSED tests/unit/test_logging.py::TestConfigureLogging::test_get_logger_custom_name 
+2026-02-21T23:05:53.7072087Z tests/unit/test_settings.py::TestSettingsFactory::test_get_settings_returns_global_instance 
+2026-02-21T23:05:53.7085599Z [gw0] [ 74%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_repr_hides_secrets 
+2026-02-21T23:05:53.7113484Z [gw1] [ 76%] PASSED tests/unit/test_settings.py::TestSettingsFactory::test_get_settings_returns_global_instance 
+2026-02-21T23:05:53.7144998Z tests/unit/test_data_frame.py::TestCalculateReturns::test_calculate_returns_polars 
+2026-02-21T23:05:53.7263300Z tests/unit/test_settings.py::TestSettingsFactory::test_reload_settings_creates_new_instance 
+2026-02-21T23:05:53.7293091Z [gw0] [ 78%] PASSED tests/unit/test_data_frame.py::TestCalculateReturns::test_calculate_returns_polars 
+2026-02-21T23:05:53.7312986Z [gw1] [ 80%] PASSED tests/unit/test_settings.py::TestSettingsFactory::test_reload_settings_creates_new_instance 
+2026-02-21T23:05:53.7352888Z tests/unit/test_data_frame.py::TestCalculateReturns::test_calculate_returns_pandas 
+2026-02-21T23:05:53.7428207Z tests/unit/test_settings.py::TestSettingsFactory::test_reload_settings_preserves_environment 
+2026-02-21T23:05:53.7471707Z [gw0] [ 82%] PASSED tests/unit/test_data_frame.py::TestCalculateReturns::test_calculate_returns_pandas 
+2026-02-21T23:05:53.7505893Z tests/unit/test_data_frame.py::TestCalculateReturns::test_calculate_returns_series_error 
+2026-02-21T23:05:53.7519420Z [gw1] [ 84%] PASSED tests/unit/test_settings.py::TestSettingsFactory::test_reload_settings_preserves_environment 
+2026-02-21T23:05:53.7565501Z [gw0] [ 86%] PASSED tests/unit/test_data_frame.py::TestCalculateReturns::test_calculate_returns_series_error 
+2026-02-21T23:05:53.7566749Z tests/unit/test_logging.py::TestLogContext::test_log_context_binds_values 
+2026-02-21T23:05:53.7607770Z tests/unit/test_data_frame.py::TestResampleOHLCV::test_resample_ohlcv_polars 
+2026-02-21T23:05:53.7669003Z [gw0] [ 88%] PASSED tests/unit/test_logging.py::TestLogContext::test_log_context_binds_values 
+2026-02-21T23:05:53.7703921Z tests/unit/test_logging.py::TestLogContext::test_log_context_cleanup 
+2026-02-21T23:05:53.7705001Z [gw0] [ 90%] PASSED tests/unit/test_logging.py::TestLogContext::test_log_context_cleanup 
+2026-02-21T23:05:53.7723676Z [gw1] [ 92%] PASSED tests/unit/test_data_frame.py::TestResampleOHLCV::test_resample_ohlcv_polars 
+2026-02-21T23:05:53.7754190Z tests/unit/test_data_frame.py::TestBenchmark::test_benchmark_conversion 
+2026-02-21T23:05:53.7858085Z tests/unit/test_data_frame.py::TestResampleOHLCV::test_resample_ohlcv_pandas 
+2026-02-21T23:05:53.7960326Z [gw0] [ 94%] PASSED tests/unit/test_data_frame.py::TestBenchmark::test_benchmark_conversion 
+2026-02-21T23:05:53.8003642Z [gw1] [ 96%] PASSED tests/unit/test_data_frame.py::TestResampleOHLCV::test_resample_ohlcv_pandas 
+2026-02-21T23:05:53.8053847Z tests/unit/test_logging.py::TestLogConvenienceFunctions::test_log_exception 
+2026-02-21T23:05:53.8101469Z [gw1] [ 98%] PASSED tests/unit/test_logging.py::TestLogConvenienceFunctions::test_log_exception 
+2026-02-21T23:05:53.8121051Z tests/unit/test_logging.py::TestLogConvenienceFunctions::test_log_performance 
+2026-02-21T23:05:54.3928069Z [gw1] [100%] PASSED tests/unit/test_logging.py::TestLogConvenienceFunctions::test_log_performance 
+2026-02-21T23:05:54.3930472Z 
+2026-02-21T23:05:54.3930819Z ---------- coverage: platform linux, python 3.12.12-final-0 ----------
+2026-02-21T23:05:54.3931488Z Coverage XML written to file coverage.xml
+2026-02-21T23:05:54.3931831Z 
+2026-02-21T23:05:54.3931838Z 
+2026-02-21T23:05:54.3932075Z ============================== 50 passed in 6.41s ==============================
+2026-02-21T23:05:54.4563846Z ##[group]Run .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
+2026-02-21T23:05:54.4565612Z [36;1m.venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml[0m
+2026-02-21T23:05:54.4612946Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:05:54.4613323Z env:
+2026-02-21T23:05:54.4613663Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:54.4614138Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:54.4614872Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:05:54.4615606Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:54.4616241Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:54.4617504Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:54.4618231Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:05:54.4618850Z   REDIS_HOST: localhost
+2026-02-21T23:05:54.4619222Z   POSTGRES_HOST: localhost
+2026-02-21T23:05:54.4619583Z ##[endgroup]
+2026-02-21T23:05:58.7761685Z ============================= test session starts ==============================
+2026-02-21T23:05:58.7763315Z platform linux -- Python 3.12.12, pytest-8.4.2, pluggy-1.6.0 -- /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/.venv/bin/python
+2026-02-21T23:05:58.7765337Z cachedir: .pytest_cache
+2026-02-21T23:05:58.7765806Z rootdir: /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:05:58.7766342Z configfile: pyproject.toml
+2026-02-21T23:05:58.7767027Z plugins: cov-5.0.0, xdist-3.8.0, mock-3.15.1, anyio-4.12.1, asyncio-0.26.0
+2026-02-21T23:05:58.7767983Z asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+2026-02-21T23:05:58.7768857Z created: 2/2 workers
+2026-02-21T23:05:58.7769181Z 2 workers [10 items]
+2026-02-21T23:05:58.7769388Z 
+2026-02-21T23:05:58.7769574Z scheduling tests via LoadScopeScheduling
+2026-02-21T23:05:58.7769877Z 
+2026-02-21T23:05:58.7770341Z tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_connection 
+2026-02-21T23:05:58.8108537Z tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_connection 
+2026-02-21T23:05:58.8172810Z [gw0] [ 10%] PASSED tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_connection 
+2026-02-21T23:05:58.8348544Z tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_set_get 
+2026-02-21T23:05:58.8399751Z [gw0] [ 20%] PASSED tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_set_get 
+2026-02-21T23:05:58.8583604Z tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_list_operations 
+2026-02-21T23:05:58.8633154Z [gw0] [ 30%] PASSED tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_list_operations 
+2026-02-21T23:05:58.8822544Z tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_hash_operations 
+2026-02-21T23:05:58.8864176Z [gw0] [ 40%] PASSED tests/integration/test_infrastructure.py::TestRedisConnection::test_redis_hash_operations 
+2026-02-21T23:05:58.8974498Z tests/integration/test_infrastructure.py::TestInfrastructureIntegration::test_redis_postgresql_integration 
+2026-02-21T23:05:58.9083873Z [gw1] [ 50%] PASSED tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_connection 
+2026-02-21T23:05:59.0096730Z tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_create_table 
+2026-02-21T23:05:59.0147480Z [gw0] [ 60%] PASSED tests/integration/test_infrastructure.py::TestInfrastructureIntegration::test_redis_postgresql_integration 
+2026-02-21T23:05:59.0319793Z tests/integration/test_infrastructure.py::TestInfrastructureIntegration::test_concurrent_operations 
+2026-02-21T23:05:59.0416567Z [gw1] [ 70%] PASSED tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_create_table 
+2026-02-21T23:05:59.0710444Z tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_jsonb_operations 
+2026-02-21T23:05:59.1563543Z [gw0] [ 80%] PASSED tests/integration/test_infrastructure.py::TestInfrastructureIntegration::test_concurrent_operations 
+2026-02-21T23:05:59.1650944Z [gw1] [ 90%] PASSED tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_jsonb_operations 
+2026-02-21T23:05:59.2706496Z tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_transaction 
+2026-02-21T23:05:59.7738285Z [gw1] [100%] PASSED tests/integration/test_infrastructure.py::TestPostgreSQLConnection::test_postgresql_transaction 
+2026-02-21T23:05:59.7739144Z 
+2026-02-21T23:05:59.7739468Z ---------- coverage: platform linux, python 3.12.12-final-0 ----------
+2026-02-21T23:05:59.7740126Z Coverage XML written to file coverage.xml
+2026-02-21T23:05:59.7740877Z 
+2026-02-21T23:05:59.7740885Z 
+2026-02-21T23:05:59.7741150Z ============================== 10 passed in 4.61s ==============================
+2026-02-21T23:05:59.8372460Z ##[group]Run codecov/codecov-action@v4
+2026-02-21T23:05:59.8372737Z with:
+2026-02-21T23:05:59.8372898Z   file: ./coverage.xml
+2026-02-21T23:05:59.8373094Z   flags: python-3.12
+2026-02-21T23:05:59.8373288Z   name: codecov-python-3.12
+2026-02-21T23:05:59.8373493Z env:
+2026-02-21T23:05:59.8373646Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:59.8373903Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:59.8374305Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:05:59.8374696Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:59.8375044Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:59.8375388Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:05:59.8375753Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:05:59.8376036Z ##[endgroup]
+2026-02-21T23:05:59.9216327Z eventName: push
+2026-02-21T23:05:59.9226095Z ==> linux OS detected
+2026-02-21T23:06:00.2325577Z https://cli.codecov.io/latest/linux/codecov.SHA256SUM
+2026-02-21T23:06:00.3983938Z gpg: directory '/home/runner/.gnupg' created
+2026-02-21T23:06:00.4028929Z gpg: keybox '/home/runner/.gnupg/pubring.kbx' created
+2026-02-21T23:06:00.4188879Z gpg: /home/runner/.gnupg/trustdb.gpg: trustdb created
+2026-02-21T23:06:00.4191205Z gpg: key 806BB28AED779869: public key "Codecov Uploader (Codecov Uploader Verification Key) <security@codecov.io>" imported
+2026-02-21T23:06:00.4494678Z gpg: Total number processed: 1
+2026-02-21T23:06:00.4496400Z gpg:               imported: 1
+2026-02-21T23:06:00.4551682Z gpg: Signature made Fri Dec  5 15:31:48 2025 UTC
+2026-02-21T23:06:00.4552642Z gpg:                using RSA key 27034E7FDB850E0BBC2C62FF806BB28AED779869
+2026-02-21T23:06:00.4557314Z gpg: Good signature from "Codecov Uploader (Codecov Uploader Verification Key) <security@codecov.io>" [unknown]
+2026-02-21T23:06:00.4558408Z gpg: WARNING: This key is not certified with a trusted signature!
+2026-02-21T23:06:00.4559158Z gpg:          There is no indication that the signature belongs to the owner.
+2026-02-21T23:06:00.4559953Z Primary key fingerprint: 2703 4E7F DB85 0E0B BC2C  62FF 806B B28A ED77 9869
+2026-02-21T23:06:00.4807227Z ==> Uploader SHASUM verified (fd34214e2b2c738e48e3ac90b2c23ec4e975d0e9aee51f2cebe81b5704af3f6c  codecov)
+2026-02-21T23:06:00.4810223Z ==> Running version latest
+2026-02-21T23:06:00.5682693Z Could not pull latest version information: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+2026-02-21T23:06:00.5687214Z ==> Running git config --global --add safe.directory /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:06:00.5834217Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:06:00.5900118Z ==> Running command '/home/runner/work/_actions/codecov/codecov-action/v4/dist/codecov create-commit'
+2026-02-21T23:06:00.5921930Z [command]/home/runner/work/_actions/codecov/codecov-action/v4/dist/codecov create-commit --git-service github
+2026-02-21T23:06:00.9649353Z info - 2026-02-21 23:06:00,964 -- ci service found: github-actions
+2026-02-21T23:06:00.9757580Z warning - 2026-02-21 23:06:00,975 -- No config file could be found. Ignoring config.
+2026-02-21T23:06:01.0063397Z warning - 2026-02-21 23:06:01,005 -- Branch `master` is protected but no token was provided
+2026-02-21T23:06:01.0065904Z warning - 2026-02-21 23:06:01,005 -- For information on Codecov upload tokens, see https://docs.codecov.com/docs/codecov-tokens
+2026-02-21T23:06:01.2723159Z info - 2026-02-21 23:06:01,271 -- Process Commit creating complete
+2026-02-21T23:06:01.2726566Z error - 2026-02-21 23:06:01,272 -- Commit creating failed: {"message":"Token required - not valid tokenless upload"}
+2026-02-21T23:06:01.3780837Z Sentry is attempting to send 3 pending events
+2026-02-21T23:06:01.3781888Z Waiting up to 2 seconds
+2026-02-21T23:06:01.3782392Z Press Ctrl-C to quit
+2026-02-21T23:06:01.5147171Z ==> Running command '/home/runner/work/_actions/codecov/codecov-action/v4/dist/codecov create-report'
+2026-02-21T23:06:01.5150041Z [command]/home/runner/work/_actions/codecov/codecov-action/v4/dist/codecov create-report --git-service github
+2026-02-21T23:06:01.8656466Z info - 2026-02-21 23:06:01,865 -- ci service found: github-actions
+2026-02-21T23:06:01.8759027Z warning - 2026-02-21 23:06:01,875 -- No config file could be found. Ignoring config.
+2026-02-21T23:06:02.1554887Z info - 2026-02-21 23:06:02,154 -- Process Report creating complete
+2026-02-21T23:06:02.1562116Z error - 2026-02-21 23:06:02,155 -- Report creating failed: {"message":"Token required - not valid tokenless upload"}
+2026-02-21T23:06:02.2612292Z Sentry is attempting to send 2 pending events
+2026-02-21T23:06:02.2612728Z Waiting up to 2 seconds
+2026-02-21T23:06:02.2612990Z Press Ctrl-C to quit
+2026-02-21T23:06:02.3272863Z ==> Running command '/home/runner/work/_actions/codecov/codecov-action/v4/dist/codecov do-upload'
+2026-02-21T23:06:02.3276310Z [command]/home/runner/work/_actions/codecov/codecov-action/v4/dist/codecov do-upload -f ./coverage.xml -F python-3.12 --git-service github -n codecov-python-3.12
+2026-02-21T23:06:02.7170385Z info - 2026-02-21 23:06:02,716 -- ci service found: github-actions
+2026-02-21T23:06:02.7277391Z warning - 2026-02-21 23:06:02,727 -- No config file could be found. Ignoring config.
+2026-02-21T23:06:02.7604900Z warning - 2026-02-21 23:06:02,759 -- xcrun is not installed or can't be found.
+2026-02-21T23:06:03.0146217Z warning - 2026-02-21 23:06:03,014 -- No gcov data found.
+2026-02-21T23:06:03.0150621Z warning - 2026-02-21 23:06:03,014 -- coverage.py is not installed or can't be found.
+2026-02-21T23:06:03.3250505Z info - 2026-02-21 23:06:03,324 -- Found 4 coverage files to report
+2026-02-21T23:06:03.3253385Z info - 2026-02-21 23:06:03,324 -- > /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/coverage.xml
+2026-02-21T23:06:03.3254885Z info - 2026-02-21 23:06:03,324 -- > /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/logs_58134962150/Python Tests (3.12)/11_Upload coverage to Codecov.txt
+2026-02-21T23:06:03.3258618Z info - 2026-02-21 23:06:03,324 -- > /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/logs_58135515646/Python Tests (3.12)/11_Upload coverage to Codecov.txt
+2026-02-21T23:06:03.3260988Z info - 2026-02-21 23:06:03,324 -- > /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/logs_58137486473/Python Tests (3.12)/11_Upload coverage to Codecov.txt
+2026-02-21T23:06:03.5567634Z info - 2026-02-21 23:06:03,556 -- Process Upload complete
+2026-02-21T23:06:03.5571416Z error - 2026-02-21 23:06:03,556 -- Upload failed: {"message":"Token required - not valid tokenless upload"}
+2026-02-21T23:06:03.6641223Z Sentry is attempting to send 2 pending events
+2026-02-21T23:06:03.6642731Z Waiting up to 2 seconds
+2026-02-21T23:06:03.6643312Z Press Ctrl-C to quit
+2026-02-21T23:06:03.7632653Z Post job cleanup.
+2026-02-21T23:06:03.9635295Z Post job cleanup.
+2026-02-21T23:06:04.0614644Z [command]/usr/bin/git version
+2026-02-21T23:06:04.0656926Z git version 2.52.0
+2026-02-21T23:06:04.0700566Z Copying '/home/runner/.gitconfig' to '/home/runner/work/_temp/31382c03-aa82-45bf-969b-296c74f5be2e/.gitconfig'
+2026-02-21T23:06:04.0711202Z Temporarily overriding HOME='/home/runner/work/_temp/31382c03-aa82-45bf-969b-296c74f5be2e' before making global git config changes
+2026-02-21T23:06:04.0713707Z Adding repository directory to the temporary git global config as a safe directory
+2026-02-21T23:06:04.0730097Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:06:04.0768782Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-02-21T23:06:04.0803866Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-02-21T23:06:04.1076598Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-02-21T23:06:04.1101105Z http.https://github.com/.extraheader
+2026-02-21T23:06:04.1116707Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-02-21T23:06:04.1153219Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-02-21T23:06:04.1396275Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-02-21T23:06:04.1432914Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-02-21T23:06:04.1851261Z Print service container logs: 6d3c03d8eaa8476eb88905c6b697f6d0_redis7alpine_3f9ba7
+2026-02-21T23:06:04.1855588Z ##[command]/usr/bin/docker logs --details 9cd8ab9c3517ba5401002bb68ad1b9c3183e726a00343a31370dc61fe18bc585
+2026-02-21T23:06:04.1991089Z  1:C 21 Feb 2026 23:04:52.221 # WARNING Memory overcommit must be enabled! Without it, a background save or replication may fail under low memory condition. Being disabled, it can also cause failures without low memory condition, see https://github.com/jemalloc/jemalloc/issues/1328. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+2026-02-21T23:06:04.1995073Z  1:C 21 Feb 2026 23:04:52.221 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+2026-02-21T23:06:04.1995923Z  1:C 21 Feb 2026 23:04:52.221 * Redis version=7.4.7, bits=64, commit=00000000, modified=0, pid=1, just started
+2026-02-21T23:06:04.1997678Z  1:C 21 Feb 2026 23:04:52.221 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+2026-02-21T23:06:04.1998871Z  1:M 21 Feb 2026 23:04:52.222 * monotonic clock: POSIX clock_gettime
+2026-02-21T23:06:04.1999490Z  1:M 21 Feb 2026 23:04:52.222 * Running mode=standalone, port=6379.
+2026-02-21T23:06:04.2000046Z  1:M 21 Feb 2026 23:04:52.223 * Server initialized
+2026-02-21T23:06:04.2000562Z  1:M 21 Feb 2026 23:04:52.223 * Ready to accept connections tcp
+2026-02-21T23:06:04.2015324Z Stop and remove container: 6d3c03d8eaa8476eb88905c6b697f6d0_redis7alpine_3f9ba7
+2026-02-21T23:06:04.2020487Z ##[command]/usr/bin/docker rm --force 9cd8ab9c3517ba5401002bb68ad1b9c3183e726a00343a31370dc61fe18bc585
+2026-02-21T23:06:05.6728396Z 9cd8ab9c3517ba5401002bb68ad1b9c3183e726a00343a31370dc61fe18bc585
+2026-02-21T23:06:05.6750666Z Print service container logs: 7d530903f6fc4f42964522919023c262_timescaletimescaledblatestpg15_57b420
+2026-02-21T23:06:05.6752072Z ##[command]/usr/bin/docker logs --details 7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2
+2026-02-21T23:06:05.6883820Z  The files belonging to this database system will be owned by user "postgres".
+2026-02-21T23:06:05.6884892Z  This user must also own the server process.
+2026-02-21T23:06:05.6885545Z  
+2026-02-21T23:06:05.6889384Z  sh: locale: not found
+2026-02-21T23:06:05.6890626Z  2026-02-21 23:05:12.121 UTC [34] WARNING:  no usable system locales were found
+2026-02-21T23:06:05.6892081Z  The database cluster will be initialized with locale "en_US.utf8".
+2026-02-21T23:06:05.6893998Z  The default database encoding has accordingly been set to "UTF8".
+2026-02-21T23:06:05.6895102Z  The default text search configuration will be set to "english".
+2026-02-21T23:06:05.6896268Z  
+2026-02-21T23:06:05.6896709Z  Data page checksums are disabled.
+2026-02-21T23:06:05.6897473Z  
+2026-02-21T23:06:05.6898127Z  fixing permissions on existing directory /var/lib/postgresql/data ... ok
+2026-02-21T23:06:05.6898990Z  creating subdirectories ... ok
+2026-02-21T23:06:05.6899650Z  selecting dynamic shared memory implementation ... posix
+2026-02-21T23:06:05.6900348Z  selecting default max_connections ... 100
+2026-02-21T23:06:05.6901230Z  selecting default shared_buffers ... 128MB
+2026-02-21T23:06:05.6901803Z  selecting default time zone ... UTC
+2026-02-21T23:06:05.6902539Z  creating configuration files ... ok
+2026-02-21T23:06:05.6903078Z  running bootstrap script ... ok
+2026-02-21T23:06:05.6903698Z  performing post-bootstrap initialization ... ok
+2026-02-21T23:06:05.6904316Z  syncing data to disk ... ok
+2026-02-21T23:06:05.6905005Z  initdb: warning: enabling "trust" authentication for local connections
+2026-02-21T23:06:05.6906267Z  initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+2026-02-21T23:06:05.6907685Z  [37;1mUsing postgresql.conf at this path:
+2026-02-21T23:06:05.6908330Z  [0m/var/lib/postgresql/data/postgresql.conf
+2026-02-21T23:06:05.6909156Z  
+2026-02-21T23:06:05.6909571Z  [37;1mWriting backup to:
+2026-02-21T23:06:05.6910050Z  [0m/tmp/timescaledb_tune.backup202602212305
+2026-02-21T23:06:05.6910639Z  
+2026-02-21T23:06:05.6911343Z  [37;1mRecommendations based on 7.76 GB of available memory and 2 CPUs for PostgreSQL 15
+2026-02-21T23:06:05.6912273Z  [0m[37;1mSaving changes to: /var/lib/postgresql/data/postgresql.conf
+2026-02-21T23:06:05.6914595Z  [0m2026-02-21 23:05:14.058 UTC [1] LOG:  starting PostgreSQL 15.13 on x86_64-pc-linux-musl, compiled by gcc (Alpine 13.2.1_git20240309) 13.2.1 20240309, 64-bit
+2026-02-21T23:06:05.6915967Z  2026-02-21 23:05:14.059 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-02-21T23:06:05.6916718Z  2026-02-21 23:05:14.059 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-02-21T23:06:05.6917660Z  2026-02-21 23:05:14.060 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-02-21T23:06:05.6918361Z  2026-02-21 23:05:14.064 UTC [83] LOG:  database system was shut down at 2026-02-21 23:05:13 UTC
+2026-02-21T23:06:05.6918896Z  2026-02-21 23:05:14.086 UTC [1] LOG:  database system is ready to accept connections
+2026-02-21T23:06:05.6919600Z  2026-02-21 23:05:14.088 UTC [86] LOG:  TimescaleDB background worker launcher connected to shared catalogs
+2026-02-21T23:06:05.6920187Z  2026-02-21 23:05:21.650 UTC [98] FATAL:  role "root" does not exist
+2026-02-21T23:06:05.6920595Z  2026-02-21 23:05:31.778 UTC [107] FATAL:  role "root" does not exist
+2026-02-21T23:06:05.6921385Z  2026-02-21 23:05:41.849 UTC [117] FATAL:  role "root" does not exist
+2026-02-21T23:06:05.6921833Z  2026-02-21 23:05:51.927 UTC [127] FATAL:  role "root" does not exist
+2026-02-21T23:06:05.6922230Z  2026-02-21 23:06:01.981 UTC [142] FATAL:  role "root" does not exist
+2026-02-21T23:06:05.6922688Z  
+2026-02-21T23:06:05.6922926Z  
+2026-02-21T23:06:05.6923170Z  Success. You can now start the database server using:
+2026-02-21T23:06:05.6923636Z  
+2026-02-21T23:06:05.6923925Z      pg_ctl -D /var/lib/postgresql/data -l logfile start
+2026-02-21T23:06:05.6924287Z  
+2026-02-21T23:06:05.6925049Z  waiting for server to start....2026-02-21 23:05:12.719 UTC [40] LOG:  starting PostgreSQL 15.13 on x86_64-pc-linux-musl, compiled by gcc (Alpine 13.2.1_git20240309) 13.2.1 20240309, 64-bit
+2026-02-21T23:06:05.6925950Z  2026-02-21 23:05:12.719 UTC [40] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-02-21T23:06:05.6926567Z  2026-02-21 23:05:12.722 UTC [43] LOG:  database system was shut down at 2026-02-21 23:05:12 UTC
+2026-02-21T23:06:05.6927539Z  2026-02-21 23:05:12.727 UTC [40] LOG:  database system is ready to accept connections
+2026-02-21T23:06:05.6928141Z  2026-02-21 23:05:12.728 UTC [46] LOG:  TimescaleDB background worker launcher connected to shared catalogs
+2026-02-21T23:06:05.6928641Z   done
+2026-02-21T23:06:05.6928955Z  server started
+2026-02-21T23:06:05.6929188Z  CREATE DATABASE
+2026-02-21T23:06:05.6929431Z  
+2026-02-21T23:06:05.6929725Z  
+2026-02-21T23:06:05.6930195Z  /usr/local/bin/docker-entrypoint.sh: sourcing /docker-entrypoint-initdb.d/000_install_timescaledb.sh
+2026-02-21T23:06:05.6930723Z  CREATE EXTENSION
+2026-02-21T23:06:05.6931013Z  CREATE EXTENSION
+2026-02-21T23:06:05.6931841Z  2026-02-21 23:05:13.465 UTC [64] ERROR:  background worker "TimescaleDB Background Worker Scheduler for database 1" trying to connect to template database, exiting
+2026-02-21T23:06:05.6932539Z  CREATE EXTENSION
+2026-02-21T23:06:05.6932869Z  
+2026-02-21T23:06:05.6933313Z  /usr/local/bin/docker-entrypoint.sh: running /docker-entrypoint-initdb.d/001_timescaledb_tune.sh
+2026-02-21T23:06:05.6933812Z  shared_buffers = 1985MB
+2026-02-21T23:06:05.6934172Z  effective_cache_size = 5957MB
+2026-02-21T23:06:05.6934488Z  maintenance_work_mem = 1016779kB
+2026-02-21T23:06:05.6934766Z  work_mem = 10167kB
+2026-02-21T23:06:05.6935139Z  timescaledb.max_background_workers = 16
+2026-02-21T23:06:05.6935485Z  max_worker_processes = 21
+2026-02-21T23:06:05.6935762Z  max_parallel_workers_per_gather = 1
+2026-02-21T23:06:05.6936264Z  max_parallel_workers = 2
+2026-02-21T23:06:05.6936524Z  wal_buffers = 16MB
+2026-02-21T23:06:05.6937039Z  min_wal_size = 512MB
+2026-02-21T23:06:05.6937566Z  default_statistics_target = 100
+2026-02-21T23:06:05.6937875Z  random_page_cost = 1.1
+2026-02-21T23:06:05.6938184Z  checkpoint_completion_target = 0.9
+2026-02-21T23:06:05.6938572Z  max_locks_per_transaction = 128
+2026-02-21T23:06:05.6938856Z  autovacuum_max_workers = 10
+2026-02-21T23:06:05.6939196Z  autovacuum_naptime = 10
+2026-02-21T23:06:05.6939491Z  default_toast_compression = lz4
+2026-02-21T23:06:05.6939812Z  jit = off
+2026-02-21T23:06:05.6940075Z  effective_io_concurrency = 256
+2026-02-21T23:06:05.6940412Z  timescaledb.last_tuned = '2026-02-21T23:05:13Z'
+2026-02-21T23:06:05.6940807Z  timescaledb.last_tuned_version = '0.18.1'
+2026-02-21T23:06:05.6941642Z  
+2026-02-21T23:06:05.6941997Z  2026-02-21 23:05:13.805 UTC [40] LOG:  received fast shutdown request
+2026-02-21T23:06:05.6942621Z  waiting for server to shut down....2026-02-21 23:05:13.806 UTC [40] LOG:  aborting any active transactions
+2026-02-21T23:06:05.6943422Z  2026-02-21 23:05:13.806 UTC [67] FATAL:  terminating background worker "TimescaleDB Background Worker Scheduler" due to administrator command
+2026-02-21T23:06:05.6944411Z  2026-02-21 23:05:13.807 UTC [58] FATAL:  terminating background worker "TimescaleDB Background Worker Scheduler" due to administrator command
+2026-02-21T23:06:05.6945373Z  2026-02-21 23:05:13.807 UTC [46] FATAL:  terminating background worker "TimescaleDB Background Worker Launcher" due to administrator command
+2026-02-21T23:06:05.6946324Z  2026-02-21 23:05:13.811 UTC [78] FATAL:  terminating background worker "Job History Log Retention Policy [3]" due to administrator command
+2026-02-21T23:06:05.6947478Z  2026-02-21 23:05:13.814 UTC [40] LOG:  background worker "TimescaleDB Background Worker Scheduler" (PID 67) exited with exit code 1
+2026-02-21T23:06:05.6948360Z  2026-02-21 23:05:13.814 UTC [40] LOG:  background worker "Job History Log Retention Policy [3]" (PID 78) exited with exit code 1
+2026-02-21T23:06:05.6949172Z  2026-02-21 23:05:13.817 UTC [40] LOG:  background worker "logical replication launcher" (PID 47) exited with exit code 1
+2026-02-21T23:06:05.6950000Z  2026-02-21 23:05:13.817 UTC [40] LOG:  background worker "TimescaleDB Background Worker Launcher" (PID 46) exited with exit code 1
+2026-02-21T23:06:05.6950909Z  2026-02-21 23:05:13.818 UTC [40] LOG:  background worker "TimescaleDB Background Worker Scheduler" (PID 58) exited with exit code 1
+2026-02-21T23:06:05.6951749Z  2026-02-21 23:05:13.921 UTC [77] FATAL:  terminating background worker "Telemetry Reporter [1]" due to administrator command
+2026-02-21T23:06:05.6952522Z  2026-02-21 23:05:13.924 UTC [40] LOG:  background worker "Telemetry Reporter [1]" (PID 77) exited with exit code 1
+2026-02-21T23:06:05.6953114Z  2026-02-21 23:05:13.924 UTC [41] LOG:  shutting down
+2026-02-21T23:06:05.6953563Z  2026-02-21 23:05:13.924 UTC [41] LOG:  checkpoint starting: shutdown immediate
+2026-02-21T23:06:05.6954644Z  2026-02-21 23:05:13.968 UTC [41] LOG:  checkpoint complete: wrote 1710 buffers (10.4%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.034 s, sync=0.007 s, total=0.044 s; sync files=771, longest=0.002 s, average=0.001 s; distance=9605 kB, estimate=9605 kB
+2026-02-21T23:06:05.6955936Z  2026-02-21 23:05:13.976 UTC [40] LOG:  database system is shut down
+2026-02-21T23:06:05.6956333Z   done
+2026-02-21T23:06:05.6956585Z  server stopped
+2026-02-21T23:06:05.6957047Z  
+2026-02-21T23:06:05.6957327Z  PostgreSQL init process complete; ready for start up.
+2026-02-21T23:06:05.6957737Z  
+2026-02-21T23:06:05.6958926Z Stop and remove container: 7d530903f6fc4f42964522919023c262_timescaletimescaledblatestpg15_57b420
+2026-02-21T23:06:05.6959817Z ##[command]/usr/bin/docker rm --force 7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2
+2026-02-21T23:06:05.8393776Z 7c375ef38d0fc12d54d86faee1198cc527156a270bdee5f7c1cdf1dcf4bbfec2
+2026-02-21T23:06:05.8414320Z Remove container network: github_network_7e611e8dfbd74ab8b2874d73457f698e
+2026-02-21T23:06:05.8421558Z ##[command]/usr/bin/docker network rm github_network_7e611e8dfbd74ab8b2874d73457f698e
+2026-02-21T23:06:05.9222277Z github_network_7e611e8dfbd74ab8b2874d73457f698e
+2026-02-21T23:06:05.9287418Z Cleaning up orphan processes

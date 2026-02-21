@@ -1,0 +1,31 @@
+﻿2026-02-21T23:04:56.3607862Z ##[group]Run npm install -g jscpd
+2026-02-21T23:04:56.3608386Z [36;1mnpm install -g jscpd[0m
+2026-02-21T23:04:56.3610081Z [36;1mjscpd src/ --format python --min-tokens 50 --reporters console || true[0m
+2026-02-21T23:04:56.3657423Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:04:56.3657659Z env:
+2026-02-21T23:04:56.3657997Z   PYTHON_VERSION: 3.12
+2026-02-21T23:04:56.3658557Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:04:56.3659539Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:04:56.3660233Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:04:56.3660909Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:04:56.3661574Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:04:56.3662255Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:04:56.3663066Z ##[endgroup]
+2026-02-21T23:05:04.5349199Z 
+2026-02-21T23:05:04.5351757Z added 120 packages in 8s
+2026-02-21T23:05:04.5352531Z 
+2026-02-21T23:05:04.5354168Z 18 packages are looking for funding
+2026-02-21T23:05:04.5355047Z   run `npm fund` for details
+2026-02-21T23:05:05.0381258Z Clone found (python):
+2026-02-21T23:05:05.0390015Z  - src/cryptotechnolog/main.py [19:11 - 27:10] (8 lines, 69 tokens)
+2026-02-21T23:05:05.0391649Z    src/cryptotechnolog/config/logging.py [40:2 - 48:2]
+2026-02-21T23:05:05.0392243Z 
+2026-02-21T23:05:05.0516023Z ┌────────┬────────────────┬─────────────┬──────────────┬──────────────┬──────────────────┬───────────────────┐
+2026-02-21T23:05:05.0523379Z │ Format │ Files analyzed │ Total lines │ Total tokens │ Clones found │ Duplicated lines │ Duplicated tokens │
+2026-02-21T23:05:05.0525912Z ├────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+2026-02-21T23:05:05.0527040Z │ python │ 8              │ 1146        │ 6067         │ 1            │ 8 (0.7%)         │ 69 (1.14%)        │
+2026-02-21T23:05:05.0528334Z ├────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+2026-02-21T23:05:05.0532029Z │ Total: │ 8              │ 1146        │ 6067         │ 1            │ 8 (0.7%)         │ 69 (1.14%)        │
+2026-02-21T23:05:05.0533317Z └────────┴────────────────┴─────────────┴──────────────┴──────────────┴──────────────────┴───────────────────┘
+2026-02-21T23:05:05.0533946Z Found 1 clones.
+2026-02-21T23:05:05.0534516Z Detection time:: 122.768ms

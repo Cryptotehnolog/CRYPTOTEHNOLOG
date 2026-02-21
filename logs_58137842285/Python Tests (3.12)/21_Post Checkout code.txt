@@ -1,0 +1,15 @@
+﻿2026-02-21T23:06:03.9635284Z Post job cleanup.
+2026-02-21T23:06:04.0614603Z [command]/usr/bin/git version
+2026-02-21T23:06:04.0656733Z git version 2.52.0
+2026-02-21T23:06:04.0700549Z Copying '/home/runner/.gitconfig' to '/home/runner/work/_temp/31382c03-aa82-45bf-969b-296c74f5be2e/.gitconfig'
+2026-02-21T23:06:04.0711182Z Temporarily overriding HOME='/home/runner/work/_temp/31382c03-aa82-45bf-969b-296c74f5be2e' before making global git config changes
+2026-02-21T23:06:04.0713695Z Adding repository directory to the temporary git global config as a safe directory
+2026-02-21T23:06:04.0730082Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:06:04.0768769Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-02-21T23:06:04.0803851Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-02-21T23:06:04.1076444Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-02-21T23:06:04.1101091Z http.https://github.com/.extraheader
+2026-02-21T23:06:04.1116693Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-02-21T23:06:04.1153202Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-02-21T23:06:04.1396232Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-02-21T23:06:04.1432887Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url

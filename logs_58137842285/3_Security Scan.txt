@@ -1,0 +1,531 @@
+﻿2026-02-21T23:04:47.4494520Z Current runner version: '2.331.0'
+2026-02-21T23:04:47.4568814Z ##[group]Runner Image Provisioner
+2026-02-21T23:04:47.4570177Z Hosted Compute Agent
+2026-02-21T23:04:47.4571110Z Version: 20260123.484
+2026-02-21T23:04:47.4572230Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+2026-02-21T23:04:47.4573338Z Build Date: 2026-01-23T19:41:17Z
+2026-02-21T23:04:47.4574409Z Worker ID: {7f69d975-eca2-418c-8b22-2fc91a217c2c}
+2026-02-21T23:04:47.4595819Z Azure Region: eastus2
+2026-02-21T23:04:47.4596824Z ##[endgroup]
+2026-02-21T23:04:47.4599074Z ##[group]Operating System
+2026-02-21T23:04:47.4600107Z Ubuntu
+2026-02-21T23:04:47.4600846Z 24.04.3
+2026-02-21T23:04:47.4601561Z LTS
+2026-02-21T23:04:47.4602440Z ##[endgroup]
+2026-02-21T23:04:47.4603173Z ##[group]Runner Image
+2026-02-21T23:04:47.4604049Z Image: ubuntu-24.04
+2026-02-21T23:04:47.4604966Z Version: 20260201.15.1
+2026-02-21T23:04:47.4607071Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+2026-02-21T23:04:47.4609658Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+2026-02-21T23:04:47.4611179Z ##[endgroup]
+2026-02-21T23:04:47.4612935Z ##[group]GITHUB_TOKEN Permissions
+2026-02-21T23:04:47.4615357Z Contents: read
+2026-02-21T23:04:47.4646905Z Metadata: read
+2026-02-21T23:04:47.4647718Z Packages: read
+2026-02-21T23:04:47.4648984Z ##[endgroup]
+2026-02-21T23:04:47.4652084Z Secret source: Actions
+2026-02-21T23:04:47.4653370Z Prepare workflow directory
+2026-02-21T23:04:47.5697253Z Prepare all required actions
+2026-02-21T23:04:47.5752138Z Getting action download info
+2026-02-21T23:04:47.8852044Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-02-21T23:04:48.0199132Z Download action repository 'gitleaks/gitleaks-action@v2' (SHA:ff98106e4c7b2bc287b24eaf42907196329070c7)
+2026-02-21T23:04:48.3492490Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-02-21T23:04:48.5752404Z Complete job name: Security Scan
+2026-02-21T23:04:48.6444897Z ##[group]Run actions/checkout@v4
+2026-02-21T23:04:48.6445926Z with:
+2026-02-21T23:04:48.6446319Z   fetch-depth: 0
+2026-02-21T23:04:48.6446771Z   repository: Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:04:48.6447478Z   token: ***
+2026-02-21T23:04:48.6447870Z   ssh-strict: true
+2026-02-21T23:04:48.6448265Z   ssh-user: git
+2026-02-21T23:04:48.6448665Z   persist-credentials: true
+2026-02-21T23:04:48.6449126Z   clean: true
+2026-02-21T23:04:48.6449526Z   sparse-checkout-cone-mode: true
+2026-02-21T23:04:48.6450018Z   fetch-tags: false
+2026-02-21T23:04:48.6450430Z   show-progress: true
+2026-02-21T23:04:48.6450839Z   lfs: false
+2026-02-21T23:04:48.6451206Z   submodules: false
+2026-02-21T23:04:48.6451621Z   set-safe-directory: true
+2026-02-21T23:04:48.6452552Z env:
+2026-02-21T23:04:48.6452929Z   PYTHON_VERSION: 3.12
+2026-02-21T23:04:48.6453342Z ##[endgroup]
+2026-02-21T23:04:48.7604574Z Syncing repository: Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:04:48.7607817Z ##[group]Getting Git version info
+2026-02-21T23:04:48.7609173Z Working directory is '/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG'
+2026-02-21T23:04:48.7610985Z [command]/usr/bin/git version
+2026-02-21T23:04:48.7688740Z git version 2.52.0
+2026-02-21T23:04:48.7718122Z ##[endgroup]
+2026-02-21T23:04:48.7734570Z Temporarily overriding HOME='/home/runner/work/_temp/3184aac9-288d-4d02-aa43-26e02f76df51' before making global git config changes
+2026-02-21T23:04:48.7738393Z Adding repository directory to the temporary git global config as a safe directory
+2026-02-21T23:04:48.7754347Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:04:48.7798119Z Deleting the contents of '/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG'
+2026-02-21T23:04:48.7801227Z ##[group]Initializing the repository
+2026-02-21T23:04:48.7807418Z [command]/usr/bin/git init /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:04:48.7926451Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-02-21T23:04:48.7928427Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-02-21T23:04:48.7929945Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-02-21T23:04:48.7931093Z hint: call:
+2026-02-21T23:04:48.7931651Z hint:
+2026-02-21T23:04:48.7932462Z hint: 	git config --global init.defaultBranch <name>
+2026-02-21T23:04:48.7933512Z hint:
+2026-02-21T23:04:48.7934504Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-02-21T23:04:48.7936405Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-02-21T23:04:48.7937713Z hint:
+2026-02-21T23:04:48.7938427Z hint: 	git branch -m <name>
+2026-02-21T23:04:48.7939236Z hint:
+2026-02-21T23:04:48.7940260Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-02-21T23:04:48.7943704Z Initialized empty Git repository in /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/.git/
+2026-02-21T23:04:48.7948220Z [command]/usr/bin/git remote add origin https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:04:48.7987012Z ##[endgroup]
+2026-02-21T23:04:48.7988627Z ##[group]Disabling automatic garbage collection
+2026-02-21T23:04:48.7989948Z [command]/usr/bin/git config --local gc.auto 0
+2026-02-21T23:04:48.8023504Z ##[endgroup]
+2026-02-21T23:04:48.8024732Z ##[group]Setting up auth
+2026-02-21T23:04:48.8030683Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-02-21T23:04:48.8064700Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-02-21T23:04:48.8445106Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-02-21T23:04:48.8480451Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-02-21T23:04:48.8715072Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-02-21T23:04:48.8748411Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-02-21T23:04:48.9026608Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-02-21T23:04:48.9066913Z ##[endgroup]
+2026-02-21T23:04:48.9070480Z ##[group]Fetching the repository
+2026-02-21T23:04:48.9078545Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-02-21T23:04:49.2952494Z From https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG
+2026-02-21T23:04:49.2958145Z  * [new branch]      master                  -> origin/master
+2026-02-21T23:04:49.2959983Z  * [new tag]         phase-0-complete-backup -> phase-0-complete-backup
+2026-02-21T23:04:49.2961826Z  * [new tag]         phase-0.2-complete      -> phase-0.2-complete
+2026-02-21T23:04:49.2963793Z  * [new tag]         phase-0.2-start-backup  -> phase-0.2-start-backup
+2026-02-21T23:04:49.2965987Z  * [new tag]         phase-0.3-complete      -> phase-0.3-complete
+2026-02-21T23:04:49.2967792Z  * [new tag]         phase-1-complete        -> phase-1-complete
+2026-02-21T23:04:49.2969703Z  * [new tag]         phase-1-complete-backup -> phase-1-complete-backup
+2026-02-21T23:04:49.2971781Z  * [new tag]         phase-3-complete        -> phase-3-complete
+2026-02-21T23:04:49.2973807Z  * [new tag]         phase-3-complete-backup -> phase-3-complete-backup
+2026-02-21T23:04:49.3002282Z [command]/usr/bin/git branch --list --remote origin/master
+2026-02-21T23:04:49.3030926Z   origin/master
+2026-02-21T23:04:49.3041682Z [command]/usr/bin/git rev-parse refs/remotes/origin/master
+2026-02-21T23:04:49.3066432Z ed393adf7a0ece2492b66178b4821831a7761151
+2026-02-21T23:04:49.3075314Z ##[endgroup]
+2026-02-21T23:04:49.3077515Z ##[group]Determining the checkout info
+2026-02-21T23:04:49.3079897Z ##[endgroup]
+2026-02-21T23:04:49.3084023Z [command]/usr/bin/git sparse-checkout disable
+2026-02-21T23:04:49.3129330Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-02-21T23:04:49.3161379Z ##[group]Checking out the ref
+2026-02-21T23:04:49.3168335Z [command]/usr/bin/git checkout --progress --force -B master refs/remotes/origin/master
+2026-02-21T23:04:49.3466839Z Reset branch 'master'
+2026-02-21T23:04:49.3472400Z branch 'master' set up to track 'origin/master'.
+2026-02-21T23:04:49.3484673Z ##[endgroup]
+2026-02-21T23:04:49.3521528Z [command]/usr/bin/git log -1 --format=%H
+2026-02-21T23:04:49.3547783Z ed393adf7a0ece2492b66178b4821831a7761151
+2026-02-21T23:04:49.3824740Z ##[group]Run gitleaks/gitleaks-action@v2
+2026-02-21T23:04:49.3826126Z env:
+2026-02-21T23:04:49.3826912Z   PYTHON_VERSION: 3.12
+2026-02-21T23:04:49.3828321Z   GITHUB_TOKEN: ***
+2026-02-21T23:04:49.3829253Z   GITLEAKS_LICENSE: 
+2026-02-21T23:04:49.3830151Z ##[endgroup]
+2026-02-21T23:04:49.8148618Z [Cryptotehnolog] is an individual user. No license key is required.
+2026-02-21T23:04:49.8151347Z gitleaks version: 8.24.3
+2026-02-21T23:04:49.8153576Z Version to install: 8.24.3 (target directory: /tmp/gitleaks-8.24.3)
+2026-02-21T23:04:49.8784835Z Cache hit for: gitleaks-cache-8.24.3-linux-x64
+2026-02-21T23:04:50.0959911Z Received 5717461 of 5717461 (100.0%), 36.8 MBs/sec
+2026-02-21T23:04:50.0967347Z Cache Size: ~5 MB (5717461 B)
+2026-02-21T23:04:50.1006136Z [command]/usr/bin/tar -xf /home/runner/work/_temp/b1da3e73-3385-41b3-b75c-c9d7fe619bf5/cache.tzst -P -C /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG --use-compress-program unzstd
+2026-02-21T23:04:50.1392722Z Cache restored successfully
+2026-02-21T23:04:50.1409131Z Gitleaks restored from cache
+2026-02-21T23:04:50.1414993Z event type: push
+2026-02-21T23:04:50.1420508Z gitleaks cmd: gitleaks detect --redact -v --exit-code=2 --report-format=sarif --report-path=results.sarif --log-level=debug --log-opts=-1
+2026-02-21T23:04:50.1439174Z [command]/tmp/gitleaks-8.24.3/gitleaks detect --redact -v --exit-code=2 --report-format=sarif --report-path=results.sarif --log-level=debug --log-opts=-1
+2026-02-21T23:04:50.4720057Z 
+2026-02-21T23:04:50.4722185Z     ○
+2026-02-21T23:04:50.4723978Z     │╲
+2026-02-21T23:04:50.4726053Z     │ ○
+2026-02-21T23:04:50.4727573Z     ○ ░
+2026-02-21T23:04:50.4740852Z     ░    gitleaks
+2026-02-21T23:04:50.4741743Z 
+2026-02-21T23:04:50.4743107Z [90m11:04PM[0m DBG using github.com/wasilibs/go-re2 regex engine
+2026-02-21T23:04:50.4747188Z [90m11:04PM[0m DBG no gitleaks config found in path .gitleaks.toml, using default gitleaks config
+2026-02-21T23:04:50.7064979Z [90m11:04PM[0m DBG executing: /usr/bin/git -C . log -p -U0 -1
+2026-02-21T23:04:50.7128435Z [90m11:04PM[0m DBG SCM platform parsed from host [36mhost=[0mgithub.com [36mplatform=[0mgithub
+2026-02-21T23:04:50.8745919Z [90m11:04PM[0m [32mINF[0m [1m1 commits scanned.[0m
+2026-02-21T23:04:50.8760399Z [90m11:04PM[0m DBG Note: this number might be smaller than expected due to commits with no additions
+2026-02-21T23:04:50.8764449Z [90m11:04PM[0m [32mINF[0m [1mscanned ~1011450 bytes (1.01 MB) in 405ms[0m
+2026-02-21T23:04:50.8767477Z [90m11:04PM[0m [32mINF[0m [1mno leaks found[0m
+2026-02-21T23:04:50.8821759Z Artifact name is valid!
+2026-02-21T23:04:50.8827206Z Root directory input is valid!
+2026-02-21T23:04:50.9557301Z Beginning upload of artifact content to blob storage
+2026-02-21T23:04:51.0062628Z Uploaded bytes 6788
+2026-02-21T23:04:51.0226960Z Finished uploading artifact content to blob storage!
+2026-02-21T23:04:51.0238168Z SHA256 digest of uploaded artifact zip is 87ccc7d8abf7c831dc3cf0b5c97a0a70ecb5d5106378886f089e7ed0bef61577
+2026-02-21T23:04:51.0246817Z Finalizing artifact upload
+2026-02-21T23:04:51.1524421Z Artifact gitleaks-results.sarif.zip successfully finalized. Artifact ID 5603761523
+2026-02-21T23:04:51.1566535Z ✅ No leaks detected
+2026-02-21T23:04:51.1704802Z ##[group]Run curl -LsSf https://astral.sh/uv/install.sh | sh
+2026-02-21T23:04:51.1705624Z [36;1mcurl -LsSf https://astral.sh/uv/install.sh | sh[0m
+2026-02-21T23:04:51.1706153Z [36;1mecho "$HOME/.local/bin" >> $GITHUB_PATH[0m
+2026-02-21T23:04:51.1706491Z [36;1muv --version[0m
+2026-02-21T23:04:51.1744467Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:04:51.1744784Z env:
+2026-02-21T23:04:51.1745011Z   PYTHON_VERSION: 3.12
+2026-02-21T23:04:51.1745291Z ##[endgroup]
+2026-02-21T23:04:51.5207077Z downloading uv 0.10.4 x86_64-unknown-linux-gnu
+2026-02-21T23:04:51.7823850Z no checksums to verify
+2026-02-21T23:04:52.2747469Z installing to /home/runner/.local/bin
+2026-02-21T23:04:52.2856802Z   uv
+2026-02-21T23:04:52.2857125Z   uvx
+2026-02-21T23:04:52.2857422Z everything's installed!
+2026-02-21T23:04:52.2952833Z uv 0.10.4
+2026-02-21T23:04:52.2992974Z ##[group]Run uv venv
+2026-02-21T23:04:52.2993271Z [36;1muv venv[0m
+2026-02-21T23:04:52.2993608Z [36;1m# Remove old version if exists (to avoid site-packages conflicts)[0m
+2026-02-21T23:04:52.2994063Z [36;1muv pip uninstall cryptotechnolog --yes || true[0m
+2026-02-21T23:04:52.2994433Z [36;1m# Install in editable mode with force-reinstall[0m
+2026-02-21T23:04:52.2994794Z [36;1muv pip install -e ".[dev]" --force-reinstall[0m
+2026-02-21T23:04:52.2995168Z [36;1muv pip install detect-secrets bandit[toml] safety[0m
+2026-02-21T23:04:52.3028142Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:04:52.3028435Z env:
+2026-02-21T23:04:52.3028666Z   PYTHON_VERSION: 3.12
+2026-02-21T23:04:52.3028897Z ##[endgroup]
+2026-02-21T23:04:52.3930831Z Using CPython 3.12.3 interpreter at: /usr/bin/python3
+2026-02-21T23:04:52.3932964Z Creating virtual environment at: .venv
+2026-02-21T23:04:52.3937155Z Activate with: .venv/bin/activate
+2026-02-21T23:04:52.4002894Z error: unexpected argument '--yes' found
+2026-02-21T23:04:52.4004002Z 
+2026-02-21T23:04:52.4004483Z   tip: to pass '--yes' as a value, use '-- --yes'
+2026-02-21T23:04:52.4005628Z 
+2026-02-21T23:04:52.4006141Z Usage: uv pip uninstall <PACKAGE|--requirements <REQUIREMENTS>>
+2026-02-21T23:04:52.4006977Z 
+2026-02-21T23:04:52.4007384Z For more information, try '--help'.
+2026-02-21T23:04:53.0672716Z Resolved 104 packages in 619ms
+2026-02-21T23:04:53.0710851Z    Building cryptotechnolog @ file:///home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:04:53.0841305Z Downloading pydantic-core (2.0MiB)
+2026-02-21T23:04:53.0902011Z Downloading sqlalchemy (3.2MiB)
+2026-02-21T23:04:53.0911663Z Downloading jedi (1.5MiB)
+2026-02-21T23:04:53.0915882Z Downloading pygments (1.2MiB)
+2026-02-21T23:04:53.0929000Z Downloading mypy (13.0MiB)
+2026-02-21T23:04:53.0938447Z Downloading pandas (12.1MiB)
+2026-02-21T23:04:53.0942146Z Downloading black (1.7MiB)
+2026-02-21T23:04:53.0945115Z Downloading aiohttp (1.7MiB)
+2026-02-21T23:04:53.0952428Z Downloading virtualenv (5.6MiB)
+2026-02-21T23:04:53.0957020Z Downloading ccxt (6.1MiB)
+2026-02-21T23:04:53.0962431Z Downloading ruff (10.6MiB)
+2026-02-21T23:04:53.0973663Z Downloading asyncpg (3.4MiB)
+2026-02-21T23:04:53.0983221Z Downloading pyarrow (40.1MiB)
+2026-02-21T23:04:53.0989069Z Downloading numpy (18.3MiB)
+2026-02-21T23:04:53.1095564Z Downloading cryptography (4.0MiB)
+2026-02-21T23:04:53.1105050Z Downloading uvloop (4.2MiB)
+2026-02-21T23:04:53.1133172Z Downloading psycopg2-binary (4.0MiB)
+2026-02-21T23:04:53.1137540Z Downloading coincurve (1.5MiB)
+2026-02-21T23:04:53.1142181Z Downloading polars (27.5MiB)
+2026-02-21T23:04:53.1146610Z Downloading scipy (39.0MiB)
+2026-02-21T23:04:53.8303427Z  Downloaded aiohttp
+2026-02-21T23:04:53.8326969Z  Downloaded coincurve
+2026-02-21T23:04:53.8587796Z  Downloaded pydantic-core
+2026-02-21T23:04:53.9597303Z  Downloaded black
+2026-02-21T23:04:54.0211498Z  Downloaded pygments
+2026-02-21T23:04:54.3206669Z  Downloaded asyncpg
+2026-02-21T23:04:54.4126695Z  Downloaded sqlalchemy
+2026-02-21T23:04:54.4571820Z  Downloaded psycopg2-binary
+2026-02-21T23:04:54.5330668Z  Downloaded uvloop
+2026-02-21T23:04:54.6113441Z  Downloaded cryptography
+2026-02-21T23:04:54.7119047Z  Downloaded virtualenv
+2026-02-21T23:04:55.1366011Z  Downloaded ccxt
+2026-02-21T23:04:55.6119702Z  Downloaded ruff
+2026-02-21T23:04:55.8439151Z       Built cryptotechnolog @ file:///home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:04:56.3389525Z  Downloaded numpy
+2026-02-21T23:04:56.3828409Z  Downloaded pandas
+2026-02-21T23:04:56.5025742Z  Downloaded polars
+2026-02-21T23:04:56.7331965Z  Downloaded jedi
+2026-02-21T23:04:56.9812498Z  Downloaded pyarrow
+2026-02-21T23:04:57.0677866Z  Downloaded mypy
+2026-02-21T23:04:57.1126316Z  Downloaded scipy
+2026-02-21T23:04:57.1130789Z Prepared 104 packages in 4.04s
+2026-02-21T23:04:57.3289929Z Installed 104 packages in 215ms
+2026-02-21T23:04:57.3290758Z  + aiodns==4.0.0
+2026-02-21T23:04:57.3291186Z  + aiofiles==24.1.0
+2026-02-21T23:04:57.3291632Z  + aiogram==3.25.0
+2026-02-21T23:04:57.3292440Z  + aiohappyeyeballs==2.6.1
+2026-02-21T23:04:57.3294772Z  + aiohttp==3.13.3
+2026-02-21T23:04:57.3295117Z  + aiosignal==1.4.0
+2026-02-21T23:04:57.3295610Z  + annotated-doc==0.0.4
+2026-02-21T23:04:57.3296002Z  + annotated-types==0.7.0
+2026-02-21T23:04:57.3296367Z  + anyio==4.12.1
+2026-02-21T23:04:57.3296684Z  + asttokens==3.0.1
+2026-02-21T23:04:57.3297012Z  + asyncpg==0.31.0
+2026-02-21T23:04:57.3297321Z  + attrs==25.4.0
+2026-02-21T23:04:57.3297632Z  + black==24.10.0
+2026-02-21T23:04:57.3297943Z  + ccxt==4.5.39
+2026-02-21T23:04:57.3298252Z  + certifi==2026.1.4
+2026-02-21T23:04:57.3298576Z  + cffi==2.0.0
+2026-02-21T23:04:57.3298877Z  + cfgv==3.5.0
+2026-02-21T23:04:57.3299198Z  + charset-normalizer==3.4.4
+2026-02-21T23:04:57.3299583Z  + click==8.3.1
+2026-02-21T23:04:57.3299897Z  + coincurve==21.0.0
+2026-02-21T23:04:57.3300231Z  + coverage==7.13.4
+2026-02-21T23:04:57.3300567Z  + cryptography==44.0.3
+2026-02-21T23:04:57.3301192Z  + cryptotechnolog==1.0.0 (from file:///home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG)
+2026-02-21T23:04:57.3301917Z  + decorator==5.2.1
+2026-02-21T23:04:57.3302248Z  + distlib==0.4.0
+2026-02-21T23:04:57.3302566Z  + execnet==2.1.2
+2026-02-21T23:04:57.3302883Z  + executing==2.2.1
+2026-02-21T23:04:57.3303212Z  + fastapi==0.129.2
+2026-02-21T23:04:57.3303661Z  + filelock==3.24.3
+2026-02-21T23:04:57.3335859Z  + frozenlist==1.8.0
+2026-02-21T23:04:57.3336989Z  + greenlet==3.3.2
+2026-02-21T23:04:57.3337591Z  + h11==0.16.0
+2026-02-21T23:04:57.3338466Z  + httptools==0.7.1
+2026-02-21T23:04:57.3339820Z  + hvac==2.4.0
+2026-02-21T23:04:57.3340413Z  + identify==2.6.16
+2026-02-21T23:04:57.3341270Z  + idna==3.11
+2026-02-21T23:04:57.3341900Z  + iniconfig==2.3.0
+2026-02-21T23:04:57.3342694Z  + ipdb==0.13.13
+2026-02-21T23:04:57.3344327Z  + ipython==8.38.0
+2026-02-21T23:04:57.3345986Z  + jedi==0.19.2
+2026-02-21T23:04:57.3346888Z  + librt==0.8.1
+2026-02-21T23:04:57.3348463Z  + magic-filter==1.0.12
+2026-02-21T23:04:57.3349548Z  + matplotlib-inline==0.2.1
+2026-02-21T23:04:57.3350338Z  + multidict==6.7.1
+2026-02-21T23:04:57.3351344Z  + mypy==1.19.1
+2026-02-21T23:04:57.3351846Z  + mypy-extensions==1.1.0
+2026-02-21T23:04:57.3352340Z  + nodeenv==1.10.0
+2026-02-21T23:04:57.3352786Z  + numpy==2.0.2
+2026-02-21T23:04:57.3353228Z  + packaging==26.0
+2026-02-21T23:04:57.3353667Z  + pandas==2.2.3
+2026-02-21T23:04:57.3354089Z  + parso==0.8.6
+2026-02-21T23:04:57.3354529Z  + pathspec==1.0.4
+2026-02-21T23:04:57.3354963Z  + pexpect==4.9.0
+2026-02-21T23:04:57.3355601Z  + platformdirs==4.9.2
+2026-02-21T23:04:57.3356086Z  + pluggy==1.6.0
+2026-02-21T23:04:57.3356521Z  + polars==0.20.31
+2026-02-21T23:04:57.3356945Z  + pre-commit==3.8.0
+2026-02-21T23:04:57.3357422Z  + prometheus-client==0.24.1
+2026-02-21T23:04:57.3357935Z  + prompt-toolkit==3.0.52
+2026-02-21T23:04:57.3358409Z  + propcache==0.4.1
+2026-02-21T23:04:57.3358854Z  + psycopg2-binary==2.9.11
+2026-02-21T23:04:57.3359359Z  + ptyprocess==0.7.0
+2026-02-21T23:04:57.3359819Z  + pure-eval==0.2.3
+2026-02-21T23:04:57.3360416Z  + pyarrow==19.0.1
+2026-02-21T23:04:57.3361524Z  + pycares==5.0.1
+2026-02-21T23:04:57.3362188Z  + pycparser==3.0
+2026-02-21T23:04:57.3363747Z  + pydantic==2.12.5
+2026-02-21T23:04:57.3364107Z  + pydantic-core==2.41.5
+2026-02-21T23:04:57.3364506Z  + pydantic-settings==2.13.1
+2026-02-21T23:04:57.3365125Z  + pygments==2.19.2
+2026-02-21T23:04:57.3365634Z  + pyjwt==2.11.0
+2026-02-21T23:04:57.3365951Z  + pytest==8.4.2
+2026-02-21T23:04:57.3366288Z  + pytest-asyncio==0.26.0
+2026-02-21T23:04:57.3366666Z  + pytest-cov==5.0.0
+2026-02-21T23:04:57.3367018Z  + pytest-mock==3.15.1
+2026-02-21T23:04:57.3367373Z  + pytest-xdist==3.8.0
+2026-02-21T23:04:57.3367744Z  + python-dateutil==2.9.0.post0
+2026-02-21T23:04:57.3368148Z  + python-dotenv==1.2.1
+2026-02-21T23:04:57.3368504Z  + pytz==2025.2
+2026-02-21T23:04:57.3368846Z  + pyyaml==6.0.3
+2026-02-21T23:04:57.3369166Z  + redis==5.3.1
+2026-02-21T23:04:57.3369482Z  + requests==2.32.5
+2026-02-21T23:04:57.3369802Z  + ruff==0.15.2
+2026-02-21T23:04:57.3370119Z  + scipy==1.14.1
+2026-02-21T23:04:57.3370441Z  + setuptools==82.0.0
+2026-02-21T23:04:57.3370967Z  + six==1.17.0
+2026-02-21T23:04:57.3371297Z  + sqlalchemy==2.0.46
+2026-02-21T23:04:57.3371646Z  + sqlmodel==0.0.37
+2026-02-21T23:04:57.3371968Z  + stack-data==0.6.3
+2026-02-21T23:04:57.3372313Z  + starlette==0.52.1
+2026-02-21T23:04:57.3372653Z  + structlog==24.4.0
+2026-02-21T23:04:57.3372999Z  + timescaledb==0.0.4
+2026-02-21T23:04:57.3373349Z  + traitlets==5.14.3
+2026-02-21T23:04:57.3373696Z  + typing-extensions==4.15.0
+2026-02-21T23:04:57.3374111Z  + typing-inspection==0.4.2
+2026-02-21T23:04:57.3374492Z  + tzdata==2025.3
+2026-02-21T23:04:57.3374807Z  + urllib3==2.6.3
+2026-02-21T23:04:57.3375119Z  + uvicorn==0.41.0
+2026-02-21T23:04:57.3375612Z  + uvloop==0.22.1
+2026-02-21T23:04:57.3375942Z  + virtualenv==20.38.0
+2026-02-21T23:04:57.3376289Z  + watchfiles==1.1.1
+2026-02-21T23:04:57.3376619Z  + wcwidth==0.6.0
+2026-02-21T23:04:57.3376936Z  + websockets==13.1
+2026-02-21T23:04:57.3377262Z  + yarl==1.22.0
+2026-02-21T23:04:57.5188306Z Resolved 45 packages in 150ms
+2026-02-21T23:04:57.5476204Z Downloading nltk (1.4MiB)
+2026-02-21T23:04:57.7646173Z  Downloaded nltk
+2026-02-21T23:04:57.7649104Z Prepared 24 packages in 241ms
+2026-02-21T23:04:57.8382826Z Installed 24 packages in 73ms
+2026-02-21T23:04:57.8384647Z  + authlib==1.6.8
+2026-02-21T23:04:57.8386067Z  + bandit==1.9.3
+2026-02-21T23:04:57.8388019Z  + detect-secrets==1.5.0
+2026-02-21T23:04:57.8388810Z  + dparse==0.6.4
+2026-02-21T23:04:57.8390857Z  + httpcore==1.0.9
+2026-02-21T23:04:57.8391182Z  + httpx==0.28.1
+2026-02-21T23:04:57.8394558Z  + jinja2==3.1.6
+2026-02-21T23:04:57.8396882Z  + joblib==1.5.3
+2026-02-21T23:04:57.8397234Z  + markdown-it-py==4.0.0
+2026-02-21T23:04:57.8399780Z  + markupsafe==3.0.3
+2026-02-21T23:04:57.8400525Z  + marshmallow==4.2.2
+2026-02-21T23:04:57.8401103Z  + mdurl==0.1.2
+2026-02-21T23:04:57.8401905Z  + nltk==3.9.2
+2026-02-21T23:04:57.8402394Z  + regex==2026.2.19
+2026-02-21T23:04:57.8402890Z  + rich==14.3.3
+2026-02-21T23:04:57.8403336Z  + ruamel-yaml==0.19.1
+2026-02-21T23:04:57.8403905Z  + safety==3.7.0
+2026-02-21T23:04:57.8404892Z  + safety-schemas==0.0.16
+2026-02-21T23:04:57.8405933Z  + shellingham==1.5.4
+2026-02-21T23:04:57.8406683Z  + stevedore==5.7.0
+2026-02-21T23:04:57.8408917Z  + tenacity==9.1.4
+2026-02-21T23:04:57.8409249Z  + tomlkit==0.14.0
+2026-02-21T23:04:57.8409582Z  + tqdm==4.67.3
+2026-02-21T23:04:57.8409893Z  + typer==0.24.1
+2026-02-21T23:04:57.8484208Z ##[group]Run if [ -f .secrets.baseline ]; then
+2026-02-21T23:04:57.8484599Z [36;1mif [ -f .secrets.baseline ]; then[0m
+2026-02-21T23:04:57.8485005Z [36;1m  .venv/bin/detect-secrets scan --baseline .secrets.baseline || true[0m
+2026-02-21T23:04:57.8485590Z [36;1melse[0m
+2026-02-21T23:04:57.8485912Z [36;1m  .venv/bin/detect-secrets scan || true[0m
+2026-02-21T23:04:57.8486188Z [36;1mfi[0m
+2026-02-21T23:04:57.8517571Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:04:57.8517817Z env:
+2026-02-21T23:04:57.8518002Z   PYTHON_VERSION: 3.12
+2026-02-21T23:04:57.8518225Z ##[endgroup]
+2026-02-21T23:04:58.1360983Z usage: detect-secrets [-h] [-v] [--version] [-C <path>] [-c NUM_CORES]
+2026-02-21T23:04:58.1364519Z                       {scan,audit} ...
+2026-02-21T23:04:58.1364948Z error: Invalid baseline.
+2026-02-21T23:04:58.1600890Z ##[group]Run .venv/bin/bandit -r src/ -f json -o bandit-report.json || true
+2026-02-21T23:04:58.1602161Z [36;1m.venv/bin/bandit -r src/ -f json -o bandit-report.json || true[0m
+2026-02-21T23:04:58.1602929Z [36;1m.venv/bin/bandit -r src/ -f screen || true[0m
+2026-02-21T23:04:58.1648803Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:04:58.1649232Z env:
+2026-02-21T23:04:58.1649557Z   PYTHON_VERSION: 3.12
+2026-02-21T23:04:58.1649977Z ##[endgroup]
+2026-02-21T23:04:58.5604535Z [main]	INFO	profile include tests: None
+2026-02-21T23:04:58.5606011Z [main]	INFO	profile exclude tests: None
+2026-02-21T23:04:58.5607682Z [main]	INFO	cli include tests: None
+2026-02-21T23:04:58.5608433Z [main]	INFO	cli exclude tests: None
+2026-02-21T23:04:58.6144689Z [json]	INFO	JSON output written to file: bandit-report.json
+2026-02-21T23:04:58.8049000Z [main]	INFO	profile include tests: None
+2026-02-21T23:04:58.8066262Z [main]	INFO	profile exclude tests: None
+2026-02-21T23:04:58.8067331Z [main]	INFO	cli include tests: None
+2026-02-21T23:04:58.8068515Z [main]	INFO	cli exclude tests: None
+2026-02-21T23:04:58.8070835Z [main]	INFO	running on Python 3.12.3
+2026-02-21T23:04:58.8750232Z [95mRun started:2026-02-21 23:04:58.873912+00:00[0m
+2026-02-21T23:04:58.8771495Z [95m
+2026-02-21T23:04:58.8772500Z Test results:[0m
+2026-02-21T23:04:58.8773085Z 	No issues identified.
+2026-02-21T23:04:58.8774022Z [95m
+2026-02-21T23:04:58.8774786Z Code scanned:[0m
+2026-02-21T23:04:58.8776001Z 	Total lines of code: 787
+2026-02-21T23:04:58.8776606Z 	Total lines skipped (#nosec): 0
+2026-02-21T23:04:58.8777534Z [95m
+2026-02-21T23:04:58.8778123Z Run metrics:[0m
+2026-02-21T23:04:58.8778887Z 	Total issues (by severity):
+2026-02-21T23:04:58.8780498Z 		Undefined: 0
+2026-02-21T23:04:58.8781079Z 		Low: 0
+2026-02-21T23:04:58.8781791Z 		Medium: 0
+2026-02-21T23:04:58.8783410Z 		High: 0
+2026-02-21T23:04:58.8785072Z 	Total issues (by confidence):
+2026-02-21T23:04:58.8786724Z 		Undefined: 0
+2026-02-21T23:04:58.8787599Z 		Low: 0
+2026-02-21T23:04:58.8788111Z 		Medium: 0
+2026-02-21T23:04:58.8788967Z 		High: 0
+2026-02-21T23:04:58.8789469Z [95mFiles skipped (0):[0m
+2026-02-21T23:04:58.9032320Z ##[group]Run .venv/bin/safety check -r requirements.txt || true
+2026-02-21T23:04:58.9033124Z [36;1m.venv/bin/safety check -r requirements.txt || true[0m
+2026-02-21T23:04:58.9078394Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:04:58.9078819Z env:
+2026-02-21T23:04:58.9079144Z   PYTHON_VERSION: 3.12
+2026-02-21T23:04:58.9079532Z ##[endgroup]
+2026-02-21T23:05:03.3517356Z 
+2026-02-21T23:05:03.3517986Z 
+2026-02-21T23:05:03.3519325Z [33m[1m+===========================================================================================================================================================================================+[0m
+2026-02-21T23:05:03.3520021Z 
+2026-02-21T23:05:03.3520027Z 
+2026-02-21T23:05:03.3520848Z [31m[1mDEPRECATED: [0m[33m[1mthis command (`check`) has been DEPRECATED, and will be unsupported beyond 01 June 2024.[0m
+2026-02-21T23:05:03.3521614Z 
+2026-02-21T23:05:03.3521620Z 
+2026-02-21T23:05:03.3522944Z [32mWe highly encourage switching to the new [0m[32m[1m`scan`[0m[32m command which is easier to use, more powerful, and can be set up to mimic the deprecated command if required.[0m
+2026-02-21T23:05:03.3524174Z 
+2026-02-21T23:05:03.3524180Z 
+2026-02-21T23:05:03.3524998Z [33m[1m+===========================================================================================================================================================================================+[0m
+2026-02-21T23:05:03.3526387Z 
+2026-02-21T23:05:03.3526394Z 
+2026-02-21T23:05:03.7033708Z +==============================================================================+
+2026-02-21T23:05:03.7034497Z 
+2026-02-21T23:05:03.7034909Z                                /$$$$$$            /$$
+2026-02-21T23:05:03.7036045Z                               /$$__  $$          | $$
+2026-02-21T23:05:03.7036813Z            /$$$$$$$  /$$$$$$ | $$  \__//$$$$$$  /$$$$$$   /$$   /$$
+2026-02-21T23:05:03.7037577Z           /$$_____/ |____  $$| $$$$   /$$__  $$|_  $$_/  | $$  | $$
+2026-02-21T23:05:03.7039012Z          |  $$$$$$   /$$$$$$$| $$_/  | $$$$$$$$  | $$    | $$  | $$
+2026-02-21T23:05:03.7039901Z           \____  $$ /$$__  $$| $$    | $$_____/  | $$ /$$| $$  | $$
+2026-02-21T23:05:03.7040650Z           /$$$$$$$/|  $$$$$$$| $$    |  $$$$$$$  |  $$$$/|  $$$$$$$
+2026-02-21T23:05:03.7041342Z          |_______/  \_______/|__/     \_______/   \___/   \____  $$
+2026-02-21T23:05:03.7050285Z                                                           /$$  | $$
+2026-02-21T23:05:03.7050855Z                                                          |  $$$$$$/
+2026-02-21T23:05:03.7051379Z   by safetycli.com                                        \______/
+2026-02-21T23:05:03.7051742Z 
+2026-02-21T23:05:03.7051912Z +==============================================================================+
+2026-02-21T23:05:03.7052252Z 
+2026-02-21T23:05:03.7052591Z  [1mREPORT[0m 
+2026-02-21T23:05:03.7052765Z 
+2026-02-21T23:05:03.7053144Z   Safety [1mv3.7.0[0m is scanning for [1mVulnerabilities[0m[1m...[0m
+2026-02-21T23:05:03.7053856Z [1m  Scanning dependencies[0m in your [1mfiles:[0m
+2026-02-21T23:05:03.7054192Z 
+2026-02-21T23:05:03.7054323Z   -> requirements.txt
+2026-02-21T23:05:03.7054543Z 
+2026-02-21T23:05:03.7054804Z   Using [1mopen-source vulnerability database[0m
+2026-02-21T23:05:03.7055315Z [1m  Found and scanned 63 packages[0m
+2026-02-21T23:05:03.7056243Z   Timestamp [1m2026-02-21 23:05:03[0m
+2026-02-21T23:05:03.7056726Z [1m  0[0m[1m vulnerabilities reported[0m
+2026-02-21T23:05:03.7057232Z [1m  0[0m[1m vulnerabilities ignored[0m
+2026-02-21T23:05:03.7057682Z +==============================================================================+
+2026-02-21T23:05:03.7058020Z 
+2026-02-21T23:05:03.7058319Z  [32m[1mNo known security vulnerabilities reported.[0m 
+2026-02-21T23:05:03.7058675Z 
+2026-02-21T23:05:03.7058968Z +==============================================================================+[0m
+2026-02-21T23:05:03.7059324Z 
+2026-02-21T23:05:03.7059328Z 
+2026-02-21T23:05:03.7060314Z [33m[1m+===========================================================================================================================================================================================+[0m
+2026-02-21T23:05:03.7060984Z 
+2026-02-21T23:05:03.7060989Z 
+2026-02-21T23:05:03.7061676Z [31m[1mDEPRECATED: [0m[33m[1mthis command (`check`) has been DEPRECATED, and will be unsupported beyond 01 June 2024.[0m
+2026-02-21T23:05:03.7062353Z 
+2026-02-21T23:05:03.7062358Z 
+2026-02-21T23:05:03.7063330Z [32mWe highly encourage switching to the new [0m[32m[1m`scan`[0m[32m command which is easier to use, more powerful, and can be set up to mimic the deprecated command if required.[0m
+2026-02-21T23:05:03.7064279Z 
+2026-02-21T23:05:03.7064284Z 
+2026-02-21T23:05:03.7064910Z [33m[1m+===========================================================================================================================================================================================+[0m
+2026-02-21T23:05:03.7071689Z 
+2026-02-21T23:05:03.7071704Z 
+2026-02-21T23:05:03.9394080Z ##[group]Run actions/upload-artifact@v4
+2026-02-21T23:05:03.9394382Z with:
+2026-02-21T23:05:03.9394574Z   name: security-reports
+2026-02-21T23:05:03.9394815Z   path: bandit-report.json
+
+2026-02-21T23:05:03.9395053Z   if-no-files-found: warn
+2026-02-21T23:05:03.9395278Z   compression-level: 6
+2026-02-21T23:05:03.9395743Z   overwrite: false
+2026-02-21T23:05:03.9395963Z   include-hidden-files: false
+2026-02-21T23:05:03.9396195Z env:
+2026-02-21T23:05:03.9396383Z   PYTHON_VERSION: 3.12
+2026-02-21T23:05:03.9396587Z ##[endgroup]
+2026-02-21T23:05:04.1628105Z With the provided path, there will be 1 file uploaded
+2026-02-21T23:05:04.1631781Z Artifact name is valid!
+2026-02-21T23:05:04.1633468Z Root directory input is valid!
+2026-02-21T23:05:04.2528034Z Beginning upload of artifact content to blob storage
+2026-02-21T23:05:04.3218795Z Uploaded bytes 475
+2026-02-21T23:05:04.3400339Z Finished uploading artifact content to blob storage!
+2026-02-21T23:05:04.3409598Z SHA256 digest of uploaded artifact zip is f38898321a37ac7cabb5a375cb3da7520d84ba90c27238f0b92a22b589439310
+2026-02-21T23:05:04.3417399Z Finalizing artifact upload
+2026-02-21T23:05:04.4292879Z Artifact security-reports.zip successfully finalized. Artifact ID 5603762432
+2026-02-21T23:05:04.4295729Z Artifact security-reports has been successfully uploaded! Final size is 475 bytes. Artifact ID is 5603762432
+2026-02-21T23:05:04.4306434Z Artifact download URL: https://github.com/Cryptotehnolog/CRYPTOTEHNOLOG/actions/runs/22266088933/artifacts/5603762432
+2026-02-21T23:05:04.4472249Z Post job cleanup.
+2026-02-21T23:05:04.5463930Z [command]/usr/bin/git version
+2026-02-21T23:05:04.5506682Z git version 2.52.0
+2026-02-21T23:05:04.5553521Z Temporarily overriding HOME='/home/runner/work/_temp/a051f32c-fd23-4a9f-a7c1-00e1905f2695' before making global git config changes
+2026-02-21T23:05:04.5555818Z Adding repository directory to the temporary git global config as a safe directory
+2026-02-21T23:05:04.5560642Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:05:04.5606078Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-02-21T23:05:04.5642452Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-02-21T23:05:04.5888486Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-02-21T23:05:04.5911768Z http.https://github.com/.extraheader
+2026-02-21T23:05:04.5926302Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-02-21T23:05:04.5959842Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-02-21T23:05:04.6196135Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-02-21T23:05:04.6230139Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-02-21T23:05:04.6640669Z Cleaning up orphan processes
