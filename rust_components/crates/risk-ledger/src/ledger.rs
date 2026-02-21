@@ -264,13 +264,13 @@ impl RiskLedger {
         &self,
         position_id: &str,
     ) -> Vec<cryptotechnolog_audit_chain::AuditRecord> {
-        let all_records = self.audit.get_all_records().await;
+        let all_records: Vec<cryptotechnolog_audit_chain::AuditRecord> = self.audit.get_all_records().await;
         all_records
             .into_iter()
-            .filter(|r| {
+            .filter(|r: &cryptotechnolog_audit_chain::AuditRecord| {
                 r.data
                     .get("position_id")
-                    .and_then(|v| v.as_str())
+                    .and_then(|v: &serde_json::Value| v.as_str())
                     .map(|id| id == position_id)
                     .unwrap_or(false)
             })

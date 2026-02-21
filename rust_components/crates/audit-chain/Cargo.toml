@@ -23,9 +23,6 @@ hex = { workspace = true }
 uuid = { workspace = true }
 thiserror = { workspace = true }
 
-# Local dependencies
-cryptotechnolog-common = { path = "../common" }
-
 [dev-dependencies]
 tokio-test = { workspace = true }
 criterion = { workspace = true }
