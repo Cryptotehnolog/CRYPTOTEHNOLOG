@@ -17,13 +17,18 @@ try:
         to_pandas,
         to_polars,
     )
+
     print("[test_data_frame] Successfully imported cryptotechnolog.data")
 except ImportError as e:
     print(f"[test_data_frame] FAILED to import cryptotechnolog.data: {e}")
     print(f"[test_data_frame] cryptotechnolog in sys.modules: {'cryptotechnolog' in sys.modules}")
-    if 'cryptotechnolog' in sys.modules:
-        print(f"[test_data_frame] cryptotechnolog.__file__: {getattr(sys.modules['cryptotechnolog'], '__file__', 'NO FILE')}")
-        print(f"[test_data_frame] cryptotechnolog.__path__: {getattr(sys.modules['cryptotechnolog'], '__path__', 'NO PATH')}")
+    if "cryptotechnolog" in sys.modules:
+        print(
+            f"[test_data_frame] cryptotechnolog.__file__: {getattr(sys.modules['cryptotechnolog'], '__file__', 'NO FILE')}"
+        )
+        print(
+            f"[test_data_frame] cryptotechnolog.__path__: {getattr(sys.modules['cryptotechnolog'], '__path__', 'NO PATH')}"
+        )
     raise
 
 import pandas as pd
