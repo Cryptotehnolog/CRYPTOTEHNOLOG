@@ -159,7 +159,9 @@ jobs:
 
       - name: Run tests
         working-directory: ./rust_components
-        run: cargo test --quiet
+        # Run only library tests (--lib) to avoid PyO3 linking issues in CI
+        # Integration tests require Python interpreter initialization
+        run: cargo test --lib --quiet
 
   # ==================== Security Scan ====================
   security-scan:
