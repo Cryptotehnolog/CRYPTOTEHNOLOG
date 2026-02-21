@@ -33,10 +33,10 @@ use pyo3_async_runtimes::tokio::future_into_py;
 // ==================== Global Allocator ====================
 // Use jemallocator on non-Windows platforms for optimal performance
 // Windows uses the system allocator which is well-optimized
-#[cfg(not(windows))]
+#[cfg(all(not(windows), feature = "jemalloc"))]
 use jemallocator::Jemalloc;
 
-#[cfg(not(windows))]
+#[cfg(all(not(windows), feature = "jemalloc"))]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 
