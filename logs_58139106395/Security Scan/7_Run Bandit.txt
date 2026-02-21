@@ -1,0 +1,38 @@
+﻿2026-02-21T23:36:26.3998414Z ##[group]Run .venv/bin/bandit -r src/ -f json -o bandit-report.json || true
+2026-02-21T23:36:26.3999202Z [36;1m.venv/bin/bandit -r src/ -f json -o bandit-report.json || true[0m
+2026-02-21T23:36:26.3999630Z [36;1m.venv/bin/bandit -r src/ -f screen || true[0m
+2026-02-21T23:36:26.4032016Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:36:26.4032276Z env:
+2026-02-21T23:36:26.4032462Z   PYTHON_VERSION: 3.12
+2026-02-21T23:36:26.4032718Z ##[endgroup]
+2026-02-21T23:36:26.7929087Z [main]	INFO	profile include tests: None
+2026-02-21T23:36:26.7946023Z [main]	INFO	profile exclude tests: None
+2026-02-21T23:36:26.7949088Z [main]	INFO	cli include tests: None
+2026-02-21T23:36:26.7951260Z [main]	INFO	cli exclude tests: None
+2026-02-21T23:36:26.8467283Z [json]	INFO	JSON output written to file: bandit-report.json
+2026-02-21T23:36:27.0146763Z [main]	INFO	profile include tests: None
+2026-02-21T23:36:27.0151487Z [main]	INFO	profile exclude tests: None
+2026-02-21T23:36:27.0152012Z [main]	INFO	cli include tests: None
+2026-02-21T23:36:27.0152537Z [main]	INFO	cli exclude tests: None
+2026-02-21T23:36:27.0153007Z [main]	INFO	running on Python 3.12.3
+2026-02-21T23:36:27.0737609Z [95mRun started:2026-02-21 23:36:27.073534+00:00[0m
+2026-02-21T23:36:27.0740508Z [95m
+2026-02-21T23:36:27.0741175Z Test results:[0m
+2026-02-21T23:36:27.0742361Z 	No issues identified.
+2026-02-21T23:36:27.0742910Z [95m
+2026-02-21T23:36:27.0743421Z Code scanned:[0m
+2026-02-21T23:36:27.0743751Z 	Total lines of code: 787
+2026-02-21T23:36:27.0744129Z 	Total lines skipped (#nosec): 0
+2026-02-21T23:36:27.0744531Z [95m
+2026-02-21T23:36:27.0744844Z Run metrics:[0m
+2026-02-21T23:36:27.0745162Z 	Total issues (by severity):
+2026-02-21T23:36:27.0745523Z 		Undefined: 0
+2026-02-21T23:36:27.0745803Z 		Low: 0
+2026-02-21T23:36:27.0746049Z 		Medium: 0
+2026-02-21T23:36:27.0746453Z 		High: 0
+2026-02-21T23:36:27.0746721Z 	Total issues (by confidence):
+2026-02-21T23:36:27.0747087Z 		Undefined: 0
+2026-02-21T23:36:27.0747345Z 		Low: 0
+2026-02-21T23:36:27.0747584Z 		Medium: 0
+2026-02-21T23:36:27.0747851Z 		High: 0
+2026-02-21T23:36:27.0748180Z [95mFiles skipped (0):[0m

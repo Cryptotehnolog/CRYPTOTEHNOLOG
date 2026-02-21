@@ -195,8 +195,8 @@ jobs:
           echo "=== Building local dependencies first ==="
           cargo build --package cryptotechnolog-audit-chain --lib
           cargo build --package cryptotechnolog-common --lib
-          echo "=== Full dependency tree for risk-ledger (from workspace root) ==="
-          cargo tree --package cryptotechnolog-risk-ledger --workspace > /tmp/risk_ledger_tree.txt
+          echo "=== Dependency tree for risk-ledger (without --workspace) ==="
+          cargo tree --package cryptotechnolog-risk-ledger > /tmp/risk_ledger_tree.txt
           cat /tmp/risk_ledger_tree.txt
           echo ""
           echo "=== Checking cargo metadata for risk-ledger ==="
@@ -226,6 +226,8 @@ jobs:
       - name: Check risk-ledger explicitly with package flag
         run: |
           echo "=== Checking risk-ledger explicitly (from workspace root) ==="
+          echo "=== Cleaning previous builds ==="
+          cargo clean --package cryptotechnolog-risk-ledger
           echo "=== Building audit-chain first ==="
           cargo build --package cryptotechnolog-audit-chain --lib
           echo "=== Building common first ==="

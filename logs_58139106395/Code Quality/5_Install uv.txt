@@ -1,0 +1,21 @@
+﻿2026-02-21T23:36:14.7639058Z ##[group]Run curl -LsSf https://astral.sh/uv/install.sh | sh
+2026-02-21T23:36:14.7640920Z [36;1mcurl -LsSf https://astral.sh/uv/install.sh | sh[0m
+2026-02-21T23:36:14.7642420Z [36;1mecho "$HOME/.local/bin" >> $GITHUB_PATH[0m
+2026-02-21T23:36:14.7643653Z [36;1muv --version[0m
+2026-02-21T23:36:14.7744485Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:36:14.7745517Z env:
+2026-02-21T23:36:14.7746286Z   PYTHON_VERSION: 3.12
+2026-02-21T23:36:14.7747448Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:36:14.7749430Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:36:14.7751249Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:36:14.7752865Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:36:14.7754504Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:36:14.7756149Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:36:14.7757536Z ##[endgroup]
+2026-02-21T23:36:15.1348270Z downloading uv 0.10.4 x86_64-unknown-linux-gnu
+2026-02-21T23:36:15.4931868Z no checksums to verify
+2026-02-21T23:36:15.9631327Z installing to /home/runner/.local/bin
+2026-02-21T23:36:15.9674632Z   uv
+2026-02-21T23:36:15.9697835Z   uvx
+2026-02-21T23:36:15.9700894Z everything's installed!
+2026-02-21T23:36:15.9813558Z uv 0.10.4

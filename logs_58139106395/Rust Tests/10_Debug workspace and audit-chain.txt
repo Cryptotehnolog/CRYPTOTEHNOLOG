@@ -1,0 +1,239 @@
+﻿2026-02-21T23:37:13.6658359Z ##[group]Run echo "Current directory: $(pwd)"
+2026-02-21T23:37:13.6658745Z [36;1mecho "Current directory: $(pwd)"[0m
+2026-02-21T23:37:13.6659136Z [36;1mecho "Root Cargo.toml exists: $(test -f Cargo.toml && echo yes || echo no)"[0m
+2026-02-21T23:37:13.6659563Z [36;1mecho "Root Cargo.toml content (members):"[0m
+2026-02-21T23:37:13.6659921Z [36;1mgrep -A10 "members" Cargo.toml || echo "No members found"[0m
+2026-02-21T23:37:13.6660287Z [36;1mecho "Listing rust_components/crates/:"[0m
+2026-02-21T23:37:13.6660570Z [36;1mls -la rust_components/crates/[0m
+2026-02-21T23:37:13.6660833Z [36;1mecho "Listing audit-chain content:"[0m
+2026-02-21T23:37:13.6661123Z [36;1mls -la rust_components/crates/audit-chain/[0m
+2026-02-21T23:37:13.6661408Z [36;1mecho "Listing audit-chain/src:"[0m
+2026-02-21T23:37:13.6661759Z [36;1mls -la rust_components/crates/audit-chain/src/ || echo "src not found"[0m
+2026-02-21T23:37:13.6662189Z [36;1mecho "Attempting to build audit-chain directly:"[0m
+2026-02-21T23:37:13.6662734Z [36;1mcargo build --manifest-path rust_components/crates/audit-chain/Cargo.toml || echo "Build failed"[0m
+2026-02-21T23:37:13.6663327Z [36;1mecho "Checking if audit-chain appears in cargo metadata (workspace):"[0m
+2026-02-21T23:37:13.6664012Z [36;1mcargo metadata --workspace --format-version=1 | grep -o '"name":"cryptotechnolog-audit-chain"' || echo "Not found in metadata"[0m
+2026-02-21T23:37:13.6664701Z [36;1mecho "Checking if audit-chain appears in cargo metadata (no workspace):"[0m
+2026-02-21T23:37:13.6665534Z [36;1mcargo metadata --format-version=1 | grep -o '"name":"cryptotechnolog-audit-chain"' || echo "Not found in metadata"[0m
+2026-02-21T23:37:13.6697875Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:37:13.6698138Z env:
+2026-02-21T23:37:13.6698305Z   PYTHON_VERSION: 3.12
+2026-02-21T23:37:13.6698522Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:37:13.6698759Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:37:13.6698952Z   CARGO_TERM_COLOR: always
+2026-02-21T23:37:13.6699150Z ##[endgroup]
+2026-02-21T23:37:13.6761695Z Current directory: /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:37:13.6767345Z Root Cargo.toml exists: yes
+2026-02-21T23:37:13.6769527Z Root Cargo.toml content (members):
+2026-02-21T23:37:13.6780405Z members = [
+2026-02-21T23:37:13.6781836Z     "rust_components/crates/common",
+2026-02-21T23:37:13.6782768Z     "rust_components/crates/eventbus",
+2026-02-21T23:37:13.6783967Z     "rust_components/crates/risk-ledger",
+2026-02-21T23:37:13.6784848Z     "rust_components/crates/audit-chain",
+2026-02-21T23:37:13.6785942Z     "rust_components/crates/execution-core",
+2026-02-21T23:37:13.6786903Z     "rust_components/crates/ffi",
+2026-02-21T23:37:13.6787656Z ]
+2026-02-21T23:37:13.6787998Z 
+2026-02-21T23:37:13.6790319Z # Workspace package metadata
+2026-02-21T23:37:13.6790726Z [workspace.package]
+2026-02-21T23:37:13.6791048Z Listing rust_components/crates/:
+2026-02-21T23:37:13.6798761Z total 32
+2026-02-21T23:37:13.6799458Z drwxr-xr-x 8 runner runner 4096 Feb 21 23:36 .
+2026-02-21T23:37:13.6800323Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:36 ..
+2026-02-21T23:37:13.6802160Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:36 audit-chain
+2026-02-21T23:37:13.6804851Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:36 common
+2026-02-21T23:37:13.6805433Z drwxr-xr-x 4 runner runner 4096 Feb 21 23:36 eventbus
+2026-02-21T23:37:13.6806023Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:36 execution-core
+2026-02-21T23:37:13.6806912Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:36 ffi
+2026-02-21T23:37:13.6807495Z drwxr-xr-x 4 runner runner 4096 Feb 21 23:36 risk-ledger
+2026-02-21T23:37:13.6808024Z Listing audit-chain content:
+2026-02-21T23:37:13.6819147Z total 16
+2026-02-21T23:37:13.6821339Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:36 .
+2026-02-21T23:37:13.6821876Z drwxr-xr-x 8 runner runner 4096 Feb 21 23:36 ..
+2026-02-21T23:37:13.6823915Z -rw-r--r-- 1 runner runner  837 Feb 21 23:36 Cargo.toml
+2026-02-21T23:37:13.6824488Z drwxr-xr-x 2 runner runner 4096 Feb 21 23:36 src
+2026-02-21T23:37:13.6824959Z Listing audit-chain/src:
+2026-02-21T23:37:13.6834806Z total 24
+2026-02-21T23:37:13.6835352Z drwxr-xr-x 2 runner runner 4096 Feb 21 23:36 .
+2026-02-21T23:37:13.6837267Z drwxr-xr-x 3 runner runner 4096 Feb 21 23:36 ..
+2026-02-21T23:37:13.6838184Z -rw-r--r-- 1 runner runner 8960 Feb 21 23:36 audit.rs
+2026-02-21T23:37:13.6839691Z -rw-r--r-- 1 runner runner  676 Feb 21 23:36 lib.rs
+2026-02-21T23:37:13.6840458Z Attempting to build audit-chain directly:
+2026-02-21T23:37:13.7850118Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+2026-02-21T23:37:13.7908754Z Checking if audit-chain appears in cargo metadata (workspace):
+2026-02-21T23:37:13.8430992Z [1m[91merror:[0m unexpected argument '[1m[33m--workspace[0m' found
+2026-02-21T23:37:13.8431568Z 
+2026-02-21T23:37:13.8432282Z [1m[92mUsage:[0m [1m[96mcargo metadata[0m [36m[OPTIONS][0m
+2026-02-21T23:37:13.8433146Z 
+2026-02-21T23:37:13.8433656Z For more information, try '[1m[96m--help[0m'.
+2026-02-21T23:37:13.8443198Z Not found in metadata
+2026-02-21T23:37:13.8444118Z Checking if audit-chain appears in cargo metadata (no workspace):
+2026-02-21T23:37:13.9407975Z [1m[92m Downloading[0m crates ...
+2026-02-21T23:37:13.9971481Z [1m[92m  Downloaded[0m bitflags v2.11.0
+2026-02-21T23:37:14.0028305Z [1m[92m  Downloaded[0m bumpalo v3.20.2
+2026-02-21T23:37:14.0057580Z [1m[92m  Downloaded[0m arc-swap v1.8.2
+2026-02-21T23:37:14.0104780Z [1m[92m  Downloaded[0m futures-channel v0.3.32
+2026-02-21T23:37:14.0129466Z [1m[92m  Downloaded[0m futures-macro v0.3.32
+2026-02-21T23:37:14.0142796Z [1m[92m  Downloaded[0m equivalent v1.0.2
+2026-02-21T23:37:14.0156441Z [1m[92m  Downloaded[0m futures-task v0.3.32
+2026-02-21T23:37:14.0174686Z [1m[92m  Downloaded[0m half v2.7.1
+2026-02-21T23:37:14.0214760Z [1m[92m  Downloaded[0m tinytemplate v1.2.1
+2026-02-21T23:37:14.0244992Z [1m[92m  Downloaded[0m wasi v0.11.1+wasi-snapshot-preview1
+2026-02-21T23:37:14.0282980Z [1m[92m  Downloaded[0m wasm-bindgen-macro-support v0.2.110
+2026-02-21T23:37:14.0320737Z [1m[92m  Downloaded[0m wit-bindgen v0.51.0
+2026-02-21T23:37:14.0375705Z [1m[92m  Downloaded[0m yoke v0.8.1
+2026-02-21T23:37:14.0408762Z [1m[92m  Downloaded[0m zerofrom-derive v0.1.6
+2026-02-21T23:37:14.0436715Z [1m[92m  Downloaded[0m zmq-sys v0.12.0
+2026-02-21T23:37:14.0461970Z [1m[92m  Downloaded[0m wasm-bindgen v0.2.110
+2026-02-21T23:37:14.0503544Z [1m[92m  Downloaded[0m same-file v1.0.6
+2026-02-21T23:37:14.0535559Z [1m[92m  Downloaded[0m version-compare v0.2.1
+2026-02-21T23:37:14.0561688Z [1m[92m  Downloaded[0m zerovec v0.11.5
+2026-02-21T23:37:14.0653120Z [1m[92m  Downloaded[0m web-sys v0.3.87
+2026-02-21T23:37:14.1859183Z [1m[92m  Downloaded[0m redox_syscall v0.5.18
+2026-02-21T23:37:14.1899802Z [1m[92m  Downloaded[0m windows-targets v0.53.5
+2026-02-21T23:37:14.1915201Z [1m[92m  Downloaded[0m windows-strings v0.5.1
+2026-02-21T23:37:14.1936158Z [1m[92m  Downloaded[0m tokio-test v0.4.5
+2026-02-21T23:37:14.1958864Z [1m[92m  Downloaded[0m zerovec-derive v0.11.2
+2026-02-21T23:37:14.1992604Z [1m[92m  Downloaded[0m system-deps v6.2.2
+2026-02-21T23:37:14.2034527Z [1m[92m  Downloaded[0m windows-core v0.62.2
+2026-02-21T23:37:14.2083477Z [1m[92m  Downloaded[0m zerotrie v0.2.3
+2026-02-21T23:37:14.2132229Z [1m[92m  Downloaded[0m pyo3-macros-backend v0.28.2
+2026-02-21T23:37:14.2175832Z [1m[92m  Downloaded[0m toml_edit v0.22.27
+2026-02-21T23:37:14.2237510Z [1m[92m  Downloaded[0m zerocopy-derive v0.8.39
+2026-02-21T23:37:14.2352505Z [1m[92m  Downloaded[0m wasip2 v1.0.2+wasi-0.2.9
+2026-02-21T23:37:14.2406826Z [1m[92m  Downloaded[0m rayon v1.11.0
+2026-02-21T23:37:14.2517364Z [1m[92m  Downloaded[0m portable-atomic v1.13.1
+2026-02-21T23:37:14.2605346Z [1m[92m  Downloaded[0m winnow v0.7.14
+2026-02-21T23:37:14.2712305Z [1m[92m  Downloaded[0m idna v1.1.0
+2026-02-21T23:37:14.2759092Z [1m[92m  Downloaded[0m criterion v0.5.1
+2026-02-21T23:37:14.2847195Z [1m[92m  Downloaded[0m clap_builder v4.5.60
+2026-02-21T23:37:14.2921707Z [1m[92m  Downloaded[0m zerocopy v0.8.39
+2026-02-21T23:37:14.3164557Z [1m[92m  Downloaded[0m regex-syntax v0.8.9
+2026-02-21T23:37:14.3245980Z [1m[92m  Downloaded[0m regex v1.12.3
+2026-02-21T23:37:14.3313729Z [1m[92m  Downloaded[0m redis v0.24.0
+2026-02-21T23:37:14.3391437Z [1m[92m  Downloaded[0m windows_aarch64_msvc v0.53.1
+2026-02-21T23:37:14.3517823Z [1m[92m  Downloaded[0m icu_properties_data v2.1.2
+2026-02-21T23:37:14.3628586Z [1m[92m  Downloaded[0m log v0.4.29
+2026-02-21T23:37:14.3663727Z [1m[92m  Downloaded[0m pyo3-async-runtimes v0.28.0
+2026-02-21T23:37:14.3707989Z [1m[92m  Downloaded[0m icu_provider v2.1.1
+2026-02-21T23:37:14.3739922Z [1m[92m  Downloaded[0m crossbeam-epoch v0.9.18
+2026-02-21T23:37:14.3773590Z [1m[92m  Downloaded[0m combine v4.6.7
+2026-02-21T23:37:14.3835598Z [1m[92m  Downloaded[0m windows_x86_64_gnullvm v0.53.1
+2026-02-21T23:37:14.3957086Z [1m[92m  Downloaded[0m shlex v1.3.0
+2026-02-21T23:37:14.3979408Z [1m[92m  Downloaded[0m crossbeam-utils v0.8.21
+2026-02-21T23:37:14.4017348Z [1m[92m  Downloaded[0m plotters v0.3.7
+2026-02-21T23:37:14.4118554Z [1m[92m  Downloaded[0m icu_normalizer v2.1.1
+2026-02-21T23:37:14.4160779Z [1m[92m  Downloaded[0m windows_aarch64_gnullvm v0.53.1
+2026-02-21T23:37:14.4280732Z [1m[92m  Downloaded[0m walkdir v2.5.0
+2026-02-21T23:37:14.4304929Z [1m[92m  Downloaded[0m regex-automata v0.4.14
+2026-02-21T23:37:14.4453855Z [1m[92m  Downloaded[0m windows_x86_64_msvc v0.53.1
+2026-02-21T23:37:14.4579131Z [1m[92m  Downloaded[0m tinystr v0.8.2
+2026-02-21T23:37:14.4605838Z [1m[92m  Downloaded[0m target-lexicon v0.13.5
+2026-02-21T23:37:14.4626419Z [1m[92m  Downloaded[0m ciborium v0.2.2
+2026-02-21T23:37:14.4655708Z [1m[92m  Downloaded[0m serde_spanned v0.6.9
+2026-02-21T23:37:14.4671353Z [1m[92m  Downloaded[0m rustversion v1.0.22
+2026-02-21T23:37:14.4704877Z [1m[92m  Downloaded[0m icu_locale_core v2.1.1
+2026-02-21T23:37:14.4777307Z [1m[92m  Downloaded[0m either v1.15.0
+2026-02-21T23:37:14.4798455Z [1m[92m  Downloaded[0m jemalloc-sys v0.5.4+5.3.0-patched
+2026-02-21T23:37:14.5190710Z [1m[92m  Downloaded[0m wasm-bindgen-shared v0.2.110
+2026-02-21T23:37:14.5206105Z [1m[92m  Downloaded[0m rand v0.8.5
+2026-02-21T23:37:14.5246451Z [1m[92m  Downloaded[0m ppv-lite86 v0.2.21
+2026-02-21T23:37:14.5263763Z [1m[92m  Downloaded[0m windows_i686_gnullvm v0.53.1
+2026-02-21T23:37:14.5390084Z [1m[92m  Downloaded[0m plotters-backend v0.3.7
+2026-02-21T23:37:14.5409940Z [1m[92m  Downloaded[0m pkg-config v0.3.32
+2026-02-21T23:37:14.5429628Z [1m[92m  Downloaded[0m windows_i686_msvc v0.53.1
+2026-02-21T23:37:14.5559230Z [1m[92m  Downloaded[0m zeromq-src v0.2.6+4.3.4
+2026-02-21T23:37:14.6343121Z [1m[92m  Downloaded[0m windows_x86_64_gnu v0.53.1
+2026-02-21T23:37:14.6533659Z [1m[92m  Downloaded[0m windows_i686_gnu v0.53.1
+2026-02-21T23:37:14.6730083Z [1m[92m  Downloaded[0m jwalk v0.8.1
+2026-02-21T23:37:14.6764702Z [1m[92m  Downloaded[0m jemallocator v0.5.4
+2026-02-21T23:37:14.6784171Z [1m[92m  Downloaded[0m is-terminal v0.4.17
+2026-02-21T23:37:14.6795637Z [1m[92m  Downloaded[0m indexmap v2.13.0
+2026-02-21T23:37:14.6843315Z [1m[92m  Downloaded[0m icu_properties v2.1.2
+2026-02-21T23:37:14.6868675Z [1m[92m  Downloaded[0m crossbeam-channel v0.5.15
+2026-02-21T23:37:14.6912166Z [1m[92m  Downloaded[0m clap_lex v1.0.0
+2026-02-21T23:37:14.6924638Z [1m[92m  Downloaded[0m clap v4.5.60
+2026-02-21T23:37:14.7026838Z [1m[92m  Downloaded[0m ciborium-ll v0.2.2
+2026-02-21T23:37:14.7037055Z [1m[92m  Downloaded[0m cast v0.3.0
+2026-02-21T23:37:14.7050868Z [1m[92m  Downloaded[0m pyo3 v0.28.2
+2026-02-21T23:37:14.7342358Z [1m[92m  Downloaded[0m winapi v0.3.9
+2026-02-21T23:37:14.7747736Z [1m[92m  Downloaded[0m android_system_properties v0.1.5
+2026-02-21T23:37:14.7760293Z [1m[92m  Downloaded[0m rand_core v0.6.4
+2026-02-21T23:37:14.7777092Z [1m[92m  Downloaded[0m pyo3-ffi v0.28.2
+2026-02-21T23:37:14.7851678Z [1m[92m  Downloaded[0m litemap v0.8.1
+2026-02-21T23:37:14.7874584Z [1m[92m  Downloaded[0m pin-project v1.1.10
+2026-02-21T23:37:14.8014707Z [1m[92m  Downloaded[0m percent-encoding v2.3.2
+2026-02-21T23:37:14.8025668Z [1m[92m  Downloaded[0m futures-executor v0.3.32
+2026-02-21T23:37:14.8042935Z [1m[92m  Downloaded[0m writeable v0.6.2
+2026-02-21T23:37:14.8062365Z [1m[92m  Downloaded[0m pyo3-macros v0.28.2
+2026-02-21T23:37:14.8072094Z [1m[92m  Downloaded[0m form_urlencoded v1.2.2
+2026-02-21T23:37:14.8081638Z [1m[92m  Downloaded[0m crunchy v0.2.4
+2026-02-21T23:37:14.8091950Z [1m[92m  Downloaded[0m crossbeam v0.8.4
+2026-02-21T23:37:14.8107082Z [1m[92m  Downloaded[0m cfg-expr v0.15.8
+2026-02-21T23:37:14.8151102Z [1m[92m  Downloaded[0m hashbrown v0.16.1
+2026-02-21T23:37:14.8211726Z [1m[92m  Downloaded[0m find-msvc-tools v0.1.9
+2026-02-21T23:37:14.8228827Z [1m[92m  Downloaded[0m pin-project-internal v1.1.10
+2026-02-21T23:37:14.8247400Z [1m[92m  Downloaded[0m oorandom v11.1.5
+2026-02-21T23:37:14.8258484Z [1m[92m  Downloaded[0m jobserver v0.1.34
+2026-02-21T23:37:14.8279970Z [1m[92m  Downloaded[0m idna_adapter v1.2.1
+2026-02-21T23:37:14.8290075Z [1m[92m  Downloaded[0m stable_deref_trait v1.2.1
+2026-02-21T23:37:14.8302507Z [1m[92m  Downloaded[0m ryu v1.0.23
+2026-02-21T23:37:14.8335508Z [1m[92m  Downloaded[0m displaydoc v0.2.5
+2026-02-21T23:37:14.8370094Z [1m[92m  Downloaded[0m crossbeam-deque v0.8.6
+2026-02-21T23:37:14.8384610Z [1m[92m  Downloaded[0m zmq v0.10.0
+2026-02-21T23:37:14.8456645Z [1m[92m  Downloaded[0m zerofrom v0.1.6
+2026-02-21T23:37:14.8468539Z [1m[92m  Downloaded[0m yoke-derive v0.8.1
+2026-02-21T23:37:14.8479572Z [1m[92m  Downloaded[0m windows-interface v0.59.3
+2026-02-21T23:37:14.8490598Z [1m[92m  Downloaded[0m winapi-util v0.1.11
+2026-02-21T23:37:14.8505847Z [1m[92m  Downloaded[0m toml v0.8.23
+2026-02-21T23:37:14.8532280Z [1m[92m  Downloaded[0m tokio-util v0.7.18
+2026-02-21T23:37:14.8609163Z [1m[92m  Downloaded[0m socket2 v0.4.10
+2026-02-21T23:37:14.8625912Z [1m[92m  Downloaded[0m sha1_smol v1.0.1
+2026-02-21T23:37:14.8641307Z [1m[92m  Downloaded[0m futures-sink v0.3.32
+2026-02-21T23:37:14.8651220Z [1m[92m  Downloaded[0m cc v1.2.56
+2026-02-21T23:37:14.8682567Z [1m[92m  Downloaded[0m async-trait v0.1.89
+2026-02-21T23:37:14.8719967Z [1m[92m  Downloaded[0m url v2.5.8
+2026-02-21T23:37:14.8747164Z [1m[92m  Downloaded[0m slab v0.4.12
+2026-02-21T23:37:14.8762890Z [1m[92m  Downloaded[0m windows-result v0.4.1
+2026-02-21T23:37:14.8779467Z [1m[92m  Downloaded[0m windows-link v0.2.1
+2026-02-21T23:37:14.8789131Z [1m[92m  Downloaded[0m windows-implement v0.60.2
+2026-02-21T23:37:14.8802949Z [1m[92m  Downloaded[0m target-lexicon v0.12.16
+2026-02-21T23:37:14.8824329Z [1m[92m  Downloaded[0m synstructure v0.13.2
+2026-02-21T23:37:14.8835791Z [1m[92m  Downloaded[0m pyo3-build-config v0.28.2
+2026-02-21T23:37:14.8850605Z [1m[92m  Downloaded[0m js-sys v0.3.87
+2026-02-21T23:37:14.8873845Z [1m[92m  Downloaded[0m hermit-abi v0.5.2
+2026-02-21T23:37:14.8884452Z [1m[92m  Downloaded[0m core-foundation-sys v0.8.7
+2026-02-21T23:37:14.8915711Z [1m[92m  Downloaded[0m wasm-bindgen-macro v0.2.110
+2026-02-21T23:37:14.8925639Z [1m[92m  Downloaded[0m utf8_iter v1.0.4
+2026-02-21T23:37:14.8948452Z [1m[92m  Downloaded[0m toml_datetime v0.6.11
+2026-02-21T23:37:14.8960171Z [1m[92m  Downloaded[0m tokio-stream v0.1.18
+2026-02-21T23:37:14.9008597Z [1m[92m  Downloaded[0m tokio-retry v0.3.0
+2026-02-21T23:37:14.9023577Z [1m[92m  Downloaded[0m r-efi v5.3.0
+2026-02-21T23:37:14.9073226Z [1m[92m  Downloaded[0m icu_collections v2.1.1
+2026-02-21T23:37:14.9135194Z [1m[92m  Downloaded[0m criterion-plot v0.5.0
+2026-02-21T23:37:14.9153964Z [1m[92m  Downloaded[0m rayon-core v1.13.0
+2026-02-21T23:37:14.9191788Z [1m[92m  Downloaded[0m rand_chacha v0.3.1
+2026-02-21T23:37:14.9203849Z [1m[92m  Downloaded[0m plotters-svg v0.3.7
+2026-02-21T23:37:14.9212889Z [1m[92m  Downloaded[0m itertools v0.10.5
+2026-02-21T23:37:14.9275964Z [1m[92m  Downloaded[0m iana-time-zone-haiku v0.1.2
+2026-02-21T23:37:14.9286218Z [1m[92m  Downloaded[0m heck v0.5.0
+2026-02-21T23:37:14.9299986Z [1m[92m  Downloaded[0m futures-util v0.3.32
+2026-02-21T23:37:14.9431166Z [1m[92m  Downloaded[0m dircpy v0.3.19
+2026-02-21T23:37:14.9444255Z [1m[92m  Downloaded[0m windows-sys v0.61.2
+2026-02-21T23:37:15.0103284Z [1m[92m  Downloaded[0m ciborium-io v0.2.2
+2026-02-21T23:37:15.0107622Z [1m[92m  Downloaded[0m anes v0.1.6
+2026-02-21T23:37:15.0135827Z [1m[92m  Downloaded[0m potential_utf v0.1.4
+2026-02-21T23:37:15.0147014Z [1m[92m  Downloaded[0m icu_normalizer_data v2.1.1
+2026-02-21T23:37:15.0168507Z [1m[92m  Downloaded[0m getrandom v0.3.4
+2026-02-21T23:37:15.0202927Z [1m[92m  Downloaded[0m futures-io v0.3.32
+2026-02-21T23:37:15.0212163Z [1m[92m  Downloaded[0m futures-core v0.3.32
+2026-02-21T23:37:15.0226451Z [1m[92m  Downloaded[0m bitflags v1.3.2
+2026-02-21T23:37:15.0258993Z [1m[92m  Downloaded[0m windows-sys v0.60.2
+2026-02-21T23:37:15.0910421Z [1m[92m  Downloaded[0m anstyle v1.0.13
+2026-02-21T23:37:15.0924332Z [1m[92m  Downloaded[0m futures v0.3.32
+2026-02-21T23:37:15.0973655Z [1m[92m  Downloaded[0m crossbeam-queue v0.3.12
+2026-02-21T23:37:15.0986015Z [1m[92m  Downloaded[0m aho-corasick v1.1.4
+2026-02-21T23:37:15.1051484Z [1m[92m  Downloaded[0m winapi-i686-pc-windows-gnu v0.4.0
+2026-02-21T23:37:15.2474962Z [1m[92m  Downloaded[0m winapi-x86_64-pc-windows-gnu v0.4.0
+2026-02-21T23:37:15.7330882Z "name":"cryptotechnolog-audit-chain"
+2026-02-21T23:37:15.7337484Z "name":"cryptotechnolog-audit-chain"
