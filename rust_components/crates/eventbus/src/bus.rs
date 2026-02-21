@@ -18,19 +18,14 @@ use crossbeam_channel::{bounded, Receiver, Sender, TrySendError, RecvError};
 // ==================== Backend Types ====================
 
 /// Event bus backend type
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EventBusBackend {
     /// Standard channel-based backend (default)
+    #[default]
     ChannelBased,
     /// Lock-free ring buffer backend (requires "lock-free" feature)
     #[cfg(feature = "lock-free")]
     LockFree,
-}
-
-impl Default for EventBusBackend {
-    fn default() -> Self {
-        Self::ChannelBased
-    }
 }
 
 // ==================== Event Bus ====================
@@ -122,7 +117,7 @@ impl EventBus {
     }
 
     /// Create a new event bus with default backend (ChannelBased) and capacity 1024
-    pub fn default() -> Self {
+    pub fn new_default() -> Self {
         Self::new(EventBusBackend::default(), 1024)
     }
 
@@ -140,8 +135,8 @@ impl EventBus {
     /// # Returns
     ///
     /// * `Ok(())` - Event was successfully published
-    /// * `Err(event)` - Failed to publish (buffer full or disconnected), event is returned
-    pub fn publish(&self, event: Event) -> Result<(), Event> {
+    /// * `Err(Box(event))` - Failed to publish (buffer full or disconnected), event is returned
+    pub fn publish(&self, event: Event) -> Result<(), Box<Event>> {
         match self.backend {
             EventBusBackend::ChannelBased => {
                 let mut subscribers = self.channel_subscribers.lock().unwrap();
@@ -174,11 +169,11 @@ impl EventBus {
                         Ok(_) => Ok(()),
                         Err(e) => {
                             warn!("Lock-free ring buffer full, dropping event: {}", e.event_type);
-                            Err(e)
+                            Err(Box::new(e))
                         }
                     }
                 } else {
-                    Err(event)
+                    Err(Box::new(event))
                 }
             }
         }
@@ -311,13 +306,9 @@ impl EventBus {
     pub fn clear(&self) {
         match self.backend {
             EventBusBackend::ChannelBased => {
-                let subscribers = self.channel_subscribers.lock().unwrap();
-                for sender in subscribers.iter() {
-                    // Drain the channel by receiving all messages
-                    let (_receiver, _sender) = bounded::<Event>(self.capacity);
-                    // Note: We can't directly drain crossbeam channels
-                    // This is a no-op for channel-based backend
-                }
+                let _subscribers = self.channel_subscribers.lock().unwrap();
+                // Note: We can't directly drain crossbeam channels
+                // This is a no-op for channel-based backend
             }
             #[cfg(feature = "lock-free")]
             EventBusBackend::LockFree => {
@@ -371,8 +362,8 @@ mod tests {
     }
 
     #[test]
-    fn test_eventbus_default() {
-        let bus = EventBus::default();
+    fn test_eventbus_new_default() {
+        let bus = EventBus::new_default();
         assert_eq!(bus.backend(), EventBusBackend::ChannelBased);
         assert_eq!(bus.capacity(), 1024);
     }

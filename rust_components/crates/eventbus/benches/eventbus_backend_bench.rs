@@ -6,6 +6,45 @@ use cryptotechnolog_eventbus::{Event, EventBus, EventBusBackend};
 use std::sync::Arc;
 use std::time::Duration;
 
+/// Benchmark event creation overhead
+fn bench_event_creation(c: &mut Criterion) {
+    c.bench_function("event_creation", |b| {
+        b.iter(|| {
+            black_box(Event::new(
+                "TEST_EVENT",
+                "TEST_SOURCE",
+                serde_json::json!({"key": "value"}),
+            ))
+        });
+    });
+}
+
+/// Benchmark event serialization
+fn bench_event_serialization(c: &mut Criterion) {
+    let event = Event::new("TEST_EVENT", "TEST_SOURCE", serde_json::json!({"key": "value"}));
+
+    c.bench_function("event_serialization", |b| {
+        b.iter(|| {
+            black_box(serde_json::to_string(black_box(&event)))
+        });
+    });
+}
+
+/// Benchmark event deserialization
+fn bench_event_deserialization(c: &mut Criterion) {
+    let json = serde_json::to_string(&Event::new(
+        "TEST_EVENT",
+        "TEST_SOURCE",
+        serde_json::json!({"key": "value"}),
+    )).unwrap();
+
+    c.bench_function("event_deserialization", |b| {
+        b.iter(|| {
+            black_box(serde_json::from_str::<Event>(black_box(&json)))
+        });
+    });
+}
+
 /// Benchmark event publishing with ChannelBased backend
 fn bench_eventbus_channel_publish(c: &mut Criterion) {
     let mut group = c.benchmark_group("eventbus_channel_publish");
