@@ -77,30 +77,23 @@ jobs:
           source .venv/bin/activate
           ruff check src/ tests/
           ruff format --check src/ tests/
-        env:
-          PYTHONPATH: .
 
       - name: Run type checker (mypy)
         run: |
           source .venv/bin/activate
           mypy src/ --ignore-missing-imports
-        env:
-          PYTHONPATH: .
         continue-on-error: true
 
       - name: Run unit tests
         run: |
           source .venv/bin/activate
           pytest tests/unit/ -v -m unit -n auto --dist loadscope --cov=src --cov-report=xml
-        env:
-          PYTHONPATH: .
 
       - name: Run integration tests
         run: |
           source .venv/bin/activate
           pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
         env:
-          PYTHONPATH: .
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
@@ -124,7 +117,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libzmq3-dev pkg-config
+          sudo apt-get install -y libzmq3-dev pkg-config python3-dev
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -159,8 +152,6 @@ jobs:
 
       - name: Run tests
         working-directory: ./rust_components
-        # Run only library tests (--lib) to avoid PyO3 linking issues in CI
-        # Integration tests require Python interpreter initialization
         run: cargo test --lib --quiet
 
   # ==================== Security Scan ====================
