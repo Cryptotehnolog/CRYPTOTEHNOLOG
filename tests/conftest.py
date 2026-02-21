@@ -3,11 +3,18 @@
 
 from collections.abc import Generator
 import os
+import sys
 from pathlib import Path
 
 import pytest
 
-from cryptotechnolog.config.settings import Settings
+# Add src directory to Python path before importing project modules
+# This is required for src-layout projects when running tests with pytest-xdist
+_src_path = Path(__file__).parent.parent / "src"
+if str(_src_path) not in sys.path:
+    sys.path.insert(0, str(_src_path))
+
+from cryptotechnolog.config.settings import Settings  # noqa: E402
 
 # Set test environment
 os.environ["ENVIRONMENT"] = "test"
