@@ -1,7 +1,7 @@
 # ==================== CRYPTOTEHNOLOG Data Frame Utilities ====================
 # Polars and Pandas compatibility layer for gradual migration
 
-from typing import Any, Union, cast
+from typing import Any, Union
 
 import pandas as pd
 import polars as pl

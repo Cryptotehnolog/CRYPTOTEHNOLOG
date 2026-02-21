@@ -7,7 +7,6 @@ from typing import Any
 
 import structlog
 
-
 def configure_logging() -> None:
     """Configure structlog for structured logging."""
     ...

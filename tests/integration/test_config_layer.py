@@ -7,10 +7,11 @@
 # 3. Environment variables are handled properly
 
 import os
+
 import pytest
 
-from cryptotechnolog.config.settings import Settings
 from cryptotechnolog.config.logging import configure_logging
+from cryptotechnolog.config.settings import Settings
 
 
 class TestSettingsIntegration:

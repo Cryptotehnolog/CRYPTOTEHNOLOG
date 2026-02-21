@@ -4,11 +4,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings
-
 
 class Settings(BaseSettings):
     """CRYPTOTEHNOLOG Configuration Settings."""

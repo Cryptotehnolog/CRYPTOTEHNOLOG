@@ -3,7 +3,5 @@
 
 from __future__ import annotations
 
-from cryptotechnolog.data import frame
-
 # ==================== Re-exports ====================
 frame: Any

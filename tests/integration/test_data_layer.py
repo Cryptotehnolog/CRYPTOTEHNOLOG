@@ -8,15 +8,19 @@
 
 from __future__ import annotations
 
-import pytest
 from datetime import datetime
+import math
+
+import pandas as pd
+import polars as pl
+import pytest
 
 from cryptotechnolog.data.frame import (
-    to_polars,
-    to_pandas,
     benchmark_conversion,
-    resample_ohlcv,
     calculate_returns,
+    resample_ohlcv,
+    to_pandas,
+    to_polars,
 )
 
 
@@ -25,8 +29,6 @@ class TestDataFrameConversion:
 
     def test_to_polars_from_pandas(self):
         """Test converting Pandas DataFrame to Polars."""
-        import pandas as pd
-
         pd_df = pd.DataFrame({
             "a": [1, 2, 3],
             "b": [4.0, 5.0, 6.0],
@@ -41,8 +43,6 @@ class TestDataFrameConversion:
 
     def test_to_pandas_from_polars(self):
         """Test converting Polars DataFrame to Pandas."""
-        import polars as pl
-
         pl_df = pl.DataFrame({
             "a": [1, 2, 3],
             "b": [4.0, 5.0, 6.0],
@@ -57,8 +57,6 @@ class TestDataFrameConversion:
 
     def test_to_polars_passthrough(self):
         """Test that Polars DataFrame passes through unchanged."""
-        import polars as pl
-
         pl_df = pl.DataFrame({"a": [1, 2, 3]})
         result = to_polars(pl_df)
 
@@ -67,8 +65,6 @@ class TestDataFrameConversion:
 
     def test_to_pandas_passthrough(self):
         """Test that Pandas DataFrame passes through unchanged."""
-        import pandas as pd
-
         pd_df = pd.DataFrame({"a": [1, 2, 3]})
         result = to_pandas(pd_df)
 
@@ -89,8 +85,6 @@ class TestTradingDataOperations:
 
     def test_calculate_returns_pandas(self):
         """Test calculating returns with Pandas."""
-        import pandas as pd
-
         pd_df = pd.DataFrame({
             "close": [100.0, 101.0, 102.0, 101.5],
         })
@@ -100,15 +94,12 @@ class TestTradingDataOperations:
         # Check returns are calculated
         assert "returns" in result.columns  # type: ignore
         # First return should be NaN
-        import math
         assert math.isnan(result["returns"].iloc[0])  # type: ignore
         # Second return: (101 - 100) / 100 = 0.01
         assert abs(float(result["returns"].iloc[1]) - 0.01) < 1e-6  # type: ignore
 
     def test_calculate_returns_polars(self):
         """Test calculating returns with Polars."""
-        import polars as pl
-
         pl_df = pl.DataFrame({
             "close": [100.0, 101.0, 102.0, 101.5],
         })
@@ -122,8 +113,6 @@ class TestTradingDataOperations:
 
     def test_resample_ohlcv_pandas(self):
         """Test resampling OHLCV data with Pandas."""
-        import pandas as pd
-
         pd_df = pd.DataFrame({
             "timestamp": pd.date_range("2024-01-01", periods=10, freq="1min"),
             "open": [100.0] * 10,
@@ -141,8 +130,6 @@ class TestTradingDataOperations:
 
     def test_resample_ohlcv_polars(self):
         """Test resampling OHLCV data with Polars."""
-        import polars as pl
-
         # Create timestamps manually using datetime objects
         timestamps = [datetime(2024, 1, 1, 0, i) for i in range(10)]
 
@@ -167,8 +154,6 @@ class TestBenchmarking:
 
     def test_benchmark_conversion_pandas(self):
         """Test benchmarking Pandas to Polars conversion."""
-        import pandas as pd
-
         pd_df = pd.DataFrame({
             "a": list(range(100)),
             "b": list(range(100, 200)),
@@ -181,8 +166,6 @@ class TestBenchmarking:
 
     def test_benchmark_conversion_polars(self):
         """Test benchmarking Polars to Pandas conversion."""
-        import polars as pl
-
         pl_df = pl.DataFrame({
             "a": list(range(100)),
             "b": list(range(100, 200)),
@@ -199,8 +182,6 @@ class TestDataConsistency:
 
     def test_roundtrip_pandas_polars_pandas(self):
         """Test that data survives roundtrip conversion."""
-        import pandas as pd
-
         original = pd.DataFrame({
             "a": [1, 2, 3],
             "b": [4.0, 5.0, 6.0],
@@ -218,8 +199,6 @@ class TestDataConsistency:
 
     def test_roundtrip_polars_pandas_polars(self):
         """Test that data survives roundtrip conversion."""
-        import polars as pl
-
         original = pl.DataFrame({
             "a": [1, 2, 3],
             "b": [4.0, 5.0, 6.0],
@@ -237,5 +216,4 @@ class TestDataConsistency:
 
 
 if __name__ == "__main__":
-    from datetime import datetime
     pytest.main([__file__, "-v"])

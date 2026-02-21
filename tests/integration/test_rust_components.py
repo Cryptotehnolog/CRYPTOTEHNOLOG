@@ -6,12 +6,23 @@
 # 2. Rust components can be accessed from Python
 # 3. Graceful degradation works correctly
 
+from __future__ import annotations
+
+from datetime import UTC, datetime
 import json
-import pytest
-from datetime import datetime, timezone
 from typing import Any
 
-from cryptotechnolog.rust_bridge import is_rust_available, get_rust_version
+import pytest
+
+from cryptotechnolog.rust_bridge import (
+    async_calculate_portfolio_risk,
+    async_calculate_position_size,
+    calculate_expected_return,
+    calculate_portfolio_risk,
+    calculate_position_size,
+    get_rust_version,
+    is_rust_available,
+)
 
 
 class TestRustComponentsAvailability:
@@ -38,14 +49,14 @@ class TestDataSerializationCompatibility:
 
     def test_position_serialization(self):
         """Test that position data can be serialized for Rust consumption."""
-        position = {
+        position: dict[str, Any] = {
             "id": "BTC/USDT-1",
             "symbol": "BTC/USDT",
             "size": 100.0,
             "entry_price": 50000.0,
             "current_price": 51000.0,
             "unrealized_pnl": 100000.0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         # Serialize to JSON (what would be sent to Rust)
@@ -59,7 +70,7 @@ class TestDataSerializationCompatibility:
 
     def test_event_data_serialization(self):
         """Test that event data can be serialized for Rust consumption."""
-        event = {
+        event: dict[str, Any] = {
             "id": "evt-001",
             "event_type": "POSITION_UPDATE",
             "source": "RISK_LEDGER",
@@ -68,18 +79,18 @@ class TestDataSerializationCompatibility:
                 "old_size": 50.0,
                 "new_size": 100.0,
             },
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         json_str = json.dumps(event)
         deserialized = json.loads(json_str)
 
         assert deserialized["event_type"] == "POSITION_UPDATE"
-        assert deserialized["data"]["position_id"] == "BTC/USDT-1"
+        assert deserialized["data"]["position_id"] == "BTC/USDT-1"  # type: ignore[index]
 
     def test_risk_metrics_serialization(self):
         """Test that risk metrics can be serialized for Rust consumption."""
-        metrics = {
+        metrics: dict[str, Any] = {
             "portfolio_id": "portfolio-001",
             "total_value": 1000000.0,
             "total_risk": 50000.0,
@@ -101,7 +112,7 @@ class TestDataSerializationCompatibility:
         json_str = json.dumps(metrics)
         deserialized = json.loads(json_str)
 
-        assert len(deserialized["positions"]) == 2
+        assert len(deserialized["positions"]) == 2  # type: ignore[arg-type]
         assert deserialized["total_risk"] == 50000.0
 
 
@@ -134,7 +145,7 @@ class TestTypeCompatibility:
     def test_timestamp_formats(self):
         """Test timestamp format compatibility."""
         # Test ISO 8601 format
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
 
         json_str = json.dumps({"timestamp": timestamp})
         deserialized = json.loads(json_str)
@@ -151,12 +162,6 @@ class TestGracefulDegradation:
 
     def test_python_fallback_works(self):
         """Test that Python fallback works correctly."""
-        from cryptotechnolog.rust_bridge import (
-            calculate_position_size,
-            calculate_portfolio_risk,
-            calculate_expected_return,
-        )
-
         # These should work regardless of Rust availability
         size = calculate_position_size(10000.0, 0.01, 100.0, 98.0)
         assert size == 50.0
@@ -171,11 +176,6 @@ class TestGracefulDegradation:
     @pytest.mark.asyncio
     async def test_async_python_fallback_works(self):
         """Test that async Python fallback works correctly."""
-        from cryptotechnolog.rust_bridge import (
-            async_calculate_position_size,
-            async_calculate_portfolio_risk,
-        )
-
         size = await async_calculate_position_size(10000.0, 0.01, 100.0, 98.0)
         assert size == 50.0
 
@@ -189,16 +189,12 @@ class TestErrorHandling:
 
     def test_invalid_input_handling(self):
         """Test that invalid inputs are handled gracefully."""
-        from cryptotechnolog.rust_bridge import calculate_position_size
-
         # Zero price risk should raise ValueError
         with pytest.raises(ValueError):
             calculate_position_size(10000.0, 0.01, 100.0, 100.0)
 
     def test_empty_positions_handling(self):
         """Test that empty positions are handled correctly."""
-        from cryptotechnolog.rust_bridge import calculate_portfolio_risk
-
         risk = calculate_portfolio_risk([])
         assert risk == 0.0
 

@@ -12,6 +12,9 @@ members = [
     "crates/ffi",
 ]
 
+# Ensure all workspace crates are always built together
+exclude = []
+
 # Workspace package metadata
 [workspace.package]
 rust-version = "1.83"

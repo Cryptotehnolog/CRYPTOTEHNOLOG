@@ -148,9 +148,13 @@ jobs:
         working-directory: ./rust_components
         run: cargo fmt -- --check || true
 
+      - name: Build workspace
+        working-directory: ./rust_components
+        run: cargo build --workspace
+
       - name: Run clippy
         working-directory: ./rust_components
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --workspace -- -D warnings
 
       - name: Run tests
         working-directory: ./rust_components
