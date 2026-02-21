@@ -35,6 +35,11 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.1.8
     hooks:
+      # Check for undefined names and missing imports (early detection)
+      - id: ruff
+        args: [--select, F821,I002]
+
+      # Run full ruff check with auto-fix
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
 
@@ -61,6 +66,17 @@ repos:
       - id: isort
         args: ["--profile", "black"]
 
+  # ==================== Type Stubs Check ====================
+  - repo: local
+    hooks:
+      # Check .pyi files for missing imports
+      - id: check-pyi-imports
+        name: Check .pyi imports
+        entry: bash -c 'python -m ruff check src/ --select F821 --include "*.pyi"'
+        language: system
+        pass_filenames: false
+        files: src/.*\.pyi$
+
   # ==================== Security ====================
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.4.0
@@ -75,14 +91,31 @@ repos:
       - id: gitleaks
 
   # ==================== Rust ====================
-  - repo: https://github.com/doublify/pre-commit-rust
-    rev: v1.0
+  - repo: local
     hooks:
-      - id: cargo-check
+      # Check workspace dependencies (early detection)
+      - id: cargo-check-workspace
+        name: cargo check workspace
+        entry: bash -c 'cd rust_components && cargo check --workspace --all-targets'
+        language: system
+        pass_filenames: false
+        files: rust_components/.*\.rs$|rust_components/Cargo\.toml$
+
+      # Format Rust code
       - id: cargo-fmt
-        args: ["--", "--check"]
+        name: cargo fmt
+        entry: bash -c 'cd rust_components && cargo fmt -- --check'
+        language: system
+        pass_filenames: false
+        files: rust_components/.*\.rs$
+
+      # Run clippy
       - id: cargo-clippy
-        args: ["--", "-D", "warnings"]
+        name: cargo clippy
+        entry: bash -c 'cd rust_components && cargo clippy --workspace -- -D warnings'
+        language: system
+        pass_filenames: false
+        files: rust_components/.*\.rs$|rust_components/Cargo\.toml$
 
   # ==================== Docker ====================
   - repo: https://github.com/hadolint/hadolint

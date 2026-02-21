@@ -73,7 +73,11 @@ jobs:
 
       - name: Run linter (ruff)
         run: |
+          # Check for undefined names (F821) and missing required imports (I002)
+          .venv/bin/ruff check src/ tests/ --select F821,I002
+          # Run full ruff check
           .venv/bin/ruff check src/ tests/
+          # Check formatting
           .venv/bin/ruff format --check src/ tests/
 
       - name: Run type checker (mypy)
@@ -147,6 +151,12 @@ jobs:
       - name: Run fmt check
         working-directory: ./rust_components
         run: cargo fmt -- --check || true
+
+      - name: Check workspace dependencies (early detection)
+        working-directory: ./rust_components
+        run: |
+          # Check all targets for early detection of dependency issues
+          cargo check --workspace --all-targets
 
       - name: Build workspace
         working-directory: ./rust_components

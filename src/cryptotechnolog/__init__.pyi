@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
-# ==================== Submodules ====================
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from cryptotechnolog import config
+    from cryptotechnolog import data
+    from cryptotechnolog import rust_bridge
 
 # ==================== Version ====================
 __version__: str
