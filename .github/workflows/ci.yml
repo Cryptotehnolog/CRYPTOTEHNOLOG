@@ -175,15 +175,33 @@ jobs:
       - name: Run fmt check
         run: cargo fmt -- --check || true
 
+      - name: Check dependency tree for risk-ledger
+        run: |
+          echo "=== Dependency tree for risk-ledger ==="
+          cd rust_components/crates/risk-ledger
+          cargo tree | grep -E "(cryptotechnolog-audit-chain|cryptotechnolog_audit_chain)" || echo "audit-chain NOT FOUND in dependency tree"
+
+      - name: Build audit-chain explicitly first
+        run: |
+          echo "=== Building audit-chain explicitly ==="
+          cargo build --package cryptotechnolog-audit-chain --lib
+
       - name: Check audit-chain crate explicitly (debug)
         run: |
           echo "=== Checking audit-chain crate ==="
           cargo check --package cryptotechnolog-audit-chain --lib --verbose
 
+      - name: Check risk-ledger explicitly with package flag
+        run: |
+          echo "=== Checking risk-ledger explicitly ==="
+          cargo check --package cryptotechnolog-risk-ledger --lib --verbose
+
       - name: Check workspace dependencies (early detection)
         run: |
           # Clean to ensure fresh build (avoid stale cache issues)
           cargo clean
+          # Build audit-chain first to ensure it's in the build cache
+          cargo build --package cryptotechnolog-audit-chain --lib
           # Check lib targets for dependency issues (all-targets can be too strict)
           cargo check --workspace --lib
 

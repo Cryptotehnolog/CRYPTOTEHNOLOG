@@ -16,8 +16,6 @@
 // - Verifiable chain integrity
 // - SEC/MiFID II/SOX compliance ready
 
-#![allow(dead_code)]
-
 pub mod audit;
 
 // ==================== Re-exports ====================
