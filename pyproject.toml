@@ -230,6 +230,7 @@ addopts = [
     "--strict-config",
     "--asyncio-mode=auto",
     "--tb=short",
+    "--import-mode=importlib",
     # NOTE: Coverage is disabled by default for faster test runs.
     # To enable coverage, run: pytest --cov=src --cov-report=xml
     # NOTE: xdist is disabled by default for unit tests to avoid overhead.

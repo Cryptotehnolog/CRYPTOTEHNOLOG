@@ -80,17 +80,15 @@ jobs:
 
       - name: Run unit tests
         run: |
-          .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
+          .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --import-mode=importlib --cov=src --cov-report=xml
         env:
-          PYTHONPATH: ${{ github.workspace }}/src
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
       - name: Run integration tests
         run: |
-          .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
+          .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --import-mode=importlib --cov=src --cov-append --cov-report=xml
         env:
-          PYTHONPATH: ${{ github.workspace }}/src
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
