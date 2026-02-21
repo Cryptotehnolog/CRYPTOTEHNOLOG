@@ -132,6 +132,44 @@ def benchmark_conversion(
 
 
 # ==================== Trading Data Utilities ====================
+def _convert_timeframe_for_polars(timeframe: str) -> str:
+    """
+    Convert Pandas-style timeframe to Polars-style timeframe.
+
+    Pandas uses: '1min', '5min', '1H', '1D'
+    Polars uses: '1m', '5m', '1h', '1d'
+
+    Args:
+        timeframe: Pandas-style timeframe string.
+
+    Returns:
+        Polars-style timeframe string.
+    """
+    # Map common Pandas formats to Polars formats
+    conversion_map = {
+        "min": "m",      # minutes
+        "H": "h",        # hours
+        "D": "d",        # days
+        "W": "w",        # weeks
+        "M": "mo",       # months
+        "Y": "y",        # years
+    }
+
+    # Check if it's a number followed by unit (e.g., "5min", "1H")
+    import re
+    match = re.match(r"^(\d+)([a-zA-Z]+)$", timeframe)
+    if match:
+        number = match.group(1)
+        unit = match.group(2)
+
+        # Convert unit if needed
+        polars_unit = conversion_map.get(unit, unit.lower())
+        return f"{number}{polars_unit}"
+
+    # Return as-is if no conversion needed
+    return timeframe
+
+
 def resample_ohlcv(
     df: DataFrame,
     timeframe: str,
@@ -142,20 +180,23 @@ def resample_ohlcv(
 
     Args:
         df: DataFrame with OHLCV data (columns: timestamp, open, high, low, close, volume).
-        timeframe: Target timeframe (e.g., '1m', '5m', '1h', '1d').
+        timeframe: Target timeframe (e.g., '1m', '5m', '1h', '1d', '1min', '1H', '1D').
         use_polars: If True, use Polars (default). If False, use Pandas.
 
     Returns:
         Resampled DataFrame.
     """
     if use_polars:
+        # Convert timeframe to Polars format
+        polars_timeframe = _convert_timeframe_for_polars(timeframe)
+
         pl_df = to_polars(df)
         # Cast to DataFrame to satisfy mypy (Series can't be resampled)
         if isinstance(pl_df, pl.Series):
             raise TypeError("Cannot resample Series, use DataFrame")
         return pl_df.group_by_dynamic(
             pl.col("timestamp").alias("time"),
-            every=timeframe,
+            every=polars_timeframe,
         ).agg(
             [
                 pl.col("open").first().alias("open"),

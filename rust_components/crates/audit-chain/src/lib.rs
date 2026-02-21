@@ -21,4 +21,4 @@
 pub mod audit;
 
 // ==================== Re-exports ====================
-pub use audit::{AuditChain, AuditRecord};
+pub use audit::{AuditChain, AuditError, AuditRecord};

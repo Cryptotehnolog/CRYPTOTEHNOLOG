@@ -18,6 +18,7 @@ use tokio::sync::RwLock;
 use super::merkle::MerkleTree;
 use super::validation::{DoubleEntryValidator, Transaction};
 use super::wal::WriteAheadLog;
+use cryptotechnolog_audit_chain::AuditChain;
 
 /// Position in the risk ledger
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,6 +68,8 @@ pub struct RiskLedger {
     merkle: Arc<RwLock<MerkleTree>>,
     /// Validator for double-entry
     validator: DoubleEntryValidator,
+    /// Audit chain for immutable record keeping
+    audit: AuditChain,
     /// WAL file path
     wal_path: PathBuf,
 }
@@ -80,12 +83,14 @@ impl RiskLedger {
         let positions = Arc::new(RwLock::new(HashMap::new()));
         let merkle = Arc::new(RwLock::new(MerkleTree::from_leaves(vec![])));
         let validator = DoubleEntryValidator::new();
+        let audit = AuditChain::new();
 
         Ok(Self {
             wal,
             positions,
             merkle,
             validator,
+            audit,
             wal_path,
         })
     }
@@ -107,9 +112,25 @@ impl RiskLedger {
         // Append to WAL
         let data = serde_json::to_value(&position)?;
         let mut wal = self.wal.write().await;
-        wal.append("UPDATE_POSITION".to_string(), data).await?;
+        wal.append("UPDATE_POSITION".to_string(), data.clone()).await?;
         wal.flush().await?;
         drop(wal);
+
+        // Append to audit chain
+        self.audit
+            .append(
+                "POSITION_UPDATE",
+                serde_json::json!({
+                    "position_id": position.id,
+                    "symbol": position.symbol,
+                    "size": position.size,
+                    "entry_price": position.entry_price,
+                    "current_price": position.current_price,
+                    "unrealized_pnl": position.unrealized_pnl,
+                    "timestamp": position.timestamp,
+                }),
+            )
+            .await?;
 
         // Update in-memory state
         let mut positions = self.positions.write().await;
@@ -236,6 +257,39 @@ impl RiskLedger {
     pub async fn reopen_wal(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut wal = self.wal.write().await;
         wal.reopen().await
+    }
+
+    /// Get audit records by position ID
+    pub async fn get_audit_records_for_position(
+        &self,
+        position_id: &str,
+    ) -> Vec<cryptotechnolog_audit_chain::AuditRecord> {
+        let all_records = self.audit.get_all_records().await;
+        all_records
+            .into_iter()
+            .filter(|r| {
+                r.data
+                    .get("position_id")
+                    .and_then(|v| v.as_str())
+                    .map(|id| id == position_id)
+                    .unwrap_or(false)
+            })
+            .collect()
+    }
+
+    /// Get all audit records
+    pub async fn get_all_audit_records(&self) -> Vec<cryptotechnolog_audit_chain::AuditRecord> {
+        self.audit.get_all_records().await
+    }
+
+    /// Verify audit chain integrity
+    pub async fn verify_audit_integrity(&self) -> bool {
+        self.audit.verify_integrity().await
+    }
+
+    /// Get audit chain current hash
+    pub async fn audit_hash(&self) -> String {
+        self.audit.current_hash().await
     }
 
     /// Update Merkle tree with current positions
@@ -421,6 +475,85 @@ mod tests {
 
         // Cleanup
         ledger.close().await.unwrap();
+        tokio::fs::remove_file(path).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_audit_integration() {
+        let path = PathBuf::from("test_risk_ledger_audit.log");
+        tokio::fs::remove_file(&path).await.ok();
+
+        let ledger = RiskLedger::new(path.clone()).await.unwrap();
+
+        let position = Position {
+            id: "BTC/USDT-1".to_string(),
+            symbol: "BTC/USDT".to_string(),
+            size: 100.0,
+            entry_price: 50000.0,
+            current_price: 51000.0,
+            unrealized_pnl: 100000.0,
+            timestamp: chrono::Utc::now(),
+        };
+
+        // Update position - should create audit record
+        ledger.update_position(position.clone()).await.unwrap();
+
+        // Get audit records for this position
+        let audit_records = ledger
+            .get_audit_records_for_position("BTC/USDT-1")
+            .await;
+
+        assert_eq!(audit_records.len(), 1);
+        assert_eq!(audit_records[0].event_type, "POSITION_UPDATE");
+
+        // Verify audit integrity
+        assert!(ledger.verify_audit_integrity().await);
+
+        // Check audit hash is not zero
+        let audit_hash = ledger.audit_hash().await;
+        assert_ne!(audit_hash, "0".repeat(64));
+
+        // Cleanup
+        tokio::fs::remove_file(path).await.ok();
+    }
+
+    #[tokio::test]
+    async fn test_audit_multiple_updates() {
+        let path = PathBuf::from("test_risk_ledger_audit_multi.log");
+        tokio::fs::remove_file(&path).await.ok();
+
+        let ledger = RiskLedger::new(path.clone()).await.unwrap();
+
+        let mut position = Position {
+            id: "BTC/USDT-1".to_string(),
+            symbol: "BTC/USDT".to_string(),
+            size: 100.0,
+            entry_price: 50000.0,
+            current_price: 51000.0,
+            unrealized_pnl: 100000.0,
+            timestamp: chrono::Utc::now(),
+        };
+
+        // Update position multiple times
+        for i in 1..=3 {
+            position.current_price = 50000.0 + (i as f64) * 1000.0;
+            position.unrealized_pnl = position.calculate_pnl();
+            ledger.update_position(position.clone()).await.unwrap();
+        }
+
+        // Should have 3 audit records
+        let audit_records = ledger
+            .get_audit_records_for_position("BTC/USDT-1")
+            .await;
+
+        assert_eq!(audit_records.len(), 3);
+
+        // Verify chain linking
+        assert_eq!(audit_records[0].previous_hash, "0".repeat(64));
+        assert_eq!(audit_records[1].previous_hash, audit_records[0].hash);
+        assert_eq!(audit_records[2].previous_hash, audit_records[1].hash);
+
+        // Cleanup
         tokio::fs::remove_file(path).await.ok();
     }
 }

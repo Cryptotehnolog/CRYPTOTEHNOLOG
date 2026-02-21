@@ -39,7 +39,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Cryptography
 sha2 = "0.10"
-hex = "0.4"
+hex = { version = "0.4", features = ["serde"] }
 
 # Redis (for event bus)
 # Using 0.24.0 for compatibility with Rust 1.83 (backon 1.6.0+ requires edition2024)
