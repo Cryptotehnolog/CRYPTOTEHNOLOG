@@ -1,0 +1,19 @@
+﻿2026-02-21T23:42:17.9088977Z ##[group]Run .venv/bin/radon cc src/ -a -nb
+2026-02-21T23:42:17.9089298Z [36;1m.venv/bin/radon cc src/ -a -nb[0m
+2026-02-21T23:42:17.9121968Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:42:17.9122204Z env:
+2026-02-21T23:42:17.9122372Z   PYTHON_VERSION: 3.12
+2026-02-21T23:42:17.9122636Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:42:17.9123038Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:42:17.9123426Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:42:17.9123780Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:42:17.9124141Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:42:17.9124497Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:42:17.9124793Z ##[endgroup]
+2026-02-21T23:42:18.0616554Z src/cryptotechnolog/data/frame.py
+2026-02-21T23:42:18.0618275Z     F 99:0 benchmark_conversion - B
+2026-02-21T23:42:18.0660528Z src/cryptotechnolog/config/settings.py
+2026-02-21T23:42:18.0662185Z     F 263:0 validate_settings - C
+2026-02-21T23:42:18.0681906Z 
+2026-02-21T23:42:18.0682500Z 2 blocks (classes, functions, methods) analyzed.
+2026-02-21T23:42:18.0683905Z Average complexity: C (10.5)

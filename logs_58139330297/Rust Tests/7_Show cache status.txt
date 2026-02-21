@@ -1,0 +1,12 @@
+﻿2026-02-21T23:42:41.6011251Z ##[group]Run echo "Cargo registry cache hit: "
+2026-02-21T23:42:41.6011823Z [36;1mecho "Cargo registry cache hit: "[0m
+2026-02-21T23:42:41.6012277Z [36;1mecho "Cargo build cache hit: "[0m
+2026-02-21T23:42:41.6053066Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:42:41.6053326Z env:
+2026-02-21T23:42:41.6053620Z   PYTHON_VERSION: 3.12
+2026-02-21T23:42:41.6053901Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:42:41.6054204Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:42:41.6054649Z   CARGO_TERM_COLOR: always
+2026-02-21T23:42:41.6054907Z ##[endgroup]
+2026-02-21T23:42:41.6118978Z Cargo registry cache hit: 
+2026-02-21T23:42:41.6119521Z Cargo build cache hit: 

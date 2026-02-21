@@ -1,0 +1,132 @@
+﻿2026-02-21T23:43:05.1954669Z ##[group]Run .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
+2026-02-21T23:43:05.1955429Z [36;1m.venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml[0m
+2026-02-21T23:43:05.1987159Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:43:05.1987382Z env:
+2026-02-21T23:43:05.1987555Z   PYTHON_VERSION: 3.12
+2026-02-21T23:43:05.1987825Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:43:05.1988245Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T23:43:05.1988654Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:43:05.1989003Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:43:05.1989507Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T23:43:05.1989862Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T23:43:05.1990159Z   REDIS_HOST: localhost
+2026-02-21T23:43:05.1990358Z   POSTGRES_HOST: localhost
+2026-02-21T23:43:05.1990589Z ##[endgroup]
+2026-02-21T23:43:12.3033726Z ============================= test session starts ==============================
+2026-02-21T23:43:12.3050104Z platform linux -- Python 3.12.12, pytest-8.4.2, pluggy-1.6.0 -- /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/.venv/bin/python
+2026-02-21T23:43:12.3051120Z cachedir: .pytest_cache
+2026-02-21T23:43:12.3051636Z rootdir: /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-21T23:43:12.3053027Z configfile: pyproject.toml
+2026-02-21T23:43:12.3053632Z plugins: cov-5.0.0, xdist-3.8.0, mock-3.15.1, anyio-4.12.1, asyncio-0.26.0
+2026-02-21T23:43:12.3054642Z asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+2026-02-21T23:43:12.3055549Z created: 2/2 workers
+2026-02-21T23:43:12.3055882Z 2 workers [50 items]
+2026-02-21T23:43:12.3056084Z 
+2026-02-21T23:43:12.3056272Z scheduling tests via LoadScopeScheduling
+2026-02-21T23:43:12.3056630Z 
+2026-02-21T23:43:12.3057137Z tests/unit/test_settings.py::TestSettings::test_settings_load_default_values 
+2026-02-21T23:43:12.3101679Z tests/unit/test_rust_bridge.py::TestRustBridge::test_rust_availability 
+2026-02-21T23:43:12.3163886Z [gw1] [  2%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_rust_availability 
+2026-02-21T23:43:12.3191844Z tests/unit/test_rust_bridge.py::TestRustBridge::test_get_rust_version 
+2026-02-21T23:43:12.3209940Z [gw1] [  4%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_get_rust_version 
+2026-02-21T23:43:12.3245879Z tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_position_size 
+2026-02-21T23:43:12.3284080Z [gw1] [  6%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_position_size 
+2026-02-21T23:43:12.3296659Z tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_portfolio_risk 
+2026-02-21T23:43:12.3335597Z [gw0] [  8%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_load_default_values 
+2026-02-21T23:43:12.3345675Z [gw1] [ 10%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_portfolio_risk 
+2026-02-21T23:43:12.3388777Z tests/unit/test_settings.py::TestSettings::test_settings_load_from_environment 
+2026-02-21T23:43:12.3394516Z tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_expected_return 
+2026-02-21T23:43:12.3446397Z [gw1] [ 12%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_expected_return 
+2026-02-21T23:43:12.3490387Z tests/unit/test_rust_bridge.py::TestRustBridge::test_async_calculate_position_size 
+2026-02-21T23:43:12.3513626Z [gw1] [ 14%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_async_calculate_position_size 
+2026-02-21T23:43:12.3547333Z [gw0] [ 16%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_load_from_environment 
+2026-02-21T23:43:12.3575398Z tests/unit/test_rust_bridge.py::TestRustBridge::test_async_calculate_portfolio_risk 
+2026-02-21T23:43:12.3577431Z [gw1] [ 18%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_async_calculate_portfolio_risk 
+2026-02-21T23:43:12.3633744Z tests/unit/test_settings.py::TestSettings::test_settings_postgres_url_construction 
+2026-02-21T23:43:12.3661915Z tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_position_size_large_values 
+2026-02-21T23:43:12.3692625Z [gw1] [ 20%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_position_size_large_values 
+2026-02-21T23:43:12.3732112Z tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_portfolio_risk_many_positions 
+2026-02-21T23:43:12.3738677Z [gw1] [ 22%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_portfolio_risk_many_positions 
+2026-02-21T23:43:12.3768302Z [gw0] [ 24%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_postgres_url_construction 
+2026-02-21T23:43:12.3796181Z tests/unit/test_settings.py::TestSettings::test_settings_postgres_async_url_construction 
+2026-02-21T23:43:12.3831854Z tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_expected_return_edge_cases 
+2026-02-21T23:43:12.3877613Z [gw1] [ 26%] PASSED tests/unit/test_rust_bridge.py::TestRustBridge::test_calculate_expected_return_edge_cases 
+2026-02-21T23:43:12.3921787Z tests/unit/test_data_frame.py::TestConversion::test_pandas_to_polars 
+2026-02-21T23:43:12.3975649Z [gw0] [ 28%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_postgres_async_url_construction 
+2026-02-21T23:43:12.4015989Z tests/unit/test_settings.py::TestSettings::test_settings_redis_url_construction 
+2026-02-21T23:43:12.4081053Z [gw1] [ 30%] PASSED tests/unit/test_data_frame.py::TestConversion::test_pandas_to_polars 
+2026-02-21T23:43:12.4146311Z tests/unit/test_data_frame.py::TestConversion::test_polars_to_pandas 
+2026-02-21T23:43:12.4193010Z [gw0] [ 32%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_redis_url_construction 
+2026-02-21T23:43:12.4322100Z tests/unit/test_settings.py::TestSettings::test_settings_redis_url_with_password 
+2026-02-21T23:43:12.4349812Z [gw0] [ 34%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_redis_url_with_password 
+2026-02-21T23:43:12.4392287Z [gw1] [ 36%] PASSED tests/unit/test_data_frame.py::TestConversion::test_polars_to_pandas 
+2026-02-21T23:43:12.4393617Z tests/unit/test_settings.py::TestSettings::test_settings_log_level_validation 
+2026-02-21T23:43:12.4431762Z tests/unit/test_data_frame.py::TestConversion::test_polars_to_polars 
+2026-02-21T23:43:12.4466126Z [gw1] [ 38%] PASSED tests/unit/test_data_frame.py::TestConversion::test_polars_to_polars 
+2026-02-21T23:43:12.4501873Z tests/unit/test_data_frame.py::TestConversion::test_pandas_to_pandas 
+2026-02-21T23:43:12.4531994Z [gw1] [ 40%] PASSED tests/unit/test_data_frame.py::TestConversion::test_pandas_to_pandas 
+2026-02-21T23:43:12.4574803Z tests/unit/test_data_frame.py::TestConversion::test_invalid_type_to_polars 
+2026-02-21T23:43:12.4594228Z [gw1] [ 42%] PASSED tests/unit/test_data_frame.py::TestConversion::test_invalid_type_to_polars 
+2026-02-21T23:43:12.4624089Z tests/unit/test_data_frame.py::TestConversion::test_invalid_type_to_pandas 
+2026-02-21T23:43:12.4682318Z [gw1] [ 44%] PASSED tests/unit/test_data_frame.py::TestConversion::test_invalid_type_to_pandas 
+2026-02-21T23:43:12.4871623Z tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_success 
+2026-02-21T23:43:12.4909745Z [gw1] [ 46%] PASSED tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_success 
+2026-02-21T23:43:12.5133856Z tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_base_r_percent 
+2026-02-21T23:43:12.5184523Z [gw0] [ 48%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_log_level_validation 
+2026-02-21T23:43:12.5188938Z tests/unit/test_settings.py::TestSettings::test_settings_log_format_validation 
+2026-02-21T23:43:12.5222185Z [gw1] [ 50%] PASSED tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_base_r_percent 
+2026-02-21T23:43:12.5464009Z tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_max_r_per_trade 
+2026-02-21T23:43:12.5525042Z [gw1] [ 52%] PASSED tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_max_r_per_trade 
+2026-02-21T23:43:12.5546126Z tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_leverage 
+2026-02-21T23:43:12.5578372Z [gw0] [ 54%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_log_format_validation 
+2026-02-21T23:43:12.5781847Z tests/unit/test_settings.py::TestSettings::test_settings_event_bus_type_validation 
+2026-02-21T23:43:12.5833845Z [gw1] [ 56%] PASSED tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_leverage 
+2026-02-21T23:43:12.5974555Z tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_slippage_tolerance 
+2026-02-21T23:43:12.5992767Z [gw0] [ 58%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_event_bus_type_validation 
+2026-02-21T23:43:12.6078353Z tests/unit/test_settings.py::TestSettings::test_settings_postgres_pool_settings 
+2026-02-21T23:43:12.6142269Z [gw1] [ 60%] PASSED tests/unit/test_settings.py::TestSettingsValidation::test_validate_settings_invalid_slippage_tolerance 
+2026-02-21T23:43:12.6164737Z tests/unit/test_logging.py::TestConfigureLogging::test_configure_logging 
+2026-02-21T23:43:12.6188413Z [gw1] [ 62%] PASSED tests/unit/test_logging.py::TestConfigureLogging::test_configure_logging 
+2026-02-21T23:43:12.6218760Z tests/unit/test_logging.py::TestConfigureLogging::test_get_logger_returns_logger 
+2026-02-21T23:43:12.6262327Z [gw1] [ 64%] PASSED tests/unit/test_logging.py::TestConfigureLogging::test_get_logger_returns_logger 
+2026-02-21T23:43:12.6282678Z tests/unit/test_logging.py::TestConfigureLogging::test_get_logger_default_name 
+2026-02-21T23:43:12.6314665Z [gw1] [ 66%] PASSED tests/unit/test_logging.py::TestConfigureLogging::test_get_logger_default_name 
+2026-02-21T23:43:12.6321839Z [gw0] [ 68%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_postgres_pool_settings 
+2026-02-21T23:43:12.6346099Z tests/unit/test_logging.py::TestConfigureLogging::test_get_logger_custom_name 
+2026-02-21T23:43:12.6366049Z [gw1] [ 70%] PASSED tests/unit/test_logging.py::TestConfigureLogging::test_get_logger_custom_name 
+2026-02-21T23:43:12.6412429Z tests/unit/test_settings.py::TestSettings::test_settings_redis_pool_settings 
+2026-02-21T23:43:12.6508248Z tests/unit/test_data_frame.py::TestCalculateReturns::test_calculate_returns_polars 
+2026-02-21T23:43:12.6546870Z [gw1] [ 72%] PASSED tests/unit/test_data_frame.py::TestCalculateReturns::test_calculate_returns_polars 
+2026-02-21T23:43:12.6652255Z tests/unit/test_data_frame.py::TestCalculateReturns::test_calculate_returns_pandas 
+2026-02-21T23:43:12.6688233Z [gw0] [ 74%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_redis_pool_settings 
+2026-02-21T23:43:12.6691898Z tests/unit/test_settings.py::TestSettings::test_settings_repr_hides_secrets 
+2026-02-21T23:43:12.6755038Z [gw1] [ 76%] PASSED tests/unit/test_data_frame.py::TestCalculateReturns::test_calculate_returns_pandas 
+2026-02-21T23:43:12.6805076Z tests/unit/test_data_frame.py::TestCalculateReturns::test_calculate_returns_series_error 
+2026-02-21T23:43:12.6813815Z [gw1] [ 78%] PASSED tests/unit/test_data_frame.py::TestCalculateReturns::test_calculate_returns_series_error 
+2026-02-21T23:43:12.6863368Z [gw0] [ 80%] PASSED tests/unit/test_settings.py::TestSettings::test_settings_repr_hides_secrets 
+2026-02-21T23:43:12.6868306Z tests/unit/test_settings.py::TestSettingsFactory::test_get_settings_returns_global_instance 
+2026-02-21T23:43:12.6881867Z [gw0] [ 82%] PASSED tests/unit/test_settings.py::TestSettingsFactory::test_get_settings_returns_global_instance 
+2026-02-21T23:43:12.6915389Z tests/unit/test_data_frame.py::TestResampleOHLCV::test_resample_ohlcv_polars 
+2026-02-21T23:43:12.6983033Z tests/unit/test_settings.py::TestSettingsFactory::test_reload_settings_creates_new_instance 
+2026-02-21T23:43:12.7022847Z [gw1] [ 84%] PASSED tests/unit/test_data_frame.py::TestResampleOHLCV::test_resample_ohlcv_polars 
+2026-02-21T23:43:12.7059552Z tests/unit/test_data_frame.py::TestResampleOHLCV::test_resample_ohlcv_pandas 
+2026-02-21T23:43:12.7104900Z [gw0] [ 86%] PASSED tests/unit/test_settings.py::TestSettingsFactory::test_reload_settings_creates_new_instance 
+2026-02-21T23:43:12.7130572Z tests/unit/test_settings.py::TestSettingsFactory::test_reload_settings_preserves_environment 
+2026-02-21T23:43:12.7164609Z [gw1] [ 88%] PASSED tests/unit/test_data_frame.py::TestResampleOHLCV::test_resample_ohlcv_pandas 
+2026-02-21T23:43:12.7196521Z tests/unit/test_logging.py::TestLogContext::test_log_context_binds_values 
+2026-02-21T23:43:12.7235355Z [gw1] [ 90%] PASSED tests/unit/test_logging.py::TestLogContext::test_log_context_binds_values 
+2026-02-21T23:43:12.7274007Z tests/unit/test_logging.py::TestLogContext::test_log_context_cleanup 
+2026-02-21T23:43:12.7277554Z [gw1] [ 92%] PASSED tests/unit/test_logging.py::TestLogContext::test_log_context_cleanup 
+2026-02-21T23:43:12.7340271Z [gw0] [ 94%] PASSED tests/unit/test_settings.py::TestSettingsFactory::test_reload_settings_preserves_environment 
+2026-02-21T23:43:12.7345070Z tests/unit/test_logging.py::TestLogConvenienceFunctions::test_log_exception 
+2026-02-21T23:43:12.7397468Z tests/unit/test_data_frame.py::TestBenchmark::test_benchmark_conversion 
+2026-02-21T23:43:12.7401177Z [gw0] [ 96%] PASSED tests/unit/test_logging.py::TestLogConvenienceFunctions::test_log_exception 
+2026-02-21T23:43:12.7454531Z [gw1] [ 98%] PASSED tests/unit/test_data_frame.py::TestBenchmark::test_benchmark_conversion 
+2026-02-21T23:43:12.7491450Z tests/unit/test_logging.py::TestLogConvenienceFunctions::test_log_performance 
+2026-02-21T23:43:13.2965571Z [gw0] [100%] PASSED tests/unit/test_logging.py::TestLogConvenienceFunctions::test_log_performance 
+2026-02-21T23:43:13.2970516Z 
+2026-02-21T23:43:13.2973990Z ---------- coverage: platform linux, python 3.12.12-final-0 ----------
+2026-02-21T23:43:13.2977641Z Coverage XML written to file coverage.xml
+2026-02-21T23:43:13.2981442Z 
+2026-02-21T23:43:13.2984656Z 
+2026-02-21T23:43:13.2988114Z ============================== 50 passed in 6.27s ==============================

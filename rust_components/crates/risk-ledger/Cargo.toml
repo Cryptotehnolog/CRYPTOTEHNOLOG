@@ -36,9 +36,15 @@ hex = "0.4"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winnt"] }
 
-# Local dependencies - workspace members
+# Local dependencies - workspace members (absolute paths from workspace root)
 cryptotechnolog-common = { path = "../common" }
 cryptotechnolog-audit-chain = { path = "../audit-chain" }
+
+# Force cargo to resolve these dependencies even if they appear unused
+[features]
+default = ["audit-integration"]
+audit-integration = []
+common-integration = []
 
 [dev-dependencies]
 tokio-test = { workspace = true }

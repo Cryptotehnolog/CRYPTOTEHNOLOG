@@ -1,0 +1,32 @@
+﻿2026-02-21T23:43:10.3528827Z ##[group]Run echo "=== risk-ledger/Cargo.toml dependencies section ==="
+2026-02-21T23:43:10.3529308Z [36;1mecho "=== risk-ledger/Cargo.toml dependencies section ==="[0m
+2026-02-21T23:43:10.3529786Z [36;1mcat rust_components/crates/risk-ledger/Cargo.toml | grep -A20 "\[dependencies\]"[0m
+2026-02-21T23:43:10.3560671Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:43:10.3560895Z env:
+2026-02-21T23:43:10.3561055Z   PYTHON_VERSION: 3.12
+2026-02-21T23:43:10.3561269Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:43:10.3561505Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:43:10.3561693Z   CARGO_TERM_COLOR: always
+2026-02-21T23:43:10.3561885Z ##[endgroup]
+2026-02-21T23:43:10.3608781Z === risk-ledger/Cargo.toml dependencies section ===
+2026-02-21T23:43:10.3624632Z [dependencies]
+2026-02-21T23:43:10.3626207Z # Use workspace dependencies
+2026-02-21T23:43:10.3627660Z tokio = { workspace = true }
+2026-02-21T23:43:10.3628052Z serde = { workspace = true }
+2026-02-21T23:43:10.3628429Z serde_json = { workspace = true }
+2026-02-21T23:43:10.3628865Z chrono = { workspace = true }
+2026-02-21T23:43:10.3629255Z tracing = { workspace = true }
+2026-02-21T23:43:10.3629636Z uuid = { workspace = true }
+2026-02-21T23:43:10.3629870Z 
+2026-02-21T23:43:10.3630051Z # Cryptographic dependencies for Merkle tree
+2026-02-21T23:43:10.3630472Z sha2 = "0.10"
+2026-02-21T23:43:10.3630760Z hex = "0.4"
+2026-02-21T23:43:10.3631197Z 
+2026-02-21T23:43:10.3631408Z # Windows-specific dependencies for file sharing
+2026-02-21T23:43:10.3631911Z [target.'cfg(windows)'.dependencies]
+2026-02-21T23:43:10.3632274Z winapi = { version = "0.3", features = ["winnt"] }
+2026-02-21T23:43:10.3632483Z 
+2026-02-21T23:43:10.3632582Z # Local dependencies - workspace members
+2026-02-21T23:43:10.3632884Z cryptotechnolog-common = { path = "../common" }
+2026-02-21T23:43:10.3633224Z cryptotechnolog-audit-chain = { path = "../audit-chain" }
+2026-02-21T23:43:10.3633459Z 

@@ -1,0 +1,10 @@
+﻿2026-02-21T23:42:41.6142829Z ##[group]Run rm -rf ~/.cargo/registry/src/*/cryptotechnolog-* || true
+2026-02-21T23:42:41.6143292Z [36;1mrm -rf ~/.cargo/registry/src/*/cryptotechnolog-* || true[0m
+2026-02-21T23:42:41.6143729Z [36;1mrm -rf ~/.cargo/registry/index/github.com-*/cryptotechnolog-* || true[0m
+2026-02-21T23:42:41.6171618Z shell: /usr/bin/bash -e {0}
+2026-02-21T23:42:41.6171849Z env:
+2026-02-21T23:42:41.6172014Z   PYTHON_VERSION: 3.12
+2026-02-21T23:42:41.6172225Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:42:41.6172446Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:42:41.6172642Z   CARGO_TERM_COLOR: always
+2026-02-21T23:42:41.6172836Z ##[endgroup]

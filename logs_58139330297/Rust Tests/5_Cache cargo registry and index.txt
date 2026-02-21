@@ -1,0 +1,19 @@
+﻿2026-02-21T23:42:40.5974876Z ##[group]Run actions/cache@v4
+2026-02-21T23:42:40.5975137Z with:
+2026-02-21T23:42:40.5975319Z   path: ~/.cargo/registry
+~/.cargo/git
+
+2026-02-21T23:42:40.5976185Z   key: Linux-cargo-registry-d3ac12c6075abf0f4dca2bad10030333ba5b4e1257f194d80b1796813566155f
+2026-02-21T23:42:40.5976687Z   restore-keys: Linux-cargo-registry-
+
+2026-02-21T23:42:40.5976955Z   enableCrossOsArchive: false
+2026-02-21T23:42:40.5977180Z   fail-on-cache-miss: false
+2026-02-21T23:42:40.5977390Z   lookup-only: false
+2026-02-21T23:42:40.5977574Z   save-always: false
+2026-02-21T23:42:40.5977738Z env:
+2026-02-21T23:42:40.5977900Z   PYTHON_VERSION: 3.12
+2026-02-21T23:42:40.5978098Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T23:42:40.5978324Z   CARGO_INCREMENTAL: 0
+2026-02-21T23:42:40.5978506Z   CARGO_TERM_COLOR: always
+2026-02-21T23:42:40.5978701Z ##[endgroup]
+2026-02-21T23:42:41.0390690Z Cache not found for input keys: Linux-cargo-registry-d3ac12c6075abf0f4dca2bad10030333ba5b4e1257f194d80b1796813566155f, Linux-cargo-registry-

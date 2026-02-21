@@ -1,0 +1,33 @@
+﻿2026-02-21T23:42:07.7051560Z Current runner version: '2.331.0'
+2026-02-21T23:42:07.7087126Z ##[group]Runner Image Provisioner
+2026-02-21T23:42:07.7088458Z Hosted Compute Agent
+2026-02-21T23:42:07.7089366Z Version: 20260123.484
+2026-02-21T23:42:07.7090454Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+2026-02-21T23:42:07.7091611Z Build Date: 2026-01-23T19:41:17Z
+2026-02-21T23:42:07.7092595Z Worker ID: {e02b9c28-2fef-4c2c-b67a-193d20576625}
+2026-02-21T23:42:07.7093920Z Azure Region: westus
+2026-02-21T23:42:07.7094735Z ##[endgroup]
+2026-02-21T23:42:07.7097152Z ##[group]Operating System
+2026-02-21T23:42:07.7098140Z Ubuntu
+2026-02-21T23:42:07.7098918Z 24.04.3
+2026-02-21T23:42:07.7099598Z LTS
+2026-02-21T23:42:07.7100443Z ##[endgroup]
+2026-02-21T23:42:07.7101256Z ##[group]Runner Image
+2026-02-21T23:42:07.7102088Z Image: ubuntu-24.04
+2026-02-21T23:42:07.7102955Z Version: 20260201.15.1
+2026-02-21T23:42:07.7104561Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+2026-02-21T23:42:07.7107612Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+2026-02-21T23:42:07.7109160Z ##[endgroup]
+2026-02-21T23:42:07.7110884Z ##[group]GITHUB_TOKEN Permissions
+2026-02-21T23:42:07.7113454Z Contents: read
+2026-02-21T23:42:07.7114310Z Metadata: read
+2026-02-21T23:42:07.7115154Z Packages: read
+2026-02-21T23:42:07.7116887Z ##[endgroup]
+2026-02-21T23:42:07.7120039Z Secret source: Actions
+2026-02-21T23:42:07.7121185Z Prepare workflow directory
+2026-02-21T23:42:07.7881603Z Prepare all required actions
+2026-02-21T23:42:07.7938253Z Getting action download info
+2026-02-21T23:42:08.2438335Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-02-21T23:42:08.3601782Z Download action repository 'dtolnay/rust-toolchain@stable' (SHA:631a55b12751854ce901bb631d5902ceb48146f7)
+2026-02-21T23:42:08.8751479Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-02-21T23:42:09.2475129Z Complete job name: Rust Tests
