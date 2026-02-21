@@ -78,6 +78,9 @@ data/
 *.aof
 *.rdb
 
+# Exception: allow cryptotechnolog.data package
+!src/cryptotechnolog/data/
+
 # ==================== Docker ====================
 docker-volumes/redis/appendonly.aof
 docker-volumes/redis/appendonlydir/
