@@ -1,0 +1,12 @@
+﻿2026-02-21T22:22:37.3542276Z ##[group]Run echo "=== Building audit-chain explicitly ==="
+2026-02-21T22:22:37.3542938Z [36;1mecho "=== Building audit-chain explicitly ==="[0m
+2026-02-21T22:22:37.3543586Z [36;1mcargo build --package cryptotechnolog-audit-chain --lib[0m
+2026-02-21T22:22:37.3576744Z shell: /usr/bin/bash -e {0}
+2026-02-21T22:22:37.3576981Z env:
+2026-02-21T22:22:37.3577155Z   PYTHON_VERSION: 3.12
+2026-02-21T22:22:37.3577366Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T22:22:37.3578086Z   CARGO_INCREMENTAL: 0
+2026-02-21T22:22:37.3578307Z   CARGO_TERM_COLOR: always
+2026-02-21T22:22:37.3578512Z ##[endgroup]
+2026-02-21T22:22:37.4888162Z === Building audit-chain explicitly ===
+2026-02-21T22:22:37.5894670Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.06s

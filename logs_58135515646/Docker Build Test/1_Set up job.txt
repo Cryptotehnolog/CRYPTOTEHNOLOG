@@ -1,0 +1,32 @@
+﻿2026-02-21T22:21:27.4881967Z Current runner version: '2.331.0'
+2026-02-21T22:21:27.4915792Z ##[group]Runner Image Provisioner
+2026-02-21T22:21:27.4916971Z Hosted Compute Agent
+2026-02-21T22:21:27.4917782Z Version: 20260123.484
+2026-02-21T22:21:27.4918571Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+2026-02-21T22:21:27.4919675Z Build Date: 2026-01-23T19:41:17Z
+2026-02-21T22:21:27.4920604Z Worker ID: {0ddfc673-e549-4983-9bed-7fb383e87bee}
+2026-02-21T22:21:27.4921896Z Azure Region: westus3
+2026-02-21T22:21:27.4922799Z ##[endgroup]
+2026-02-21T22:21:27.4925043Z ##[group]Operating System
+2026-02-21T22:21:27.4925923Z Ubuntu
+2026-02-21T22:21:27.4926694Z 24.04.3
+2026-02-21T22:21:27.4927372Z LTS
+2026-02-21T22:21:27.4928028Z ##[endgroup]
+2026-02-21T22:21:27.4928816Z ##[group]Runner Image
+2026-02-21T22:21:27.4929573Z Image: ubuntu-24.04
+2026-02-21T22:21:27.4930325Z Version: 20260201.15.1
+2026-02-21T22:21:27.4931984Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+2026-02-21T22:21:27.4934473Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+2026-02-21T22:21:27.4935916Z ##[endgroup]
+2026-02-21T22:21:27.4937485Z ##[group]GITHUB_TOKEN Permissions
+2026-02-21T22:21:27.4940022Z Contents: read
+2026-02-21T22:21:27.4940801Z Metadata: read
+2026-02-21T22:21:27.4941781Z Packages: read
+2026-02-21T22:21:27.4942551Z ##[endgroup]
+2026-02-21T22:21:27.4945403Z Secret source: Actions
+2026-02-21T22:21:27.4946446Z Prepare workflow directory
+2026-02-21T22:21:27.5679288Z Prepare all required actions
+2026-02-21T22:21:27.5736554Z Getting action download info
+2026-02-21T22:21:27.9690288Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-02-21T22:21:28.0801662Z Download action repository 'docker/setup-buildx-action@v3' (SHA:8d2750c68a42422c14e847fe6c8ac0403b4cbd6f)
+2026-02-21T22:21:29.1493000Z Complete job name: Docker Build Test

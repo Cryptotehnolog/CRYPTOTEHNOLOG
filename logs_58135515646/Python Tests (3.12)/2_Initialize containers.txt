@@ -1,0 +1,189 @@
+﻿2026-02-21T22:21:29.3498039Z ##[group]Checking docker version
+2026-02-21T22:21:29.3511271Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-02-21T22:21:29.4610660Z '1.48'
+2026-02-21T22:21:29.4626627Z Docker daemon API version: '1.48'
+2026-02-21T22:21:29.4627826Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-02-21T22:21:29.4807878Z '1.48'
+2026-02-21T22:21:29.4821336Z Docker client API version: '1.48'
+2026-02-21T22:21:29.4826153Z ##[endgroup]
+2026-02-21T22:21:29.4828941Z ##[group]Clean up resources from previous jobs
+2026-02-21T22:21:29.4834501Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=cb49a8"
+2026-02-21T22:21:29.5113227Z ##[command]/usr/bin/docker network prune --force --filter "label=cb49a8"
+2026-02-21T22:21:29.5261439Z ##[endgroup]
+2026-02-21T22:21:29.5261958Z ##[group]Create local container network
+2026-02-21T22:21:29.5271756Z ##[command]/usr/bin/docker network create --label cb49a8 github_network_e4035f0c03404c87ac08f2bcc77bb742
+2026-02-21T22:21:29.5916981Z e203bb492c79a8e7b95c1387266788456e19228bb3a45c7a38bdfca55993292e
+2026-02-21T22:21:29.5936568Z ##[endgroup]
+2026-02-21T22:21:29.5962250Z ##[group]Starting redis service container
+2026-02-21T22:21:29.5982469Z ##[command]/usr/bin/docker pull redis:7-alpine
+2026-02-21T22:21:30.4731421Z 7-alpine: Pulling from library/redis
+2026-02-21T22:21:30.7267888Z bc1da058f299: Pulling fs layer
+2026-02-21T22:21:30.7268942Z def98d582f1f: Pulling fs layer
+2026-02-21T22:21:30.7269632Z cca95a886512: Pulling fs layer
+2026-02-21T22:21:30.7271767Z 04e58ffa5f99: Pulling fs layer
+2026-02-21T22:21:30.7280477Z b2e30ba0e4d5: Pulling fs layer
+2026-02-21T22:21:30.7281249Z ffb88afeb5f0: Pulling fs layer
+2026-02-21T22:21:30.7281752Z 4f4fb700ef54: Pulling fs layer
+2026-02-21T22:21:30.7282209Z 9590d98bd1ae: Pulling fs layer
+2026-02-21T22:21:30.7282641Z 04e58ffa5f99: Waiting
+2026-02-21T22:21:30.7283081Z ffb88afeb5f0: Waiting
+2026-02-21T22:21:30.7283402Z 4f4fb700ef54: Waiting
+2026-02-21T22:21:30.7284201Z b2e30ba0e4d5: Waiting
+2026-02-21T22:21:30.7284458Z 9590d98bd1ae: Waiting
+2026-02-21T22:21:30.9675627Z cca95a886512: Verifying Checksum
+2026-02-21T22:21:30.9679104Z cca95a886512: Download complete
+2026-02-21T22:21:30.9813080Z def98d582f1f: Verifying Checksum
+2026-02-21T22:21:30.9820430Z def98d582f1f: Download complete
+2026-02-21T22:21:30.9870861Z bc1da058f299: Verifying Checksum
+2026-02-21T22:21:30.9877590Z bc1da058f299: Download complete
+2026-02-21T22:21:31.1238768Z bc1da058f299: Pull complete
+2026-02-21T22:21:31.2097131Z def98d582f1f: Pull complete
+2026-02-21T22:21:31.2203099Z 04e58ffa5f99: Verifying Checksum
+2026-02-21T22:21:31.2203715Z 04e58ffa5f99: Download complete
+2026-02-21T22:21:31.2317606Z ffb88afeb5f0: Verifying Checksum
+2026-02-21T22:21:31.2335936Z ffb88afeb5f0: Download complete
+2026-02-21T22:21:31.2869012Z b2e30ba0e4d5: Verifying Checksum
+2026-02-21T22:21:31.2880004Z b2e30ba0e4d5: Download complete
+2026-02-21T22:21:31.3887190Z cca95a886512: Pull complete
+2026-02-21T22:21:31.4256944Z 04e58ffa5f99: Pull complete
+2026-02-21T22:21:31.4749157Z 9590d98bd1ae: Verifying Checksum
+2026-02-21T22:21:31.4750500Z 9590d98bd1ae: Download complete
+2026-02-21T22:21:31.4751357Z 4f4fb700ef54: Verifying Checksum
+2026-02-21T22:21:31.4751947Z 4f4fb700ef54: Download complete
+2026-02-21T22:21:31.6628467Z b2e30ba0e4d5: Pull complete
+2026-02-21T22:21:31.6743452Z ffb88afeb5f0: Pull complete
+2026-02-21T22:21:31.6943967Z 4f4fb700ef54: Pull complete
+2026-02-21T22:21:31.7077788Z 9590d98bd1ae: Pull complete
+2026-02-21T22:21:31.7127799Z Digest: sha256:02f2cc4882f8bf87c79a220ac958f58c700bdec0dfb9b9ea61b62fb0e8f1bfcf
+2026-02-21T22:21:31.7149758Z Status: Downloaded newer image for redis:7-alpine
+2026-02-21T22:21:31.7156353Z docker.io/library/redis:7-alpine
+2026-02-21T22:21:31.7212631Z ##[command]/usr/bin/docker create --name 4d435be7b4f44cfab9eef8d2edbea271_redis7alpine_c9cc5e --label cb49a8 --network github_network_e4035f0c03404c87ac08f2bcc77bb742 --network-alias redis -p 6379:6379 --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5 -e GITHUB_ACTIONS=true -e CI=true redis:7-alpine
+2026-02-21T22:21:31.7915056Z 6b85ebb5fc6ee82e53cb6edb518bc7de6f1a42de0a30c83aab72aec210903b5a
+2026-02-21T22:21:31.7935259Z ##[command]/usr/bin/docker start 6b85ebb5fc6ee82e53cb6edb518bc7de6f1a42de0a30c83aab72aec210903b5a
+2026-02-21T22:21:32.1485999Z 6b85ebb5fc6ee82e53cb6edb518bc7de6f1a42de0a30c83aab72aec210903b5a
+2026-02-21T22:21:32.1521210Z ##[command]/usr/bin/docker ps --all --filter id=6b85ebb5fc6ee82e53cb6edb518bc7de6f1a42de0a30c83aab72aec210903b5a --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-02-21T22:21:32.1688901Z 6b85ebb5fc6ee82e53cb6edb518bc7de6f1a42de0a30c83aab72aec210903b5a Up Less than a second (health: starting)
+2026-02-21T22:21:32.1710419Z ##[command]/usr/bin/docker port 6b85ebb5fc6ee82e53cb6edb518bc7de6f1a42de0a30c83aab72aec210903b5a
+2026-02-21T22:21:32.1839572Z 6379/tcp -> 0.0.0.0:6379
+2026-02-21T22:21:32.1840445Z 6379/tcp -> [::]:6379
+2026-02-21T22:21:32.1888958Z ##[endgroup]
+2026-02-21T22:21:32.1890300Z ##[group]Starting postgres service container
+2026-02-21T22:21:32.1891706Z ##[command]/usr/bin/docker pull timescale/timescaledb:latest-pg15
+2026-02-21T22:21:33.0344264Z latest-pg15: Pulling from timescale/timescaledb
+2026-02-21T22:21:33.2950109Z 0a9a5dfd008f: Pulling fs layer
+2026-02-21T22:21:33.2955246Z c259fdfe51e9: Pulling fs layer
+2026-02-21T22:21:33.2955848Z 678cff7daef4: Pulling fs layer
+2026-02-21T22:21:33.2956256Z 6035710dcfda: Pulling fs layer
+2026-02-21T22:21:33.2967194Z 8a1f652aba56: Pulling fs layer
+2026-02-21T22:21:33.2967816Z d54f6bea316d: Pulling fs layer
+2026-02-21T22:21:33.2968290Z 6cdeafa72762: Pulling fs layer
+2026-02-21T22:21:33.2968689Z 6c40c6e3a2de: Pulling fs layer
+2026-02-21T22:21:33.2969079Z c6e1fc4b8983: Pulling fs layer
+2026-02-21T22:21:33.2969477Z 937c3e5e5624: Pulling fs layer
+2026-02-21T22:21:33.2969988Z 8c09314ad148: Pulling fs layer
+2026-02-21T22:21:33.2970389Z 56a61a0edbaf: Pulling fs layer
+2026-02-21T22:21:33.2970783Z 060cd9d13fa0: Pulling fs layer
+2026-02-21T22:21:33.2972374Z 8dec6c909801: Pulling fs layer
+2026-02-21T22:21:33.2972809Z 4d08199f34ec: Pulling fs layer
+2026-02-21T22:21:33.2973407Z c2c18feb057f: Pulling fs layer
+2026-02-21T22:21:33.2974017Z 4fedd94270c1: Pulling fs layer
+2026-02-21T22:21:33.2974425Z 7de3cbfa5378: Pulling fs layer
+2026-02-21T22:21:33.2974981Z 937c3e5e5624: Waiting
+2026-02-21T22:21:33.2975303Z 8c09314ad148: Waiting
+2026-02-21T22:21:33.2975809Z 56a61a0edbaf: Waiting
+2026-02-21T22:21:33.2976138Z 060cd9d13fa0: Waiting
+2026-02-21T22:21:33.2976635Z 8dec6c909801: Waiting
+2026-02-21T22:21:33.2976973Z 4d08199f34ec: Waiting
+2026-02-21T22:21:33.2977452Z c2c18feb057f: Waiting
+2026-02-21T22:21:33.2977640Z 4fedd94270c1: Waiting
+2026-02-21T22:21:33.2977819Z 7de3cbfa5378: Waiting
+2026-02-21T22:21:33.2978214Z d54f6bea316d: Waiting
+2026-02-21T22:21:33.2978414Z 6cdeafa72762: Waiting
+2026-02-21T22:21:33.2978591Z 6c40c6e3a2de: Waiting
+2026-02-21T22:21:33.2978759Z c6e1fc4b8983: Waiting
+2026-02-21T22:21:33.2979058Z 6035710dcfda: Waiting
+2026-02-21T22:21:33.2979251Z 8a1f652aba56: Waiting
+2026-02-21T22:21:33.5227938Z c259fdfe51e9: Verifying Checksum
+2026-02-21T22:21:33.5231554Z c259fdfe51e9: Download complete
+2026-02-21T22:21:33.5631319Z 0a9a5dfd008f: Verifying Checksum
+2026-02-21T22:21:33.5632197Z 0a9a5dfd008f: Download complete
+2026-02-21T22:21:33.5683009Z 678cff7daef4: Verifying Checksum
+2026-02-21T22:21:33.5683726Z 678cff7daef4: Download complete
+2026-02-21T22:21:33.7270787Z 0a9a5dfd008f: Pull complete
+2026-02-21T22:21:33.7570206Z c259fdfe51e9: Pull complete
+2026-02-21T22:21:33.7599451Z 6035710dcfda: Verifying Checksum
+2026-02-21T22:21:33.7608240Z 6035710dcfda: Download complete
+2026-02-21T22:21:33.8067176Z 678cff7daef4: Pull complete
+2026-02-21T22:21:33.8099530Z 8a1f652aba56: Verifying Checksum
+2026-02-21T22:21:33.8103783Z 8a1f652aba56: Download complete
+2026-02-21T22:21:33.8217957Z 6035710dcfda: Pull complete
+2026-02-21T22:21:33.8359438Z 8a1f652aba56: Pull complete
+2026-02-21T22:21:34.0128908Z 6cdeafa72762: Verifying Checksum
+2026-02-21T22:21:34.0137672Z 6cdeafa72762: Download complete
+2026-02-21T22:21:34.0625231Z 6c40c6e3a2de: Verifying Checksum
+2026-02-21T22:21:34.0631602Z 6c40c6e3a2de: Download complete
+2026-02-21T22:21:34.1789140Z d54f6bea316d: Verifying Checksum
+2026-02-21T22:21:34.1789660Z d54f6bea316d: Download complete
+2026-02-21T22:21:34.2586231Z c6e1fc4b8983: Verifying Checksum
+2026-02-21T22:21:34.2587010Z c6e1fc4b8983: Download complete
+2026-02-21T22:21:34.3099796Z 937c3e5e5624: Verifying Checksum
+2026-02-21T22:21:34.3101197Z 937c3e5e5624: Download complete
+2026-02-21T22:21:34.4394050Z 8c09314ad148: Verifying Checksum
+2026-02-21T22:21:34.4395458Z 8c09314ad148: Download complete
+2026-02-21T22:21:34.5363713Z 56a61a0edbaf: Verifying Checksum
+2026-02-21T22:21:34.5374869Z 56a61a0edbaf: Download complete
+2026-02-21T22:21:34.6670137Z 060cd9d13fa0: Verifying Checksum
+2026-02-21T22:21:34.6680513Z 060cd9d13fa0: Download complete
+2026-02-21T22:21:34.6941845Z 8dec6c909801: Verifying Checksum
+2026-02-21T22:21:34.6947289Z 8dec6c909801: Download complete
+2026-02-21T22:21:34.8184056Z 4d08199f34ec: Verifying Checksum
+2026-02-21T22:21:34.8197894Z 4d08199f34ec: Download complete
+2026-02-21T22:21:35.1656171Z 7de3cbfa5378: Verifying Checksum
+2026-02-21T22:21:35.1657133Z 7de3cbfa5378: Download complete
+2026-02-21T22:21:35.7154893Z 4fedd94270c1: Verifying Checksum
+2026-02-21T22:21:35.7155791Z 4fedd94270c1: Download complete
+2026-02-21T22:21:35.9370278Z c2c18feb057f: Verifying Checksum
+2026-02-21T22:21:35.9370920Z c2c18feb057f: Download complete
+2026-02-21T22:21:39.8662485Z d54f6bea316d: Pull complete
+2026-02-21T22:21:39.8835082Z 6cdeafa72762: Pull complete
+2026-02-21T22:21:39.9056912Z 6c40c6e3a2de: Pull complete
+2026-02-21T22:21:39.9189182Z c6e1fc4b8983: Pull complete
+2026-02-21T22:21:39.9302083Z 937c3e5e5624: Pull complete
+2026-02-21T22:21:39.9410803Z 8c09314ad148: Pull complete
+2026-02-21T22:21:39.9675870Z 56a61a0edbaf: Pull complete
+2026-02-21T22:21:40.3447741Z 060cd9d13fa0: Pull complete
+2026-02-21T22:21:40.3556388Z 8dec6c909801: Pull complete
+2026-02-21T22:21:40.4552944Z 4d08199f34ec: Pull complete
+2026-02-21T22:21:43.6023992Z c2c18feb057f: Pull complete
+2026-02-21T22:21:51.1100883Z 4fedd94270c1: Pull complete
+2026-02-21T22:21:51.3459670Z 7de3cbfa5378: Pull complete
+2026-02-21T22:21:51.3522208Z Digest: sha256:dd082cffdbec5fe14228bb9c31fe87bb6b94e263d069f4e270438cc413c39916
+2026-02-21T22:21:51.3535981Z Status: Downloaded newer image for timescale/timescaledb:latest-pg15
+2026-02-21T22:21:51.3547469Z docker.io/timescale/timescaledb:latest-pg15
+2026-02-21T22:21:51.3594142Z ##[command]/usr/bin/docker create --name daf34633b8df4eeaa58d9c5ad3f0f1d5_timescaletimescaledblatestpg15_ba863b --label cb49a8 --network github_network_e4035f0c03404c87ac08f2bcc77bb742 --network-alias postgres -p 5432:5432 --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5 -e "POSTGRES_USER=bot_user" -e "POSTGRES_PASSWORD=bot_password_dev" -e "POSTGRES_DB=trading_dev" -e GITHUB_ACTIONS=true -e CI=true timescale/timescaledb:latest-pg15
+2026-02-21T22:21:51.3923189Z 8e7808fad704ce130ce2c1dbc87cc3d6d9cfcd5a1cd6d204e1d419059b45681f
+2026-02-21T22:21:51.3937478Z ##[command]/usr/bin/docker start 8e7808fad704ce130ce2c1dbc87cc3d6d9cfcd5a1cd6d204e1d419059b45681f
+2026-02-21T22:21:51.5495193Z 8e7808fad704ce130ce2c1dbc87cc3d6d9cfcd5a1cd6d204e1d419059b45681f
+2026-02-21T22:21:51.5514554Z ##[command]/usr/bin/docker ps --all --filter id=8e7808fad704ce130ce2c1dbc87cc3d6d9cfcd5a1cd6d204e1d419059b45681f --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-02-21T22:21:51.5792645Z 8e7808fad704ce130ce2c1dbc87cc3d6d9cfcd5a1cd6d204e1d419059b45681f Up Less than a second (health: starting)
+2026-02-21T22:21:51.5800794Z ##[command]/usr/bin/docker port 8e7808fad704ce130ce2c1dbc87cc3d6d9cfcd5a1cd6d204e1d419059b45681f
+2026-02-21T22:21:51.6149603Z 5432/tcp -> 0.0.0.0:5432
+2026-02-21T22:21:51.6154751Z 5432/tcp -> [::]:5432
+2026-02-21T22:21:51.6160058Z ##[endgroup]
+2026-02-21T22:21:51.6173514Z ##[group]Waiting for all services to be ready
+2026-02-21T22:21:51.6192632Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 6b85ebb5fc6ee82e53cb6edb518bc7de6f1a42de0a30c83aab72aec210903b5a
+2026-02-21T22:21:51.6394586Z healthy
+2026-02-21T22:21:51.6430022Z redis service is healthy.
+2026-02-21T22:21:51.6432160Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 8e7808fad704ce130ce2c1dbc87cc3d6d9cfcd5a1cd6d204e1d419059b45681f
+2026-02-21T22:21:51.6596472Z starting
+2026-02-21T22:21:51.6622957Z postgres service is starting, waiting 2 seconds before checking again.
+2026-02-21T22:21:53.6625991Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 8e7808fad704ce130ce2c1dbc87cc3d6d9cfcd5a1cd6d204e1d419059b45681f
+2026-02-21T22:21:53.6880078Z starting
+2026-02-21T22:21:53.6932900Z postgres service is starting, waiting 3 seconds before checking again.
+2026-02-21T22:21:57.5077583Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 8e7808fad704ce130ce2c1dbc87cc3d6d9cfcd5a1cd6d204e1d419059b45681f
+2026-02-21T22:21:57.5217849Z starting
+2026-02-21T22:21:57.5237821Z postgres service is starting, waiting 6 seconds before checking again.
+2026-02-21T22:22:04.4678354Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 8e7808fad704ce130ce2c1dbc87cc3d6d9cfcd5a1cd6d204e1d419059b45681f
+2026-02-21T22:22:04.4814912Z healthy
+2026-02-21T22:22:04.4830294Z postgres service is healthy.
+2026-02-21T22:22:04.4830702Z ##[endgroup]

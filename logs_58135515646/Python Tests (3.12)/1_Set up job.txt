@@ -1,0 +1,33 @@
+﻿2026-02-21T22:21:27.8947440Z Current runner version: '2.331.0'
+2026-02-21T22:21:27.8980900Z ##[group]Runner Image Provisioner
+2026-02-21T22:21:27.8982462Z Hosted Compute Agent
+2026-02-21T22:21:27.8983396Z Version: 20260123.484
+2026-02-21T22:21:27.8984460Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+2026-02-21T22:21:27.8985635Z Build Date: 2026-01-23T19:41:17Z
+2026-02-21T22:21:27.8986698Z Worker ID: {56a8cf55-a533-4687-8971-3ecce0f0ad47}
+2026-02-21T22:21:27.8987891Z Azure Region: westus
+2026-02-21T22:21:27.8988767Z ##[endgroup]
+2026-02-21T22:21:27.8990892Z ##[group]Operating System
+2026-02-21T22:21:27.8992282Z Ubuntu
+2026-02-21T22:21:27.8993067Z 24.04.3
+2026-02-21T22:21:27.8993874Z LTS
+2026-02-21T22:21:27.8994718Z ##[endgroup]
+2026-02-21T22:21:27.8995692Z ##[group]Runner Image
+2026-02-21T22:21:27.8996690Z Image: ubuntu-24.04
+2026-02-21T22:21:27.8997605Z Version: 20260201.15.1
+2026-02-21T22:21:27.8999503Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+2026-02-21T22:21:27.9003047Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+2026-02-21T22:21:27.9004655Z ##[endgroup]
+2026-02-21T22:21:27.9006520Z ##[group]GITHUB_TOKEN Permissions
+2026-02-21T22:21:27.9009220Z Contents: read
+2026-02-21T22:21:27.9010219Z Metadata: read
+2026-02-21T22:21:27.9011256Z Packages: read
+2026-02-21T22:21:27.9012246Z ##[endgroup]
+2026-02-21T22:21:27.9015174Z Secret source: Actions
+2026-02-21T22:21:27.9016229Z Prepare workflow directory
+2026-02-21T22:21:27.9861401Z Prepare all required actions
+2026-02-21T22:21:27.9918446Z Getting action download info
+2026-02-21T22:21:28.4663789Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-02-21T22:21:28.5764362Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-02-21T22:21:28.7047662Z Download action repository 'codecov/codecov-action@v4' (SHA:b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238)
+2026-02-21T22:21:29.3074498Z Complete job name: Python Tests (3.12)

@@ -1,0 +1,26 @@
+﻿2026-02-21T22:22:05.5838997Z ##[group]Run actions/cache@v4
+2026-02-21T22:22:05.5839273Z with:
+2026-02-21T22:22:05.5839467Z   path: rust_components/target
+~/.cargo/bin
+
+2026-02-21T22:22:05.5839928Z   key: Linux-cargo-build-d3ac12c6075abf0f4dca2bad10030333ba5b4e1257f194d80b1796813566155f
+2026-02-21T22:22:05.5840406Z   restore-keys: Linux-cargo-build-
+
+2026-02-21T22:22:05.5840667Z   enableCrossOsArchive: false
+2026-02-21T22:22:05.5840894Z   fail-on-cache-miss: false
+2026-02-21T22:22:05.5841095Z   lookup-only: false
+2026-02-21T22:22:05.5841282Z   save-always: false
+2026-02-21T22:22:05.5841465Z env:
+2026-02-21T22:22:05.5841623Z   PYTHON_VERSION: 3.12
+2026-02-21T22:22:05.5841817Z   CARGO_HOME: /home/runner/.cargo
+2026-02-21T22:22:05.5842039Z   CARGO_INCREMENTAL: 0
+2026-02-21T22:22:05.5842227Z   CARGO_TERM_COLOR: always
+2026-02-21T22:22:05.5842776Z ##[endgroup]
+2026-02-21T22:22:05.9361760Z Cache hit for restore-key: Linux-cargo-build-304300863bc411c9aaf0c1e3cd85782f8154bd840e6217e45699863c3dbde2e4
+2026-02-21T22:22:07.1493882Z Received 71303168 of 340060668 (21.0%), 68.0 MBs/sec
+2026-02-21T22:22:08.1494511Z Received 205520896 of 340060668 (60.4%), 98.0 MBs/sec
+2026-02-21T22:22:09.0606294Z Received 340060668 of 340060668 (100.0%), 111.4 MBs/sec
+2026-02-21T22:22:09.0695993Z Cache Size: ~324 MB (340060668 B)
+2026-02-21T22:22:09.0783101Z [command]/usr/bin/tar -xf /home/runner/work/_temp/54092c24-ba82-41da-b83f-448bd06a8f06/cache.tzst -P -C /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG --use-compress-program unzstd
+2026-02-21T22:22:14.1029313Z Cache restored successfully
+2026-02-21T22:22:14.1711358Z Cache restored from key: Linux-cargo-build-304300863bc411c9aaf0c1e3cd85782f8154bd840e6217e45699863c3dbde2e4

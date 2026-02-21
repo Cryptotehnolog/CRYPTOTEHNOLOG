@@ -11,6 +11,10 @@ license = "Proprietary - All Rights Reserved"
 description = "Risk ledger and calculations for CRYPTOTEHNOLOG"
 repository = "https://github.com/your-org/cryptotechnolog"
 
+[package.metadata.docs.rs]
+# Explicitly specify workspace root for docs.rs
+rustdoc-args = ["--document-private-items"]
+
 [dependencies]
 # Use workspace dependencies
 tokio = { workspace = true }

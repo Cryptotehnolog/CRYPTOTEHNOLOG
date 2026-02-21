@@ -1,0 +1,20 @@
+﻿2026-02-21T22:22:12.2455947Z ##[group]Run # Check for undefined names (F821) and missing required imports (I002)
+2026-02-21T22:22:12.2456528Z [36;1m# Check for undefined names (F821) and missing required imports (I002)[0m
+2026-02-21T22:22:12.2456968Z [36;1m.venv/bin/ruff check src/ tests/ --select F821,I002[0m
+2026-02-21T22:22:12.2457284Z [36;1m# Run full ruff check[0m
+2026-02-21T22:22:12.2457514Z [36;1m.venv/bin/ruff check src/ tests/[0m
+2026-02-21T22:22:12.2457776Z [36;1m# Check formatting[0m
+2026-02-21T22:22:12.2458028Z [36;1m.venv/bin/ruff format --check src/ tests/[0m
+2026-02-21T22:22:12.2490629Z shell: /usr/bin/bash -e {0}
+2026-02-21T22:22:12.2490857Z env:
+2026-02-21T22:22:12.2491448Z   PYTHON_VERSION: 3.12
+2026-02-21T22:22:12.2491781Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T22:22:12.2492201Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-21T22:22:12.2492596Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T22:22:12.2492958Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T22:22:12.2493388Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-21T22:22:12.2493758Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-21T22:22:12.2494063Z ##[endgroup]
+2026-02-21T22:22:12.2668112Z All checks passed!
+2026-02-21T22:22:12.2832540Z All checks passed!
+2026-02-21T22:22:12.2977136Z 25 files already formatted
