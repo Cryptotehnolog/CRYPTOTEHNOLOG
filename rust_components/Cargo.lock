@@ -381,6 +381,7 @@ dependencies = [
  "chrono",
  "criterion",
  "crossbeam",
+ "crossbeam-channel",
  "cryptotechnolog-common",
  "redis",
  "serde",

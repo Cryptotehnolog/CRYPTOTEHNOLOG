@@ -141,6 +141,15 @@ rust-bench:
 rust-bench-eventbus:
 	cd rust_components/crates/eventbus && cargo bench
 
+rust-bench-eventbus-lockfree:
+	cd rust_components/crates/eventbus && cargo bench --bench eventbus_backend_bench --features lock-free
+
+rust-bench-eventbus-all:
+	@echo "Running all eventbus benchmarks..."
+	cd rust_components/crates/eventbus && cargo bench
+	cd rust_components/crates/eventbus && cargo bench --bench eventbus_backend_bench --features lock-free
+	@echo "✅ All eventbus benchmarks completed!"
+
 rust-bench-risk-ledger:
 	cd rust_components/crates/risk-ledger && cargo bench
 
