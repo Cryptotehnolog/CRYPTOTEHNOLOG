@@ -1,0 +1,131 @@
+﻿2026-02-22T15:38:08.3336265Z Print service container logs: 03727feb3f9349638537d861bbe868fc_redis7alpine_5d0e7d
+2026-02-22T15:38:08.3340547Z ##[command]/usr/bin/docker logs --details d4911be207bf898dfe0c20bfa0f34f2877840e5acdf63b8fd9256bc60600eaee
+2026-02-22T15:38:08.3483936Z  1:C 22 Feb 2026 15:36:54.854 # WARNING Memory overcommit must be enabled! Without it, a background save or replication may fail under low memory condition. Being disabled, it can also cause failures without low memory condition, see https://github.com/jemalloc/jemalloc/issues/1328. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+2026-02-22T15:38:08.3486953Z  1:C 22 Feb 2026 15:36:54.854 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+2026-02-22T15:38:08.3487839Z  1:C 22 Feb 2026 15:36:54.854 * Redis version=7.4.7, bits=64, commit=00000000, modified=0, pid=1, just started
+2026-02-22T15:38:08.3489322Z  1:C 22 Feb 2026 15:36:54.854 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+2026-02-22T15:38:08.3490565Z  1:M 22 Feb 2026 15:36:54.855 * monotonic clock: POSIX clock_gettime
+2026-02-22T15:38:08.3491159Z  1:M 22 Feb 2026 15:36:54.856 * Running mode=standalone, port=6379.
+2026-02-22T15:38:08.3491667Z  1:M 22 Feb 2026 15:36:54.856 * Server initialized
+2026-02-22T15:38:08.3492144Z  1:M 22 Feb 2026 15:36:54.856 * Ready to accept connections tcp
+2026-02-22T15:38:08.3509932Z Stop and remove container: 03727feb3f9349638537d861bbe868fc_redis7alpine_5d0e7d
+2026-02-22T15:38:08.3515110Z ##[command]/usr/bin/docker rm --force d4911be207bf898dfe0c20bfa0f34f2877840e5acdf63b8fd9256bc60600eaee
+2026-02-22T15:38:10.0300621Z d4911be207bf898dfe0c20bfa0f34f2877840e5acdf63b8fd9256bc60600eaee
+2026-02-22T15:38:10.0325584Z Print service container logs: 9025363922514075be845bae458fe9fb_timescaletimescaledblatestpg15_25f4d6
+2026-02-22T15:38:10.0326856Z ##[command]/usr/bin/docker logs --details 13ded0d94cc0a386a2fa38e75ad13cfba3e84506cd411f4f57215218faf887ce
+2026-02-22T15:38:10.0463178Z  sh: locale: not found
+2026-02-22T15:38:10.0464024Z  The files belonging to this database system will be owned by user "postgres".
+2026-02-22T15:38:10.0465540Z  2026-02-22 15:37:14.745 UTC [34] WARNING:  no usable system locales were found
+2026-02-22T15:38:10.0468028Z  initdb: warning: enabling "trust" authentication for local connections
+2026-02-22T15:38:10.0469208Z  initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+2026-02-22T15:38:10.0470221Z  [37;1mUsing postgresql.conf at this path:
+2026-02-22T15:38:10.0471041Z  [0m/var/lib/postgresql/data/postgresql.conf
+2026-02-22T15:38:10.0471444Z  
+2026-02-22T15:38:10.0471698Z  [37;1mWriting backup to:
+2026-02-22T15:38:10.0472071Z  [0m/tmp/timescaledb_tune.backup202602221537
+2026-02-22T15:38:10.0472487Z  
+2026-02-22T15:38:10.0472990Z  [37;1mRecommendations based on 7.76 GB of available memory and 2 CPUs for PostgreSQL 15
+2026-02-22T15:38:10.0474025Z  [0m[37;1mSaving changes to: /var/lib/postgresql/data/postgresql.conf
+2026-02-22T15:38:10.0475179Z  [0m2026-02-22 15:37:16.806 UTC [1] LOG:  starting PostgreSQL 15.13 on x86_64-pc-linux-musl, compiled by gcc (Alpine 13.2.1_git20240309) 13.2.1 20240309, 64-bit
+2026-02-22T15:38:10.0476380Z  2026-02-22 15:37:16.807 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-02-22T15:38:10.0477149Z  2026-02-22 15:37:16.807 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-02-22T15:38:10.0477999Z  2026-02-22 15:37:16.808 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-02-22T15:38:10.0478919Z  2026-02-22 15:37:16.812 UTC [83] LOG:  database system was shut down at 2026-02-22 15:37:16 UTC
+2026-02-22T15:38:10.0482060Z  2026-02-22 15:37:16.837 UTC [1] LOG:  database system is ready to accept connections
+2026-02-22T15:38:10.0483011Z  2026-02-22 15:37:16.839 UTC [86] LOG:  TimescaleDB background worker launcher connected to shared catalogs
+2026-02-22T15:38:10.0484463Z  2026-02-22 15:37:24.271 UTC [98] FATAL:  role "root" does not exist
+2026-02-22T15:38:10.0485108Z  2026-02-22 15:37:34.337 UTC [108] FATAL:  role "root" does not exist
+2026-02-22T15:38:10.0485744Z  2026-02-22 15:37:44.403 UTC [117] FATAL:  role "root" does not exist
+2026-02-22T15:38:10.0486360Z  2026-02-22 15:37:54.492 UTC [127] FATAL:  role "root" does not exist
+2026-02-22T15:38:10.0486937Z  2026-02-22 15:38:04.557 UTC [141] FATAL:  role "root" does not exist
+2026-02-22T15:38:10.0487302Z  This user must also own the server process.
+2026-02-22T15:38:10.0487556Z  
+2026-02-22T15:38:10.0487814Z  The database cluster will be initialized with locale "en_US.utf8".
+2026-02-22T15:38:10.0488234Z  The default database encoding has accordingly been set to "UTF8".
+2026-02-22T15:38:10.0488643Z  The default text search configuration will be set to "english".
+2026-02-22T15:38:10.0488954Z  
+2026-02-22T15:38:10.0489125Z  Data page checksums are disabled.
+2026-02-22T15:38:10.0489360Z  
+2026-02-22T15:38:10.0489626Z  fixing permissions on existing directory /var/lib/postgresql/data ... ok
+2026-02-22T15:38:10.0490002Z  creating subdirectories ... ok
+2026-02-22T15:38:10.0490298Z  selecting dynamic shared memory implementation ... posix
+2026-02-22T15:38:10.0490618Z  selecting default max_connections ... 100
+2026-02-22T15:38:10.0490890Z  selecting default shared_buffers ... 128MB
+2026-02-22T15:38:10.0491152Z  selecting default time zone ... UTC
+2026-02-22T15:38:10.0491393Z  creating configuration files ... ok
+2026-02-22T15:38:10.0491636Z  running bootstrap script ... ok
+2026-02-22T15:38:10.0491904Z  performing post-bootstrap initialization ... ok
+2026-02-22T15:38:10.0492188Z  syncing data to disk ... ok
+2026-02-22T15:38:10.0492386Z  
+2026-02-22T15:38:10.0492527Z  
+2026-02-22T15:38:10.0492731Z  Success. You can now start the database server using:
+2026-02-22T15:38:10.0493002Z  
+2026-02-22T15:38:10.0493400Z      pg_ctl -D /var/lib/postgresql/data -l logfile start
+2026-02-22T15:38:10.0493848Z  
+2026-02-22T15:38:10.0494466Z  waiting for server to start....2026-02-22 15:37:15.355 UTC [40] LOG:  starting PostgreSQL 15.13 on x86_64-pc-linux-musl, compiled by gcc (Alpine 13.2.1_git20240309) 13.2.1 20240309, 64-bit
+2026-02-22T15:38:10.0495337Z  2026-02-22 15:37:15.359 UTC [40] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-02-22T15:38:10.0495894Z  2026-02-22 15:37:15.362 UTC [43] LOG:  database system was shut down at 2026-02-22 15:37:15 UTC
+2026-02-22T15:38:10.0496381Z  2026-02-22 15:37:15.366 UTC [40] LOG:  database system is ready to accept connections
+2026-02-22T15:38:10.0496922Z  2026-02-22 15:37:15.368 UTC [46] LOG:  TimescaleDB background worker launcher connected to shared catalogs
+2026-02-22T15:38:10.0497516Z   done
+2026-02-22T15:38:10.0497671Z  server started
+2026-02-22T15:38:10.0497847Z  CREATE DATABASE
+2026-02-22T15:38:10.0498009Z  
+2026-02-22T15:38:10.0498152Z  
+2026-02-22T15:38:10.0498516Z  /usr/local/bin/docker-entrypoint.sh: sourcing /docker-entrypoint-initdb.d/000_install_timescaledb.sh
+2026-02-22T15:38:10.0498979Z  CREATE EXTENSION
+2026-02-22T15:38:10.0499553Z  2026-02-22 15:37:16.116 UTC [64] ERROR:  background worker "TimescaleDB Background Worker Scheduler for database 1" trying to connect to template database, exiting
+2026-02-22T15:38:10.0500173Z  CREATE EXTENSION
+2026-02-22T15:38:10.0500347Z  CREATE EXTENSION
+2026-02-22T15:38:10.0500514Z  
+2026-02-22T15:38:10.0500861Z  /usr/local/bin/docker-entrypoint.sh: running /docker-entrypoint-initdb.d/001_timescaledb_tune.sh
+2026-02-22T15:38:10.0501348Z  shared_buffers = 1985MB
+2026-02-22T15:38:10.0501559Z  effective_cache_size = 5957MB
+2026-02-22T15:38:10.0501796Z  maintenance_work_mem = 1016779kB
+2026-02-22T15:38:10.0502028Z  work_mem = 10167kB
+2026-02-22T15:38:10.0502230Z  timescaledb.max_background_workers = 16
+2026-02-22T15:38:10.0502488Z  max_worker_processes = 21
+2026-02-22T15:38:10.0502710Z  max_parallel_workers_per_gather = 1
+2026-02-22T15:38:10.0502945Z  max_parallel_workers = 2
+2026-02-22T15:38:10.0503500Z  wal_buffers = 16MB
+2026-02-22T15:38:10.0503693Z  min_wal_size = 512MB
+2026-02-22T15:38:10.0503900Z  default_statistics_target = 100
+2026-02-22T15:38:10.0504131Z  random_page_cost = 1.1
+2026-02-22T15:38:10.0504339Z  checkpoint_completion_target = 0.9
+2026-02-22T15:38:10.0504588Z  max_locks_per_transaction = 128
+2026-02-22T15:38:10.0504810Z  autovacuum_max_workers = 10
+2026-02-22T15:38:10.0505026Z  autovacuum_naptime = 10
+2026-02-22T15:38:10.0505237Z  default_toast_compression = lz4
+2026-02-22T15:38:10.0505445Z  jit = off
+2026-02-22T15:38:10.0505621Z  effective_io_concurrency = 256
+2026-02-22T15:38:10.0505866Z  timescaledb.last_tuned = '2026-02-22T15:37:16Z'
+2026-02-22T15:38:10.0506162Z  timescaledb.last_tuned_version = '0.18.1'
+2026-02-22T15:38:10.0506401Z  
+2026-02-22T15:38:10.0506627Z  2026-02-22 15:37:16.454 UTC [40] LOG:  received fast shutdown request
+2026-02-22T15:38:10.0507143Z  waiting for server to shut down....2026-02-22 15:37:16.455 UTC [40] LOG:  aborting any active transactions
+2026-02-22T15:38:10.0507896Z  2026-02-22 15:37:16.455 UTC [67] FATAL:  terminating background worker "TimescaleDB Background Worker Scheduler" due to administrator command
+2026-02-22T15:38:10.0508748Z  2026-02-22 15:37:16.455 UTC [46] FATAL:  terminating background worker "TimescaleDB Background Worker Launcher" due to administrator command
+2026-02-22T15:38:10.0509585Z  2026-02-22 15:37:16.458 UTC [78] FATAL:  terminating background worker "Job History Log Retention Policy [3]" due to administrator command
+2026-02-22T15:38:10.0510424Z  2026-02-22 15:37:16.462 UTC [58] FATAL:  terminating background worker "TimescaleDB Background Worker Scheduler" due to administrator command
+2026-02-22T15:38:10.0511234Z  2026-02-22 15:37:16.463 UTC [40] LOG:  background worker "TimescaleDB Background Worker Launcher" (PID 46) exited with exit code 1
+2026-02-22T15:38:10.0512016Z  2026-02-22 15:37:16.463 UTC [40] LOG:  background worker "TimescaleDB Background Worker Scheduler" (PID 67) exited with exit code 1
+2026-02-22T15:38:10.0512758Z  2026-02-22 15:37:16.466 UTC [40] LOG:  background worker "logical replication launcher" (PID 47) exited with exit code 1
+2026-02-22T15:38:10.0513897Z  2026-02-22 15:37:16.466 UTC [40] LOG:  background worker "TimescaleDB Background Worker Scheduler" (PID 58) exited with exit code 1
+2026-02-22T15:38:10.0514694Z  2026-02-22 15:37:16.466 UTC [40] LOG:  background worker "Job History Log Retention Policy [3]" (PID 78) exited with exit code 1
+2026-02-22T15:38:10.0515447Z  2026-02-22 15:37:16.668 UTC [77] FATAL:  terminating background worker "Telemetry Reporter [1]" due to administrator command
+2026-02-22T15:38:10.0516137Z  2026-02-22 15:37:16.670 UTC [40] LOG:  background worker "Telemetry Reporter [1]" (PID 77) exited with exit code 1
+2026-02-22T15:38:10.0516777Z  2026-02-22 15:37:16.670 UTC [41] LOG:  shutting down
+2026-02-22T15:38:10.0517143Z  2026-02-22 15:37:16.671 UTC [41] LOG:  checkpoint starting: shutdown immediate
+2026-02-22T15:38:10.0518110Z  2026-02-22 15:37:16.734 UTC [41] LOG:  checkpoint complete: wrote 1710 buffers (10.4%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.054 s, sync=0.007 s, total=0.064 s; sync files=771, longest=0.001 s, average=0.001 s; distance=9605 kB, estimate=9605 kB
+2026-02-22T15:38:10.0519083Z  2026-02-22 15:37:16.742 UTC [40] LOG:  database system is shut down
+2026-02-22T15:38:10.0519392Z   done
+2026-02-22T15:38:10.0519545Z  server stopped
+2026-02-22T15:38:10.0519714Z  
+2026-02-22T15:38:10.0519921Z  PostgreSQL init process complete; ready for start up.
+2026-02-22T15:38:10.0520195Z  
+2026-02-22T15:38:10.0521219Z Stop and remove container: 9025363922514075be845bae458fe9fb_timescaletimescaledblatestpg15_25f4d6
+2026-02-22T15:38:10.0522034Z ##[command]/usr/bin/docker rm --force 13ded0d94cc0a386a2fa38e75ad13cfba3e84506cd411f4f57215218faf887ce
+2026-02-22T15:38:10.1957322Z 13ded0d94cc0a386a2fa38e75ad13cfba3e84506cd411f4f57215218faf887ce
+2026-02-22T15:38:10.1979780Z Remove container network: github_network_06ffdc6321fd4529920dfa7d74a22798
+2026-02-22T15:38:10.1985158Z ##[command]/usr/bin/docker network rm github_network_06ffdc6321fd4529920dfa7d74a22798
+2026-02-22T15:38:10.2831052Z github_network_06ffdc6321fd4529920dfa7d74a22798

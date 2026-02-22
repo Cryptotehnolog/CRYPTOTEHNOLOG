@@ -33,9 +33,9 @@ chrono = { workspace = true }
 jemallocator = { version = "0.5", features = ["unprefixed_malloc_on_supported_platforms"], optional = true }
 
 # Local dependencies
-cryptotechnolog-common = { path = "../common" }
-cryptotechnolog-risk-ledger = { path = "../risk-ledger" }
-cryptotechnolog-execution-core = { path = "../execution-core" }
+cryptotechnolog-common = { workspace = true }
+cryptotechnolog-risk-ledger = { workspace = true }
+cryptotechnolog-execution-core = { workspace = true }
 
 [dev-dependencies]
 tokio-test = { workspace = true }

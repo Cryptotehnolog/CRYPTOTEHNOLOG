@@ -77,3 +77,11 @@ jemallocator = { version = "0.5", features = ["unprefixed_malloc_on_supported_pl
 # Lock-free data structures
 crossbeam = "0.8"
 arrayvec = "0.7"
+
+# Local workspace members (for proper dependency resolution)
+cryptotechnolog-common = { path = "rust_components/crates/common" }
+cryptotechnolog-audit-chain = { path = "rust_components/crates/audit-chain" }
+cryptotechnolog-eventbus = { path = "rust_components/crates/eventbus" }
+cryptotechnolog-risk-ledger = { path = "rust_components/crates/risk-ledger" }
+cryptotechnolog-execution-core = { path = "rust_components/crates/execution-core" }
+cryptotechnolog-ffi = { path = "rust_components/crates/ffi" }

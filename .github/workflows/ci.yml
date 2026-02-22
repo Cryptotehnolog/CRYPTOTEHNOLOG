@@ -148,17 +148,13 @@ jobs:
             target
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-v2-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-build-
+            ${{ runner.os }}-cargo-v2-
 
-      - name: Show cache status
+      - name: Clean cargo cache (force fresh metadata)
         run: |
-          echo "Cargo registry cache hit: ${{ steps.cache-reg.outputs.cache-hit }}"
-          echo "Cargo build cache hit: ${{ steps.cache-build.outputs.cache-hit }}"
-
-      - name: Remove stale cargo cache
-        run: |
+          cargo clean
           rm -rf ~/.cargo/registry/src/*/cryptotechnolog-* || true
           rm -rf ~/.cargo/registry/index/github.com-*/cryptotechnolog-* || true
           echo "=== Force cargo to regenerate metadata ==="

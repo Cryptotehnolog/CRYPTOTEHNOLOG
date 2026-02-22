@@ -1,0 +1,15 @@
+﻿2026-02-22T15:36:53.4342974Z ##[group]Run curl -LsSf https://astral.sh/uv/install.sh | sh
+2026-02-22T15:36:53.4343857Z [36;1mcurl -LsSf https://astral.sh/uv/install.sh | sh[0m
+2026-02-22T15:36:53.4344223Z [36;1mecho "$HOME/.local/bin" >> $GITHUB_PATH[0m
+2026-02-22T15:36:53.4344529Z [36;1muv --version[0m
+2026-02-22T15:36:53.4381172Z shell: /usr/bin/bash -e {0}
+2026-02-22T15:36:53.4381439Z env:
+2026-02-22T15:36:53.4381620Z   PYTHON_VERSION: 3.12
+2026-02-22T15:36:53.4381838Z ##[endgroup]
+2026-02-22T15:36:53.6121665Z downloading uv 0.10.4 x86_64-unknown-linux-gnu
+2026-02-22T15:36:53.8378016Z no checksums to verify
+2026-02-22T15:36:54.2725953Z installing to /home/runner/.local/bin
+2026-02-22T15:36:54.2805579Z   uv
+2026-02-22T15:36:54.2807739Z   uvx
+2026-02-22T15:36:54.2809372Z everything's installed!
+2026-02-22T15:36:54.2905681Z uv 0.10.4

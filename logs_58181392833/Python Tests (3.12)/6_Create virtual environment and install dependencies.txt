@@ -1,0 +1,175 @@
+﻿2026-02-22T15:37:31.3497975Z ##[group]Run uv venv
+2026-02-22T15:37:31.3498225Z [36;1muv venv[0m
+2026-02-22T15:37:31.3498540Z [36;1m# Remove old version if exists (to avoid site-packages conflicts)[0m
+2026-02-22T15:37:31.3498965Z [36;1muv pip uninstall cryptotechnolog --yes || true[0m
+2026-02-22T15:37:31.3499324Z [36;1m# Install in editable mode with force-reinstall[0m
+2026-02-22T15:37:31.3499675Z [36;1muv pip install -e ".[dev]" --force-reinstall[0m
+2026-02-22T15:37:31.3531962Z shell: /usr/bin/bash -e {0}
+2026-02-22T15:37:31.3532194Z env:
+2026-02-22T15:37:31.3532369Z   PYTHON_VERSION: 3.12
+2026-02-22T15:37:31.3532654Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-22T15:37:31.3533092Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-22T15:37:31.3533783Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-22T15:37:31.3534159Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-22T15:37:31.3534528Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-22T15:37:31.3534937Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-22T15:37:31.3535235Z ##[endgroup]
+2026-02-22T15:37:31.8640194Z Using CPython 3.12.12 interpreter at: /opt/hostedtoolcache/Python/3.12.12/x64/bin/python3
+2026-02-22T15:37:31.8641727Z Creating virtual environment at: .venv
+2026-02-22T15:37:31.8647988Z Activate with: .venv/bin/activate
+2026-02-22T15:37:31.8722546Z error: unexpected argument '--yes' found
+2026-02-22T15:37:31.8726370Z 
+2026-02-22T15:37:31.8729939Z   tip: to pass '--yes' as a value, use '-- --yes'
+2026-02-22T15:37:31.8733924Z 
+2026-02-22T15:37:31.8738022Z Usage: uv pip uninstall <PACKAGE|--requirements <REQUIREMENTS>>
+2026-02-22T15:37:31.8742058Z 
+2026-02-22T15:37:31.8744437Z For more information, try '--help'.
+2026-02-22T15:37:32.5663423Z Resolved 104 packages in 631ms
+2026-02-22T15:37:32.5699268Z    Building cryptotechnolog @ file:///home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-22T15:37:32.5851216Z Downloading pydantic-core (2.0MiB)
+2026-02-22T15:37:32.5877382Z Downloading polars (27.5MiB)
+2026-02-22T15:37:32.5879881Z Downloading scipy (39.0MiB)
+2026-02-22T15:37:32.5891798Z Downloading ruff (10.6MiB)
+2026-02-22T15:37:32.6005778Z Downloading pygments (1.2MiB)
+2026-02-22T15:37:32.6015649Z Downloading psycopg2-binary (4.0MiB)
+2026-02-22T15:37:32.6023152Z Downloading pyarrow (40.1MiB)
+2026-02-22T15:37:32.6044141Z Downloading pandas (12.1MiB)
+2026-02-22T15:37:32.6044955Z Downloading jedi (1.5MiB)
+2026-02-22T15:37:32.6053914Z Downloading cryptography (4.0MiB)
+2026-02-22T15:37:32.6057122Z Downloading virtualenv (5.6MiB)
+2026-02-22T15:37:32.6069358Z Downloading aiohttp (1.7MiB)
+2026-02-22T15:37:32.6075213Z Downloading ccxt (6.1MiB)
+2026-02-22T15:37:32.6080788Z Downloading sqlalchemy (3.2MiB)
+2026-02-22T15:37:32.6105934Z Downloading coincurve (1.5MiB)
+2026-02-22T15:37:32.6115659Z Downloading numpy (18.3MiB)
+2026-02-22T15:37:32.6118749Z Downloading mypy (13.0MiB)
+2026-02-22T15:37:32.6121856Z Downloading black (1.7MiB)
+2026-02-22T15:37:32.6165399Z Downloading uvloop (4.2MiB)
+2026-02-22T15:37:32.6169431Z Downloading asyncpg (3.4MiB)
+2026-02-22T15:37:33.3371876Z  Downloaded coincurve
+2026-02-22T15:37:33.3499906Z  Downloaded aiohttp
+2026-02-22T15:37:33.3789701Z  Downloaded pydantic-core
+2026-02-22T15:37:33.4614816Z  Downloaded black
+2026-02-22T15:37:33.5173617Z  Downloaded pygments
+2026-02-22T15:37:33.6971776Z  Downloaded asyncpg
+2026-02-22T15:37:33.7629879Z  Downloaded sqlalchemy
+2026-02-22T15:37:33.7790000Z  Downloaded psycopg2-binary
+2026-02-22T15:37:33.8691114Z  Downloaded uvloop
+2026-02-22T15:37:33.9249752Z  Downloaded cryptography
+2026-02-22T15:37:33.9762852Z  Downloaded virtualenv
+2026-02-22T15:37:34.3984323Z  Downloaded ccxt
+2026-02-22T15:37:34.5791164Z  Downloaded ruff
+2026-02-22T15:37:35.1889457Z  Downloaded numpy
+2026-02-22T15:37:35.2921417Z  Downloaded pandas
+2026-02-22T15:37:35.5864652Z  Downloaded polars
+2026-02-22T15:37:35.7507285Z       Built cryptotechnolog @ file:///home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-22T15:37:35.8327271Z  Downloaded jedi
+2026-02-22T15:37:36.1558478Z  Downloaded pyarrow
+2026-02-22T15:37:36.1817544Z  Downloaded mypy
+2026-02-22T15:37:36.2246683Z  Downloaded scipy
+2026-02-22T15:37:36.2249297Z Prepared 104 packages in 3.65s
+2026-02-22T15:37:36.4319692Z Installed 104 packages in 206ms
+2026-02-22T15:37:36.4332856Z  + aiodns==4.0.0
+2026-02-22T15:37:36.4333190Z  + aiofiles==24.1.0
+2026-02-22T15:37:36.4333761Z  + aiogram==3.25.0
+2026-02-22T15:37:36.4334098Z  + aiohappyeyeballs==2.6.1
+2026-02-22T15:37:36.4334467Z  + aiohttp==3.13.3
+2026-02-22T15:37:36.4334767Z  + aiosignal==1.4.0
+2026-02-22T15:37:36.4335087Z  + annotated-doc==0.0.4
+2026-02-22T15:37:36.4335436Z  + annotated-types==0.7.0
+2026-02-22T15:37:36.4335781Z  + anyio==4.12.1
+2026-02-22T15:37:36.4336070Z  + asttokens==3.0.1
+2026-02-22T15:37:36.4336396Z  + asyncpg==0.31.0
+2026-02-22T15:37:36.4336691Z  + attrs==25.4.0
+2026-02-22T15:37:36.4336971Z  + black==24.10.0
+2026-02-22T15:37:36.4337264Z  + ccxt==4.5.39
+2026-02-22T15:37:36.4337556Z  + certifi==2026.1.4
+2026-02-22T15:37:36.4337879Z  + cffi==2.0.0
+2026-02-22T15:37:36.4338152Z  + cfgv==3.5.0
+2026-02-22T15:37:36.4338462Z  + charset-normalizer==3.4.4
+2026-02-22T15:37:36.4338818Z  + click==8.3.1
+2026-02-22T15:37:36.4339113Z  + coincurve==21.0.0
+2026-02-22T15:37:36.4339416Z  + coverage==7.13.4
+2026-02-22T15:37:36.4339731Z  + cryptography==44.0.3
+2026-02-22T15:37:36.4340335Z  + cryptotechnolog==1.0.0 (from file:///home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG)
+2026-02-22T15:37:36.4341029Z  + decorator==5.2.1
+2026-02-22T15:37:36.4341331Z  + distlib==0.4.0
+2026-02-22T15:37:36.4341618Z  + execnet==2.1.2
+2026-02-22T15:37:36.4341908Z  + executing==2.2.1
+2026-02-22T15:37:36.4342197Z  + fastapi==0.129.2
+2026-02-22T15:37:36.4342489Z  + filelock==3.24.3
+2026-02-22T15:37:36.4342791Z  + frozenlist==1.8.0
+2026-02-22T15:37:36.4343098Z  + greenlet==3.3.2
+2026-02-22T15:37:36.4343545Z  + h11==0.16.0
+2026-02-22T15:37:36.4343826Z  + httptools==0.7.1
+2026-02-22T15:37:36.4344109Z  + hvac==2.4.0
+2026-02-22T15:37:36.4344388Z  + identify==2.6.16
+2026-02-22T15:37:36.4344685Z  + idna==3.11
+2026-02-22T15:37:36.4344959Z  + iniconfig==2.3.0
+2026-02-22T15:37:36.4345251Z  + ipdb==0.13.13
+2026-02-22T15:37:36.4345531Z  + ipython==8.38.0
+2026-02-22T15:37:36.4345821Z  + jedi==0.19.2
+2026-02-22T15:37:36.4346095Z  + librt==0.8.1
+2026-02-22T15:37:36.4346389Z  + magic-filter==1.0.12
+2026-02-22T15:37:36.4346733Z  + matplotlib-inline==0.2.1
+2026-02-22T15:37:36.4347093Z  + multidict==6.7.1
+2026-02-22T15:37:36.4347383Z  + mypy==1.19.1
+2026-02-22T15:37:36.4347682Z  + mypy-extensions==1.1.0
+2026-02-22T15:37:36.4347994Z  + nodeenv==1.10.0
+2026-02-22T15:37:36.4348250Z  + numpy==2.0.2
+2026-02-22T15:37:36.4348526Z  + packaging==26.0
+2026-02-22T15:37:36.4348816Z  + pandas==2.2.3
+2026-02-22T15:37:36.4349087Z  + parso==0.8.6
+2026-02-22T15:37:36.4349567Z  + pathspec==1.0.4
+2026-02-22T15:37:36.4350149Z  + pexpect==4.9.0
+2026-02-22T15:37:36.4351061Z  + platformdirs==4.9.2
+2026-02-22T15:37:36.4351493Z  + pluggy==1.6.0
+2026-02-22T15:37:36.4351863Z  + polars==0.20.31
+2026-02-22T15:37:36.4381038Z  + pre-commit==3.8.0
+2026-02-22T15:37:36.4386544Z  + prometheus-client==0.24.1
+2026-02-22T15:37:36.4386978Z  + prompt-toolkit==3.0.52
+2026-02-22T15:37:36.4387347Z  + propcache==0.4.1
+2026-02-22T15:37:36.4387680Z  + psycopg2-binary==2.9.11
+2026-02-22T15:37:36.4388049Z  + ptyprocess==0.7.0
+2026-02-22T15:37:36.4388370Z  + pure-eval==0.2.3
+2026-02-22T15:37:36.4388684Z  + pyarrow==19.0.1
+2026-02-22T15:37:36.4389001Z  + pycares==5.0.1
+2026-02-22T15:37:36.4389313Z  + pycparser==3.0
+2026-02-22T15:37:36.4389616Z  + pydantic==2.12.5
+2026-02-22T15:37:36.4389937Z  + pydantic-core==2.41.5
+2026-02-22T15:37:36.4390307Z  + pydantic-settings==2.13.1
+2026-02-22T15:37:36.4390661Z  + pygments==2.19.2
+2026-02-22T15:37:36.4390960Z  + pyjwt==2.11.0
+2026-02-22T15:37:36.4391513Z  + pytest==8.4.2
+2026-02-22T15:37:36.4391841Z  + pytest-asyncio==0.26.0
+2026-02-22T15:37:36.4392193Z  + pytest-cov==5.0.0
+2026-02-22T15:37:36.4392511Z  + pytest-mock==3.15.1
+2026-02-22T15:37:36.4392842Z  + pytest-xdist==3.8.0
+2026-02-22T15:37:36.4393647Z  + python-dateutil==2.9.0.post0
+2026-02-22T15:37:36.4394053Z  + python-dotenv==1.2.1
+2026-02-22T15:37:36.4396764Z  + pytz==2025.2
+2026-02-22T15:37:36.4397078Z  + pyyaml==6.0.3
+2026-02-22T15:37:36.4397370Z  + redis==5.3.1
+2026-02-22T15:37:36.4397665Z  + requests==2.32.5
+2026-02-22T15:37:36.4397959Z  + ruff==0.15.2
+2026-02-22T15:37:36.4398237Z  + scipy==1.14.1
+2026-02-22T15:37:36.4398536Z  + setuptools==82.0.0
+2026-02-22T15:37:36.4398863Z  + six==1.17.0
+2026-02-22T15:37:36.4399162Z  + sqlalchemy==2.0.46
+2026-02-22T15:37:36.4399479Z  + sqlmodel==0.0.37
+2026-02-22T15:37:36.4399791Z  + stack-data==0.6.3
+2026-02-22T15:37:36.4400099Z  + starlette==0.52.1
+2026-02-22T15:37:36.4400413Z  + structlog==24.4.0
+2026-02-22T15:37:36.4400719Z  + timescaledb==0.0.4
+2026-02-22T15:37:36.4401054Z  + traitlets==5.14.3
+2026-02-22T15:37:36.4401380Z  + typing-extensions==4.15.0
+2026-02-22T15:37:36.4401775Z  + typing-inspection==0.4.2
+2026-02-22T15:37:36.4402127Z  + tzdata==2025.3
+2026-02-22T15:37:36.4402427Z  + urllib3==2.6.3
+2026-02-22T15:37:36.4402736Z  + uvicorn==0.41.0
+2026-02-22T15:37:36.4403031Z  + uvloop==0.22.1
+2026-02-22T15:37:36.4403525Z  + virtualenv==20.38.0
+2026-02-22T15:37:36.4403859Z  + watchfiles==1.1.1
+2026-02-22T15:37:36.4404170Z  + wcwidth==0.6.0
+2026-02-22T15:37:36.4404463Z  + websockets==13.1
+2026-02-22T15:37:36.4404762Z  + yarl==1.22.0

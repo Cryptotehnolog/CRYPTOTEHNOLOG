@@ -1,0 +1,72 @@
+﻿2026-02-22T15:37:56.7677047Z ##[group]Run echo "Current directory: $(pwd)"
+2026-02-22T15:37:56.7677435Z [36;1mecho "Current directory: $(pwd)"[0m
+2026-02-22T15:37:56.7677824Z [36;1mecho "Root Cargo.toml exists: $(test -f Cargo.toml && echo yes || echo no)"[0m
+2026-02-22T15:37:56.7678270Z [36;1mecho "Root Cargo.toml content (members):"[0m
+2026-02-22T15:37:56.7678629Z [36;1mgrep -A10 "members" Cargo.toml || echo "No members found"[0m
+2026-02-22T15:37:56.7679003Z [36;1mecho "Listing rust_components/crates/:"[0m
+2026-02-22T15:37:56.7679294Z [36;1mls -la rust_components/crates/[0m
+2026-02-22T15:37:56.7679566Z [36;1mecho "Listing audit-chain content:"[0m
+2026-02-22T15:37:56.7679863Z [36;1mls -la rust_components/crates/audit-chain/[0m
+2026-02-22T15:37:56.7680144Z [36;1mecho "Listing audit-chain/src:"[0m
+2026-02-22T15:37:56.7680505Z [36;1mls -la rust_components/crates/audit-chain/src/ || echo "src not found"[0m
+2026-02-22T15:37:56.7680941Z [36;1mecho "Attempting to build audit-chain directly:"[0m
+2026-02-22T15:37:56.7681480Z [36;1mcargo build --manifest-path rust_components/crates/audit-chain/Cargo.toml || echo "Build failed"[0m
+2026-02-22T15:37:56.7682061Z [36;1mecho "Checking if audit-chain appears in cargo metadata (workspace):"[0m
+2026-02-22T15:37:56.7682742Z [36;1mcargo metadata --workspace --format-version=1 | grep -o '"name":"cryptotechnolog-audit-chain"' || echo "Not found in metadata"[0m
+2026-02-22T15:37:56.7683411Z [36;1mecho "Checking if audit-chain appears in cargo metadata (no workspace):"[0m
+2026-02-22T15:37:56.7684035Z [36;1mcargo metadata --format-version=1 | grep -o '"name":"cryptotechnolog-audit-chain"' || echo "Not found in metadata"[0m
+2026-02-22T15:37:56.7716628Z shell: /usr/bin/bash -e {0}
+2026-02-22T15:37:56.7716857Z env:
+2026-02-22T15:37:56.7717027Z   PYTHON_VERSION: 3.12
+2026-02-22T15:37:56.7717237Z   CARGO_HOME: /home/runner/.cargo
+2026-02-22T15:37:56.7717480Z   CARGO_INCREMENTAL: 0
+2026-02-22T15:37:56.7717671Z   CARGO_TERM_COLOR: always
+2026-02-22T15:37:56.7717878Z ##[endgroup]
+2026-02-22T15:37:56.7780084Z Current directory: /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG
+2026-02-22T15:37:56.7783426Z Root Cargo.toml exists: yes
+2026-02-22T15:37:56.7785841Z Root Cargo.toml content (members):
+2026-02-22T15:37:56.7796834Z members = [
+2026-02-22T15:37:56.7798613Z     "rust_components/crates/common",
+2026-02-22T15:37:56.7799515Z     "rust_components/crates/eventbus",
+2026-02-22T15:37:56.7800716Z     "rust_components/crates/risk-ledger",
+2026-02-22T15:37:56.7801489Z     "rust_components/crates/audit-chain",
+2026-02-22T15:37:56.7802601Z     "rust_components/crates/execution-core",
+2026-02-22T15:37:56.7803271Z     "rust_components/crates/ffi",
+2026-02-22T15:37:56.7805110Z ]
+2026-02-22T15:37:56.7805697Z 
+2026-02-22T15:37:56.7806012Z # Workspace package metadata
+2026-02-22T15:37:56.7806924Z [workspace.package]
+2026-02-22T15:37:56.7810966Z Listing rust_components/crates/:
+2026-02-22T15:37:56.7816168Z total 32
+2026-02-22T15:37:56.7816738Z drwxr-xr-x 8 runner runner 4096 Feb 22 15:36 .
+2026-02-22T15:37:56.7817486Z drwxr-xr-x 3 runner runner 4096 Feb 22 15:36 ..
+2026-02-22T15:37:56.7818385Z drwxr-xr-x 3 runner runner 4096 Feb 22 15:36 audit-chain
+2026-02-22T15:37:56.7823825Z drwxr-xr-x 3 runner runner 4096 Feb 22 15:36 common
+2026-02-22T15:37:56.7824420Z drwxr-xr-x 4 runner runner 4096 Feb 22 15:36 eventbus
+2026-02-22T15:37:56.7825200Z drwxr-xr-x 3 runner runner 4096 Feb 22 15:36 execution-core
+2026-02-22T15:37:56.7825795Z drwxr-xr-x 3 runner runner 4096 Feb 22 15:36 ffi
+2026-02-22T15:37:56.7826342Z drwxr-xr-x 4 runner runner 4096 Feb 22 15:36 risk-ledger
+2026-02-22T15:37:56.7826850Z Listing audit-chain content:
+2026-02-22T15:37:56.7835435Z total 16
+2026-02-22T15:37:56.7838861Z drwxr-xr-x 3 runner runner 4096 Feb 22 15:36 .
+2026-02-22T15:37:56.7839423Z drwxr-xr-x 8 runner runner 4096 Feb 22 15:36 ..
+2026-02-22T15:37:56.7839949Z -rw-r--r-- 1 runner runner  932 Feb 22 15:36 Cargo.toml
+2026-02-22T15:37:56.7840851Z drwxr-xr-x 2 runner runner 4096 Feb 22 15:36 src
+2026-02-22T15:37:56.7841309Z Listing audit-chain/src:
+2026-02-22T15:37:56.7852310Z total 24
+2026-02-22T15:37:56.7854208Z drwxr-xr-x 2 runner runner 4096 Feb 22 15:36 .
+2026-02-22T15:37:56.7855157Z drwxr-xr-x 3 runner runner 4096 Feb 22 15:36 ..
+2026-02-22T15:37:56.7857230Z -rw-r--r-- 1 runner runner 8960 Feb 22 15:36 audit.rs
+2026-02-22T15:37:56.7857987Z -rw-r--r-- 1 runner runner  676 Feb 22 15:36 lib.rs
+2026-02-22T15:37:56.7860268Z Attempting to build audit-chain directly:
+2026-02-22T15:37:56.8846463Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+2026-02-22T15:37:56.8905190Z Checking if audit-chain appears in cargo metadata (workspace):
+2026-02-22T15:37:56.9315190Z [1m[91merror:[0m unexpected argument '[1m[33m--workspace[0m' found
+2026-02-22T15:37:56.9316066Z 
+2026-02-22T15:37:56.9316600Z [1m[92mUsage:[0m [1m[96mcargo metadata[0m [36m[OPTIONS][0m
+2026-02-22T15:37:56.9317878Z 
+2026-02-22T15:37:56.9318172Z For more information, try '[1m[96m--help[0m'.
+2026-02-22T15:37:56.9325713Z Not found in metadata
+2026-02-22T15:37:56.9326542Z Checking if audit-chain appears in cargo metadata (no workspace):
+2026-02-22T15:37:57.0848835Z "name":"cryptotechnolog-audit-chain"
+2026-02-22T15:37:57.0851166Z "name":"cryptotechnolog-audit-chain"

@@ -21,7 +21,7 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 
 # Local dependencies
-cryptotechnolog-common = { path = "../common" }
+cryptotechnolog-common = { workspace = true }
 
 [dev-dependencies]
 tokio-test = { workspace = true }
