@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tracing::{debug, info, instrument, warn};
 
 /// Audit chain for immutable record keeping
 #[derive(Debug, Clone)]
@@ -40,14 +41,18 @@ impl AuditChain {
     ///
     /// This method creates a cryptographically linked record
     /// with hash of previous record for tamper-proof audit trail.
+    #[instrument(skip(self, data), fields(event_type))]
     pub async fn append(
         &self,
         event_type: impl Into<String>,
         data: serde_json::Value,
     ) -> Result<AuditRecord, AuditError> {
-        let event_type = event_type.into();
+        let event_type_owned = event_type.into();
+        let event_type_for_log = event_type_owned.as_str();
         let timestamp = chrono::Utc::now();
         let id = uuid::Uuid::new_v4();
+
+        debug!("Appending new audit record");
 
         // Get previous hash
         let previous_hash = {
@@ -56,13 +61,13 @@ impl AuditChain {
         };
 
         // Create record hash
-        let record_hash = Self::compute_hash(&id, &timestamp, &event_type, &data, &previous_hash);
+        let record_hash = Self::compute_hash(&id, &timestamp, &event_type_owned, &data, &previous_hash);
 
         // Create record
         let record = AuditRecord {
             id,
             timestamp,
-            event_type,
+            event_type: event_type_owned.clone(),
             data,
             previous_hash,
             hash: hex::encode(record_hash),
@@ -77,6 +82,7 @@ impl AuditChain {
         *current_hash = record.hash.clone();
         drop(current_hash);
 
+        info!(record_id = %record.id, event_type = %event_type_for_log, "Audit record appended successfully");
         Ok(record)
     }
 
@@ -113,10 +119,12 @@ impl AuditChain {
     /// Verify chain integrity
     ///
     /// Returns true if all records are properly linked
+    #[instrument(skip(self))]
     pub async fn verify_integrity(&self) -> bool {
         let records = self.records.read().await;
 
         if records.is_empty() {
+            debug!("Chain is empty, integrity check passed");
             return true;
         }
 
@@ -125,12 +133,14 @@ impl AuditChain {
             if i == 0 {
                 // First record should have "0" as previous hash
                 if record.previous_hash != "0".repeat(64) {
+                    warn!("First record has invalid previous hash");
                     return false;
                 }
             } else {
                 // Verify previous hash matches
                 let prev_record = &records[i - 1];
                 if record.previous_hash != prev_record.hash {
+                    warn!(record_id = %record.id, "Chain linking broken at record {}", i);
                     return false;
                 }
             }
@@ -146,10 +156,12 @@ impl AuditChain {
 
             let expected_hex = hex::encode(expected_hash);
             if record.hash != expected_hex {
+                warn!(record_id = %record.id, "Record hash mismatch at index {}", i);
                 return false;
             }
         }
 
+        info!(record_count = records.len(), "Chain integrity verified successfully");
         true
     }
 

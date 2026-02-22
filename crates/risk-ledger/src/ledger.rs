@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tracing::{debug, info, instrument, warn};
 
 use super::merkle::MerkleTree;
 use super::validation::{DoubleEntryValidator, Transaction};
@@ -96,10 +97,13 @@ impl RiskLedger {
     }
 
     /// Add or update a position
+    #[instrument(skip(self, position), fields(position_id = %position.id, symbol = %position.symbol))]
     pub async fn update_position(
         &self,
         position: Position,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        info!("Updating position");
+
         // Create transactions for double-entry validation
         let transactions = vec![
             Transaction::new(position.id.clone(), position.size),
@@ -141,6 +145,7 @@ impl RiskLedger {
         // Update Merkle tree
         self.update_merkle().await?;
 
+        info!(position_id = %position.id, "Position updated successfully");
         Ok(())
     }
 
