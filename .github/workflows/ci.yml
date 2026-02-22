@@ -174,14 +174,14 @@ jobs:
           echo "Root Cargo.toml exists: $(test -f Cargo.toml && echo yes || echo no)"
           echo "Root Cargo.toml content (members):"
           grep -A10 "members" Cargo.toml || echo "No members found"
-          echo "Listing rust_components/crates/:"
-          ls -la rust_components/crates/
+          echo "Listing crates/:"
+          ls -la crates/
           echo "Listing audit-chain content:"
-          ls -la rust_components/crates/audit-chain/
+          ls -la crates/audit-chain/
           echo "Listing audit-chain/src:"
-          ls -la rust_components/crates/audit-chain/src/ || echo "src not found"
+          ls -la crates/audit-chain/src/ || echo "src not found"
           echo "Attempting to build audit-chain directly:"
-          cargo build --manifest-path rust_components/crates/audit-chain/Cargo.toml || echo "Build failed"
+          cargo build --manifest-path crates/audit-chain/Cargo.toml || echo "Build failed"
           echo "Checking if audit-chain appears in cargo metadata (workspace):"
           cargo metadata --workspace --format-version=1 | grep -o '"name":"cryptotechnolog-audit-chain"' || echo "Not found in metadata"
           echo "Checking if audit-chain appears in cargo metadata (no workspace):"
@@ -211,7 +211,7 @@ jobs:
       - name: Check risk-ledger Cargo.toml content
         run: |
           echo "=== risk-ledger/Cargo.toml dependencies section ==="
-          cat rust_components/crates/risk-ledger/Cargo.toml | grep -A20 "\[dependencies\]"
+          cat crates/risk-ledger/Cargo.toml | grep -A20 "\[dependencies\]"
 
       - name: Build audit-chain explicitly first
         run: |
