@@ -214,6 +214,23 @@ jobs:
 
       - name: Check risk-ledger explicitly with package flag
         run: |
+          echo "=== DEBUG: File system structure right before risk-ledger build ==="
+          echo "Current dir: $(pwd)"
+          echo "Root files:"
+          ls -la
+          echo ""
+          echo "crates/ directory:"
+          ls -la crates/
+          echo ""
+          echo "crates/audit-chain/ exists: $(test -d crates/audit-chain && echo YES || echo NO)"
+          echo "crates/audit-chain/Cargo.toml exists: $(test -f crates/audit-chain/Cargo.toml && echo YES || echo echo NO)"
+          echo ""
+          echo "crates/risk-ledger/ exists: $(test -d crates/risk-ledger && echo YES || echo NO)"
+          echo "crates/risk-ledger/Cargo.toml exists: $(test -f crates/risk-ledger/Cargo.toml && echo YES || echo NO)"
+          echo ""
+          echo "=== risk-ledger Cargo.toml dependencies ==="
+          cat crates/risk-ledger/Cargo.toml | grep -A30 "\[dependencies\]"
+          echo ""
           echo "=== Checking risk-ledger explicitly (from workspace root) ==="
           echo "=== Cleaning previous builds ==="
           cargo clean --package cryptotechnolog-risk-ledger
