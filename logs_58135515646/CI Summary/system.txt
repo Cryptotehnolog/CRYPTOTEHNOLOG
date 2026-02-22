@@ -1,8 +1,0 @@
-2026-02-21T22:22:48.1570000Z Evaluating summary.if
-2026-02-21T22:22:48.1570000Z Evaluating: always()
-2026-02-21T22:22:48.1570000Z Result: true
-2026-02-21T22:22:48.1570000Z Requested labels: ubuntu-latest
-2026-02-21T22:22:48.1570000Z Job defined at: Cryptotehnolog/CRYPTOTEHNOLOG/.github/workflows/ci.yml@refs/heads/master
-2026-02-21T22:22:48.1570000Z Waiting for a runner to pick up this job...
-2026-02-21T22:22:48.5020000Z Job is about to start running on the hosted runner: GitHub Actions 1000000788
-2026-02-21T22:22:48.5010000Z Job is waiting for a hosted runner to come online.

@@ -1,8 +1,0 @@
-2026-02-21T23:04:43.5330000Z Requested labels: ubuntu-latest
-2026-02-21T23:04:43.5330000Z Job defined at: Cryptotehnolog/CRYPTOTEHNOLOG/.github/workflows/ci.yml@refs/heads/master
-2026-02-21T23:04:43.5330000Z Waiting for a runner to pick up this job...
-2026-02-21T23:04:43.5320000Z Evaluating test-rust.if
-2026-02-21T23:04:43.5320000Z Evaluating: success()
-2026-02-21T23:04:43.5320000Z Result: true
-2026-02-21T23:04:44.0320000Z Job is about to start running on the hosted runner: GitHub Actions 1000000796
-2026-02-21T23:04:44.0320000Z Job is waiting for a hosted runner to come online.
