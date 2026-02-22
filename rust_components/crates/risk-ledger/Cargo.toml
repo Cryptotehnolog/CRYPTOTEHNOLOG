@@ -19,6 +19,11 @@ rustdoc-args = ["--document-private-items"]
 # Ensure local path dependencies are not considered unused
 normal = ["cryptotechnolog-audit-chain", "cryptotechnolog-common"]
 
+[lib]
+name = "cryptotechnolog_risk_ledger"
+path = "src/lib.rs"
+crate-type = ["lib", "cdylib"]
+
 [dependencies]
 # Use workspace dependencies
 tokio = { workspace = true }
@@ -36,15 +41,9 @@ hex = "0.4"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winnt"] }
 
-# Local dependencies - workspace members (absolute paths from workspace root)
+# Local dependencies - workspace members
 cryptotechnolog-common = { path = "../common" }
 cryptotechnolog-audit-chain = { path = "../audit-chain" }
-
-# Force cargo to resolve these dependencies even if they appear unused
-[features]
-default = ["audit-integration"]
-audit-integration = []
-common-integration = []
 
 [dev-dependencies]
 tokio-test = { workspace = true }

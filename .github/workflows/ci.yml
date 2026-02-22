@@ -161,12 +161,16 @@ jobs:
         run: |
           rm -rf ~/.cargo/registry/src/*/cryptotechnolog-* || true
           rm -rf ~/.cargo/registry/index/github.com-*/cryptotechnolog-* || true
+          echo "=== Force cargo to regenerate metadata ==="
+          cargo metadata --format-version 1 > /tmp/metadata.json
+          echo "=== Workspace members from metadata ==="
+          jq -r '.workspace_members[]' /tmp/metadata.json
 
       - name: Build local dependencies first
         run: |
-          echo "=== Pre-building local workspace members ==="
-          cargo build --package cryptotechnolog-audit-chain --lib
-          cargo build --package cryptotechnolog-common --lib
+          echo "=== Pre-building local workspace members with all features ==="
+          cargo build --package cryptotechnolog-audit-chain --lib --all-features
+          cargo build --package cryptotechnolog-common --lib --all-features
 
       - name: Debug workspace and audit-chain
         run: |
@@ -193,10 +197,10 @@ jobs:
       - name: Check dependency tree for risk-ledger
         run: |
           echo "=== Building local dependencies first ==="
-          cargo build --package cryptotechnolog-audit-chain --lib
-          cargo build --package cryptotechnolog-common --lib
-          echo "=== Dependency tree for risk-ledger (without --workspace) ==="
-          cargo tree --package cryptotechnolog-risk-ledger > /tmp/risk_ledger_tree.txt
+          cargo build --package cryptotechnolog-audit-chain --lib --all-features
+          cargo build --package cryptotechnolog-common --lib --all-features
+          echo "=== Dependency tree for risk-ledger (with all features) ==="
+          cargo tree --package cryptotechnolog-risk-ledger --all-features > /tmp/risk_ledger_tree.txt
           cat /tmp/risk_ledger_tree.txt
           echo ""
           echo "=== Checking cargo metadata for risk-ledger ==="
@@ -229,16 +233,16 @@ jobs:
           echo "=== Cleaning previous builds ==="
           cargo clean --package cryptotechnolog-risk-ledger
           echo "=== Building audit-chain first ==="
-          cargo build --package cryptotechnolog-audit-chain --lib
+          cargo build --package cryptotechnolog-audit-chain --lib --all-features
           echo "=== Building common first ==="
-          cargo build --package cryptotechnolog-common --lib
+          cargo build --package cryptotechnolog-common --lib --all-features
           echo "=== Now checking risk-ledger ==="
-          cargo check --package cryptotechnolog-risk-ledger --lib --verbose
+          cargo check --package cryptotechnolog-risk-ledger --lib --all-features --verbose
 
       - name: Check workspace dependencies (early detection)
         run: |
-          # Check lib targets for dependency issues (all-targets can be too strict)
-          cargo check --workspace --lib
+          # Check lib targets for dependency issues with all features
+          cargo check --workspace --lib --all-features
 
       - name: Build workspace
         run: cargo build --workspace
