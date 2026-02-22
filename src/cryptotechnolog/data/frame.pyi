@@ -6,14 +6,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from typing import Union
-
     import pandas as pd
     import polars as pl
 
     # Type aliases for better IDE support
-    DataFrame = Union[pd.DataFrame, pl.DataFrame]
-    Series = Union[pd.Series, pl.Series]
+    DataFrame = pd.DataFrame | pl.DataFrame
+    Series = pd.Series | pl.Series
 else:
     # Runtime type aliases
     DataFrame = Any

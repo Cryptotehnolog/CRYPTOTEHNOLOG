@@ -1,14 +1,16 @@
 # ==================== CRYPTOTEHNOLOG Data Frame Utilities ====================
 # Polars and Pandas compatibility layer for gradual migration
 
-from typing import Any, Union
+import re
+import time
+from typing import Any
 
 import pandas as pd
 import polars as pl
 
 # Type alias for dataframes
-DataFrame = Union[pd.DataFrame, pl.DataFrame]
-Series = Union[pd.Series, pl.Series]
+DataFrame = pd.DataFrame | pl.DataFrame
+Series = pd.Series | pl.Series
 
 
 # ==================== Conversion Functions ====================
@@ -110,8 +112,6 @@ def benchmark_conversion(
     Returns:
         Dictionary with benchmark results (mean times in seconds).
     """
-    import time
-
     results: dict[str, list[float]] = {"to_polars": [], "to_pandas": []}
 
     for _ in range(n_iterations):
@@ -156,8 +156,6 @@ def _convert_timeframe_for_polars(timeframe: str) -> str:
     }
 
     # Check if it's a number followed by unit (e.g., "5min", "1H")
-    import re
-
     match = re.match(r"^(\d+)([a-zA-Z]+)$", timeframe)
     if match:
         number = match.group(1)
