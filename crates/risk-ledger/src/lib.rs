@@ -13,10 +13,6 @@
 // - Sub-millisecond risk calculations
 // - Zero-copy operations for high-frequency paths
 
-// Force cargo to recognize these dependencies at crate level
-pub use cryptotechnolog_audit_chain as _audit_chain;
-pub use cryptotechnolog_common as _common;
-
 pub mod ledger;
 pub mod merkle;
 pub mod validation;
