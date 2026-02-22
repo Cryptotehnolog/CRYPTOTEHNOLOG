@@ -22,6 +22,11 @@ hex = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 
+[lib]
+name = "cryptotechnolog_common"
+path = "src/lib.rs"
+crate-type = ["lib", "cdylib"]
+
 [dev-dependencies]
 tokio-test = { workspace = true }
 criterion = { workspace = true }
