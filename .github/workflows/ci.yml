@@ -153,25 +153,7 @@ jobs:
           echo "=== Workspace members from metadata ==="
           jq -r '.workspace_members[]' /tmp/metadata.json
 
-      - name: Cache cargo registry and index
-        if: success()
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo build
-        id: cache-build
-        if: success()
-        uses: actions/cache@v4
-        with:
-          path: |
-            target
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-v2-${{ hashFiles('**/Cargo.lock') }}
+      # Cache fully disabled - using fresh build to avoid stale metadata issues
 
       - name: Build local dependencies first
         run: |
