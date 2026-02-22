@@ -78,10 +78,5 @@ jemallocator = { version = "0.5", features = ["unprefixed_malloc_on_supported_pl
 crossbeam = "0.8"
 arrayvec = "0.7"
 
-# Local workspace members (for proper dependency resolution)
-cryptotechnolog-common = { path = "crates/common" }
-cryptotechnolog-audit-chain = { path = "crates/audit-chain" }
-cryptotechnolog-eventbus = { path = "crates/eventbus" }
-cryptotechnolog-risk-ledger = { path = "crates/risk-ledger" }
-cryptotechnolog-execution-core = { path = "crates/execution-core" }
-cryptotechnolog-ffi = { path = "crates/ffi" }
+# NOTE: Local workspace members are defined in [workspace].members
+# Cargo automatically resolves paths from members, no need for explicit workspace.dependencies
