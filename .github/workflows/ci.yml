@@ -66,35 +66,27 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          # Remove old version if exists (to avoid site-packages conflicts)
           uv pip uninstall cryptotechnolog --yes || true
-          # Install in editable mode with force-reinstall
           uv pip install -e ".[dev]" --force-reinstall
 
       - name: Run linter (ruff)
         run: |
-          # Check for undefined names (F821) and missing required imports (I002)
           .venv/bin/ruff check src/ tests/ --select F821,I002
-          # Run full ruff check
           .venv/bin/ruff check src/ tests/
-          # Check formatting
           .venv/bin/ruff format --check src/ tests/
 
       - name: Run type checker (mypy)
-        run: |
-          .venv/bin/mypy src/ --ignore-missing-imports
+        run: .venv/bin/mypy src/ --ignore-missing-imports
         continue-on-error: true
 
       - name: Run unit tests
-        run: |
-          .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
+        run: .venv/bin/python -m pytest tests/unit/ -v -n auto --dist loadscope --cov=src --cov-report=xml
         env:
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
       - name: Run integration tests
-        run: |
-          .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
+        run: .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
         env:
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
@@ -118,19 +110,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Clean old directories (rust_components from old structure)
+      - name: Clean old directories
         run: |
-          echo "=== Cleaning old directories from pre-refactor ==="
           rm -rf rust_components 2>/dev/null || true
           rm -rf target 2>/dev/null || true
-          echo "=== Current directory structure ==="
-          ls -la
-          echo "=== crates/ directory ==="
-          ls -la crates/
-          echo "=== Verifying audit-chain exists ==="
-          test -d crates/audit-chain && echo "audit-chain EXISTS" || echo "audit-chain MISSING"
-          test -d crates/audit-chain/src && echo "audit-chain/src EXISTS" || echo "audit-chain/src MISSING"
-          test -f crates/audit-chain/Cargo.toml && echo "audit-chain/Cargo.toml EXISTS" || echo "audit-chain/Cargo.toml MISSING"
 
       - name: Install system dependencies
         run: |
@@ -142,120 +125,21 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Clean cargo cache (force fresh metadata) - MUST run before any caching
+      - name: Clean cargo cache
         run: |
           cargo clean
           rm -rf target
-          rm -rf ~/.cargo/registry/src/*/cryptotechnolog-* 2>/dev/null || true
-          rm -rf ~/.cargo/registry/index/github.com-*/cryptotechnolog-* 2>/dev/null || true
-          echo "=== Force cargo to regenerate metadata ==="
-          cargo metadata --format-version 1 > /tmp/metadata.json
-          echo "=== Workspace members from metadata ==="
-          jq -r '.workspace_members[]' /tmp/metadata.json
-
-      # Cache fully disabled - using fresh build to avoid stale metadata issues
 
       - name: Build local dependencies first
         run: |
-          echo "=== Pre-building local workspace members with all features ==="
           cargo build --package cryptotechnolog-audit-chain --lib --all-features
           cargo build --package cryptotechnolog-common --lib --all-features
-
-      - name: Debug workspace and audit-chain
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Root Cargo.toml exists: $(test -f Cargo.toml && echo yes || echo no)"
-          echo "Root Cargo.toml content (members):"
-          grep -A10 "members" Cargo.toml || echo "No members found"
-          echo "Listing crates/:"
-          ls -la crates/
-          echo "Listing audit-chain content:"
-          ls -la crates/audit-chain/
-          echo "Listing audit-chain/src:"
-          ls -la crates/audit-chain/src/ || echo "src not found"
-          echo "Checking if audit-chain appears in cargo metadata:"
-          cargo metadata --format-version=1 | grep -o '"name":"cryptotechnolog-audit-chain"' || echo "Not found in metadata"
 
       - name: Run fmt check
         run: cargo fmt -- --check || true
 
-      - name: Check dependency tree for risk-ledger
-        run: |
-          echo "=== Building local dependencies first ==="
-          cargo build --package cryptotechnolog-audit-chain --lib --all-features
-          cargo build --package cryptotechnolog-common --lib --all-features
-          echo "=== Dependency tree for risk-ledger (with all features) ==="
-          cargo tree --package cryptotechnolog-risk-ledger --all-features > /tmp/risk_ledger_tree.txt
-          cat /tmp/risk_ledger_tree.txt
-          echo ""
-          echo "=== Checking cargo metadata for risk-ledger ==="
-          cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "cryptotechnolog-risk-ledger") | .dependencies[] | select(.name | contains("cryptotechnolog")) | .name'
-          echo ""
-          echo "=== Checking for audit-chain in tree ==="
-          grep -E "(cryptotechnolog-audit-chain|cryptotechnolog_audit_chain)" /tmp/risk_ledger_tree.txt || echo "audit-chain NOT FOUND in dependency tree"
-          echo ""
-          echo "=== Checking for common in tree ==="
-          grep -E "(cryptotechnolog-common|cryptotechnolog_common)" /tmp/risk_ledger_tree.txt || echo "common NOT FOUND in dependency tree"
-
-      - name: Check risk-ledger Cargo.toml content
-        run: |
-          echo "=== risk-ledger/Cargo.toml dependencies section ==="
-          cat crates/risk-ledger/Cargo.toml | grep -A20 "\[dependencies\]"
-
-      - name: Build audit-chain explicitly first
-        run: |
-          echo "=== Building audit-chain explicitly ==="
-          cargo build --package cryptotechnolog-audit-chain --lib
-
-      - name: Check audit-chain crate explicitly (debug)
-        run: |
-          echo "=== Checking audit-chain crate ==="
-          cargo check --package cryptotechnolog-audit-chain --lib --verbose
-
-      - name: Check risk-ledger explicitly with package flag
-        run: |
-          echo "=== DEBUG: File system structure right before risk-ledger build ==="
-          echo "Current dir: $(pwd)"
-          echo "Cargo version: $(cargo --version)"
-          echo "Rustc version: $(rustc --version)"
-          echo ""
-          echo "Root files:"
-          ls -la
-          echo ""
-          echo "crates/ directory:"
-          ls -la crates/
-          echo ""
-          echo "=== Verifying audit-chain path ==="
-          echo "crates/audit-chain/ exists: $(test -d crates/audit-chain && echo YES || echo NO)"
-          echo "crates/audit-chain/Cargo.toml exists: $(test -f crates/audit-chain/Cargo.toml && echo YES || echo NO)"
-          echo ""
-          echo "=== Verifying risk-ledger path ==="
-          echo "crates/risk-ledger/ exists: $(test -d crates/risk-ledger && echo YES || echo NO)"
-          echo "crates/risk-ledger/Cargo.toml exists: $(test -f crates/risk-ledger/Cargo.toml && echo YES || echo NO)"
-          echo ""
-          echo "=== risk-ledger Cargo.toml dependencies ==="
-          cat crates/risk-ledger/Cargo.toml | grep -A30 "\[dependencies\]"
-          echo ""
-          echo "=== cargo metadata output for audit-chain ==="
-          cargo metadata --format-version=1 --no-deps 2>&1 | grep -o '"name":"cryptotechnolog-audit-chain"[^}]*}' || echo "NOT FOUND"
-          echo ""
-          echo "=== cargo metadata output for risk-ledger dependencies ==="
-          cargo metadata --format-version=1 --no-deps 2>&1 | grep -A5 '"name":"cryptotechnolog-risk-ledger"' | head -20
-          echo ""
-          echo "=== Checking risk-ledger explicitly (from workspace root) ==="
-          echo "=== Cleaning previous builds ==="
-          cargo clean --package cryptotechnolog-risk-ledger
-          echo "=== Building audit-chain first ==="
-          cargo build --package cryptotechnolog-audit-chain --lib --all-features
-          echo "=== Building common first ==="
-          cargo build --package cryptotechnolog-common --lib --all-features
-          echo "=== Now checking risk-ledger with --workspace flag ==="
-          cargo check --package cryptotechnolog-risk-ledger --workspace --lib --all-features --verbose
-
-      - name: Check workspace dependencies (early detection)
-        run: |
-          # Check lib targets for dependency issues with all features
-          cargo check --workspace --lib --all-features
+      - name: Check workspace
+        run: cargo check --workspace --lib --all-features
 
       - name: Build workspace
         run: cargo build --workspace
@@ -264,7 +148,6 @@ jobs:
         run: cargo clippy --workspace -- -D warnings
 
       - name: Run tests
-        # Exclude ffi crate (requires Python C API linking - tested via Python pytest)
         run: cargo test --workspace --exclude cryptotechnolog-ffi --lib --quiet
 
   # ==================== Security Scan ====================
@@ -295,9 +178,7 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          # Remove old version if exists (to avoid site-packages conflicts)
           uv pip uninstall cryptotechnolog --yes || true
-          # Install in editable mode with force-reinstall
           uv pip install -e ".[dev]" --force-reinstall
           uv pip install detect-secrets bandit[toml] safety
 
@@ -316,16 +197,14 @@ jobs:
           .venv/bin/bandit -r src/ -f screen || true
 
       - name: Run Safety
-        run: |
-          .venv/bin/safety check -r requirements.txt || true
+        run: .venv/bin/safety check -r requirements.txt || true
 
       - name: Upload security reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: security-reports
-          path: |
-            bandit-report.json
+          path: bandit-report.json
 
   # ==================== Dependency Check ====================
   dependency-check:
@@ -352,19 +231,15 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          # Remove old version if exists (to avoid site-packages conflicts)
           uv pip uninstall cryptotechnolog --yes || true
-          # Install in editable mode with force-reinstall
           uv pip install -e ".[dev]" --force-reinstall
           uv pip install pip-audit safety
 
       - name: Run pip-audit
-        run: |
-          .venv/bin/pip-audit -r requirements.txt || true
+        run: .venv/bin/pip-audit -r requirements.txt || true
 
       - name: Run safety
-        run: |
-          .venv/bin/safety check -r requirements.txt || true
+        run: .venv/bin/safety check -r requirements.txt || true
 
   # ==================== Docker Build Test ====================
   docker-build:
@@ -420,15 +295,12 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          # Remove old version if exists (to avoid site-packages conflicts)
           uv pip uninstall cryptotechnolog --yes || true
-          # Install in editable mode with force-reinstall
           uv pip install -e ".[dev]" --force-reinstall
           uv pip install radon
 
       - name: Check code complexity (radon)
-        run: |
-          .venv/bin/radon cc src/ -a -nb
+        run: .venv/bin/radon cc src/ -a -nb
 
       - name: Check code duplication (jscpd)
         run: |
