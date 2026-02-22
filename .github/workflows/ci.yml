@@ -221,8 +221,8 @@ jobs:
           cargo build --package cryptotechnolog-audit-chain --lib --all-features
           echo "=== Building common first ==="
           cargo build --package cryptotechnolog-common --lib --all-features
-          echo "=== Now checking risk-ledger ==="
-          cargo check --package cryptotechnolog-risk-ledger --lib --all-features --verbose
+          echo "=== Now checking risk-ledger with --workspace flag ==="
+          cargo check --package cryptotechnolog-risk-ledger --workspace --lib --all-features --verbose
 
       - name: Check workspace dependencies (early detection)
         run: |
