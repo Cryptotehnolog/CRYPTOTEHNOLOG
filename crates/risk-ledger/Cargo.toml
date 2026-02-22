@@ -37,13 +37,13 @@ uuid = { workspace = true }
 sha2 = "0.10"
 hex = "0.4"
 
-# Windows-specific dependencies for file sharing
-[target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winnt"] }
-
 # Local dependencies - workspace members (available on all platforms)
 cryptotechnolog-common = { path = "../common" }
 cryptotechnolog-audit-chain = { path = "../audit-chain" }
+
+# Windows-specific dependencies for file sharing
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winnt"] }
 
 [target.'cfg(not(windows))'.dependencies]
 # Linux-specific dependencies (if any)
