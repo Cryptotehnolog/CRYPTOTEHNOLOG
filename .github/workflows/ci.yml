@@ -130,6 +130,30 @@ jobs:
           cargo clean
           rm -rf target
 
+      - name: Cache cargo registry and index
+        if: success()
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache cargo build
+        id: cache-build
+        if: success()
+        uses: actions/cache@v4
+        with:
+          path: |
+            target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-v2-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-v2-
+
       - name: Build local dependencies first
         run: |
           cargo build --package cryptotechnolog-audit-chain --lib --all-features
