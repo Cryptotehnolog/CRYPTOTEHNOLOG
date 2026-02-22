@@ -118,6 +118,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Clean old directories (rust_components from old structure)
+        run: |
+          echo "=== Cleaning old directories from pre-refactor ==="
+          rm -rf rust_components 2>/dev/null || true
+          rm -rf target 2>/dev/null || true
+          echo "=== Current directory structure ==="
+          ls -la
+          echo "=== crates/ directory ==="
+          ls -la crates/
+          echo "=== Verifying audit-chain exists ==="
+          test -d crates/audit-chain && echo "audit-chain EXISTS" || echo "audit-chain MISSING"
+          test -d crates/audit-chain/src && echo "audit-chain/src EXISTS" || echo "audit-chain/src MISSING"
+          test -f crates/audit-chain/Cargo.toml && echo "audit-chain/Cargo.toml EXISTS" || echo "audit-chain/Cargo.toml MISSING"
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -147,8 +161,6 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-registry-
 
       - name: Cache cargo build
         id: cache-build
@@ -160,8 +172,6 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-v2-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-v2-
 
       - name: Build local dependencies first
         run: |
