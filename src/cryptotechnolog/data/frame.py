@@ -72,8 +72,8 @@ def read_csv(
         DataFrame (Polars or Pandas).
     """
     if use_polars:
-        return pl.read_csv(path, **kwargs)
-    return pd.read_csv(path, **kwargs)
+        return pl.read_csv(path, **kwargs)  # type: ignore[return-value]
+    return pd.read_csv(path, **kwargs)  # type: ignore[return-value]
 
 
 def read_parquet(
@@ -93,8 +93,8 @@ def read_parquet(
         DataFrame (Polars or Pandas).
     """
     if use_polars:
-        return pl.read_parquet(path, **kwargs)
-    return pd.read_parquet(path, **kwargs)
+        return pl.read_parquet(path, **kwargs)  # type: ignore[return-value]
+    return pd.read_parquet(path, **kwargs)  # type: ignore[return-value]
 
 
 # ==================== Performance Utilities ====================
@@ -208,19 +208,17 @@ def resample_ohlcv(
     else:
         pd_df = to_pandas(df)
         df_typed = pd_df.set_index("timestamp")
-        return (
-            df_typed.resample(timeframe)
-            .agg(
-                {
-                    "open": "first",
-                    "high": "max",
-                    "low": "min",
-                    "close": "last",
-                    "volume": "sum",
-                }
-            )
-            .reset_index()
+        # resample returns a DataFrame with complex type, use type: ignore
+        resampled: pd.DataFrame = df_typed.resample(timeframe).agg(  # type: ignore[no-any-return]
+            {
+                "open": "first",
+                "high": "max",
+                "low": "min",
+                "close": "last",
+                "volume": "sum",
+            }
         )
+        return resampled.reset_index()  # type: ignore[no-any-return]
 
 
 def calculate_returns(
