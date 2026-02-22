@@ -1,0 +1,132 @@
+﻿2026-02-22T16:13:58.6960680Z ##[group]Run echo "=== Checking risk-ledger explicitly (from workspace root) ==="
+2026-02-22T16:13:58.6961232Z [36;1mecho "=== Checking risk-ledger explicitly (from workspace root) ==="[0m
+2026-02-22T16:13:58.6961625Z [36;1mecho "=== Cleaning previous builds ==="[0m
+2026-02-22T16:13:58.6961967Z [36;1mcargo clean --package cryptotechnolog-risk-ledger[0m
+2026-02-22T16:13:58.6962299Z [36;1mecho "=== Building audit-chain first ==="[0m
+2026-02-22T16:13:58.6962720Z [36;1mcargo build --package cryptotechnolog-audit-chain --lib --all-features[0m
+2026-02-22T16:13:58.6963122Z [36;1mecho "=== Building common first ==="[0m
+2026-02-22T16:13:58.6963485Z [36;1mcargo build --package cryptotechnolog-common --lib --all-features[0m
+2026-02-22T16:13:58.6963870Z [36;1mecho "=== Now checking risk-ledger ==="[0m
+2026-02-22T16:13:58.6964308Z [36;1mcargo check --package cryptotechnolog-risk-ledger --lib --all-features --verbose[0m
+2026-02-22T16:13:58.6995257Z shell: /usr/bin/bash -e {0}
+2026-02-22T16:13:58.6995486Z env:
+2026-02-22T16:13:58.6995683Z   PYTHON_VERSION: 3.12
+2026-02-22T16:13:58.6995896Z   CARGO_HOME: /home/runner/.cargo
+2026-02-22T16:13:58.6996122Z   CARGO_INCREMENTAL: 0
+2026-02-22T16:13:58.6996312Z   CARGO_TERM_COLOR: always
+2026-02-22T16:13:58.6996503Z ##[endgroup]
+2026-02-22T16:13:58.7049349Z === Checking risk-ledger explicitly (from workspace root) ===
+2026-02-22T16:13:58.7050447Z === Cleaning previous builds ===
+2026-02-22T16:13:58.7982542Z [1m[92m     Removed[0m 0 files
+2026-02-22T16:13:58.8013292Z === Building audit-chain first ===
+2026-02-22T16:13:58.8974257Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+2026-02-22T16:13:58.9023091Z === Building common first ===
+2026-02-22T16:13:58.9945659Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+2026-02-22T16:13:58.9997148Z === Now checking risk-ledger ===
+2026-02-22T16:13:59.0961578Z [1m[92m       Fresh[0m unicode-ident v1.0.24
+2026-02-22T16:13:59.0962132Z [1m[92m       Fresh[0m proc-macro2 v1.0.106
+2026-02-22T16:13:59.0962827Z [1m[92m       Fresh[0m quote v1.0.44
+2026-02-22T16:13:59.0963479Z [1m[92m       Fresh[0m version_check v0.9.5
+2026-02-22T16:13:59.0964123Z [1m[92m       Fresh[0m libc v0.2.182
+2026-02-22T16:13:59.0964718Z [1m[92m       Fresh[0m syn v2.0.117
+2026-02-22T16:13:59.0965287Z [1m[92m       Fresh[0m cfg-if v1.0.4
+2026-02-22T16:13:59.0965865Z [1m[92m       Fresh[0m typenum v1.19.0
+2026-02-22T16:13:59.0966501Z [1m[92m       Fresh[0m serde_core v1.0.228
+2026-02-22T16:13:59.0967423Z [1m[92m       Fresh[0m generic-array v0.14.7
+2026-02-22T16:13:59.0968088Z [1m[92m       Fresh[0m autocfg v1.5.0
+2026-02-22T16:13:59.0968714Z [1m[92m       Fresh[0m serde_derive v1.0.228
+2026-02-22T16:13:59.0969303Z [1m[92m       Fresh[0m smallvec v1.15.1
+2026-02-22T16:13:59.0970099Z [1m[92m       Fresh[0m scopeguard v1.2.0
+2026-02-22T16:13:59.0970603Z [1m[92m       Fresh[0m lock_api v0.4.14
+2026-02-22T16:13:59.0971124Z [1m[92m       Fresh[0m parking_lot_core v0.9.12
+2026-02-22T16:13:59.0971679Z [1m[92m       Fresh[0m serde v1.0.228
+2026-02-22T16:13:59.0972204Z [1m[92m       Fresh[0m block-buffer v0.10.4
+2026-02-22T16:13:59.0972729Z [1m[92m       Fresh[0m crypto-common v0.1.7
+2026-02-22T16:13:59.0973231Z [1m[92m       Fresh[0m errno v0.3.14
+2026-02-22T16:13:59.0973745Z [1m[92m       Fresh[0m pin-project-lite v0.2.16
+2026-02-22T16:13:59.0974283Z [1m[92m       Fresh[0m once_cell v1.21.3
+2026-02-22T16:13:59.0974781Z [1m[92m       Fresh[0m num-traits v0.2.19
+2026-02-22T16:13:59.0975292Z [1m[92m       Fresh[0m tracing-core v0.1.36
+2026-02-22T16:13:59.0975855Z [1m[92m       Fresh[0m signal-hook-registry v1.4.8
+2026-02-22T16:13:59.0976385Z [1m[92m       Fresh[0m digest v0.10.7
+2026-02-22T16:13:59.0977057Z [1m[92m       Fresh[0m parking_lot v0.12.5
+2026-02-22T16:13:59.0977448Z [1m[92m       Fresh[0m zmij v1.0.21
+2026-02-22T16:13:59.0977749Z [1m[92m       Fresh[0m getrandom v0.2.17
+2026-02-22T16:13:59.0978046Z [1m[92m       Fresh[0m mio v1.1.1
+2026-02-22T16:13:59.0978559Z [1m[92m       Fresh[0m socket2 v0.6.2
+2026-02-22T16:13:59.0978876Z [1m[92m       Fresh[0m tokio-macros v2.6.0
+2026-02-22T16:13:59.0979232Z [1m[92m       Fresh[0m tracing-attributes v0.1.31
+2026-02-22T16:13:59.0979563Z [1m[92m       Fresh[0m memchr v2.8.0
+2026-02-22T16:13:59.0979848Z [1m[92m       Fresh[0m iana-time-zone v0.1.65
+2026-02-22T16:13:59.0980129Z [1m[92m       Fresh[0m bytes v1.11.1
+2026-02-22T16:13:59.0980403Z [1m[92m       Fresh[0m cpufeatures v0.2.17
+2026-02-22T16:13:59.0980683Z [1m[92m       Fresh[0m itoa v1.0.17
+2026-02-22T16:13:59.0980945Z [1m[92m       Fresh[0m tokio v1.49.0
+2026-02-22T16:13:59.0981229Z [1m[92m       Fresh[0m chrono v0.4.43
+2026-02-22T16:13:59.0981738Z [1m[92m       Fresh[0m sha2 v0.10.9
+2026-02-22T16:13:59.0982266Z [1m[92m       Fresh[0m serde_json v1.0.149
+2026-02-22T16:13:59.0982799Z [1m[92m       Fresh[0m tracing v0.1.44
+2026-02-22T16:13:59.0983282Z [1m[92m       Fresh[0m uuid v1.6.1
+2026-02-22T16:13:59.0983765Z [1m[92m    Checking[0m hex v0.4.3
+2026-02-22T16:13:59.0988136Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name hex --edition=2018 /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hex-0.4.3/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --cfg 'feature="alloc"' --cfg 'feature="default"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("alloc", "default", "serde", "std"))' -C metadata=ff1b65c147de2680 -C extra-filename=-cef34422a11f1fa7 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --cap-lints allow`
+2026-02-22T16:13:59.2036307Z [1m[92m    Checking[0m cryptotechnolog-risk-ledger v0.1.0 (/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/rust_components/crates/risk-ledger)
+2026-02-22T16:13:59.2045450Z [1m[92m     Running[0m `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name cryptotechnolog_risk_ledger --edition=2021 rust_components/crates/risk-ledger/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --crate-type cdylib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=b3dd36b1fdfd19a8 -C extra-filename=-c4ebc435faddd2d3 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern chrono=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libchrono-da7a59d9fcb8ea1d.rmeta --extern hex=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libhex-cef34422a11f1fa7.rmeta --extern serde=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde-c8965ee8ee9e0eb1.rmeta --extern serde_json=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde_json-1cdee1288465c9de.rmeta --extern sha2=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libsha2-09d0f13c5907af41.rmeta --extern tokio=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtokio-137c0c47b9ddf88f.rmeta --extern tracing=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtracing-7638c49d282178ad.rmeta --extern uuid=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libuuid-8875611f18652df5.rmeta`
+2026-02-22T16:13:59.2469914Z [1m[91merror[E0432][0m[1m: unresolved import `cryptotechnolog_audit_chain`[0m
+2026-02-22T16:13:59.2470875Z   [1m[94m--> [0mrust_components/crates/risk-ledger/src/lib.rs:17:9
+2026-02-22T16:13:59.2471480Z    [1m[94m|[0m
+2026-02-22T16:13:59.2472034Z [1m[94m17[0m [1m[94m|[0m pub use cryptotechnolog_audit_chain as _audit_chain;
+2026-02-22T16:13:59.2473486Z    [1m[94m|[0m         [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mno external crate `cryptotechnolog_audit_chain`[0m
+2026-02-22T16:13:59.2474053Z 
+2026-02-22T16:13:59.2475016Z [1m[91merror[E0432][0m[1m: unresolved import `cryptotechnolog_common`[0m
+2026-02-22T16:13:59.2475871Z   [1m[94m--> [0mrust_components/crates/risk-ledger/src/lib.rs:18:9
+2026-02-22T16:13:59.2476473Z    [1m[94m|[0m
+2026-02-22T16:13:59.2477253Z [1m[94m18[0m [1m[94m|[0m pub use cryptotechnolog_common as _common;
+2026-02-22T16:13:59.2478249Z    [1m[94m|[0m         [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mno external crate `cryptotechnolog_common`[0m
+2026-02-22T16:13:59.2478821Z 
+2026-02-22T16:13:59.2479266Z [1m[91merror[E0432][0m[1m: unresolved import `cryptotechnolog_audit_chain`[0m
+2026-02-22T16:13:59.2480145Z   [1m[94m--> [0mrust_components/crates/risk-ledger/src/ledger.rs:21:5
+2026-02-22T16:13:59.2480749Z    [1m[94m|[0m
+2026-02-22T16:13:59.2481496Z [1m[94m21[0m [1m[94m|[0m use cryptotechnolog_audit_chain::AuditChain;
+2026-02-22T16:13:59.2482680Z    [1m[94m|[0m     [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91muse of unresolved module or unlinked crate `cryptotechnolog_audit_chain`[0m
+2026-02-22T16:13:59.2483543Z    [1m[94m|[0m
+2026-02-22T16:13:59.2484685Z    [1m[94m= [0m[1mhelp[0m: if you wanted to use a crate named `cryptotechnolog_audit_chain`, use `cargo add cryptotechnolog_audit_chain` to add it to your `Cargo.toml`
+2026-02-22T16:13:59.2485549Z 
+2026-02-22T16:13:59.4232145Z [1m[91merror[E0433][0m[1m: failed to resolve: use of unresolved module or unlinked crate `cryptotechnolog_audit_chain`[0m
+2026-02-22T16:13:59.4233398Z    [1m[94m--> [0mrust_components/crates/risk-ledger/src/ledger.rs:266:14
+2026-02-22T16:13:59.4234034Z     [1m[94m|[0m
+2026-02-22T16:13:59.4234854Z [1m[94m266[0m [1m[94m|[0m     ) -> Vec<cryptotechnolog_audit_chain::AuditRecord> {
+2026-02-22T16:13:59.4236020Z     [1m[94m|[0m              [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91muse of unresolved module or unlinked crate `cryptotechnolog_audit_chain`[0m
+2026-02-22T16:13:59.4237208Z     [1m[94m|[0m
+2026-02-22T16:13:59.4238370Z     [1m[94m= [0m[1mhelp[0m: if you wanted to use a crate named `cryptotechnolog_audit_chain`, use `cargo add cryptotechnolog_audit_chain` to add it to your `Cargo.toml`
+2026-02-22T16:13:59.4239331Z 
+2026-02-22T16:13:59.4240030Z [1m[91merror[E0433][0m[1m: failed to resolve: use of unresolved module or unlinked crate `cryptotechnolog_audit_chain`[0m
+2026-02-22T16:13:59.4241137Z    [1m[94m--> [0mrust_components/crates/risk-ledger/src/ledger.rs:267:30
+2026-02-22T16:13:59.4241720Z     [1m[94m|[0m
+2026-02-22T16:13:59.4242755Z [1m[94m267[0m [1m[94m|[0m         let all_records: Vec<cryptotechnolog_audit_chain::AuditRecord> = self.audit.get_all_records().await;
+2026-02-22T16:13:59.4244495Z     [1m[94m|[0m                              [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91muse of unresolved module or unlinked crate `cryptotechnolog_audit_chain`[0m
+2026-02-22T16:13:59.4245354Z     [1m[94m|[0m
+2026-02-22T16:13:59.4246018Z     [1m[94m= [0m[1mhelp[0m: if you wanted to use a crate named `cryptotechnolog_audit_chain`, use `cargo add cryptotechnolog_audit_chain` to add it to your `Cargo.toml`
+2026-02-22T16:13:59.4246733Z 
+2026-02-22T16:13:59.4247239Z [1m[91merror[E0433][0m[1m: failed to resolve: use of unresolved module or unlinked crate `cryptotechnolog_audit_chain`[0m
+2026-02-22T16:13:59.4247904Z    [1m[94m--> [0mrust_components/crates/risk-ledger/src/ledger.rs:270:26
+2026-02-22T16:13:59.4248386Z     [1m[94m|[0m
+2026-02-22T16:13:59.4248829Z [1m[94m270[0m [1m[94m|[0m             .filter(|r: &cryptotechnolog_audit_chain::AuditRecord| {
+2026-02-22T16:13:59.4249566Z     [1m[94m|[0m                          [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91muse of unresolved module or unlinked crate `cryptotechnolog_audit_chain`[0m
+2026-02-22T16:13:59.4250066Z     [1m[94m|[0m
+2026-02-22T16:13:59.4250903Z     [1m[94m= [0m[1mhelp[0m: if you wanted to use a crate named `cryptotechnolog_audit_chain`, use `cargo add cryptotechnolog_audit_chain` to add it to your `Cargo.toml`
+2026-02-22T16:13:59.4251439Z 
+2026-02-22T16:13:59.4251855Z [1m[91merror[E0433][0m[1m: failed to resolve: use of unresolved module or unlinked crate `cryptotechnolog_audit_chain`[0m
+2026-02-22T16:13:59.4252478Z    [1m[94m--> [0mrust_components/crates/risk-ledger/src/ledger.rs:281:54
+2026-02-22T16:13:59.4252818Z     [1m[94m|[0m
+2026-02-22T16:13:59.4253358Z [1m[94m281[0m [1m[94m|[0m     pub async fn get_all_audit_records(&self) -> Vec<cryptotechnolog_audit_chain::AuditRecord> {
+2026-02-22T16:13:59.4254231Z     [1m[94m|[0m                                                      [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91muse of unresolved module or unlinked crate `cryptotechnolog_audit_chain`[0m
+2026-02-22T16:13:59.4254771Z     [1m[94m|[0m
+2026-02-22T16:13:59.4255427Z     [1m[94m= [0m[1mhelp[0m: if you wanted to use a crate named `cryptotechnolog_audit_chain`, use `cargo add cryptotechnolog_audit_chain` to add it to your `Cargo.toml`
+2026-02-22T16:13:59.4255972Z 
+2026-02-22T16:13:59.4256161Z [1mSome errors have detailed explanations: E0432, E0433.[0m
+2026-02-22T16:13:59.4256817Z [1mFor more information about an error, try `rustc --explain E0432`.[0m
+2026-02-22T16:13:59.4282557Z [1m[91merror[0m: could not compile `cryptotechnolog-risk-ledger` (lib) due to 7 previous errors
+2026-02-22T16:13:59.4283188Z 
+2026-02-22T16:13:59.4283263Z Caused by:
+2026-02-22T16:13:59.4289849Z   process didn't exit successfully: `/home/runner/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name cryptotechnolog_risk_ledger --edition=2021 rust_components/crates/risk-ledger/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --crate-type cdylib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=b3dd36b1fdfd19a8 -C extra-filename=-c4ebc435faddd2d3 --out-dir /home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps -L dependency=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps --extern chrono=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libchrono-da7a59d9fcb8ea1d.rmeta --extern hex=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libhex-cef34422a11f1fa7.rmeta --extern serde=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde-c8965ee8ee9e0eb1.rmeta --extern serde_json=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libserde_json-1cdee1288465c9de.rmeta --extern sha2=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libsha2-09d0f13c5907af41.rmeta --extern tokio=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtokio-137c0c47b9ddf88f.rmeta --extern tracing=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libtracing-7638c49d282178ad.rmeta --extern uuid=/home/runner/work/CRYPTOTEHNOLOG/CRYPTOTEHNOLOG/target/debug/deps/libuuid-8875611f18652df5.rmeta` (exit status: 1)
+2026-02-22T16:13:59.4368116Z ##[error]Process completed with exit code 101.

@@ -1,0 +1,84 @@
+﻿2026-02-22T16:13:41.3239267Z ##[group]Run # Check for undefined names (F821) and missing required imports (I002)
+2026-02-22T16:13:41.3239827Z [36;1m# Check for undefined names (F821) and missing required imports (I002)[0m
+2026-02-22T16:13:41.3241012Z [36;1m.venv/bin/ruff check src/ tests/ --select F821,I002[0m
+2026-02-22T16:13:41.3241336Z [36;1m# Run full ruff check[0m
+2026-02-22T16:13:41.3241573Z [36;1m.venv/bin/ruff check src/ tests/[0m
+2026-02-22T16:13:41.3241841Z [36;1m# Check formatting[0m
+2026-02-22T16:13:41.3242092Z [36;1m.venv/bin/ruff format --check src/ tests/[0m
+2026-02-22T16:13:41.3274228Z shell: /usr/bin/bash -e {0}
+2026-02-22T16:13:41.3274451Z env:
+2026-02-22T16:13:41.3274621Z   PYTHON_VERSION: 3.12
+2026-02-22T16:13:41.3274892Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-22T16:13:41.3275310Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib/pkgconfig
+2026-02-22T16:13:41.3275736Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-22T16:13:41.3276108Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-22T16:13:41.3276513Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.12/x64
+2026-02-22T16:13:41.3276869Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.12/x64/lib
+2026-02-22T16:13:41.3277156Z ##[endgroup]
+2026-02-22T16:13:41.3433595Z All checks passed!
+2026-02-22T16:13:41.3582688Z UP007 Use `X | Y` for type annotations
+2026-02-22T16:13:41.3583361Z   --> src/cryptotechnolog/data/frame.py:10:13
+2026-02-22T16:13:41.3583802Z    |
+2026-02-22T16:13:41.3584079Z  9 | # Type alias for dataframes
+2026-02-22T16:13:41.3584539Z 10 | DataFrame = Union[pd.DataFrame, pl.DataFrame]
+2026-02-22T16:13:41.3585029Z    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-02-22T16:13:41.3585475Z 11 | Series = Union[pd.Series, pl.Series]
+2026-02-22T16:13:41.3585867Z    |
+2026-02-22T16:13:41.3586140Z help: Convert to `X | Y`
+2026-02-22T16:13:41.3586359Z 
+2026-02-22T16:13:41.3586507Z UP007 Use `X | Y` for type annotations
+2026-02-22T16:13:41.3586968Z   --> src/cryptotechnolog/data/frame.py:11:10
+2026-02-22T16:13:41.3587421Z    |
+2026-02-22T16:13:41.3587692Z  9 | # Type alias for dataframes
+2026-02-22T16:13:41.3588134Z 10 | DataFrame = Union[pd.DataFrame, pl.DataFrame]
+2026-02-22T16:13:41.3588624Z 11 | Series = Union[pd.Series, pl.Series]
+2026-02-22T16:13:41.3589033Z    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-02-22T16:13:41.3589383Z    |
+2026-02-22T16:13:41.3590243Z help: Convert to `X | Y`
+2026-02-22T16:13:41.3590510Z 
+2026-02-22T16:13:41.3590748Z PLC0415 `import` should be at the top-level of a file
+2026-02-22T16:13:41.3591292Z    --> src/cryptotechnolog/data/frame.py:113:5
+2026-02-22T16:13:41.3591718Z     |
+2026-02-22T16:13:41.3592117Z 111 |         Dictionary with benchmark results (mean times in seconds).
+2026-02-22T16:13:41.3592676Z 112 |     """
+2026-02-22T16:13:41.3592965Z 113 |     import time
+2026-02-22T16:13:41.3593277Z     |     ^^^^^^^^^^^
+2026-02-22T16:13:41.3593555Z 114 |
+2026-02-22T16:13:41.3593999Z 115 |     results: dict[str, list[float]] = {"to_polars": [], "to_pandas": []}
+2026-02-22T16:13:41.3594582Z     |
+2026-02-22T16:13:41.3594738Z 
+2026-02-22T16:13:41.3594945Z PLC0415 `import` should be at the top-level of a file
+2026-02-22T16:13:41.3595481Z    --> src/cryptotechnolog/data/frame.py:159:5
+2026-02-22T16:13:41.3595884Z     |
+2026-02-22T16:13:41.3596239Z 158 |     # Check if it's a number followed by unit (e.g., "5min", "1H")
+2026-02-22T16:13:41.3596582Z 159 |     import re
+2026-02-22T16:13:41.3596760Z     |     ^^^^^^^^^
+2026-02-22T16:13:41.3596918Z 160 |
+2026-02-22T16:13:41.3597133Z 161 |     match = re.match(r"^(\d+)([a-zA-Z]+)$", timeframe)
+2026-02-22T16:13:41.3597411Z     |
+2026-02-22T16:13:41.3597506Z 
+2026-02-22T16:13:41.3597595Z UP007 Use `X | Y` for type annotations
+2026-02-22T16:13:41.3597877Z   --> src/cryptotechnolog/data/frame.pyi:15:17
+2026-02-22T16:13:41.3598135Z    |
+2026-02-22T16:13:41.3598329Z 14 |     # Type aliases for better IDE support
+2026-02-22T16:13:41.3598690Z 15 |     DataFrame = Union[pd.DataFrame, pl.DataFrame]
+2026-02-22T16:13:41.3599874Z    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-02-22T16:13:41.3600554Z 16 |     Series = Union[pd.Series, pl.Series]
+2026-02-22T16:13:41.3600956Z 17 | else:
+2026-02-22T16:13:41.3601200Z    |
+2026-02-22T16:13:41.3601467Z help: Convert to `X | Y`
+2026-02-22T16:13:41.3601640Z 
+2026-02-22T16:13:41.3601731Z UP007 Use `X | Y` for type annotations
+2026-02-22T16:13:41.3602033Z   --> src/cryptotechnolog/data/frame.pyi:16:14
+2026-02-22T16:13:41.3602290Z    |
+2026-02-22T16:13:41.3602464Z 14 |     # Type aliases for better IDE support
+2026-02-22T16:13:41.3602760Z 15 |     DataFrame = Union[pd.DataFrame, pl.DataFrame]
+2026-02-22T16:13:41.3603047Z 16 |     Series = Union[pd.Series, pl.Series]
+2026-02-22T16:13:41.3603295Z    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-02-22T16:13:41.3603510Z 17 | else:
+2026-02-22T16:13:41.3603682Z 18 |     # Runtime type aliases
+2026-02-22T16:13:41.3603880Z    |
+2026-02-22T16:13:41.3604038Z help: Convert to `X | Y`
+2026-02-22T16:13:41.3604165Z 
+2026-02-22T16:13:41.3604243Z Found 6 errors.
+2026-02-22T16:13:41.3614653Z ##[error]Process completed with exit code 1.
