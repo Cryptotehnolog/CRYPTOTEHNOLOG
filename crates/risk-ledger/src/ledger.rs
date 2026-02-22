@@ -112,7 +112,8 @@ impl RiskLedger {
         // Append to WAL
         let data = serde_json::to_value(&position)?;
         let mut wal = self.wal.write().await;
-        wal.append("UPDATE_POSITION".to_string(), data.clone()).await?;
+        wal.append("UPDATE_POSITION".to_string(), data.clone())
+            .await?;
         wal.flush().await?;
         drop(wal);
 
@@ -264,7 +265,8 @@ impl RiskLedger {
         &self,
         position_id: &str,
     ) -> Vec<cryptotechnolog_audit_chain::AuditRecord> {
-        let all_records: Vec<cryptotechnolog_audit_chain::AuditRecord> = self.audit.get_all_records().await;
+        let all_records: Vec<cryptotechnolog_audit_chain::AuditRecord> =
+            self.audit.get_all_records().await;
         all_records
             .into_iter()
             .filter(|r: &cryptotechnolog_audit_chain::AuditRecord| {
@@ -499,9 +501,7 @@ mod tests {
         ledger.update_position(position.clone()).await.unwrap();
 
         // Get audit records for this position
-        let audit_records = ledger
-            .get_audit_records_for_position("BTC/USDT-1")
-            .await;
+        let audit_records = ledger.get_audit_records_for_position("BTC/USDT-1").await;
 
         assert_eq!(audit_records.len(), 1);
         assert_eq!(audit_records[0].event_type, "POSITION_UPDATE");
@@ -542,9 +542,7 @@ mod tests {
         }
 
         // Should have 3 audit records
-        let audit_records = ledger
-            .get_audit_records_for_position("BTC/USDT-1")
-            .await;
+        let audit_records = ledger.get_audit_records_for_position("BTC/USDT-1").await;
 
         assert_eq!(audit_records.len(), 3);
 

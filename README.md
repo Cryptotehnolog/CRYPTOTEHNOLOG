@@ -141,7 +141,6 @@ mypy src/
 pytest --cov=src --cov-report=html
 
 # Build Rust components
-cd rust_components
 cargo build
 cargo test
 ```
@@ -162,11 +161,13 @@ CRYPTOTEHNOLOG/
 │   ├── intelligence/        # Intelligence layer
 │   ├── strategy/            # Trading strategies
 │   └── observability/       # Monitoring & metrics
-├── rust_components/         # Rust components
-│   ├── event_bus/           # High-performance event bus
-│   ├── risk_ledger/         # Double-entry risk ledger
-│   ├── audit_chain/         # Cryptographic audit chain
-│   └── execution_core/      # Low-latency execution
+├── crates/                  # Rust workspace crates
+│   ├── eventbus/            # High-performance event bus
+│   ├── risk-ledger/         # Double-entry risk ledger
+│   ├── audit-chain/         # Cryptographic audit chain
+│   ├── execution-core/      # Low-latency execution
+│   ├── ffi/                 # Python FFI bindings
+│   └── common/              # Shared types and utilities
 ├── tests/                   # Test suite
 │   ├── unit/               # Unit tests
 │   ├── integration/        # Integration tests

@@ -1,7 +1,7 @@
 // ==================== CRYPTOTEHNOLOG Validation Benchmarks ====================
 // Benchmarks for double-entry validation performance
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use cryptotechnolog_risk_ledger::validation::{DoubleEntryValidator, Transaction};
 
 /// Benchmark double-entry validation
@@ -19,12 +19,11 @@ fn bench_double_entry_validation(c: &mut Criterion) {
             for i in 0..(count / 2) {
                 let amount = 100.0;
                 transactions.push(Transaction::new(format!("ACCOUNT_{}", i), -amount)); // Debit
-                transactions.push(Transaction::new(format!("ACCOUNT_{}", i + 1000), amount)); // Credit
+                transactions.push(Transaction::new(format!("ACCOUNT_{}", i + 1000), amount));
+                // Credit
             }
 
-            b.iter(|| {
-                black_box(validator.validate(black_box(&transactions)).unwrap())
-            });
+            b.iter(|| black_box(validator.validate(black_box(&transactions)).unwrap()));
         });
     }
     group.finish();
@@ -33,21 +32,14 @@ fn bench_double_entry_validation(c: &mut Criterion) {
 /// Benchmark transaction creation
 fn bench_transaction_creation(c: &mut Criterion) {
     c.bench_function("transaction_creation", |b| {
-        b.iter(|| {
-            black_box(Transaction::new(
-                "TEST_ACCOUNT".to_string(),
-                100.0,
-            ))
-        });
+        b.iter(|| black_box(Transaction::new("TEST_ACCOUNT".to_string(), 100.0)));
     });
 }
 
 /// Benchmark validator creation
 fn bench_validator_creation(c: &mut Criterion) {
     c.bench_function("validator_creation", |b| {
-        b.iter(|| {
-            black_box(DoubleEntryValidator::new())
-        });
+        b.iter(|| black_box(DoubleEntryValidator::new()));
     });
 }
 
@@ -110,18 +102,22 @@ fn bench_validation_amounts(c: &mut Criterion) {
     let amounts = vec![0.01, 1.0, 100.0, 10000.0, 1000000.0];
 
     for amount in amounts {
-        group.bench_with_input(BenchmarkId::from_parameter(amount), &amount, |b, &amount| {
-            let validator = DoubleEntryValidator::new();
+        group.bench_with_input(
+            BenchmarkId::from_parameter(amount),
+            &amount,
+            |b, &amount| {
+                let validator = DoubleEntryValidator::new();
 
-            b.iter(|| {
-                let transactions = vec![
-                    Transaction::new("ACCOUNT_1".to_string(), -amount), // Debit
-                    Transaction::new("ACCOUNT_2".to_string(), amount),  // Credit
-                ];
+                b.iter(|| {
+                    let transactions = vec![
+                        Transaction::new("ACCOUNT_1".to_string(), -amount), // Debit
+                        Transaction::new("ACCOUNT_2".to_string(), amount),  // Credit
+                    ];
 
-                black_box(validator.validate(&transactions).unwrap())
-            });
-        });
+                    black_box(validator.validate(&transactions).unwrap())
+                });
+            },
+        );
     }
     group.finish();
 }

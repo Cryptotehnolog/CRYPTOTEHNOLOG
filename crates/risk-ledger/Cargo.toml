@@ -42,8 +42,8 @@ hex = "0.4"
 winapi = { version = "0.3", features = ["winnt"] }
 
 # Local dependencies - workspace members
-cryptotechnolog-common = { workspace = true }
-cryptotechnolog-audit-chain = { workspace = true }
+cryptotechnolog-common = { path = "../common" }
+cryptotechnolog-audit-chain = { path = "../audit-chain" }
 
 [dev-dependencies]
 tokio-test = { workspace = true }

@@ -21,12 +21,14 @@ fn bench_event_creation(c: &mut Criterion) {
 
 /// Benchmark event serialization
 fn bench_event_serialization(c: &mut Criterion) {
-    let event = Event::new("TEST_EVENT", "TEST_SOURCE", serde_json::json!({"key": "value"}));
+    let event = Event::new(
+        "TEST_EVENT",
+        "TEST_SOURCE",
+        serde_json::json!({"key": "value"}),
+    );
 
     c.bench_function("event_serialization", |b| {
-        b.iter(|| {
-            black_box(serde_json::to_string(black_box(&event)))
-        });
+        b.iter(|| black_box(serde_json::to_string(black_box(&event))));
     });
 }
 
@@ -36,12 +38,11 @@ fn bench_event_deserialization(c: &mut Criterion) {
         "TEST_EVENT",
         "TEST_SOURCE",
         serde_json::json!({"key": "value"}),
-    )).unwrap();
+    ))
+    .unwrap();
 
     c.bench_function("event_deserialization", |b| {
-        b.iter(|| {
-            black_box(serde_json::from_str::<Event>(black_box(&json)))
-        });
+        b.iter(|| black_box(serde_json::from_str::<Event>(black_box(&json))));
     });
 }
 
@@ -328,12 +329,14 @@ fn bench_event_creation(c: &mut Criterion) {
 
 /// Benchmark event serialization
 fn bench_event_serialization(c: &mut Criterion) {
-    let event = Event::new("TEST_EVENT", "TEST_SOURCE", serde_json::json!({"key": "value"}));
+    let event = Event::new(
+        "TEST_EVENT",
+        "TEST_SOURCE",
+        serde_json::json!({"key": "value"}),
+    );
 
     c.bench_function("event_serialization", |b| {
-        b.iter(|| {
-            black_box(serde_json::to_string(black_box(&event)))
-        });
+        b.iter(|| black_box(serde_json::to_string(black_box(&event))));
     });
 }
 
@@ -343,12 +346,11 @@ fn bench_event_deserialization(c: &mut Criterion) {
         "TEST_EVENT",
         "TEST_SOURCE",
         serde_json::json!({"key": "value"}),
-    )).unwrap();
+    ))
+    .unwrap();
 
     c.bench_function("event_deserialization", |b| {
-        b.iter(|| {
-            black_box(serde_json::from_str::<Event>(black_box(&json)))
-        });
+        b.iter(|| black_box(serde_json::from_str::<Event>(black_box(&json))));
     });
 }
 

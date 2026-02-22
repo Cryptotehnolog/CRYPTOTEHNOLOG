@@ -1,7 +1,7 @@
 // ==================== CRYPTOTEHNOLOG Risk Ledger Benchmarks ====================
 // Benchmarks for RiskLedger integrated performance
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use cryptotechnolog_risk_ledger::ledger::Position;
 use cryptotechnolog_risk_ledger::ledger::RiskLedger;
 use tokio::runtime::Runtime;
@@ -14,7 +14,10 @@ fn bench_ledger_creation(c: &mut Criterion) {
         rt.block_on(async {
             b.iter(|| {
                 rt.block_on(async {
-                    let path = format!("test_ledger_creation_{}.log", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+                    let path = format!(
+                        "test_ledger_creation_{}.log",
+                        chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+                    );
                     black_box(RiskLedger::new(path.into()).await.unwrap())
                 })
             });
@@ -28,7 +31,9 @@ fn bench_position_update(c: &mut Criterion) {
 
     c.bench_function("position_update", |b| {
         rt.block_on(async {
-            let ledger = RiskLedger::new("test_ledger_update.log".into()).await.unwrap();
+            let ledger = RiskLedger::new("test_ledger_update.log".into())
+                .await
+                .unwrap();
 
             let position = Position {
                 id: "BTC/USDT-1".to_string(),
@@ -43,7 +48,12 @@ fn bench_position_update(c: &mut Criterion) {
             b.iter(|| {
                 rt.block_on(async {
                     let ledger_ref = &ledger;
-                    black_box(ledger_ref.update_position(black_box(position.clone())).await.unwrap())
+                    black_box(
+                        ledger_ref
+                            .update_position(black_box(position.clone()))
+                            .await
+                            .unwrap(),
+                    )
                 })
             });
 
@@ -59,7 +69,9 @@ fn bench_position_retrieval(c: &mut Criterion) {
 
     c.bench_function("position_retrieval", |b| {
         rt.block_on(async {
-            let ledger = RiskLedger::new("test_ledger_retrieve.log".into()).await.unwrap();
+            let ledger = RiskLedger::new("test_ledger_retrieve.log".into())
+                .await
+                .unwrap();
 
             // Add a position first
             let position = Position {
@@ -96,7 +108,9 @@ fn bench_portfolio_calculation(c: &mut Criterion) {
             let rt = Runtime::new().unwrap();
 
             rt.block_on(async {
-                let ledger = RiskLedger::new(format!("test_ledger_portfolio_{}.log", count).into()).await.unwrap();
+                let ledger = RiskLedger::new(format!("test_ledger_portfolio_{}.log", count).into())
+                    .await
+                    .unwrap();
 
                 // Add positions
                 for i in 0..count {
@@ -133,7 +147,9 @@ fn bench_merkle_proof_ledger(c: &mut Criterion) {
 
     c.bench_function("merkle_proof_ledger", |b| {
         rt.block_on(async {
-            let ledger = RiskLedger::new("test_ledger_merkle.log".into()).await.unwrap();
+            let ledger = RiskLedger::new("test_ledger_merkle.log".into())
+                .await
+                .unwrap();
 
             // Add some positions
             for i in 0..100 {
@@ -168,7 +184,9 @@ fn bench_merkle_verify_ledger(c: &mut Criterion) {
 
     c.bench_function("merkle_verify_ledger", |b| {
         rt.block_on(async {
-            let ledger = RiskLedger::new("test_ledger_verify.log".into()).await.unwrap();
+            let ledger = RiskLedger::new("test_ledger_verify.log".into())
+                .await
+                .unwrap();
 
             // Add a position
             let position = Position {
@@ -188,7 +206,11 @@ fn bench_merkle_verify_ledger(c: &mut Criterion) {
             b.iter(|| {
                 rt.block_on(async {
                     let ledger_ref = &ledger;
-                    black_box(ledger_ref.verify_proof(black_box("BTC/USDT-1"), black_box(&proof)).await)
+                    black_box(
+                        ledger_ref
+                            .verify_proof(black_box("BTC/USDT-1"), black_box(&proof))
+                            .await,
+                    )
                 })
             });
 
@@ -247,13 +269,18 @@ fn bench_position_lifecycle(c: &mut Criterion) {
 
     c.bench_function("position_lifecycle", |b| {
         rt.block_on(async {
-            let ledger = RiskLedger::new("test_ledger_lifecycle.log".into()).await.unwrap();
+            let ledger = RiskLedger::new("test_ledger_lifecycle.log".into())
+                .await
+                .unwrap();
 
             b.iter(|| {
                 rt.block_on(async {
                     // Create
                     let position = Position {
-                        id: format!("BTC/USDT-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)),
+                        id: format!(
+                            "BTC/USDT-{}",
+                            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+                        ),
                         symbol: "BTC/USDT".to_string(),
                         size: 100.0,
                         entry_price: 50000.0,

@@ -13,7 +13,7 @@ use tracing::{debug, warn};
 use crate::ring_buffer::LockFreeRingBuffer;
 
 // Use crossbeam-channel for broadcast support
-use crossbeam_channel::{bounded, Receiver, Sender, TrySendError, RecvError};
+use crossbeam_channel::{bounded, Receiver, RecvError, Sender, TrySendError};
 
 // ==================== Backend Types ====================
 
@@ -86,18 +86,19 @@ impl EventBus {
     ///
     /// A new EventBus instance
     pub fn new(backend: EventBusBackend, capacity: usize) -> Self {
-        debug!("Creating EventBus with backend: {:?}, capacity: {}", backend, capacity);
+        debug!(
+            "Creating EventBus with backend: {:?}, capacity: {}",
+            backend, capacity
+        );
 
         match backend {
-            EventBusBackend::ChannelBased => {
-                Self {
-                    backend,
-                    channel_subscribers: Arc::new(Mutex::new(Vec::new())),
-                    #[cfg(feature = "lock-free")]
-                    ring_buffer: None,
-                    capacity,
-                }
-            }
+            EventBusBackend::ChannelBased => Self {
+                backend,
+                channel_subscribers: Arc::new(Mutex::new(Vec::new())),
+                #[cfg(feature = "lock-free")]
+                ring_buffer: None,
+                capacity,
+            },
             #[cfg(feature = "lock-free")]
             EventBusBackend::LockFree => {
                 if !capacity.is_power_of_two() {
@@ -168,7 +169,10 @@ impl EventBus {
                     match buffer.push(event) {
                         Ok(_) => Ok(()),
                         Err(e) => {
-                            warn!("Lock-free ring buffer full, dropping event: {}", e.event_type);
+                            warn!(
+                                "Lock-free ring buffer full, dropping event: {}",
+                                e.event_type
+                            );
                             Err(Box::new(e))
                         }
                     }
@@ -446,7 +450,8 @@ mod tests {
 
         drop(_receiver1);
         // Note: Disconnected subscribers are only removed on next publish
-        bus.publish(Event::new("TEST", "SOURCE", serde_json::json!({}))).ok();
+        bus.publish(Event::new("TEST", "SOURCE", serde_json::json!({})))
+            .ok();
 
         // After publish, disconnected subscribers should be removed
         // This may not be immediate, so we don't assert exact count

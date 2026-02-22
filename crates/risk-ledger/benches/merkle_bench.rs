@@ -1,7 +1,7 @@
 // ==================== CRYPTOTEHNOLOG Merkle Tree Benchmarks ====================
 // Benchmarks for MerkleTree performance
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use cryptotechnolog_risk_ledger::merkle::MerkleTree;
 use sha2::{Digest, Sha256};
 
@@ -21,9 +21,7 @@ fn bench_merkle_construction(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(count), &count, |b, &count| {
             let leaves: Vec<[u8; 32]> = (0..count).map(|i| generate_hash(i)).collect();
 
-            b.iter(|| {
-                black_box(MerkleTree::from_leaves(black_box(leaves.clone())))
-            });
+            b.iter(|| black_box(MerkleTree::from_leaves(black_box(leaves.clone()))));
         });
     }
     group.finish();
@@ -39,9 +37,7 @@ fn bench_merkle_root(c: &mut Criterion) {
             let leaves: Vec<[u8; 32]> = (0..count).map(|i| generate_hash(i)).collect();
             let tree = MerkleTree::from_leaves(leaves);
 
-            b.iter(|| {
-                black_box(tree.root())
-            });
+            b.iter(|| black_box(tree.root()));
         });
     }
     group.finish();
@@ -78,9 +74,7 @@ fn bench_merkle_proof_verification(c: &mut Criterion) {
             let index = (count / 2) as usize;
             let proof = tree.generate_proof(index).unwrap();
 
-            b.iter(|| {
-                black_box(tree.verify(black_box(&leaves[index]), black_box(&proof)))
-            });
+            b.iter(|| black_box(tree.verify(black_box(&leaves[index]), black_box(&proof))));
         });
     }
     group.finish();
@@ -106,7 +100,8 @@ fn bench_merkle_lifecycle(c: &mut Criterion) {
                 let proof = black_box(tree.generate_proof(index).unwrap());
 
                 // Verify proof
-                let _verified = black_box(tree.verify(black_box(&leaves[index]), black_box(&proof)));
+                let _verified =
+                    black_box(tree.verify(black_box(&leaves[index]), black_box(&proof)));
             });
         });
     }

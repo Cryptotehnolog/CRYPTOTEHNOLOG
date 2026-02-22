@@ -1,7 +1,7 @@
 // ==================== CRYPTOTEHNOLOG WAL Benchmarks ====================
 // Benchmarks for WriteAheadLog performance
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use cryptotechnolog_risk_ledger::wal::WriteAheadLog;
 use serde_json::json;
 use std::path::PathBuf;
@@ -14,7 +14,9 @@ fn bench_wal_append(c: &mut Criterion) {
 
         rt.block_on(async {
             let wal = std::sync::Arc::new(tokio::sync::Mutex::new(
-                WriteAheadLog::new("test_wal_append.log".into()).await.unwrap()
+                WriteAheadLog::new("test_wal_append.log".into())
+                    .await
+                    .unwrap(),
             ));
 
             b.iter(|| {
@@ -27,7 +29,12 @@ fn bench_wal_append(c: &mut Criterion) {
 
                 rt.block_on(async {
                     let mut wal_lock = wal.lock().await;
-                    black_box(wal_lock.append("TEST_OPERATION".to_string(), data).await.unwrap())
+                    black_box(
+                        wal_lock
+                            .append("TEST_OPERATION".to_string(), data)
+                            .await
+                            .unwrap(),
+                    )
                 })
             });
 
@@ -48,7 +55,9 @@ fn bench_wal_append_sizes(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             rt.block_on(async {
                 let wal = std::sync::Arc::new(tokio::sync::Mutex::new(
-                    WriteAheadLog::new(format!("test_wal_size_{}.log", size).into()).await.unwrap()
+                    WriteAheadLog::new(format!("test_wal_size_{}.log", size).into())
+                        .await
+                        .unwrap(),
                 ));
 
                 // Create payload of specified size
@@ -61,7 +70,12 @@ fn bench_wal_append_sizes(c: &mut Criterion) {
                 b.iter(|| {
                     rt.block_on(async {
                         let mut wal_lock = wal.lock().await;
-                        black_box(wal_lock.append("TEST_OPERATION".to_string(), data.clone()).await.unwrap())
+                        black_box(
+                            wal_lock
+                                .append("TEST_OPERATION".to_string(), data.clone())
+                                .await
+                                .unwrap(),
+                        )
                     })
                 });
 
@@ -80,7 +94,9 @@ fn bench_wal_flush(c: &mut Criterion) {
     c.bench_function("wal_flush", |b| {
         rt.block_on(async {
             let wal = std::sync::Arc::new(tokio::sync::Mutex::new(
-                WriteAheadLog::new("test_wal_flush.log".into()).await.unwrap()
+                WriteAheadLog::new("test_wal_flush.log".into())
+                    .await
+                    .unwrap(),
             ));
 
             // Write some data first
@@ -88,7 +104,10 @@ fn bench_wal_flush(c: &mut Criterion) {
                 let mut wal_lock = wal.lock().await;
                 for i in 0..100 {
                     let data = json!({"index": i});
-                    wal_lock.append("TEST_OPERATION".to_string(), data).await.unwrap();
+                    wal_lock
+                        .append("TEST_OPERATION".to_string(), data)
+                        .await
+                        .unwrap();
                 }
             }
 
@@ -121,7 +140,9 @@ fn bench_wal_replay(c: &mut Criterion) {
                         "id": format!("TEST-{:04}", i),
                         "index": i
                     });
-                    wal.append("TEST_OPERATION".to_string(), data).await.unwrap();
+                    wal.append("TEST_OPERATION".to_string(), data)
+                        .await
+                        .unwrap();
                 }
                 wal.flush().await.unwrap();
             }
@@ -145,7 +166,9 @@ fn bench_wal_concurrent(c: &mut Criterion) {
     c.bench_function("wal_concurrent_writes", |b| {
         rt.block_on(async {
             let wal = std::sync::Arc::new(tokio::sync::RwLock::new(
-                WriteAheadLog::new("test_wal_concurrent.log".into()).await.unwrap()
+                WriteAheadLog::new("test_wal_concurrent.log".into())
+                    .await
+                    .unwrap(),
             ));
 
             b.iter(|| {
@@ -153,7 +176,12 @@ fn bench_wal_concurrent(c: &mut Criterion) {
                 rt.block_on(async move {
                     let mut wal_guard = wal_clone.write().await;
                     let data = json!({"timestamp": chrono::Utc::now().timestamp()});
-                    black_box(wal_guard.append("CONCURRENT_OP".to_string(), data).await.unwrap())
+                    black_box(
+                        wal_guard
+                            .append("CONCURRENT_OP".to_string(), data)
+                            .await
+                            .unwrap(),
+                    )
                 })
             });
 

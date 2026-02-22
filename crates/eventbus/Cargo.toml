@@ -34,7 +34,7 @@ crossbeam = { workspace = true, optional = true }
 arrayvec = { workspace = true, optional = true }
 
 # Local dependencies
-cryptotechnolog-common = { workspace = true }
+cryptotechnolog-common = { path = "../common" }
 
 [dev-dependencies]
 tokio-test = { workspace = true }

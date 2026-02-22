@@ -124,64 +124,64 @@ coverage-report:
 
 # ==================== Rust ====================
 rust-build:
-	cd rust_components && cargo build --release
+	cargo build --release
 
 rust-test:
-	cd rust_components && cargo test
+	cargo test
 
 rust-clippy:
-	cd rust_components && cargo clippy -- -D warnings
+	cargo clippy -- -D warnings
 
 rust-fmt:
-	cd rust_components && cargo fmt
+	cargo fmt
 
 rust-bench:
-	cd rust_components && cargo bench
+	cargo bench
 
 rust-bench-eventbus:
-	cd rust_components/crates/eventbus && cargo bench
+	cargo bench -p cryptotechnolog-eventbus
 
 rust-bench-eventbus-lockfree:
-	cd rust_components/crates/eventbus && cargo bench --bench eventbus_backend_bench --features lock-free
+	cargo bench -p cryptotechnolog-eventbus --bench eventbus_backend_bench --features lock-free
 
 rust-bench-eventbus-all:
 	@echo "Running all eventbus benchmarks..."
-	cd rust_components/crates/eventbus && cargo bench
-	cd rust_components/crates/eventbus && cargo bench --bench eventbus_backend_bench --features lock-free
+	cargo bench -p cryptotechnolog-eventbus
+	cargo bench -p cryptotechnolog-eventbus --bench eventbus_backend_bench --features lock-free
 	@echo "✅ All eventbus benchmarks completed!"
 
 rust-bench-risk-ledger:
-	cd rust_components/crates/risk-ledger && cargo bench
+	cargo bench -p cryptotechnolog-risk-ledger
 
 rust-flamegraph:
-	cd rust_components && cargo flamegraph --bench event_bench
+	cargo flamegraph -p cryptotechnolog-eventbus --bench event_bench
 
 rust-flamegraph-eventbus:
-	cd rust_components/crates/eventbus && cargo flamegraph --bench event_bench
+	cargo flamegraph -p cryptotechnolog-eventbus --bench event_bench
 
 rust-flamegraph-risk-ledger:
-	cd rust_components/crates/risk-ledger && cargo flamegraph --bench wal_bench
+	cargo flamegraph -p cryptotechnolog-risk-ledger --bench wal_bench
 
 rust-flamegraph-risk-ledger-all:
 	@echo "Generating flamegraphs for all risk-ledger benchmarks..."
-	cd rust_components/crates/risk-ledger && cargo flamegraph --bench wal_bench
-	cd rust_components/crates/risk-ledger && cargo flamegraph --bench merkle_bench
-	cd rust_components/crates/risk-ledger && cargo flamegraph --bench validation_bench
-	cd rust_components/crates/risk-ledger && cargo flamegraph --bench ledger_bench
-	@echo "✅ All flamegraphs generated in rust_components/crates/risk-ledger/"
+	cargo flamegraph -p cryptotechnolog-risk-ledger --bench wal_bench
+	cargo flamegraph -p cryptotechnolog-risk-ledger --bench merkle_bench
+	cargo flamegraph -p cryptotechnolog-risk-ledger --bench validation_bench
+	cargo flamegraph -p cryptotechnolog-risk-ledger --bench ledger_bench
+	@echo "✅ All flamegraphs generated in crates/risk-ledger/"
 
 # ==================== Rust Extension (Python-Rust Bridge) ====================
 rust-extension-build:
-	cd rust_components && maturin develop --release
+	maturin develop --release -p cryptotechnolog-ffi
 
 rust-extension-build-wheel:
-	cd rust_components && maturin build --release
+	maturin build --release -p cryptotechnolog-ffi
 
 rust-extension-install:
 	uv pip install -e ".[rust]"
 
 rust-extension-clean:
-	cd rust_components && maturin build --release --clean
+	maturin build --release --clean -p cryptotechnolog-ffi
 
 # ==================== Docker ====================
 docker-build:

@@ -56,13 +56,7 @@ impl AuditChain {
         };
 
         // Create record hash
-        let record_hash = Self::compute_hash(
-            &id,
-            &timestamp,
-            &event_type,
-            &data,
-            &previous_hash,
-        );
+        let record_hash = Self::compute_hash(&id, &timestamp, &event_type, &data, &previous_hash);
 
         // Create record
         let record = AuditRecord {
@@ -325,4 +319,3 @@ mod tests {
         assert_ne!(hash2, "0".repeat(64));
     }
 }
-
