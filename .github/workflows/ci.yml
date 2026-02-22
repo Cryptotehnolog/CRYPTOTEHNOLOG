@@ -180,11 +180,7 @@ jobs:
           ls -la crates/audit-chain/
           echo "Listing audit-chain/src:"
           ls -la crates/audit-chain/src/ || echo "src not found"
-          echo "Attempting to build audit-chain directly:"
-          cargo build --manifest-path crates/audit-chain/Cargo.toml || echo "Build failed"
-          echo "Checking if audit-chain appears in cargo metadata (workspace):"
-          cargo metadata --workspace --format-version=1 | grep -o '"name":"cryptotechnolog-audit-chain"' || echo "Not found in metadata"
-          echo "Checking if audit-chain appears in cargo metadata (no workspace):"
+          echo "Checking if audit-chain appears in cargo metadata:"
           cargo metadata --format-version=1 | grep -o '"name":"cryptotechnolog-audit-chain"' || echo "Not found in metadata"
 
       - name: Run fmt check
