@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info, instrument, warn};
+use tracing::{info, instrument};
 
 use super::merkle::MerkleTree;
 use super::validation::{DoubleEntryValidator, Transaction};
