@@ -155,6 +155,7 @@ class TestLoggerMixin:
 
     def test_logger_mixin_provides_logger(self):
         """Миксин предоставляет доступ к логгеру."""
+
         class TestClass(LoggerMixin):
             pass
 
@@ -164,6 +165,7 @@ class TestLoggerMixin:
 
     def test_logger_mixin_uses_class_name(self):
         """Логгер использует имя класса."""
+
         class MyCustomClass(LoggerMixin):
             pass
 
@@ -173,6 +175,7 @@ class TestLoggerMixin:
 
     def test_logger_mixin_cached(self):
         """Логгер кешируется для экземпляра."""
+
         class TestClass(LoggerMixin):
             pass
 
