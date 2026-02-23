@@ -16,6 +16,7 @@ import pytest
 
 # ==================== Pytest Configuration ====================
 
+
 def pytest_configure(config):
     """Register custom markers."""
     config.addinivalue_line("markers", "e2e: End-to-end tests")
@@ -46,6 +47,7 @@ def pytest_configure(config):
 
 # ==================== Async Support ====================
 
+
 @pytest.fixture(scope="session")
 def event_loop():
     """Create event loop for async tests."""
@@ -56,11 +58,12 @@ def event_loop():
 
 # ==================== E2E Fixtures (Placeholders) ====================
 
+
 @pytest.fixture
 def exchange_client():
     """
     Fixture: Exchange client for E2E tests
-    
+
     Returns a mock or real exchange client.
     Override in conftest to use real exchange.
     """
@@ -72,7 +75,7 @@ def exchange_client():
 def trading_account():
     """
     Fixture: Trading account with balance
-    
+
     Returns a test trading account.
     """
     # TODO: Implement
@@ -83,7 +86,7 @@ def trading_account():
 def risk_engine():
     """
     Fixture: Risk engine instance
-    
+
     Returns the risk engine for testing.
     """
     # TODO: Implement
@@ -94,7 +97,7 @@ def risk_engine():
 def database():
     """
     Fixture: Database connection
-    
+
     Returns a database connection for testing.
     """
     # TODO: Implement
@@ -105,7 +108,7 @@ def database():
 def test_symbols():
     """
     Fixture: List of test symbols
-    
+
     Returns symbols available for testing.
     """
     return ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
@@ -115,7 +118,7 @@ def test_symbols():
 def test_balances():
     """
     Fixture: Test account balances
-    
+
     Returns initial balances for testing.
     """
     return {
@@ -129,7 +132,7 @@ def test_balances():
 def mock_market_data():
     """
     Fixture: Mock market data
-    
+
     Returns mock market data for testing.
     """
     # TODO: Implement
@@ -140,7 +143,7 @@ def mock_market_data():
 def cleanup_positions():
     """
     Fixture: Cleanup positions after test
-    
+
     Yields and cleans up test positions.
     """
     yield
