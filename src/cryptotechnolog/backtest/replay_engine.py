@@ -184,7 +184,9 @@ class ReplayEngine:
             TickEvent for each tick in the dataset
         """
         if self._data_iterator is None:
-            raise RuntimeError("No data loaded. Call load_csv(), load_parquet(), or load_dataframe() first.")
+            raise RuntimeError(
+                "No data loaded. Call load_csv(), load_parquet(), or load_dataframe() first."
+            )
 
         for _idx, row in self._data_iterator:
             tick = self._create_tick_event(row)
@@ -202,7 +204,9 @@ class ReplayEngine:
             Dictionary with results and statistics
         """
         if self._data_iterator is None:
-            raise RuntimeError("No data loaded. Call load_csv(), load_parquet(), or load_dataframe() first.")
+            raise RuntimeError(
+                "No data loaded. Call load_csv(), load_parquet(), or load_dataframe() first."
+            )
 
         # Reset state
         self.balance = self.config.initial_balance
@@ -243,9 +247,7 @@ class ReplayEngine:
         return results
 
     def run_until(
-        self,
-        condition: Callable[[TickEvent, dict], bool],
-        max_ticks: int | None = None
+        self, condition: Callable[[TickEvent, dict], bool], max_ticks: int | None = None
     ) -> dict[str, Any]:
         """
         Run replay until condition is met.
@@ -314,7 +316,9 @@ class ReplayEngine:
                 "bid": self.current_tick.bid if self.current_tick else None,
                 "ask": self.current_tick.ask if self.current_tick else None,
                 "volume": self.current_tick.volume if self.current_tick else None,
-            } if self.current_tick else None,
+            }
+            if self.current_tick
+            else None,
             "balance": self.balance,
             "positions": dict(self.positions),
             "orders_count": len(self.orders),

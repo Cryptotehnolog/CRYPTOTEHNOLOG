@@ -15,14 +15,16 @@ from cryptotechnolog.backtest.recorder import (  # type: ignore[import]
 def example_simple():
     """Simple example with in-memory data."""
     # Create sample tick data
-    data = pd.DataFrame({
-        "timestamp": pd.date_range("2024-01-01", periods=100, freq="1s"),
-        "symbol": ["BTCUSDT"] * 100,
-        "bid": [42000 + i * 10 for i in range(100)],
-        "ask": [42000 + i * 10 + 5 for i in range(100)],
-        "last": [42000 + i * 10 + 2 for i in range(100)],
-        "volume": [1.0] * 100,
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": pd.date_range("2024-01-01", periods=100, freq="1s"),
+            "symbol": ["BTCUSDT"] * 100,
+            "bid": [42000 + i * 10 for i in range(100)],
+            "ask": [42000 + i * 10 + 5 for i in range(100)],
+            "last": [42000 + i * 10 + 2 for i in range(100)],
+            "volume": [1.0] * 100,
+        }
+    )
 
     # Create config
     config = ReplayConfig(
@@ -69,14 +71,16 @@ def example_with_callbacks():
     )
 
     # Create sample data
-    data = pd.DataFrame({
-        "timestamp": pd.date_range("2024-01-01", periods=1000, freq="1s"),
-        "symbol": ["BTCUSDT"] * 1000,
-        "bid": [42000 + i * 0.5 for i in range(1000)],
-        "ask": [42000 + i * 0.5 + 2 for i in range(1000)],
-        "last": [42000 + i * 0.5 + 1 for i in range(1000)],
-        "volume": [1.0] * 1000,
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": pd.date_range("2024-01-01", periods=1000, freq="1s"),
+            "symbol": ["BTCUSDT"] * 1000,
+            "bid": [42000 + i * 0.5 for i in range(1000)],
+            "ask": [42000 + i * 0.5 + 2 for i in range(1000)],
+            "last": [42000 + i * 0.5 + 1 for i in range(1000)],
+            "volume": [1.0] * 1000,
+        }
+    )
 
     engine = ReplayEngine(config)
     results = engine.load_dataframe(data).run()
@@ -120,14 +124,16 @@ def example_conditional():
         """Stop when balance drops below $9000."""
         return state["balance"] < BALANCE_STOP_THRESHOLD
 
-    data = pd.DataFrame({
-        "timestamp": pd.date_range("2024-01-01", periods=10000, freq="1s"),
-        "symbol": ["BTCUSDT"] * 10000,
-        "bid": [42000 - i * 0.1 for i in range(10000)],  # Declining price
-        "ask": [42000 - i * 0.1 + 5 for i in range(10000)],
-        "last": [42000 - i * 0.1 + 2 for i in range(10000)],
-        "volume": [1.0] * 10000,
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": pd.date_range("2024-01-01", periods=10000, freq="1s"),
+            "symbol": ["BTCUSDT"] * 10000,
+            "bid": [42000 - i * 0.1 for i in range(10000)],  # Declining price
+            "ask": [42000 - i * 0.1 + 5 for i in range(10000)],
+            "last": [42000 - i * 0.1 + 2 for i in range(10000)],
+            "volume": [1.0] * 10000,
+        }
+    )
 
     engine = ReplayEngine(config)
     results = engine.load_dataframe(data).run_until(stop_condition, max_ticks=5000)  # type: ignore[no-any-return]
