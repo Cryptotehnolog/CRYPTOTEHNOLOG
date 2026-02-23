@@ -1,16 +1,24 @@
 # ==================== CRYPTOTEHNOLOG Data Frame Utilities ====================
 # Polars and Pandas compatibility layer for gradual migration
 
+from __future__ import annotations
+
 import re
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import pandas as pd
 import polars as pl
 
+if TYPE_CHECKING:
+    from pandas import DataFrame as PdDataFrame
+    from pandas import Series as PdSeries
+    from polars import DataFrame as PlDataFrame
+    from polars import Series as PlSeries
+
 # Type alias for dataframes
-DataFrame = pd.DataFrame | pl.DataFrame
-Series = pd.Series | pl.Series
+DataFrame: TypeAlias = pd.DataFrame | pl.DataFrame
+Series: TypeAlias = pd.Series | pl.Series
 
 
 # ==================== Conversion Functions ====================
@@ -72,8 +80,8 @@ def read_csv(
         DataFrame (Polars or Pandas).
     """
     if use_polars:
-        return pl.read_csv(path, **kwargs)  # type: ignore[return-value]
-    return pd.read_csv(path, **kwargs)  # type: ignore[return-value]
+        return pl.read_csv(path, **kwargs)
+    return pd.read_csv(path, **kwargs)
 
 
 def read_parquet(
@@ -93,8 +101,8 @@ def read_parquet(
         DataFrame (Polars or Pandas).
     """
     if use_polars:
-        return pl.read_parquet(path, **kwargs)  # type: ignore[return-value]
-    return pd.read_parquet(path, **kwargs)  # type: ignore[return-value]
+        return pl.read_parquet(path, **kwargs)
+    return pd.read_parquet(path, **kwargs)
 
 
 # ==================== Performance Utilities ====================
@@ -208,8 +216,7 @@ def resample_ohlcv(
     else:
         pd_df = to_pandas(df)
         df_typed = pd_df.set_index("timestamp")
-        # resample returns a DataFrame with complex type, use type: ignore
-        resampled: pd.DataFrame = df_typed.resample(timeframe).agg(  # type: ignore[no-any-return]
+        resampled: pd.DataFrame = df_typed.resample(timeframe).agg(
             {
                 "open": "first",
                 "high": "max",
@@ -218,7 +225,7 @@ def resample_ohlcv(
                 "volume": "sum",
             }
         )
-        return resampled.reset_index()  # type: ignore[no-any-return]
+        return resampled.reset_index()
 
 
 def calculate_returns(

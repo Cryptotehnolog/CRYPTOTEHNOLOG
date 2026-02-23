@@ -36,7 +36,7 @@ class TickEvent:
     bid_size: float = 0.0
     ask_size: float = 0.0
     exchange: str = "unknown"
-    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[typeddict-item]  # type: ignore[typeddict-item]  # type: ignore[typeddict-item]  # type: ignore[typeddict-item]  # type: ignore[typeddict-item]
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def spread(self) -> float:
@@ -69,7 +69,7 @@ class OrderEvent:
     status: str = "pending"  # pending, filled, partial, cancelled, rejected
     filled_quantity: float = 0.0
     average_fill_price: float | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[typeddict-item]
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def event_type(self) -> EventType:
@@ -91,7 +91,7 @@ class TradeEvent:
     price: float
     commission: float = 0.0
     commission_asset: str = "USDT"
-    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[typeddict-item]
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def total_value(self) -> float:
@@ -116,7 +116,7 @@ class PositionUpdateEvent:
     current_price: float
     unrealized_pnl: float
     realized_pnl: float = 0.0
-    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[assignment]
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def event_type(self) -> EventType:
@@ -134,7 +134,7 @@ class BalanceUpdateEvent:
     balance_before: float
     balance_after: float
     reason: str  # "trade", "deposit", "withdrawal", "fee", "pnl"
-    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[assignment]
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def delta(self) -> float:

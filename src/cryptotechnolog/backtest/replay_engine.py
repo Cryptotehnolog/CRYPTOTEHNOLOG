@@ -166,9 +166,10 @@ class ReplayEngine:
 
     def _create_tick_event(self, row: pd.Series) -> TickEvent:
         """Create TickEvent from DataFrame row."""
-        ts = pd.to_datetime(row["timestamp"]).to_pydatetime()  # type: ignore[union-attr,call-arg]
+        ts_raw = row["timestamp"]
+        ts = datetime.fromisoformat(str(ts_raw)) if not isinstance(ts_raw, datetime) else ts_raw
         return TickEvent(
-            timestamp=ts,  # type: ignore[arg-type]
+            timestamp=ts,
             symbol=str(row["symbol"]),
             bid=float(row["bid"]),
             ask=float(row["ask"]),
@@ -393,9 +394,12 @@ class ReplayEngine:
         if position == 0 or not self.current_tick:
             return 0.0
 
+        tick = self.current_tick
+        last_price = tick.last if tick.last is not None else 0.0
+        bid_price = tick.bid if tick.bid is not None else 0.0
+        ask_price = tick.ask if tick.ask is not None else 0.0
+
         if position > 0:  # Long
-            # type: ignore[return-value]
-            return position * (self.current_tick.last - self.current_tick.bid)
+            return position * (last_price - bid_price)
         # Short
-        # type: ignore[return-value]
-        return -position * (self.current_tick.ask - self.current_tick.last)
+        return -position * (ask_price - last_price)

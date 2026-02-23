@@ -136,7 +136,7 @@ class EventRecorder:
             return pd.DataFrame()
 
         df = pd.DataFrame(self.events)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)  # type: ignore[assignment]
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         df = df.sort_values("timestamp").reset_index(drop=True)
         return df
 
@@ -146,7 +146,7 @@ class EventRecorder:
             return pd.DataFrame()
 
         df = pd.DataFrame(self.ticks)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)  # type: ignore[assignment]
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         return df.sort_values("timestamp").reset_index(drop=True)
 
     def trades_to_dataframe(self) -> pd.DataFrame:
@@ -155,7 +155,7 @@ class EventRecorder:
             return pd.DataFrame()
 
         df = pd.DataFrame(self.trades)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)  # type: ignore[assignment]
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         return df.sort_values("timestamp").reset_index(drop=True)
 
     def save(self, filename: str | None = None) -> Path | None:

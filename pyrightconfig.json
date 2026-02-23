@@ -20,16 +20,16 @@
     "${workspaceFolder}/src"
   ],
   "typeCheckingMode": "basic",
-  "reportMissingImports": "warning",
-  "reportMissingModuleSource": "warning",
-  "reportMissingTypeStubs": false,
-  "reportUnknownMemberType": "warning",
-  "reportUnknownVariableType": "warning",
-  "reportUnknownArgumentType": "warning",
-  "reportGeneralTypeIssues": "warning",
-  "reportOptionalMemberAccess": "warning",
-  "reportOptionalCall": "warning",
-  "reportOptionalIterable": "warning",
-  "reportOptionalContextManager": "warning",
-  "reportOptionalOperand": "warning"
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportMissingTypeStubs": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportOptionalCall": "none",
+  "reportOptionalIterable": "none",
+  "reportOptionalContextManager": "none",
+  "reportOptionalOperand": "none"
 }

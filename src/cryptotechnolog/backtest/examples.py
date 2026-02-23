@@ -1,6 +1,6 @@
 # ==================== CRYPTOTEHNOLOG Backtest Examples ====================
 
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -9,7 +9,7 @@ from cryptotechnolog.backtest.recorder import BALANCE_STOP_THRESHOLD, SPREAD_THR
 
 
 # Example 1: Simple tick processing
-def example_simple() -> Any:
+def example_simple() -> dict[str, Any]:
     """Simple example with in-memory data."""
     # Create sample tick data
     data = pd.DataFrame(
@@ -32,12 +32,11 @@ def example_simple() -> Any:
 
     # Create and run engine
     engine = ReplayEngine(config)
-    results = engine.load_dataframe(data).run()
+    results: dict[str, Any] = engine.load_dataframe(data).run()
 
     print(f"Processed {results['ticks_processed']} ticks")
     print(f"Final balance: ${results['final_balance']:.2f}")
 
-    # type: ignore[no-any-return]
     return results
 
 
@@ -81,10 +80,9 @@ def example_with_callbacks() -> dict[str, Any]:
     )
 
     engine = ReplayEngine(config)
-    results = engine.load_dataframe(data).run()
+    results: dict[str, Any] = engine.load_dataframe(data).run()
 
     print(f"Final position: {position}")
-    # type: ignore[no-any-return]
     return results
 
 
@@ -98,7 +96,7 @@ def example_from_csv(csv_path: str) -> dict[str, Any]:
     )
 
     engine = ReplayEngine(config)
-    results = engine.load_csv(csv_path).run()
+    results: dict[str, Any] = engine.load_csv(csv_path).run()
 
     # Get recorded events
     if engine.recorder:
@@ -111,7 +109,6 @@ def example_from_csv(csv_path: str) -> dict[str, Any]:
         # Save to file
         engine.recorder.save()
 
-    # type: ignore[no-any-return]
     return results
 
 
@@ -122,7 +119,9 @@ def example_conditional() -> dict[str, Any]:
 
     def stop_condition(tick: TickEvent, state: dict[str, Any]) -> bool:
         """Stop when balance drops below $9000."""
-        return state["balance"] < BALANCE_STOP_THRESHOLD
+        balance = cast(float, state["balance"])
+        result: bool = balance < BALANCE_STOP_THRESHOLD
+        return result
 
     data = pd.DataFrame(
         {
@@ -136,12 +135,11 @@ def example_conditional() -> dict[str, Any]:
     )
 
     engine = ReplayEngine(config)
-    results = engine.load_dataframe(data).run_until(stop_condition, max_ticks=5000)
+    results: dict[str, Any] = engine.load_dataframe(data).run_until(stop_condition, max_ticks=5000)
 
     print(f"Stopped after {results['ticks_processed']} ticks")
     print(f"Balance: ${results['final_balance']:.2f}")
 
-    # type: ignore[no-any-return]
     return results
 
 
