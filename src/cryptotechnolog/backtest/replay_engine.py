@@ -6,20 +6,18 @@ from collections.abc import Callable, Generator, Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pandas as pd
 
+from cryptotechnolog.backtest.events import (
+    BalanceUpdateEvent,
+    OrderEvent,
+    PositionUpdateEvent,
+    TickEvent,
+    TradeEvent,
+)
 from cryptotechnolog.backtest.recorder import EventRecorder
-
-if TYPE_CHECKING:
-    from cryptotechnolog.backtest.events import (
-        BalanceUpdateEvent,
-        OrderEvent,
-        PositionUpdateEvent,
-        TickEvent,
-        TradeEvent,
-    )
 
 
 @dataclass
