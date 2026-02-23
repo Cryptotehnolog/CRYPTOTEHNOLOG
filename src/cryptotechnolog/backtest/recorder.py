@@ -6,17 +6,18 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from cryptotechnolog.backtest.events import (
-    BalanceUpdateEvent,
-    OrderEvent,
-    PositionUpdateEvent,
-    TickEvent,
-    TradeEvent,
-)
+if TYPE_CHECKING:
+    from cryptotechnolog.backtest.events import (
+        BalanceUpdateEvent,
+        OrderEvent,
+        PositionUpdateEvent,
+        TickEvent,
+        TradeEvent,
+    )
 
 
 # Constants for magic values
