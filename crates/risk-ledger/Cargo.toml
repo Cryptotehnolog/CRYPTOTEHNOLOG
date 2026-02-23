@@ -52,6 +52,8 @@ winapi = { version = "0.3", features = ["winnt"] }
 [dev-dependencies]
 tokio-test = { workspace = true }
 criterion = { workspace = true }
+proptest = { version = "1.10", features = ["attr-macro"] }
+rand = "0.8"
 
 # Benchmark configuration
 [[bench]]

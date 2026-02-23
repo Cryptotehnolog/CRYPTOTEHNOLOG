@@ -26,3 +26,4 @@ cryptotechnolog-common = { path = "../common" }
 [dev-dependencies]
 tokio-test = { workspace = true }
 criterion = { workspace = true }
+proptest = "1.5"

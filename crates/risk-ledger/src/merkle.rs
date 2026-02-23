@@ -86,37 +86,45 @@ impl MerkleTree {
 
     /// Generate a Merkle proof for a leaf
     pub fn generate_proof(&self, leaf_index: usize) -> Option<MerkleProof> {
-        if leaf_index >= self.leaves {
+        if leaf_index >= self.leaves || self.leaves == 0 {
             return None;
         }
 
         let mut path = Vec::new();
         let mut directions = Vec::new();
+        
         let mut level_start = 0;
         let mut level_size = self.leaves;
         let mut current_index = leaf_index;
+
+        // First level contains leaves
+        let mut next_level_start = level_size;
 
         while level_size > 1 {
             // Determine if current node is left or right child
             let is_right = current_index % 2 == 1;
             directions.push(is_right);
 
-            // Get sibling index
+            // Get sibling index within current level
             let sibling_index = if is_right {
                 current_index - 1
-            } else {
+            } else if current_index + 1 < level_size {
                 current_index + 1
+            } else {
+                // Odd number - sibling is itself (duplicated)
+                current_index
             };
 
-            // Add sibling hash to path (if it exists)
-            if sibling_index < level_size {
-                path.push(self.nodes[level_start + sibling_index]);
-            }
+            // Add sibling hash to path
+            path.push(self.nodes[level_start + sibling_index]);
 
             // Move to parent level
             current_index /= 2;
-            level_start += level_size;
+            level_start = next_level_start;
+            
+            // Calculate next level size (parent level)
             level_size = level_size.div_ceil(2);
+            next_level_start = level_start + level_size;
         }
 
         Some(MerkleProof {
@@ -128,18 +136,15 @@ impl MerkleTree {
 
     /// Verify a Merkle proof
     pub fn verify(&self, leaf_hash: &[u8; 32], proof: &MerkleProof) -> bool {
-        if leaf_hash != &proof.leaf_hash {
-            return false;
-        }
-
+        // Start from the claimed leaf hash
         let mut current_hash = *leaf_hash;
 
         for (i, sibling_hash) in proof.path.iter().enumerate() {
             if proof.directions[i] {
-                // Current hash is right child
+                // Current hash is right child, sibling is on left
                 current_hash = Self::hash_pair(sibling_hash, &current_hash);
             } else {
-                // Current hash is left child
+                // Current hash is left child, sibling is on right
                 current_hash = Self::hash_pair(&current_hash, sibling_hash);
             }
         }
@@ -160,11 +165,12 @@ impl MerkleTree {
         self.leaves
     }
 
-    /// Get the height of the tree
+    /// Get the height of the tree (number of levels from leaf to root)
     pub fn height(&self) -> usize {
-        if self.leaves == 0 {
+        if self.leaves <= 1 {
             0
         } else {
+            // Height = ceil(log2(n)) - number of hash operations from leaf to root
             (self.leaves as f64).log2().ceil() as usize
         }
     }
