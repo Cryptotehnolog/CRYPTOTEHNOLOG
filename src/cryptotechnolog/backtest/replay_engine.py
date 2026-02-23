@@ -10,7 +10,7 @@ from typing import Any
 
 import pandas as pd
 
-from cryptotechnolog.backtest import (  # noqa: TC001
+from cryptotechnolog.backtest import (
     BalanceUpdateEvent,
     EventRecorder,
     OrderEvent,
