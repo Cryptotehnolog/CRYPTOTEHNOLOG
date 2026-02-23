@@ -9,9 +9,8 @@ Risk Management E2E Tests (20 сценариев)
 - Circuit breakers
 """
 
-import pytest
-from decimal import Decimal
 
+import pytest
 
 # ==================== Position Limits ====================
 

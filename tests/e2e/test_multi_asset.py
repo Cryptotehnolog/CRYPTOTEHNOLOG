@@ -11,7 +11,6 @@ Multi-Asset & Multi-Market E2E Tests (15 сценариев)
 
 import pytest
 
-
 # ==================== Cross-Asset ====================
 
 @pytest.mark.e2e

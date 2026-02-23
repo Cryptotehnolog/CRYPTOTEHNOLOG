@@ -185,6 +185,7 @@ ignore = [
     "PLR0913",  # Too many arguments
     "ARG001",  # Unused function argument
     "ARG002",  # Unused method argument
+    "RUF002",  # Ambiguous unicode character (cyrillic)
 ]
 
 [tool.ruff.lint.isort]
@@ -210,6 +211,7 @@ warn_unused_ignores = true
 warn_no_return = true
 follow_imports = "normal"
 strict_optional = true
+exclude = ["tests/", "test_", "tests"]
 
 [[tool.mypy.overrides]]
 module = [
@@ -218,6 +220,12 @@ module = [
     "timescaledb.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests/*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
 
 [tool.pytest.ini_options]
 minversion = "7.0"

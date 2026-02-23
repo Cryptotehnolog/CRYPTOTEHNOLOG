@@ -9,9 +9,8 @@ Data Integrity E2E Tests (12 сценариев)
 - Edge cases
 """
 
-import pytest
-import asyncio
 
+import pytest
 
 # ==================== Data Pipeline ====================
 

@@ -10,10 +10,9 @@ Provides fixtures for:
 - Test data generators
 """
 
-import pytest
 import asyncio
-from typing import Generator
 
+import pytest
 
 # ==================== Pytest Configuration ====================
 

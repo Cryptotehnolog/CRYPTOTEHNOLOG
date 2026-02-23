@@ -9,10 +9,8 @@ Performance & Stability E2E Tests (12 сценариев)
 - Параллельное выполнение
 """
 
-import pytest
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
 
+import pytest
 
 # ==================== Load Testing ====================
 

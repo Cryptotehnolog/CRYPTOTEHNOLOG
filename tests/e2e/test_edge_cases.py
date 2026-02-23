@@ -9,9 +9,8 @@ Edge Cases & Failure Modes E2E Tests (15 сценариев)
 - Ошибки пользователя
 """
 
-import pytest
-import asyncio
 
+import pytest
 
 # ==================== Market Conditions ====================
 

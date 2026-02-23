@@ -6,9 +6,8 @@ Core Trading Flow E2E Tests (15 сценариев)
 Запускается против реальной или mock-биржи.
 """
 
-import pytest
-from datetime import datetime, timedelta
 
+import pytest
 
 # ==================== Order Creation & Validation ====================
 

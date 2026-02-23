@@ -9,9 +9,8 @@ Compliance & Audit E2E Tests (10 сценариев)
 - Data Retention
 """
 
-import pytest
-from datetime import datetime, timedelta
 
+import pytest
 
 # ==================== Audit Trail ====================
 
