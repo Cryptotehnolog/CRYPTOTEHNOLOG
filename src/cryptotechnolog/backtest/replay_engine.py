@@ -4,6 +4,7 @@
 from collections.abc import Callable, Generator, Iterator
 from dataclasses import dataclass
 from datetime import datetime
+import json
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +18,6 @@ from cryptotechnolog.backtest.events import (  # type: ignore[import]
     TradeEvent,
 )
 from cryptotechnolog.backtest.recorder import EventRecorder  # type: ignore[import]
-
-import json
 
 
 @dataclass
@@ -53,14 +52,14 @@ class ReplayConfig:
 class ReplayEngine:
     """
     Replay Engine for tick-by-tick historical simulation.
-    
+
     Features:
     - Load historical data from CSV/Parquet
     - Precise tick-by-tick replay
     - Event recording for analysis
     - Callbacks for strategy execution
     - State snapshots for debugging
-    
+
     Usage:
         config = ReplayConfig(data_path="ticks.csv", on_tick=my_strategy)
         engine = ReplayEngine(config)
@@ -70,7 +69,7 @@ class ReplayEngine:
     def __init__(self, config: ReplayConfig):
         """
         Initialize replay engine.
-        
+
         Args:
             config: Replay configuration
         """
@@ -180,7 +179,7 @@ class ReplayEngine:
     def tick_iterator(self) -> Generator[TickEvent, None, None]:
         """
         Iterate over ticks one by one.
-        
+
         Yields:
             TickEvent for each tick in the dataset
         """
@@ -198,7 +197,7 @@ class ReplayEngine:
     def run(self) -> dict[str, Any]:
         """
         Run the full replay.
-        
+
         Returns:
             Dictionary with results and statistics
         """
@@ -250,11 +249,11 @@ class ReplayEngine:
     ) -> dict[str, Any]:
         """
         Run replay until condition is met.
-        
+
         Args:
             condition: Function that returns True to stop
             max_ticks: Maximum ticks to process
-            
+
         Returns:
             Results dictionary
         """
@@ -304,7 +303,7 @@ class ReplayEngine:
     def get_state_snapshot(self) -> dict[str, Any]:
         """
         Get current state snapshot for debugging.
-        
+
         Returns:
             Dictionary with current state
         """

@@ -22,7 +22,7 @@ class EventType(Enum):
 class TickEvent:
     """
     Represents a single market tick (price update).
-    
+
     This is the fundamental unit of data for replay engine.
     Tick-by-tick replay allows precise simulation of order execution.
     """

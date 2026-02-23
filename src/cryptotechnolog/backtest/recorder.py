@@ -1,8 +1,8 @@
 # ==================== CRYPTOTEHNOLOG Event Recorder ====================
 # Records all events during replay for analysis and debugging
 
-import json
 from datetime import datetime
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
