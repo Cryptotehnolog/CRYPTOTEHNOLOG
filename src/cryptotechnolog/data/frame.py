@@ -29,23 +29,29 @@ def to_polars(df: DataFrame | Series) -> pl.DataFrame | pl.Series:
     Raises:
         TypeError: If input is not a DataFrame or Series.
     """
-    if isinstance(df, (pl.DataFrame, pl.Series)):
+    # Handle Polars directly - already correct type
+    if isinstance(df, pl.DataFrame):
         return df
-    if isinstance(df, (pd.DataFrame, pd.Series)):
-        # Handle mixed types in columns - convert problematic columns to string
-        if isinstance(df, pd.DataFrame):
-            df = df.copy()
-            for col in df.columns:
-                # Check if column has mixed types
-                if df[col].dtype == object:
-                    # Try to convert, if fails convert to string
-                    try:
-                        # Try to convert to numeric first
-                        pd.to_numeric(df[col], errors="raise")
-                    except (ValueError, TypeError):
-                        # Mixed types - convert to string
-                        df[col] = df[col].astype(str)
+    if isinstance(df, pl.Series):
+        return df
+
+    # Handle Pandas DataFrame
+    if isinstance(df, pd.DataFrame):
+        df_copy = df.copy()
+        # Process columns with mixed types
+        for col_name in df_copy.columns:
+            col_data = df_copy[col_name]
+            if col_data.dtype == object:
+                try:
+                    pd.to_numeric(col_data, errors="raise")
+                except (ValueError, TypeError):
+                    df_copy[col_name] = col_data.astype(str)
+        return pl.from_pandas(df_copy)
+
+    # Handle Pandas Series
+    if isinstance(df, pd.Series):
         return pl.from_pandas(df)
+
     raise TypeError(f"Expected DataFrame or Series, got {type(df)}")
 
 
