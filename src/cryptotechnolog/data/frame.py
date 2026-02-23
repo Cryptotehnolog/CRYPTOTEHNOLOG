@@ -32,6 +32,19 @@ def to_polars(df: DataFrame | Series) -> pl.DataFrame | pl.Series:
     if isinstance(df, (pl.DataFrame, pl.Series)):
         return df
     if isinstance(df, (pd.DataFrame, pd.Series)):
+        # Handle mixed types in columns - convert problematic columns to string
+        if isinstance(df, pd.DataFrame):
+            df = df.copy()
+            for col in df.columns:
+                # Check if column has mixed types
+                if df[col].dtype == object:
+                    # Try to convert, if fails convert to string
+                    try:
+                        # Try to convert to numeric first
+                        pd.to_numeric(df[col], errors="raise")
+                    except (ValueError, TypeError):
+                        # Mixed types - convert to string
+                        df[col] = df[col].astype(str)
         return pl.from_pandas(df)
     raise TypeError(f"Expected DataFrame or Series, got {type(df)}")
 
