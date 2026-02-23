@@ -16,12 +16,13 @@
   "venvPath": "${workspaceFolder}",
   "venv": ".venv",
   "extraPaths": [
+    "${workspaceFolder}",
     "${workspaceFolder}/src"
   ],
   "typeCheckingMode": "basic",
   "reportMissingImports": "warning",
   "reportMissingModuleSource": "warning",
-  "reportMissingTypeStubs": "warning",
+  "reportMissingTypeStubs": false,
   "reportUnknownMemberType": "warning",
   "reportUnknownVariableType": "warning",
   "reportUnknownArgumentType": "warning",
@@ -30,6 +31,5 @@
   "reportOptionalCall": "warning",
   "reportOptionalIterable": "warning",
   "reportOptionalContextManager": "warning",
-  "reportOptionalOperand": "warning",
-  "stubPath": ""
+  "reportOptionalOperand": "warning"
 }

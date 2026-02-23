@@ -1,21 +1,28 @@
 # ==================== CRYPTOTEHNOLOG Event Recorder ====================
 # Records all events during replay for analysis and debugging
 
-from datetime import datetime
+from __future__ import annotations
+
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 if TYPE_CHECKING:
-    from cryptotechnolog.backtest.events import (  # type: ignore[import]
+    from cryptotechnolog.backtest.events import (
         BalanceUpdateEvent,
         OrderEvent,
         PositionUpdateEvent,
         TickEvent,
         TradeEvent,
     )
+
+
+# Constants for magic values
+SPREAD_THRESHOLD = 10  # Wide spread threshold for mean reversion
+BALANCE_STOP_THRESHOLD = 9000  # Balance threshold for stopping backtest
 
 
 # Constants for magic values
@@ -52,7 +59,7 @@ class EventRecorder:
         if self.output_dir:
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def record_tick(self, tick: "TickEvent") -> None:  # type: ignore[type-alias]
+    def record_tick(self, tick: "TickEvent") -> None:
         """Record a tick event."""
         event_data: dict[str, Any] = {
             "timestamp": tick.timestamp.isoformat(),
@@ -68,7 +75,7 @@ class EventRecorder:
         self.ticks.append(event_data)
         self.events.append(event_data)
 
-    def record_order(self, order: "OrderEvent") -> None:  # type: ignore[type-alias]
+    def record_order(self, order: "OrderEvent") -> None:
         """Record an order event."""
         event_data: dict[str, Any] = {
             "timestamp": order.timestamp.isoformat(),
@@ -85,7 +92,7 @@ class EventRecorder:
         self.orders.append(event_data)
         self.events.append(event_data)
 
-    def record_trade(self, trade: "TradeEvent") -> None:  # type: ignore[type-alias]
+    def record_trade(self, trade: "TradeEvent") -> None:
         """Record a trade event."""
         event_data: dict[str, Any] = {
             "timestamp": trade.timestamp.isoformat(),
@@ -101,7 +108,7 @@ class EventRecorder:
         self.trades.append(event_data)
         self.events.append(event_data)
 
-    def record_position_update(self, update: "PositionUpdateEvent") -> None:  # type: ignore[type-alias]
+    def record_position_update(self, update: "PositionUpdateEvent") -> None:
         """Record a position update event."""
         event_data: dict[str, Any] = {
             "timestamp": update.timestamp.isoformat(),
@@ -115,7 +122,7 @@ class EventRecorder:
         self.position_updates.append(event_data)
         self.events.append(event_data)
 
-    def record_balance_update(self, update: "BalanceUpdateEvent") -> None:  # type: ignore[type-alias]
+    def record_balance_update(self, update: "BalanceUpdateEvent") -> None:
         """Record a balance update event."""
         event_data: dict[str, Any] = {
             "timestamp": update.timestamp.isoformat(),
@@ -131,29 +138,29 @@ class EventRecorder:
     def to_dataframe(self) -> pd.DataFrame:
         """Convert all events to a pandas DataFrame."""
         if not self.events:
-            return pd.DataFrame()  # type: ignore[return-value]
+            return pd.DataFrame()
 
         df = pd.DataFrame(self.events)
-        df["timestamp"] = pd.to_datetime(df["timestamp"])  # type: ignore[no-any-return]
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)  # type: ignore[assignment]
         df = df.sort_values("timestamp").reset_index(drop=True)
         return df
 
     def ticks_to_dataframe(self) -> pd.DataFrame:
         """Convert tick events to DataFrame."""
         if not self.ticks:
-            return pd.DataFrame()  # type: ignore[return-value]
+            return pd.DataFrame()
 
         df = pd.DataFrame(self.ticks)
-        df["timestamp"] = pd.to_datetime(df["timestamp"])  # type: ignore[no-any-return]
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)  # type: ignore[assignment]
         return df.sort_values("timestamp").reset_index(drop=True)
 
     def trades_to_dataframe(self) -> pd.DataFrame:
         """Convert trade events to DataFrame."""
         if not self.trades:
-            return pd.DataFrame()  # type: ignore[return-value]
+            return pd.DataFrame()
 
         df = pd.DataFrame(self.trades)
-        df["timestamp"] = pd.to_datetime(df["timestamp"])  # type: ignore[no-any-return]
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)  # type: ignore[assignment]
         return df.sort_values("timestamp").reset_index(drop=True)
 
     def save(self, filename: str | None = None) -> Path | None:

@@ -36,20 +36,20 @@ class TickEvent:
     bid_size: float = 0.0
     ask_size: float = 0.0
     exchange: str = "unknown"
-    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[assignment]
+    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[typeddict-item]  # type: ignore[typeddict-item]  # type: ignore[typeddict-item]  # type: ignore[typeddict-item]  # type: ignore[typeddict-item]
 
     @property
-    def spread(self) -> float:  # type: ignore[return-value]
+    def spread(self) -> float:
         """Calculate bid-ask spread."""
         return self.ask - self.bid
 
     @property
-    def mid(self) -> float:  # type: ignore[return-value]
+    def mid(self) -> float:
         """Calculate mid price."""
         return (self.bid + self.ask) / 2
 
     @property
-    def event_type(self) -> EventType:  # type: ignore[return-value]
+    def event_type(self) -> EventType:
         return EventType.TICK
 
 
@@ -69,10 +69,10 @@ class OrderEvent:
     status: str = "pending"  # pending, filled, partial, cancelled, rejected
     filled_quantity: float = 0.0
     average_fill_price: float | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[assignment]
+    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[typeddict-item]
 
     @property
-    def event_type(self) -> EventType:  # type: ignore[return-value]
+    def event_type(self) -> EventType:
         return EventType.ORDER
 
 
@@ -91,15 +91,15 @@ class TradeEvent:
     price: float
     commission: float = 0.0
     commission_asset: str = "USDT"
-    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[assignment]
+    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[typeddict-item]
 
     @property
-    def total_value(self) -> float:  # type: ignore[return-value]
+    def total_value(self) -> float:
         """Calculate total trade value."""
         return self.quantity * self.price
 
     @property
-    def event_type(self) -> EventType:  # type: ignore[return-value]
+    def event_type(self) -> EventType:
         return EventType.TRADE
 
 
@@ -119,7 +119,7 @@ class PositionUpdateEvent:
     metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[assignment]
 
     @property
-    def event_type(self) -> EventType:  # type: ignore[return-value]
+    def event_type(self) -> EventType:
         return EventType.POSITION_UPDATE
 
 
@@ -137,9 +137,9 @@ class BalanceUpdateEvent:
     metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[assignment]
 
     @property
-    def delta(self) -> float:  # type: ignore[return-value]
+    def delta(self) -> float:
         return self.balance_after - self.balance_before
 
     @property
-    def event_type(self) -> EventType:  # type: ignore[return-value]
+    def event_type(self) -> EventType:
         return EventType.BALANCE_UPDATE

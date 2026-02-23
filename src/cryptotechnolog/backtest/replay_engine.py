@@ -1,23 +1,23 @@
 # ==================== CRYPTOTEHNOLOG Replay Engine ====================
 # Tick-by-tick historical data replay for backtesting
 
+import json
 from collections.abc import Callable, Generator, Iterator
 from dataclasses import dataclass
 from datetime import datetime
-import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
-from cryptotechnolog.backtest.events import (  # type: ignore[import]
+from cryptotechnolog.backtest.events import (
     BalanceUpdateEvent,
     OrderEvent,
     PositionUpdateEvent,
     TickEvent,
     TradeEvent,
 )
-from cryptotechnolog.backtest.recorder import EventRecorder  # type: ignore[import]
+from cryptotechnolog.backtest.recorder import EventRecorder
 
 
 @dataclass
@@ -42,11 +42,11 @@ class ReplayConfig:
     output_dir: str | Path | None = None
 
     # Callbacks
-    on_tick: Callable[[TickEvent], None] | None = None  # type: ignore[assignment]
-    on_order: Callable[[OrderEvent], None] | None = None  # type: ignore[assignment]
-    on_trade: Callable[[TradeEvent], None] | None = None  # type: ignore[assignment]
-    on_position_update: Callable[[PositionUpdateEvent], None] | None = None  # type: ignore[assignment]
-    on_balance_update: Callable[[BalanceUpdateEvent], None] | None = None  # type: ignore[assignment]
+    on_tick: Callable[[TickEvent], None] | None = None
+    on_order: Callable[[OrderEvent], None] | None = None
+    on_trade: Callable[[TradeEvent], None] | None = None
+    on_position_update: Callable[[PositionUpdateEvent], None] | None = None
+    on_balance_update: Callable[[BalanceUpdateEvent], None] | None = None
 
 
 class ReplayEngine:
@@ -88,7 +88,7 @@ class ReplayEngine:
 
         # Data
         self._data: pd.DataFrame | None = None
-        self._data_iterator: Iterator[tuple[int, pd.Series]] | None = None  # type: ignore[assignment]
+        self._data_iterator: Iterator[tuple[Any, pd.Series]] | None = None
 
     def load_csv(self, path: str | Path) -> "ReplayEngine":
         """Load tick data from CSV file."""
@@ -102,7 +102,8 @@ class ReplayEngine:
         # Validate columns
         missing = set(required_cols) - set(df.columns)
         if missing:
-            raise ValueError(f"Missing required columns: {missing}")
+            msg = f"Missing required columns: {missing}"
+            raise ValueError(msg)
 
         # Filter by time range
         if self.config.start_time:
@@ -113,7 +114,7 @@ class ReplayEngine:
         df = df.sort_values("timestamp").reset_index(drop=True)
 
         self._data = df
-        self._data_iterator = df.iterrows()  # type: ignore[assignment]
+        self._data_iterator = df.iterrows()
 
         return self
 
@@ -125,7 +126,8 @@ class ReplayEngine:
 
         # Ensure timestamp column
         if "timestamp" not in df.columns:
-            raise ValueError("Parquet must have 'timestamp' column")
+            msg = "Parquet must have 'timestamp' column"
+            raise ValueError(msg)
 
         # Filter by time range
         if self.config.start_time:
@@ -136,7 +138,7 @@ class ReplayEngine:
         df = df.sort_values("timestamp").reset_index(drop=True)
 
         self._data = df
-        self._data_iterator = df.iterrows()  # type: ignore[assignment]
+        self._data_iterator = df.iterrows()
 
         return self
 
@@ -146,7 +148,8 @@ class ReplayEngine:
         required_cols = ["timestamp", "symbol", "bid", "ask", "last", "volume"]
         missing = set(required_cols) - set(df.columns)
         if missing:
-            raise ValueError(f"Missing required columns: {missing}")
+            msg = f"Missing required columns: {missing}"
+            raise ValueError(msg)
 
         # Filter by time range
         if self.config.start_time:
@@ -157,14 +160,15 @@ class ReplayEngine:
         df = df.sort_values("timestamp").reset_index(drop=True)
 
         self._data = df
-        self._data_iterator = df.iterrows()  # type: ignore[assignment]
+        self._data_iterator = df.iterrows()
 
         return self
 
     def _create_tick_event(self, row: pd.Series) -> TickEvent:
         """Create TickEvent from DataFrame row."""
+        ts = pd.to_datetime(row["timestamp"]).to_pydatetime()  # type: ignore[union-attr,call-arg]
         return TickEvent(
-            timestamp=pd.to_datetime(row["timestamp"]).to_pydatetime(),  # type: ignore[no-any-return]
+            timestamp=ts,  # type: ignore[arg-type]
             symbol=str(row["symbol"]),
             bid=float(row["bid"]),
             ask=float(row["ask"]),
@@ -184,9 +188,8 @@ class ReplayEngine:
             TickEvent for each tick in the dataset
         """
         if self._data_iterator is None:
-            raise RuntimeError(
-                "No data loaded. Call load_csv(), load_parquet(), or load_dataframe() first."
-            )
+            msg = "No data loaded. Call load_csv(), load_parquet(), or load_dataframe() first."
+            raise RuntimeError(msg)
 
         for _idx, row in self._data_iterator:
             tick = self._create_tick_event(row)
@@ -204,9 +207,8 @@ class ReplayEngine:
             Dictionary with results and statistics
         """
         if self._data_iterator is None:
-            raise RuntimeError(
-                "No data loaded. Call load_csv(), load_parquet(), or load_dataframe() first."
-            )
+            msg = "No data loaded. Call load_csv(), load_parquet(), or load_dataframe() first."
+            raise RuntimeError(msg)
 
         # Reset state
         self.balance = self.config.initial_balance
@@ -247,7 +249,9 @@ class ReplayEngine:
         return results
 
     def run_until(
-        self, condition: Callable[[TickEvent, dict], bool], max_ticks: int | None = None
+        self,
+        condition: Callable[[TickEvent, dict[str, Any]], bool],
+        max_ticks: int | None = None,
     ) -> dict[str, Any]:
         """
         Run replay until condition is met.
@@ -260,7 +264,8 @@ class ReplayEngine:
             Results dictionary
         """
         if self._data_iterator is None:
-            raise RuntimeError("No data loaded.")
+            msg = "No data loaded."
+            raise RuntimeError(msg)
 
         # Reset state
         self.balance = self.config.initial_balance
@@ -316,9 +321,7 @@ class ReplayEngine:
                 "bid": self.current_tick.bid if self.current_tick else None,
                 "ask": self.current_tick.ask if self.current_tick else None,
                 "volume": self.current_tick.volume if self.current_tick else None,
-            }
-            if self.current_tick
-            else None,
+            } if self.current_tick else None,
             "balance": self.balance,
             "positions": dict(self.positions),
             "orders_count": len(self.orders),
@@ -389,6 +392,8 @@ class ReplayEngine:
             return 0.0
 
         if position > 0:  # Long
+            # type: ignore[return-value]
             return position * (self.current_tick.last - self.current_tick.bid)
-        else:  # Short
-            return -position * (self.current_tick.ask - self.current_tick.last)
+        # Short
+        # type: ignore[return-value]
+        return -position * (self.current_tick.ask - self.current_tick.last)

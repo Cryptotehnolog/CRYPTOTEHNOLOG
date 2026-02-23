@@ -4,27 +4,22 @@ from typing import Any
 
 import pandas as pd
 
-from cryptotechnolog.backtest import ReplayConfig, ReplayEngine, TickEvent  # type: ignore[import]
-from cryptotechnolog.backtest.recorder import (  # type: ignore[import]
-    BALANCE_STOP_THRESHOLD,
-    SPREAD_THRESHOLD,
-)
+from cryptotechnolog.backtest import ReplayConfig, ReplayEngine, TickEvent
+from cryptotechnolog.backtest.recorder import BALANCE_STOP_THRESHOLD, SPREAD_THRESHOLD
 
 
 # Example 1: Simple tick processing
-def example_simple():
+def example_simple() -> Any:
     """Simple example with in-memory data."""
     # Create sample tick data
-    data = pd.DataFrame(
-        {
-            "timestamp": pd.date_range("2024-01-01", periods=100, freq="1s"),
-            "symbol": ["BTCUSDT"] * 100,
-            "bid": [42000 + i * 10 for i in range(100)],
-            "ask": [42000 + i * 10 + 5 for i in range(100)],
-            "last": [42000 + i * 10 + 2 for i in range(100)],
-            "volume": [1.0] * 100,
-        }
-    )
+    data = pd.DataFrame({
+        "timestamp": pd.date_range("2024-01-01", periods=100, freq="1s"),
+        "symbol": ["BTCUSDT"] * 100,
+        "bid": [42000 + i * 10 for i in range(100)],
+        "ask": [42000 + i * 10 + 5 for i in range(100)],
+        "last": [42000 + i * 10 + 2 for i in range(100)],
+        "volume": [1.0] * 100,
+    })
 
     # Create config
     config = ReplayConfig(
@@ -38,17 +33,18 @@ def example_simple():
     results = engine.load_dataframe(data).run()
 
     print(f"Processed {results['ticks_processed']} ticks")
-    print(f"Final balance: ${results['final_balance']:.2f}")  # type: ignore[index]
+    print(f"Final balance: ${results['final_balance']:.2f}")
 
+    # type: ignore[no-any-return]
     return results
 
 
 # Example 2: With callbacks
-def example_with_callbacks():
+def example_with_callbacks() -> dict[str, Any]:
     """Example with strategy callbacks."""
     position = {"size": 0.0, "entry_price": 0.0}
 
-    def on_tick(tick: TickEvent):
+    def on_tick(tick: TickEvent) -> None:
         """Simple mean-reversion strategy."""
         spread = tick.ask - tick.bid
         mid = tick.mid
@@ -71,26 +67,25 @@ def example_with_callbacks():
     )
 
     # Create sample data
-    data = pd.DataFrame(
-        {
-            "timestamp": pd.date_range("2024-01-01", periods=1000, freq="1s"),
-            "symbol": ["BTCUSDT"] * 1000,
-            "bid": [42000 + i * 0.5 for i in range(1000)],
-            "ask": [42000 + i * 0.5 + 2 for i in range(1000)],
-            "last": [42000 + i * 0.5 + 1 for i in range(1000)],
-            "volume": [1.0] * 1000,
-        }
-    )
+    data = pd.DataFrame({
+        "timestamp": pd.date_range("2024-01-01", periods=1000, freq="1s"),
+        "symbol": ["BTCUSDT"] * 1000,
+        "bid": [42000 + i * 0.5 for i in range(1000)],
+        "ask": [42000 + i * 0.5 + 2 for i in range(1000)],
+        "last": [42000 + i * 0.5 + 1 for i in range(1000)],
+        "volume": [1.0] * 1000,
+    })
 
     engine = ReplayEngine(config)
     results = engine.load_dataframe(data).run()
 
     print(f"Final position: {position}")
+    # type: ignore[no-any-return]
     return results
 
 
 # Example 3: Load from CSV
-def example_from_csv(csv_path: str) -> dict[str, Any]:  # type: ignore[type-alias]
+def example_from_csv(csv_path: str) -> dict[str, Any]:
     """Example loading from CSV file."""
     config = ReplayConfig(
         data_source="csv",
@@ -112,35 +107,35 @@ def example_from_csv(csv_path: str) -> dict[str, Any]:  # type: ignore[type-alia
         # Save to file
         engine.recorder.save()
 
+    # type: ignore[no-any-return]
     return results
 
 
 # Example 4: Conditional run
-def example_conditional():
+def example_conditional() -> dict[str, Any]:
     """Run until certain condition is met."""
     config = ReplayConfig()
 
-    def stop_condition(tick: TickEvent, state: dict[str, Any]) -> bool:  # type: ignore[type-arg]
+    def stop_condition(tick: TickEvent, state: dict[str, Any]) -> bool:
         """Stop when balance drops below $9000."""
         return state["balance"] < BALANCE_STOP_THRESHOLD
 
-    data = pd.DataFrame(
-        {
-            "timestamp": pd.date_range("2024-01-01", periods=10000, freq="1s"),
-            "symbol": ["BTCUSDT"] * 10000,
-            "bid": [42000 - i * 0.1 for i in range(10000)],  # Declining price
-            "ask": [42000 - i * 0.1 + 5 for i in range(10000)],
-            "last": [42000 - i * 0.1 + 2 for i in range(10000)],
-            "volume": [1.0] * 10000,
-        }
-    )
+    data = pd.DataFrame({
+        "timestamp": pd.date_range("2024-01-01", periods=10000, freq="1s"),
+        "symbol": ["BTCUSDT"] * 10000,
+        "bid": [42000 - i * 0.1 for i in range(10000)],  # Declining price
+        "ask": [42000 - i * 0.1 + 5 for i in range(10000)],
+        "last": [42000 - i * 0.1 + 2 for i in range(10000)],
+        "volume": [1.0] * 10000,
+    })
 
     engine = ReplayEngine(config)
-    results = engine.load_dataframe(data).run_until(stop_condition, max_ticks=5000)  # type: ignore[no-any-return]
+    results = engine.load_dataframe(data).run_until(stop_condition, max_ticks=5000)
 
     print(f"Stopped after {results['ticks_processed']} ticks")
-    print(f"Balance: ${results['final_balance']:.2f}")  # type: ignore[index]
+    print(f"Balance: ${results['final_balance']:.2f}")
 
+    # type: ignore[no-any-return]
     return results
 
 
