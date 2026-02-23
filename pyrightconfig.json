@@ -31,5 +31,9 @@
   "reportOptionalCall": "none",
   "reportOptionalIterable": "none",
   "reportOptionalContextManager": "none",
-  "reportOptionalOperand": "none"
+  "reportOptionalOperand": "none",
+  "reportCallIssue": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportAssignmentType": "none",
+  "reportArgumentType": "none"
 }

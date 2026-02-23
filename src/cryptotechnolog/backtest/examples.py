@@ -119,7 +119,7 @@ def example_conditional() -> dict[str, Any]:
 
     def stop_condition(tick: TickEvent, state: dict[str, Any]) -> bool:
         """Stop when balance drops below $9000."""
-        balance = cast(float, state["balance"])
+        balance = cast("float", state["balance"])
         result: bool = balance < BALANCE_STOP_THRESHOLD
         return result
 
