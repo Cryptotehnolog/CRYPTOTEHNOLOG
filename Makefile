@@ -32,6 +32,12 @@ help:
 	@echo "  make rust-bench        - Run all Rust benchmarks (criterion)"
 	@echo "  make rust-bench-eventbus    - Run eventbus benchmarks"
 	@echo "  make rust-bench-risk-ledger - Run risk-ledger benchmarks"
+	@echo ""
+	@echo "  ==================== Benchmark Comparison ===================="
+	@echo "  make bench             - Run all benchmarks"
+	@echo "  make bench-save        - Run benchmarks and save as new baseline"
+	@echo "  make bench-compare     - Compare with saved baseline"
+	@echo "  make bench-compare-quiet - Compare with baseline (quiet mode)"
 	@echo "  make rust-flamegraph        - Generate flamegraph for eventbus"
 	@echo "  make rust-flamegraph-eventbus    - Generate flamegraph for eventbus"
 	@echo "  make rust-flamegraph-risk-ledger - Generate flamegraph for risk-ledger WAL"
@@ -152,6 +158,31 @@ rust-bench-eventbus-all:
 
 rust-bench-risk-ledger:
 	cargo bench -p cryptotechnolog-risk-ledger
+
+# ==================== Benchmark Commands ====================
+bench:
+	@echo "Running all Rust benchmarks..."
+	cd crates/eventbus && cargo bench --bench event_bench
+	cd crates/risk-ledger && cargo bench --bench ledger_bench
+	@echo "✅ All benchmarks completed!"
+
+bench-save:
+	@echo "Running all benchmarks and saving as new baseline..."
+	cd crates/eventbus && cargo bench --bench event_bench -- --save-baseline main
+	cd crates/risk-ledger && cargo bench --bench ledger_bench -- --save-baseline main
+	@echo "✅ Baseline saved!"
+
+bench-compare:
+	@echo "Running benchmarks and comparing with baseline..."
+	cd crates/eventbus && cargo bench --bench event_bench -- --baseline main
+	cd crates/risk-ledger && cargo bench --bench ledger_bench -- --baseline main
+	@echo "✅ Comparison complete!"
+
+bench-compare-quiet:
+	@echo "Running benchmarks and comparing with baseline (quiet mode)..."
+	cd crates/eventbus && cargo bench --bench event_bench -- --baseline main --noplot
+	cd crates/risk-ledger && cargo bench --bench ledger_bench -- --baseline main --noplot
+	@echo "✅ Comparison complete!"
 
 rust-flamegraph:
 	cargo flamegraph -p cryptotechnolog-eventbus --bench event_bench
