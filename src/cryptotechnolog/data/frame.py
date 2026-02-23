@@ -5,20 +5,14 @@ from __future__ import annotations
 
 import re
 import time
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import Any
 
 import pandas as pd
 import polars as pl
 
-if TYPE_CHECKING:
-    from pandas import DataFrame as PdDataFrame
-    from pandas import Series as PdSeries
-    from polars import DataFrame as PlDataFrame
-    from polars import Series as PlSeries
-
 # Type alias for dataframes
-DataFrame: TypeAlias = pd.DataFrame | pl.DataFrame
-Series: TypeAlias = pd.Series | pl.Series
+type DataFrame = pd.DataFrame | pl.DataFrame
+type Series = pd.Series | pl.Series
 
 
 # ==================== Conversion Functions ====================
