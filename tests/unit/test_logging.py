@@ -2,11 +2,9 @@
 
 import logging
 
-import pytest
-
 from cryptotechnolog.config import (
-    LoggerMixin,
     LogContext,
+    LoggerMixin,
     bind_context,
     clear_context,
     configure_logging,
@@ -147,7 +145,7 @@ class TestBindContext:
         """Контекст доступен в логах."""
         bind_context(strategy_id="strategy-1", order_id="order-123")
         logger = get_logger("ContextTest")
-        
+
         # Должно работать без исключений
         logger.info("Ордер создан", symbol="BTCUSDT")
 
@@ -159,7 +157,7 @@ class TestLoggerMixin:
         """Миксин предоставляет доступ к логгеру."""
         class TestClass(LoggerMixin):
             pass
-        
+
         obj = TestClass()
         assert hasattr(obj, "logger")
         assert obj.logger is not None
@@ -168,7 +166,7 @@ class TestLoggerMixin:
         """Логгер использует имя класса."""
         class MyCustomClass(LoggerMixin):
             pass
-        
+
         obj = MyCustomClass()
         # Имя логгера должно содержать имя класса
         assert "MyCustomClass" in str(obj.logger)
@@ -177,7 +175,7 @@ class TestLoggerMixin:
         """Логгер кешируется для экземпляра."""
         class TestClass(LoggerMixin):
             pass
-        
+
         obj = TestClass()
         logger1 = obj.logger
         logger2 = obj.logger

@@ -1,10 +1,10 @@
 # ==================== CRYPTOTEHNOLOG Logging Configuration ====================
 # Structured logging with structlog and pydantic-settings
 
+from contextvars import ContextVar
 import logging
 import sys
 from typing import TYPE_CHECKING, Any
-from contextvars import ContextVar
 
 import structlog
 
@@ -15,7 +15,12 @@ if TYPE_CHECKING:
 
 
 # Контекст для трейсинга (доступен во всех логах)
-_context: ContextVar[dict[str, Any]] = ContextVar("log_context", default={})
+_context: ContextVar[dict[str, Any] | None] = ContextVar("log_context", default=None)
+
+
+def _init_context() -> dict[str, Any]:
+    """Инициализация пустого контекста."""
+    return {}
 
 
 def configure_logging() -> None:
@@ -142,15 +147,17 @@ class LogContext:
 def bind_context(**context: Any) -> None:
     """
     Привязать контекстные данные ко всем последующим логам в текущем контексте.
-    
+
     Аргументы:
         **context: Пары ключ-значение для контекста
-    
+
     Пример:
         >>> bind_context(request_id="req-123", strategy_id="strategy-1")
         >>> logger.info("Ордер отправлен")  # автоматически включает request_id
     """
     current = _context.get()
+    if current is None:
+        current = _init_context()
     current.update(context)
     _context.set(current)
 
@@ -163,29 +170,31 @@ def clear_context() -> None:
 def get_context() -> dict[str, Any]:
     """
     Получить текущий контекст.
-    
+
     Возвращает:
         Словарь с текущим контекстом
     """
-    return _context.get()
+    current = _context.get()
+    if current is None:
+        current = _init_context()
+    return current
 
 
 class LoggerMixin:
     """
     Миксин для классов, которым нужен логгер.
-    
+
     Пример:
         >>> class MyClass(LoggerMixin):
         ...     def do_something(self):
         ...         self.logger.info("Выполняю действие", value=42)
     """
-    
+
     @property
     def logger(self) -> structlog.stdlib.BoundLogger:
-        """
-        Получить логгер для текущего класса.
-        
-        Возвращает:
+        """Получить логгер для текущего класса.
+
+        Returns:
             Логгер с именем класса
         """
         if not hasattr(self, "_logger"):
