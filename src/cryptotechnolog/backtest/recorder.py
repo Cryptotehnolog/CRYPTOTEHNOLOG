@@ -6,23 +6,17 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pandas as pd
 
-if TYPE_CHECKING:
-    from cryptotechnolog.backtest.events import (
-        BalanceUpdateEvent,
-        OrderEvent,
-        PositionUpdateEvent,
-        TickEvent,
-        TradeEvent,
-    )
-
-
-# Constants for magic values
-SPREAD_THRESHOLD = 10  # Wide spread threshold for mean reversion
-BALANCE_STOP_THRESHOLD = 9000  # Balance threshold for stopping backtest
+from cryptotechnolog.backtest.events import (
+    BalanceUpdateEvent,
+    OrderEvent,
+    PositionUpdateEvent,
+    TickEvent,
+    TradeEvent,
+)
 
 
 # Constants for magic values
@@ -59,7 +53,7 @@ class EventRecorder:
         if self.output_dir:
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def record_tick(self, tick: "TickEvent") -> None:
+    def record_tick(self, tick: TickEvent) -> None:
         """Record a tick event."""
         event_data: dict[str, Any] = {
             "timestamp": tick.timestamp.isoformat(),
@@ -75,7 +69,7 @@ class EventRecorder:
         self.ticks.append(event_data)
         self.events.append(event_data)
 
-    def record_order(self, order: "OrderEvent") -> None:
+    def record_order(self, order: OrderEvent) -> None:
         """Record an order event."""
         event_data: dict[str, Any] = {
             "timestamp": order.timestamp.isoformat(),
@@ -92,7 +86,7 @@ class EventRecorder:
         self.orders.append(event_data)
         self.events.append(event_data)
 
-    def record_trade(self, trade: "TradeEvent") -> None:
+    def record_trade(self, trade: TradeEvent) -> None:
         """Record a trade event."""
         event_data: dict[str, Any] = {
             "timestamp": trade.timestamp.isoformat(),
@@ -108,7 +102,7 @@ class EventRecorder:
         self.trades.append(event_data)
         self.events.append(event_data)
 
-    def record_position_update(self, update: "PositionUpdateEvent") -> None:
+    def record_position_update(self, update: PositionUpdateEvent) -> None:
         """Record a position update event."""
         event_data: dict[str, Any] = {
             "timestamp": update.timestamp.isoformat(),
@@ -122,7 +116,7 @@ class EventRecorder:
         self.position_updates.append(event_data)
         self.events.append(event_data)
 
-    def record_balance_update(self, update: "BalanceUpdateEvent") -> None:
+    def record_balance_update(self, update: BalanceUpdateEvent) -> None:
         """Record a balance update event."""
         event_data: dict[str, Any] = {
             "timestamp": update.timestamp.isoformat(),
