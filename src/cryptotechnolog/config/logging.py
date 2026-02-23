@@ -4,6 +4,7 @@
 import logging
 import sys
 from typing import TYPE_CHECKING, Any
+from contextvars import ContextVar
 
 import structlog
 
@@ -11,6 +12,10 @@ from cryptotechnolog.config.settings import get_settings
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+
+# Контекст для трейсинга (доступен во всех логах)
+_context: ContextVar[dict[str, Any]] = ContextVar("log_context", default={})
 
 
 def configure_logging() -> None:
@@ -129,6 +134,63 @@ class LogContext:
         """
         if self.bound_logger is not None:
             self.bound_logger = None
+
+
+# ==================== Context Variables Functions ====================
+
+
+def bind_context(**context: Any) -> None:
+    """
+    Привязать контекстные данные ко всем последующим логам в текущем контексте.
+    
+    Аргументы:
+        **context: Пары ключ-значение для контекста
+    
+    Пример:
+        >>> bind_context(request_id="req-123", strategy_id="strategy-1")
+        >>> logger.info("Ордер отправлен")  # автоматически включает request_id
+    """
+    current = _context.get()
+    current.update(context)
+    _context.set(current)
+
+
+def clear_context() -> None:
+    """Очистить контекстные данные."""
+    _context.set({})
+
+
+def get_context() -> dict[str, Any]:
+    """
+    Получить текущий контекст.
+    
+    Возвращает:
+        Словарь с текущим контекстом
+    """
+    return _context.get()
+
+
+class LoggerMixin:
+    """
+    Миксин для классов, которым нужен логгер.
+    
+    Пример:
+        >>> class MyClass(LoggerMixin):
+        ...     def do_something(self):
+        ...         self.logger.info("Выполняю действие", value=42)
+    """
+    
+    @property
+    def logger(self) -> structlog.stdlib.BoundLogger:
+        """
+        Получить логгер для текущего класса.
+        
+        Возвращает:
+            Логгер с именем класса
+        """
+        if not hasattr(self, "_logger"):
+            self._logger = get_logger(self.__class__.__name__)
+        return self._logger
 
 
 # ==================== Convenience Functions ====================
