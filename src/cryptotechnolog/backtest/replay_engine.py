@@ -321,7 +321,9 @@ class ReplayEngine:
                 "bid": self.current_tick.bid if self.current_tick else None,
                 "ask": self.current_tick.ask if self.current_tick else None,
                 "volume": self.current_tick.volume if self.current_tick else None,
-            } if self.current_tick else None,
+            }
+            if self.current_tick
+            else None,
             "balance": self.balance,
             "positions": dict(self.positions),
             "orders_count": len(self.orders),
