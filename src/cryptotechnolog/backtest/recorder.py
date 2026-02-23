@@ -1,18 +1,32 @@
 # ==================== CRYPTOTEHNOLOG Event Recorder ====================
 # Records all events during replay for analysis and debugging
 
-from datetime import datetime
 import json
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    from cryptotechnolog.backtest.events import (  # type: ignore[import]
+        BalanceUpdateEvent,
+        OrderEvent,
+        PositionUpdateEvent,
+        TickEvent,
+        TradeEvent,
+    )
+
+
+# Constants for magic values
+SPREAD_THRESHOLD = 10  # Wide spread threshold for mean reversion
+BALANCE_STOP_THRESHOLD = 9000  # Balance threshold for stopping backtest
 
 
 class EventRecorder:
     """
     Records all events during backtest replay.
-    
+
     Allows:
     - Replay analysis after simulation
     - Debug issues in production
@@ -22,9 +36,9 @@ class EventRecorder:
     def __init__(self, output_dir: str | Path | None = None):
         """
         Initialize event recorder.
-        
+
         Args:
-            output_dir: Directory to save recorded events. 
+            output_dir: Directory to save recorded events.
                        If None, events are stored in memory only.
         """
         self.output_dir = Path(output_dir) if output_dir else None
@@ -38,9 +52,9 @@ class EventRecorder:
         if self.output_dir:
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def record_tick(self, tick: Any) -> None:
+    def record_tick(self, tick: "TickEvent") -> None:  # type: ignore[type-alias]
         """Record a tick event."""
-        event_data = {
+        event_data: dict[str, Any] = {
             "timestamp": tick.timestamp.isoformat(),
             "symbol": tick.symbol,
             "bid": tick.bid,
@@ -54,9 +68,9 @@ class EventRecorder:
         self.ticks.append(event_data)
         self.events.append(event_data)
 
-    def record_order(self, order: Any) -> None:
+    def record_order(self, order: "OrderEvent") -> None:  # type: ignore[type-alias]
         """Record an order event."""
-        event_data = {
+        event_data: dict[str, Any] = {
             "timestamp": order.timestamp.isoformat(),
             "order_id": order.order_id,
             "symbol": order.symbol,
@@ -71,9 +85,9 @@ class EventRecorder:
         self.orders.append(event_data)
         self.events.append(event_data)
 
-    def record_trade(self, trade: Any) -> None:
+    def record_trade(self, trade: "TradeEvent") -> None:  # type: ignore[type-alias]
         """Record a trade event."""
-        event_data = {
+        event_data: dict[str, Any] = {
             "timestamp": trade.timestamp.isoformat(),
             "trade_id": trade.trade_id,
             "order_id": trade.order_id,
@@ -87,9 +101,9 @@ class EventRecorder:
         self.trades.append(event_data)
         self.events.append(event_data)
 
-    def record_position_update(self, update: Any) -> None:
+    def record_position_update(self, update: "PositionUpdateEvent") -> None:  # type: ignore[type-alias]
         """Record a position update event."""
-        event_data = {
+        event_data: dict[str, Any] = {
             "timestamp": update.timestamp.isoformat(),
             "symbol": update.symbol,
             "position_size": update.position_size,
@@ -101,9 +115,9 @@ class EventRecorder:
         self.position_updates.append(event_data)
         self.events.append(event_data)
 
-    def record_balance_update(self, update: Any) -> None:
+    def record_balance_update(self, update: "BalanceUpdateEvent") -> None:  # type: ignore[type-alias]
         """Record a balance update event."""
-        event_data = {
+        event_data: dict[str, Any] = {
             "timestamp": update.timestamp.isoformat(),
             "asset": update.asset,
             "balance_before": update.balance_before,
@@ -145,10 +159,10 @@ class EventRecorder:
     def save(self, filename: str | None = None) -> Path | None:
         """
         Save all events to JSON file.
-        
+
         Args:
             filename: Custom filename. If None, uses timestamp-based name.
-            
+
         Returns:
             Path to saved file, or None if no output directory configured.
         """
@@ -161,7 +175,7 @@ class EventRecorder:
 
         filepath = self.output_dir / filename
 
-        with open(filepath, "w") as f:
+        with filepath.open("w") as f:
             json.dump(self.events, f, indent=2, default=str)
 
         return filepath
@@ -169,10 +183,10 @@ class EventRecorder:
     def save_csv(self, filename: str | None = None) -> Path | None:
         """
         Save events to CSV file.
-        
+
         Args:
             filename: Custom filename. If None, uses timestamp-based name.
-            
+
         Returns:
             Path to saved file, or None if no output directory configured.
         """

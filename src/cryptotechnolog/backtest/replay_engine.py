@@ -18,6 +18,8 @@ from cryptotechnolog.backtest.events import (  # type: ignore[import]
 )
 from cryptotechnolog.backtest.recorder import EventRecorder  # type: ignore[import]
 
+import json
+
 
 @dataclass
 class ReplayConfig:
@@ -185,7 +187,7 @@ class ReplayEngine:
         if self._data_iterator is None:
             raise RuntimeError("No data loaded. Call load_csv(), load_parquet(), or load_dataframe() first.")
 
-        for idx, row in self._data_iterator:
+        for _idx, row in self._data_iterator:
             tick = self._create_tick_event(row)
             self.current_tick = tick
             self.current_time = tick.timestamp
@@ -322,12 +324,10 @@ class ReplayEngine:
 
     def save_state_snapshot(self, path: str | Path) -> None:
         """Save current state snapshot to JSON for debugging."""
-        import json
-
         path = Path(path)
         snapshot = self.get_state_snapshot()
 
-        with open(path, "w") as f:
+        with path.open("w") as f:
             json.dump(snapshot, f, indent=2, default=str)
 
     # ==================== Order Execution Helpers ====================

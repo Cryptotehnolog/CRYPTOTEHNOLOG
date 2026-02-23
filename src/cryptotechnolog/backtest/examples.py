@@ -5,6 +5,10 @@ from typing import Any
 import pandas as pd
 
 from cryptotechnolog.backtest import ReplayConfig, ReplayEngine, TickEvent  # type: ignore[import]
+from cryptotechnolog.backtest.recorder import (  # type: ignore[import]
+    BALANCE_STOP_THRESHOLD,
+    SPREAD_THRESHOLD,
+)
 
 
 # Example 1: Simple tick processing
@@ -47,7 +51,7 @@ def example_with_callbacks():
         spread = tick.ask - tick.bid
         mid = tick.mid
 
-        if spread > 10:  # Wide spread - potential mean reversion
+        if spread > SPREAD_THRESHOLD:  # Wide spread - potential mean reversion
             if position["size"] == 0:
                 # Buy
                 position["size"] = 0.01
@@ -87,7 +91,7 @@ def example_from_csv(csv_path: str) -> dict[str, Any]:  # type: ignore[type-alia
     config = ReplayConfig(
         data_source="csv",
         output_dir="./backtest_results",
-        on_tick=lambda t: None,  # Add your strategy here
+        on_tick=lambda _: None,  # Add your strategy here
     )
 
     engine = ReplayEngine(config)
@@ -114,7 +118,7 @@ def example_conditional():
 
     def stop_condition(tick: TickEvent, state: dict[str, Any]) -> bool:  # type: ignore[type-arg]
         """Stop when balance drops below $9000."""
-        return state["balance"] < 9000
+        return state["balance"] < BALANCE_STOP_THRESHOLD
 
     data = pd.DataFrame({
         "timestamp": pd.date_range("2024-01-01", periods=10000, freq="1s"),
