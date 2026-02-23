@@ -6,10 +6,10 @@ Core Trading Flow E2E Tests (15 сценариев)
 Запускается против реальной или mock-биржи.
 """
 
-
 import pytest
 
 # ==================== Order Creation & Validation ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.order
@@ -83,6 +83,7 @@ def test_iceberg_order():
 
 # ==================== Order Lifecycle ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.order
 def test_order_partial_fill_to_full():
@@ -144,6 +145,7 @@ def test_order_rejection_insufficient_margin():
 
 
 # ==================== Position Management ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.position

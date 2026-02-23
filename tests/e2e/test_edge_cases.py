@@ -9,10 +9,10 @@ Edge Cases & Failure Modes E2E Tests (15 сценариев)
 - Ошибки пользователя
 """
 
-
 import pytest
 
 # ==================== Market Conditions ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.market
@@ -66,6 +66,7 @@ def test_market_manipulation_detection():
 
 # ==================== Exchange Issues ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.exchange
 def test_exchange_downtime():
@@ -108,6 +109,7 @@ def test_exchange_maintenance():
 
 # ==================== System Failures ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.system
 def test_database_unavailable():
@@ -149,6 +151,7 @@ def test_process_oom():
 
 
 # ==================== User Errors ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.user_error

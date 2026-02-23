@@ -9,10 +9,10 @@ Data Integrity E2E Tests (12 сценариев)
 - Edge cases
 """
 
-
 import pytest
 
 # ==================== Data Pipeline ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.data
@@ -56,6 +56,7 @@ def test_position_sync():
 
 # ==================== Storage ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.storage
 def test_transaction_persistence():
@@ -98,6 +99,7 @@ def test_audit_log_integrity():
 
 # ==================== Reconciliation ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.reconciliation
 def test_exchange_vs_local_balance():
@@ -139,6 +141,7 @@ def test_fee_reconciliation():
 
 
 # ==================== Edge Cases ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.edge_case

@@ -9,10 +9,10 @@ Compliance & Audit E2E Tests (10 сценариев)
 - Data Retention
 """
 
-
 import pytest
 
 # ==================== Audit Trail ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.compliance
@@ -56,6 +56,7 @@ def test_risk_breaches_logged():
 
 # ==================== Reporting ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.reporting
 def test_daily_pnl_report():
@@ -98,6 +99,7 @@ def test_regulatory_report():
 
 # ==================== Security ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.security
 def test_api_key_rotation():
@@ -139,6 +141,7 @@ def test_audit_compliance():
 
 
 # ==================== Data Retention ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.retention

@@ -9,10 +9,10 @@ Risk Management E2E Tests (20 сценариев)
 - Circuit breakers
 """
 
-
 import pytest
 
 # ==================== Position Limits ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.risk
@@ -56,6 +56,7 @@ def test_per_strategy_position_limit():
 
 # ==================== Order Limits ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.risk
 def test_order_size_limit():
@@ -97,6 +98,7 @@ def test_leverage_limit():
 
 
 # ==================== Margin & Collateral ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.risk
@@ -149,6 +151,7 @@ def test_collateral_diversification():
 
 
 # ==================== Risk Metrics ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.risk
@@ -221,6 +224,7 @@ def test_greeks_limits():
 
 
 # ==================== Circuit Breakers ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.risk

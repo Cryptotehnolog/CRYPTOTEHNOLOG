@@ -13,6 +13,7 @@ import pytest
 
 # ==================== Cross-Asset ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.multi_asset
 def test_crypto_crypto_pairs():
@@ -65,6 +66,7 @@ def test_future_contracts():
 
 # ==================== Multi-Exchange ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.multi_exchange
 def test_binance_integration():
@@ -107,6 +109,7 @@ def test_cross_exchange_arbitrage():
 
 # ==================== Multi-Timeframe ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.timeframe
 def test_multiple_timeframes():
@@ -138,6 +141,7 @@ def test_cross_timeframe_signals():
 
 
 # ==================== Correlation ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.correlation

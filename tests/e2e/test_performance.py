@@ -9,10 +9,10 @@ Performance & Stability E2E Tests (12 сценариев)
 - Параллельное выполнение
 """
 
-
 import pytest
 
 # ==================== Load Testing ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.performance
@@ -56,6 +56,7 @@ def test_massive_data_ingestion():
 
 # ==================== Latency ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.latency
 def test_order_placement_latency():
@@ -98,6 +99,7 @@ def test_total_round_trip_time():
 
 # ==================== Resilience ====================
 
+
 @pytest.mark.e2e
 @pytest.mark.resilience
 def test_network_disconnection_recovery():
@@ -139,6 +141,7 @@ def test_process_crash_recovery():
 
 
 # ==================== Concurrency ====================
+
 
 @pytest.mark.e2e
 @pytest.mark.concurrency
