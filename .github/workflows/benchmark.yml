@@ -45,6 +45,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-bench-
 
+      - name: Build dependencies
+        run: cargo fetch
+
       - name: Run risk-ledger benchmarks and save baseline
         run: |
           cd crates/risk-ledger
@@ -95,6 +98,9 @@ jobs:
           key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-bench-
+
+      - name: Build dependencies
+        run: cargo fetch
 
       - name: Download main baseline
         uses: dawidd6/action-download-artifact@v6
