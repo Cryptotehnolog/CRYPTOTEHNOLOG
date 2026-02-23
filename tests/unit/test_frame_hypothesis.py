@@ -20,6 +20,7 @@ from cryptotechnolog.data.frame import (
 
 # ==================== Strategies ====================
 
+
 @st.composite
 def pandas_dataframe(draw: Any, max_rows: int = 100) -> pd.DataFrame:
     """Generate random pandas DataFrame with homogeneous columns."""
@@ -85,13 +86,18 @@ def ohlcv_dataframe(draw: Any, max_rows: int = 100) -> pd.DataFrame:
 
     # Ensure high >= open, close, low
     for i in range(rows):
-        data["high"][i] = max(data["open"][i], data["close"][i], data["low"][i]) + abs(np.random.randn() * 5)
-        data["low"][i] = min(data["open"][i], data["close"][i], data["high"][i]) - abs(np.random.randn() * 5)
+        data["high"][i] = max(data["open"][i], data["close"][i], data["low"][i]) + abs(
+            np.random.randn() * 5
+        )
+        data["low"][i] = min(data["open"][i], data["close"][i], data["high"][i]) - abs(
+            np.random.randn() * 5
+        )
 
     return pd.DataFrame(data)
 
 
 # ==================== Conversion Tests ====================
+
 
 @given(pandas_dataframe(max_rows=50))
 @settings(max_examples=50)
@@ -173,6 +179,7 @@ def test_to_pandas_idempotent(polars_df: pl.DataFrame) -> None:
 
 # ==================== Returns Calculation Tests ====================
 
+
 @given(ohlcv_dataframe(max_rows=100))
 @settings(max_examples=30)
 def test_calculate_returns_valid_range(pandas_df: pd.DataFrame) -> None:
@@ -205,6 +212,7 @@ def test_calculate_returns_polars(pandas_df: pd.DataFrame) -> None:
 
 
 # ==================== Resample Tests ====================
+
 
 @given(ohlcv_dataframe(max_rows=50))
 @settings(max_examples=20)
@@ -243,6 +251,7 @@ def test_resample_ohlcv_polars(pandas_df: pd.DataFrame) -> None:
 
 
 # ==================== Edge Cases ====================
+
 
 @given(st.lists(st.floats(min_value=-1e10, max_value=1e10), min_size=2, max_size=100))
 @settings(max_examples=20)
@@ -285,6 +294,7 @@ def test_conversion_with_many_rows(n_rows: int) -> None:
 
 
 # ==================== Type Preservation ====================
+
 
 @given(pandas_dataframe(max_rows=20))
 @settings(max_examples=10)
