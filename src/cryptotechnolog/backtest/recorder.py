@@ -1,8 +1,8 @@
 # ==================== CRYPTOTEHNOLOG Event Recorder ====================
 # Records all events during replay for analysis and debugging
 
-import json
 from datetime import datetime
+import json
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +34,7 @@ class EventRecorder:
         self.trades: list[dict[str, Any]] = []
         self.position_updates: list[dict[str, Any]] = []
         self.balance_updates: list[dict[str, Any]] = []
-        
+
         if self.output_dir:
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -118,7 +118,7 @@ class EventRecorder:
         """Convert all events to a pandas DataFrame."""
         if not self.events:
             return pd.DataFrame()  # type: ignore[return-value]
-        
+
         df = pd.DataFrame(self.events)
         df["timestamp"] = pd.to_datetime(df["timestamp"])  # type: ignore[no-any-return]
         df = df.sort_values("timestamp").reset_index(drop=True)
@@ -128,7 +128,7 @@ class EventRecorder:
         """Convert tick events to DataFrame."""
         if not self.ticks:
             return pd.DataFrame()  # type: ignore[return-value]
-        
+
         df = pd.DataFrame(self.ticks)
         df["timestamp"] = pd.to_datetime(df["timestamp"])  # type: ignore[no-any-return]
         return df.sort_values("timestamp").reset_index(drop=True)
@@ -137,7 +137,7 @@ class EventRecorder:
         """Convert trade events to DataFrame."""
         if not self.trades:
             return pd.DataFrame()  # type: ignore[return-value]
-        
+
         df = pd.DataFrame(self.trades)
         df["timestamp"] = pd.to_datetime(df["timestamp"])  # type: ignore[no-any-return]
         return df.sort_values("timestamp").reset_index(drop=True)
@@ -154,16 +154,16 @@ class EventRecorder:
         """
         if not self.output_dir:
             return None
-        
+
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"backtest_events_{timestamp}.json"
-        
+
         filepath = self.output_dir / filename
-        
+
         with open(filepath, "w") as f:
             json.dump(self.events, f, indent=2, default=str)
-        
+
         return filepath
 
     def save_csv(self, filename: str | None = None) -> Path | None:
@@ -178,15 +178,15 @@ class EventRecorder:
         """
         if not self.output_dir:
             return None
-        
+
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"backtest_events_{timestamp}.csv"
-        
+
         filepath = self.output_dir / filename
         df = self.to_dataframe()
         df.to_csv(filepath, index=False)
-        
+
         return filepath
 
     def get_summary(self) -> dict[str, Any]:

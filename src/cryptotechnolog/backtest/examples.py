@@ -1,12 +1,10 @@
 # ==================== CRYPTOTEHNOLOG Backtest Examples ====================
 
-from datetime import datetime
 from typing import Any
 
 import pandas as pd
 
-from cryptotechnolog.backtest import ReplayEngine, ReplayConfig, TickEvent  # type: ignore[import]
-from cryptotechnolog.backtest.events import OrderEvent  # type: ignore[import]
+from cryptotechnolog.backtest import ReplayConfig, ReplayEngine, TickEvent  # type: ignore[import]
 
 
 # Example 1: Simple tick processing
@@ -21,21 +19,21 @@ def example_simple():
         "last": [42000 + i * 10 + 2 for i in range(100)],
         "volume": [1.0] * 100,
     })
-    
+
     # Create config
     config = ReplayConfig(
         data_source="dataframe",
         initial_balance=10_000.0,
         commission_rate=0.001,
     )
-    
+
     # Create and run engine
     engine = ReplayEngine(config)
     results = engine.load_dataframe(data).run()
-    
+
     print(f"Processed {results['ticks_processed']} ticks")
     print(f"Final balance: ${results['final_balance']:.2f}")  # type: ignore[index]
-    
+
     return results
 
 
@@ -43,12 +41,12 @@ def example_simple():
 def example_with_callbacks():
     """Example with strategy callbacks."""
     position = {"size": 0.0, "entry_price": 0.0}
-    
+
     def on_tick(tick: TickEvent):
         """Simple mean-reversion strategy."""
         spread = tick.ask - tick.bid
         mid = tick.mid
-        
+
         if spread > 10:  # Wide spread - potential mean reversion
             if position["size"] == 0:
                 # Buy
@@ -60,12 +58,12 @@ def example_with_callbacks():
             pnl = position["size"] * (tick.last - position["entry_price"])
             print(f"SELL at {tick.last:.2f}, PnL: {pnl:.2f}")
             position["size"] = 0.0
-    
+
     config = ReplayConfig(
         on_tick=on_tick,
         initial_balance=10_000.0,
     )
-    
+
     # Create sample data
     data = pd.DataFrame({
         "timestamp": pd.date_range("2024-01-01", periods=1000, freq="1s"),
@@ -75,10 +73,10 @@ def example_with_callbacks():
         "last": [42000 + i * 0.5 + 1 for i in range(1000)],
         "volume": [1.0] * 1000,
     })
-    
+
     engine = ReplayEngine(config)
     results = engine.load_dataframe(data).run()
-    
+
     print(f"Final position: {position}")
     return results
 
@@ -91,21 +89,21 @@ def example_from_csv(csv_path: str) -> dict[str, Any]:  # type: ignore[type-alia
         output_dir="./backtest_results",
         on_tick=lambda t: None,  # Add your strategy here
     )
-    
+
     engine = ReplayEngine(config)
     results = engine.load_csv(csv_path).run()
-    
+
     # Get recorded events
     if engine.recorder:
         events_df = engine.recorder.to_dataframe()
         trades_df = engine.recorder.trades_to_dataframe()
-        
+
         print(f"Total events: {len(events_df)}")
         print(f"Total trades: {len(trades_df)}")
-        
+
         # Save to file
         engine.recorder.save()
-    
+
     return results
 
 
@@ -113,11 +111,11 @@ def example_from_csv(csv_path: str) -> dict[str, Any]:  # type: ignore[type-alia
 def example_conditional():
     """Run until certain condition is met."""
     config = ReplayConfig()
-    
+
     def stop_condition(tick: TickEvent, state: dict[str, Any]) -> bool:  # type: ignore[type-arg]
         """Stop when balance drops below $9000."""
         return state["balance"] < 9000
-    
+
     data = pd.DataFrame({
         "timestamp": pd.date_range("2024-01-01", periods=10000, freq="1s"),
         "symbol": ["BTCUSDT"] * 10000,
@@ -126,22 +124,22 @@ def example_conditional():
         "last": [42000 - i * 0.1 + 2 for i in range(10000)],
         "volume": [1.0] * 10000,
     })
-    
+
     engine = ReplayEngine(config)
     results = engine.load_dataframe(data).run_until(stop_condition, max_ticks=5000)  # type: ignore[no-any-return]
-    
+
     print(f"Stopped after {results['ticks_processed']} ticks")
     print(f"Balance: ${results['final_balance']:.2f}")  # type: ignore[index]
-    
+
     return results
 
 
 if __name__ == "__main__":
     print("=== Example 1: Simple ===")
     example_simple()
-    
+
     print("\n=== Example 2: With callbacks ===")
     example_with_callbacks()
-    
+
     print("\n=== Example 4: Conditional ===")
     example_conditional()

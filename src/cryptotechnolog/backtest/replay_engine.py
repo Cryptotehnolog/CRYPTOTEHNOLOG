@@ -1,10 +1,11 @@
 # ==================== CRYPTOTEHNOLOG Replay Engine ====================
 # Tick-by-tick historical data replay for backtesting
 
-from dataclasses import dataclass, field
+from collections.abc import Callable, Generator, Iterator
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Generator, Iterator
+from typing import Any
 
 import pandas as pd
 
@@ -25,20 +26,20 @@ class ReplayConfig:
     # Data source
     data_source: str = "csv"  # "csv", "parquet", "dataframe"
     data_path: str | Path = ""
-    
+
     # Replay settings
     start_time: datetime | None = None
     end_time: datetime | None = None
     speed: float = 1.0  # 1.0 = real-time, 0.0 = unlimited, >1 = faster
-    
+
     # Simulation settings
     initial_balance: float = 10_000.0
     commission_rate: float = 0.001  # 0.1%
-    
+
     # Output settings
     record_events: bool = True
     output_dir: str | Path | None = None
-    
+
     # Callbacks
     on_tick: Callable[[TickEvent], None] | None = None  # type: ignore[assignment]
     on_order: Callable[[OrderEvent], None] | None = None  # type: ignore[assignment]
@@ -73,17 +74,17 @@ class ReplayEngine:
         """
         self.config = config
         self.recorder = EventRecorder(config.output_dir) if config.record_events else None
-        
+
         # State
         self.current_tick: TickEvent | None = None
         self.current_time: datetime | None = None
         self.ticks_processed: int = 0
-        
+
         # Account state
         self.balance: float = config.initial_balance
         self.positions: dict[str, float] = {}  # symbol -> size
         self.orders: dict[str, OrderEvent] = {}  # order_id -> order
-        
+
         # Data
         self._data: pd.DataFrame | None = None
         self._data_iterator: Iterator[tuple[int, pd.Series]] | None = None  # type: ignore[assignment]
@@ -91,51 +92,51 @@ class ReplayEngine:
     def load_csv(self, path: str | Path) -> "ReplayEngine":
         """Load tick data from CSV file."""
         path = Path(path)
-        
+
         # Required columns
         required_cols = ["timestamp", "symbol", "bid", "ask", "last", "volume"]
-        
+
         df = pd.read_csv(path, parse_dates=["timestamp"])
-        
+
         # Validate columns
         missing = set(required_cols) - set(df.columns)
         if missing:
             raise ValueError(f"Missing required columns: {missing}")
-        
+
         # Filter by time range
         if self.config.start_time:
             df = df[df["timestamp"] >= self.config.start_time]
         if self.config.end_time:
             df = df[df["timestamp"] <= self.config.end_time]
-        
+
         df = df.sort_values("timestamp").reset_index(drop=True)
-        
+
         self._data = df
         self._data_iterator = df.iterrows()  # type: ignore[assignment]
-        
+
         return self
 
     def load_parquet(self, path: str | Path) -> "ReplayEngine":
         """Load tick data from Parquet file."""
         path = Path(path)
-        
+
         df = pd.read_parquet(path)
-        
+
         # Ensure timestamp column
         if "timestamp" not in df.columns:
             raise ValueError("Parquet must have 'timestamp' column")
-        
+
         # Filter by time range
         if self.config.start_time:
             df = df[df["timestamp"] >= self.config.start_time]
         if self.config.end_time:
             df = df[df["timestamp"] <= self.config.end_time]
-        
+
         df = df.sort_values("timestamp").reset_index(drop=True)
-        
+
         self._data = df
         self._data_iterator = df.iterrows()  # type: ignore[assignment]
-        
+
         return self
 
     def load_dataframe(self, df: pd.DataFrame) -> "ReplayEngine":
@@ -145,18 +146,18 @@ class ReplayEngine:
         missing = set(required_cols) - set(df.columns)
         if missing:
             raise ValueError(f"Missing required columns: {missing}")
-        
+
         # Filter by time range
         if self.config.start_time:
             df = df[df["timestamp"] >= self.config.start_time]
         if self.config.end_time:
             df = df[df["timestamp"] <= self.config.end_time]
-        
+
         df = df.sort_values("timestamp").reset_index(drop=True)
-        
+
         self._data = df
         self._data_iterator = df.iterrows()  # type: ignore[assignment]
-        
+
         return self
 
     def _create_tick_event(self, row: pd.Series) -> TickEvent:
@@ -183,13 +184,13 @@ class ReplayEngine:
         """
         if self._data_iterator is None:
             raise RuntimeError("No data loaded. Call load_csv(), load_parquet(), or load_dataframe() first.")
-        
+
         for idx, row in self._data_iterator:
             tick = self._create_tick_event(row)
             self.current_tick = tick
             self.current_time = tick.timestamp
             self.ticks_processed += 1
-            
+
             yield tick
 
     def run(self) -> dict[str, Any]:
@@ -201,27 +202,27 @@ class ReplayEngine:
         """
         if self._data_iterator is None:
             raise RuntimeError("No data loaded. Call load_csv(), load_parquet(), or load_dataframe() first.")
-        
+
         # Reset state
         self.balance = self.config.initial_balance
         self.positions.clear()
         self.orders.clear()
         self.ticks_processed = 0
-        
+
         start_time = datetime.now()
-        
+
         # Process each tick
         for tick in self.tick_iterator():
             # Record tick
             if self.recorder:
                 self.recorder.record_tick(tick)
-            
+
             # Call on_tick callback
             if self.config.on_tick:
                 self.config.on_tick(tick)
-        
+
         end_time = datetime.now()
-        
+
         # Build results
         results: dict[str, Any] = {
             "ticks_processed": self.ticks_processed,
@@ -233,15 +234,15 @@ class ReplayEngine:
             "total_orders": len(self.orders),
             "summary": self.recorder.get_summary() if self.recorder else {},
         }
-        
+
         # Save events if configured
         if self.recorder and self.config.output_dir:
             self.recorder.save()
-        
+
         return results
 
     def run_until(
-        self, 
+        self,
         condition: Callable[[TickEvent, dict], bool],
         max_ticks: int | None = None
     ) -> dict[str, Any]:
@@ -257,40 +258,40 @@ class ReplayEngine:
         """
         if self._data_iterator is None:
             raise RuntimeError("No data loaded.")
-        
+
         # Reset state
         self.balance = self.config.initial_balance
         self.positions.clear()
         self.orders.clear()
         self.ticks_processed = 0
-        
+
         state: dict[str, Any] = {
             "balance": self.balance,
             "positions": self.positions,
             "orders": self.orders,
         }
-        
+
         for tick in self.tick_iterator():
             # Record
             if self.recorder:
                 self.recorder.record_tick(tick)
-            
+
             # Callback
             if self.config.on_tick:
                 self.config.on_tick(tick)
-            
+
             # Update state
             state["balance"] = self.balance
             state["positions"] = dict(self.positions)
-            
+
             # Check stop condition
             if condition(tick, state):
                 break
-            
+
             # Check max ticks
             if max_ticks and self.ticks_processed >= max_ticks:
                 break
-        
+
         return {
             "ticks_processed": self.ticks_processed,
             "final_balance": self.balance,
@@ -322,15 +323,15 @@ class ReplayEngine:
     def save_state_snapshot(self, path: str | Path) -> None:
         """Save current state snapshot to JSON for debugging."""
         import json
-        
+
         path = Path(path)
         snapshot = self.get_state_snapshot()
-        
+
         with open(path, "w") as f:
             json.dump(snapshot, f, indent=2, default=str)
 
     # ==================== Order Execution Helpers ====================
-    
+
     def submit_market_order(
         self,
         symbol: str,
@@ -350,28 +351,28 @@ class ReplayEngine:
             filled_quantity=quantity,
             average_fill_price=self.current_tick.last if self.current_tick else 0.0,
         )
-        
+
         self.orders[order.order_id] = order
-        
+
         # Update balance
         fill_price = order.average_fill_price if order.average_fill_price is not None else 0.0
         cost: float = quantity * fill_price
         commission: float = cost * self.config.commission_rate
-        
+
         if side == "buy":
             self.balance -= cost + commission
             self.positions[symbol] = self.positions.get(symbol, 0) + quantity
         else:
             self.balance += cost - commission
             self.positions[symbol] = self.positions.get(symbol, 0) - quantity
-        
+
         # Record
         if self.recorder:
             self.recorder.record_order(order)
-        
+
         if self.config.on_order:
             self.config.on_order(order)
-        
+
         return order
 
     def get_position(self, symbol: str) -> float:
@@ -383,7 +384,7 @@ class ReplayEngine:
         position = self.positions.get(symbol, 0.0)
         if position == 0 or not self.current_tick:
             return 0.0
-        
+
         if position > 0:  # Long
             return position * (self.current_tick.last - self.current_tick.bid)
         else:  # Short
