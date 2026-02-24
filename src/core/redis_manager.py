@@ -13,7 +13,7 @@ Redis Manager — асинхронный менеджер подключения
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, Set, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import redis.asyncio as redis
 from redis.asyncio import Redis
@@ -160,7 +160,7 @@ class TypedRedisClient:
         result = cast(int, await self._client.sadd(key, *members))
         return result
 
-    async def smembers(self, key: str) -> Set[str]:
+    async def smembers(self, key: str) -> set[str]:
         """Получить все элементы множества."""
         result = cast(set[str], await self._client.smembers(key))
         return result
@@ -553,7 +553,7 @@ class RedisManager:
         client = self._require_typed_client()
         return await client.sadd(key, *members)
 
-    async def smembers(self, key: str) -> Set[str]:
+    async def smembers(self, key: str) -> set[str]:
         """Получить все элементы множества."""
         client = self._require_typed_client()
         return await client.smembers(key)
