@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import asyncpg
 import pytest
+import redis.asyncio as redis
 
 from cryptotechnolog.config.settings import Settings
 
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
     from asyncpg import Pool
 
     from src.core.database import DatabaseManager
+    from src.core.redis_manager import RedisManager
 
 # Set test environment
 os.environ["ENVIRONMENT"] = "test"
@@ -102,3 +104,43 @@ def test_settings(test_env: dict[str, str]) -> "Settings":
 def pytest_configure(config: pytest.Config) -> None:
     """Регистрирует маркеры."""
     config.addinivalue_line("markers", "db: тесты, требующие подключения к БД")
+    config.addinivalue_line("markers", "redis: тесты, требующие подключения к Redis")
+
+
+# ==================== Redis Fixtures ====================
+
+
+@pytest.fixture(scope="session")
+async def redis_client(event_loop: asyncio.AbstractEventLoop) -> AsyncGenerator[redis.Redis, None]:
+    """Один клиент Redis на всю тестовую сессию.
+
+    Создаётся один раз и переиспользуется всеми тестами.
+    """
+    settings = Settings()
+
+    client = redis.from_url(
+        settings.redis_url,
+        max_connections=settings.redis_pool_max_connections,
+        socket_timeout=settings.redis_pool_socket_timeout,
+        decode_responses=True,
+    )
+
+    # Проверить подключение
+    await client.ping()
+
+    yield client
+
+    await client.close()
+
+
+@pytest.fixture(scope="session")
+async def redis_manager(redis_client: redis.Redis) -> AsyncGenerator["RedisManager", None]:
+    """RedisManager с переданным клиентом."""
+    from src.core.redis_manager import RedisManager  # noqa: PLC0415
+
+    mgr = RedisManager()
+    # Используем переданный клиент
+    mgr._redis = redis_client
+    mgr._connected = True
+
+    yield mgr

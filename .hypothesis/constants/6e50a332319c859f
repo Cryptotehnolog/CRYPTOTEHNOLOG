@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\core\database.py
+# hypothesis_version: 6.151.9
+
+['@', 'SELECT 1', 'SELECT version()', 'asyncpg.Connection', 'connected', 'error', 'healthy', 'pool_max_size', 'pool_size', 'status', 'str | None', 'table_name', 'test_query_result', 'unhealthy', 'Нет подключения к БД', 'Уже подключено к БД']

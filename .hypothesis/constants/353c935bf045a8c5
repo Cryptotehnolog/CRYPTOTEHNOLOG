@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\data\frame.py
+# hypothesis_version: 6.151.9
+
+[0.0, '\nBack to Pandas:', '\nBenchmark results:', 'D', 'H', 'M', 'Polars DataFrame:', 'W', 'Y', '^(\\d+)([a-zA-Z]+)$', '__main__', 'a', 'b', 'close', 'd', 'first', 'h', 'high', 'last', 'low', 'm', 'max', 'min', 'mo', 'open', 'raise', 'returns', 'sum', 'time', 'timestamp', 'to_pandas', 'to_polars', 'volume', 'w', 'y']
