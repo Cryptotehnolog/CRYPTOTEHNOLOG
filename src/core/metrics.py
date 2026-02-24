@@ -80,7 +80,9 @@ class Counter:
         >>> print(counter.value)  # 6
     """
 
-    def __init__(self, name: str, description: str = "", labels: dict[str, str] | None = None) -> None:
+    def __init__(
+        self, name: str, description: str = "", labels: dict[str, str] | None = None
+    ) -> None:
         """
         Инициализировать счетчик.
 
@@ -284,7 +286,9 @@ class Histogram:
         self._name = name
         self._description = description
         self._labels = labels or {}
-        self._buckets = HistogramBuckets(buckets or [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0])
+        self._buckets = HistogramBuckets(
+            buckets or [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]
+        )
 
         # Buckets счетчики
         self._bucket_counts: list[int] = [0] * (len(self._buckets.buckets) + 1)
@@ -583,8 +587,7 @@ class MetricsCollector:
             "counters": {k: v.value for k, v in self._counters.items()},
             "gauges": {k: v.value for k, v in self._gauges.items()},
             "histograms": {
-                k: {"count": v.count, "sum": v.sum}
-                for k, v in self._histograms.items()
+                k: {"count": v.count, "sum": v.sum} for k, v in self._histograms.items()
             },
         }
 
@@ -772,7 +775,10 @@ class MetricsCollector:
         Returns:
             Строка в формате Prometheus exposition
         """
-        lines = ["# HELP cryptotechnolog_metrics CRYPTOTEHNOLOG metrics", "# TYPE cryptotechnolog_metrics untyped"]
+        lines = [
+            "# HELP cryptotechnolog_metrics CRYPTOTEHNOLOG metrics",
+            "# TYPE cryptotechnolog_metrics untyped",
+        ]
 
         # Counters
         for counter in self._counters.values():

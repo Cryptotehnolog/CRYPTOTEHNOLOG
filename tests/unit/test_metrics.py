@@ -135,7 +135,9 @@ class TestHistogram:
     def test_quantile_calculation(self) -> None:
         """Расчет квантилей."""
         # Используем бакеты, которые покрывают диапазон 1-100
-        hist = Histogram("request_duration", buckets=[1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+        hist = Histogram(
+            "request_duration", buckets=[1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+        )
 
         # Добавить 100 значений от 1 до 100
         for i in range(1, 101):
@@ -152,7 +154,9 @@ class TestHistogram:
     def test_percentile_calculation(self) -> None:
         """Расчет перцентилей."""
         # Используем бакеты, которые покрывают диапазон 1-100
-        hist = Histogram("request_duration", buckets=[1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+        hist = Histogram(
+            "request_duration", buckets=[1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+        )
 
         for i in range(1, 101):
             hist.observe_sync(float(i))
