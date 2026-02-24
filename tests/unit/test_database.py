@@ -52,14 +52,14 @@ class TestDatabaseManagerOperations:
 
     @pytest.mark.asyncio
     async def test_connection_context_manager(
-        self, db_connection: asyncpg.PoolConnectionProxy
+        self, db_connection: asyncpg.Connection
     ) -> None:
         """Контекстный менеджер connection работает."""
         result = await db_connection.fetchval("SELECT 1")
         assert result == 1
 
     @pytest.mark.asyncio
-    async def test_transaction_isolation(self, db_connection: asyncpg.PoolConnectionProxy) -> None:
+    async def test_transaction_isolation(self, db_connection: asyncpg.Connection) -> None:
         """Транзакция изолирует изменения."""
         # Создать таблицу в транзакции
         await db_connection.execute("""
@@ -81,7 +81,7 @@ class TestDatabaseManagerOperations:
 
     @pytest.mark.asyncio
     async def test_fetch_returns_list_of_dicts(
-        self, db_connection: asyncpg.PoolConnectionProxy
+        self, db_connection: asyncpg.Connection
     ) -> None:
         """Метод fetch возвращает список словарей."""
         rows = await db_connection.fetch("SELECT 1 as col1, 'test' as col2")
@@ -93,7 +93,7 @@ class TestDatabaseManagerOperations:
 
     @pytest.mark.asyncio
     async def test_fetchrow_returns_single_dict(
-        self, db_connection: asyncpg.PoolConnectionProxy
+        self, db_connection: asyncpg.Connection
     ) -> None:
         """Метод fetchrow возвращает один словарь."""
         row = await db_connection.fetchrow("SELECT 1 as id, 'test' as name")
@@ -104,7 +104,7 @@ class TestDatabaseManagerOperations:
 
     @pytest.mark.asyncio
     async def test_fetchrow_returns_none_when_no_rows(
-        self, db_connection: asyncpg.PoolConnectionProxy
+        self, db_connection: asyncpg.Connection
     ) -> None:
         """Метод fetchrow возвращает None если нет строк."""
         row = await db_connection.fetchrow("SELECT 1 WHERE 1=0")
@@ -112,14 +112,14 @@ class TestDatabaseManagerOperations:
 
     @pytest.mark.asyncio
     async def test_fetchval_returns_single_value(
-        self, db_connection: asyncpg.PoolConnectionProxy
+        self, db_connection: asyncpg.Connection
     ) -> None:
         """Метод fetchval возвращает одно значение."""
         result = await db_connection.fetchval("SELECT COUNT(*)")
         assert isinstance(result, int)
 
     @pytest.mark.asyncio
-    async def test_execute_insert(self, db_connection: asyncpg.PoolConnectionProxy) -> None:
+    async def test_execute_insert(self, db_connection: asyncpg.Connection) -> None:
         """Метод execute для INSERT."""
         # Создать временную таблицу (удаляется при rollback)
         await db_connection.execute("""
@@ -142,7 +142,7 @@ class TestDatabaseManagerOperations:
         assert row["name"] == "test_name"
 
     @pytest.mark.asyncio
-    async def test_execute_many(self, db_connection: asyncpg.PoolConnectionProxy) -> None:
+    async def test_execute_many(self, db_connection: asyncpg.Connection) -> None:
         """Метод execute_many для массовой вставки."""
         # Создать таблицу
         await db_connection.execute("""

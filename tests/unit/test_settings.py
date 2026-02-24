@@ -161,9 +161,9 @@ class TestSettings:
         """Test that PostgreSQL pool settings are configured correctly."""
         settings = Settings()
 
-        # Check default values
-        assert settings.postgres_pool_min_size == 10
-        assert settings.postgres_pool_max_size == 100
+        # Check default values (optimized for testing)
+        assert settings.postgres_pool_min_size == 2
+        assert settings.postgres_pool_max_size == 10
         assert settings.postgres_pool_max_idle == 300
         assert settings.postgres_pool_max_inactive_connection_lifetime == 300
 

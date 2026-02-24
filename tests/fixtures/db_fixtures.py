@@ -5,6 +5,7 @@
 """
 
 from collections.abc import AsyncGenerator
+from typing import Any, cast
 
 import asyncpg
 import pytest
@@ -59,7 +60,7 @@ async def db_manager(db_pool: asyncpg.Pool) -> AsyncGenerator[DatabaseManager, N
 @pytest.fixture
 async def db_connection(
     db_pool: asyncpg.Pool,
-) -> AsyncGenerator[asyncpg.PoolConnectionProxy, None]:
+) -> AsyncGenerator[asyncpg.Connection, None]:
     """
     Предоставить соединение с авто-ROLLBACK после каждого теста.
 
@@ -74,7 +75,7 @@ async def db_connection(
         await conn.execute("BEGIN")
 
         try:
-            yield conn
+            yield cast(asyncpg.Connection, conn)
         finally:
             # Всегда откатывать - тест не должен мусорить в БД
             await conn.execute("ROLLBACK")
