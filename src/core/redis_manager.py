@@ -39,7 +39,7 @@ class TypedRedisClient:
     Это внутренняя обёртка, используемая RedisManager.
     """
 
-    def __init__(self, client: "Redis") -> None:
+    def __init__(self, client: Redis) -> None:
         """Инициализировать обёртку с клиентом Redis."""
         self._client = client
 
@@ -309,7 +309,7 @@ class RedisManager:
         self._socket_timeout = socket_timeout or settings.redis_pool_socket_timeout
         self._url = settings.redis_url
 
-        self._redis: "Redis | None" = None
+        self._redis: Redis | None = None
         self._typed_client: TypedRedisClient | None = None
         self._connected = False
 
