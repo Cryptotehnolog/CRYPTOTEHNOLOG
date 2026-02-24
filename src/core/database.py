@@ -118,12 +118,12 @@ class DatabaseManager:
             logger.info("Отключение от PostgreSQL выполнено")
 
     @asynccontextmanager
-    async def connection(self) -> AsyncIterator[asyncpg.PoolConnectionProxy]:
+    async def connection(self) -> AsyncIterator[asyncpg.Connection]:
         """
         Контекстный менеджер для получения соединения из пула.
 
         Yields:
-            asyncpg.PoolConnectionProxy: Соединение с БД
+            asyncpg.Connection: Соединение с БД
 
         Пример:
             >>> async with db.connection() as conn:
@@ -133,17 +133,17 @@ class DatabaseManager:
             raise RuntimeError("Нет подключения к БД. Вызовите connect()")
 
         async with self._pool.acquire() as conn:
-            yield conn
+            yield cast(asyncpg.Connection, conn)
 
     @asynccontextmanager
-    async def transaction(self) -> AsyncIterator[asyncpg.PoolConnectionProxy]:
+    async def transaction(self) -> AsyncIterator[asyncpg.Connection]:
         """
         Контекстный менеджер для транзакции.
 
         Автоматически commit при успехе, rollback при ошибке.
 
         Yields:
-            asyncpg.PoolConnectionProxy: Соединение внутри транзакции
+            asyncpg.Connection: Соединение внутри транзакции
 
         Пример:
             >>> async with db.transaction() as tx:
