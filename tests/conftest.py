@@ -1,100 +1,74 @@
 # ==================== CRYPTOTEHNOLOG Test Configuration ====================
 # Pytest configuration and fixtures
 
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 import os
-from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
+import asyncpg
 import pytest
 
 from cryptotechnolog.config.settings import Settings
+
+if TYPE_CHECKING:
+    from asyncpg import Connection, Pool
+
+    from src.core.database import DatabaseManager
 
 # Set test environment
 os.environ["ENVIRONMENT"] = "test"
 os.environ["DEBUG"] = "true"
 
 
+# ==================== Database Fixtures ====================
+
+
 @pytest.fixture(scope="session")
-def test_env():
-    """Set up test environment variables."""
-    os.environ["ENVIRONMENT"] = "test"
-    os.environ["POSTGRES_DB"] = "trading_test"
-    os.environ["REDIS_DB"] = "1"
-    yield
-    # Cleanup after session
+async def db_pool() -> AsyncGenerator["Pool", None]:
+    """Один пул соединений на всю тестовую сессию.
+
+    Создаётся один раз и переиспользуется всеми тестами.
+    """
+    settings = Settings()
+
+    pool = await asyncpg.create_pool(
+        settings.postgres_async_url,
+        min_size=2,
+        max_size=10,
+        command_timeout=60,
+    )
+
+    yield pool
+
+    await pool.close()
 
 
-@pytest.fixture(autouse=True)
-def isolate_environment():
-    """Isolate environment variables for each test."""
-    # Store original environment
-    original_env = dict(os.environ)
+@pytest.fixture(scope="session")
+async def db_manager(db_pool: "Pool") -> AsyncGenerator["DatabaseManager", None]:
+    """DatabaseManager с переданным пулом."""
+    from src.core.database import DatabaseManager  # noqa: PLC0415
 
-    yield
+    db = DatabaseManager(min_size=2, max_size=10)
+    db._pool = db_pool
+    db._connected = True
 
-    # Restore environment
-    os.environ.clear()
-    os.environ.update(original_env)
-
-
-@pytest.fixture
-def test_settings():
-    """Provide test settings instance."""
-    return Settings()
-
-
-@pytest.fixture
-def temp_dir(tmp_path: Path) -> Generator[Path, None, None]:
-    """Provide a temporary directory for tests."""
-    yield tmp_path
+    yield db
 
 
 @pytest.fixture
-def sample_market_data():
-    """Provide sample market data for testing."""
-    return {
-        "exchange": "bybit",
-        "symbol": "BTCUSDT",
-        "timestamp": "2024-01-01T00:00:00Z",
-        "open": 42000.0,
-        "high": 42500.0,
-        "low": 41800.0,
-        "close": 42300.0,
-        "volume": 100.5,
-    }
+async def db_connection(db_pool: "Pool") -> AsyncGenerator["Connection", None]:
+    """Соединение с транзакцией. После теста - ROLLBACK.
 
+    Каждый тест получает чистое соединение:
+    - BEGIN в начале
+    - ROLLBACK в конце (даже при ошибке)
 
-@pytest.fixture
-def sample_order():
-    """Provide sample order data for testing."""
-    return {
-        "exchange": "bybit",
-        "symbol": "BTCUSDT",
-        "side": "BUY",
-        "order_type": "LIMIT",
-        "quantity": 0.1,
-        "price": 42000.0,
-    }
+    Это гарантирует 100% изоляцию тестов.
+    """
+    async with db_pool.acquire() as conn:
+        await conn.execute("BEGIN")
 
-
-@pytest.fixture
-def sample_position():
-    """Provide sample position data for testing."""
-    return {
-        "exchange": "bybit",
-        "symbol": "BTCUSDT",
-        "side": "LONG",
-        "quantity": 0.1,
-        "entry_price": 42000.0,
-        "leverage": 1.0,
-    }
-
-
-# Pytest markers configuration
-def pytest_configure(config):
-    """Configure pytest markers."""
-    config.addinivalue_line("markers", "unit: Unit tests")
-    config.addinivalue_line("markers", "integration: Integration tests")
-    config.addinivalue_line("markers", "e2e: End-to-end tests")
-    config.addinivalue_line("markers", "slow: Slow running tests")
-    config.addinivalue_line("markers", "slowest: Very slow running tests")
+        try:
+            yield cast("Connection", conn)
+        finally:
+            await conn.execute("ROLLBACK")
