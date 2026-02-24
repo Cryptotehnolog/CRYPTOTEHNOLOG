@@ -95,7 +95,9 @@ class RedisManager:
         if self._connected and self._redis is not None:
             raise RuntimeError("Уже подключено к Redis")
 
-        logger.info("Подключение к Redis", url=self._url.split("@")[-1] if "@" in self._url else self._url)
+        logger.info(
+            "Подключение к Redis", url=self._url.split("@")[-1] if "@" in self._url else self._url
+        )
 
         try:
             self._redis = redis.from_url(
