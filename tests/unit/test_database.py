@@ -51,9 +51,7 @@ class TestDatabaseManagerOperations:
     """Тесты операций с БД (с транзакционной изоляцией)."""
 
     @pytest.mark.asyncio
-    async def test_connection_context_manager(
-        self, db_connection: asyncpg.Connection
-    ) -> None:
+    async def test_connection_context_manager(self, db_connection: asyncpg.Connection) -> None:
         """Контекстный менеджер connection работает."""
         result = await db_connection.fetchval("SELECT 1")
         assert result == 1
@@ -80,9 +78,7 @@ class TestDatabaseManagerOperations:
         # После ROLLBACK (в fixture) таблица будет удалена
 
     @pytest.mark.asyncio
-    async def test_fetch_returns_list_of_dicts(
-        self, db_connection: asyncpg.Connection
-    ) -> None:
+    async def test_fetch_returns_list_of_dicts(self, db_connection: asyncpg.Connection) -> None:
         """Метод fetch возвращает список словарей."""
         rows = await db_connection.fetch("SELECT 1 as col1, 'test' as col2")
 
@@ -92,9 +88,7 @@ class TestDatabaseManagerOperations:
         assert rows[0]["col2"] == "test"
 
     @pytest.mark.asyncio
-    async def test_fetchrow_returns_single_dict(
-        self, db_connection: asyncpg.Connection
-    ) -> None:
+    async def test_fetchrow_returns_single_dict(self, db_connection: asyncpg.Connection) -> None:
         """Метод fetchrow возвращает один словарь."""
         row = await db_connection.fetchrow("SELECT 1 as id, 'test' as name")
 
@@ -111,9 +105,7 @@ class TestDatabaseManagerOperations:
         assert row is None
 
     @pytest.mark.asyncio
-    async def test_fetchval_returns_single_value(
-        self, db_connection: asyncpg.Connection
-    ) -> None:
+    async def test_fetchval_returns_single_value(self, db_connection: asyncpg.Connection) -> None:
         """Метод fetchval возвращает одно значение."""
         result = await db_connection.fetchval("SELECT COUNT(*)")
         assert isinstance(result, int)
