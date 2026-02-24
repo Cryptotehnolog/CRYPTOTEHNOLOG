@@ -4,7 +4,7 @@
 import asyncio
 from collections.abc import AsyncGenerator, Generator
 import os
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import asyncpg
 import pytest
@@ -12,7 +12,7 @@ import pytest
 from cryptotechnolog.config.settings import Settings
 
 if TYPE_CHECKING:
-    from asyncpg import Connection, Pool
+    from asyncpg import Pool
 
     from src.core.database import DatabaseManager
 
