@@ -6,7 +6,6 @@
 - Гарантирует отсутствие конфликтов event loops
 """
 
-import asyncpg
 import pytest
 
 from src.core.database import DatabaseManager, get_database

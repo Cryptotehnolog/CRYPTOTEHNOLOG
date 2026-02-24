@@ -2,7 +2,7 @@
 # Pytest configuration and fixtures
 
 import asyncio
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import Generator
 import os
 import sys
 from typing import TYPE_CHECKING
@@ -19,8 +19,6 @@ if sys.platform == "win32":
 
 if TYPE_CHECKING:
     from asyncpg import Pool
-
-    from src.core.database import DatabaseManager
 
 # Set test environment
 os.environ["ENVIRONMENT"] = "test"
