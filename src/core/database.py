@@ -13,6 +13,8 @@ Database Layer — PostgreSQL Manager с асинхронным подключе
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+import hashlib
+import json
 from typing import Any, cast
 
 import asyncpg
@@ -446,9 +448,6 @@ SELECT EXISTS (
             return await self.fetch(query, *args)
 
         # Генерируем ключ кэша
-        import hashlib
-        import json
-
         if cache_key is None:
             # Хэшируем запрос + аргументы
             key_data = json.dumps({"query": query, "args": args}, sort_keys=True)
@@ -458,8 +457,6 @@ SELECT EXISTS (
         cached = await self._redis.get(cache_key)
         if cached is not None:
             logger.debug("Кэш найден", key=cache_key)
-            import json
-
             return json.loads(cached)
 
         # Выполняем запрос
@@ -467,8 +464,6 @@ SELECT EXISTS (
 
         # Сохраняем в кэш
         if rows:
-            import json
-
             await self._redis.set(cache_key, json.dumps(rows), ttl=ttl)
             logger.debug("Результат сохранён в кэш", key=cache_key, ttl=ttl)
 
