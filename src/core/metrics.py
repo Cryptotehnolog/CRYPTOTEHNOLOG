@@ -19,16 +19,15 @@ Metrics Collector — система сбора и хранения метрик
 from __future__ import annotations
 
 import asyncio
-import time
-from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable
+import json
+from typing import TYPE_CHECKING, Any
 
 from cryptotechnolog.config import get_logger, get_settings
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable
+    from collections.abc import Awaitable, Callable
 
 logger = get_logger(__name__)
 
@@ -803,8 +802,6 @@ class MetricsCollector:
 
         try:
             metrics_data = self.get_all_metrics()
-            import json
-
             await self._redis.set(
                 "cryptotechnolog:metrics",
                 json.dumps(metrics_data),
@@ -821,8 +818,6 @@ class MetricsCollector:
             return
 
         try:
-            import json
-
             data = await self._redis.get("cryptotechnolog:metrics")
             if data:
                 metrics_data = json.loads(data)

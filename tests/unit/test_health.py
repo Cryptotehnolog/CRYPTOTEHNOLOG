@@ -11,6 +11,8 @@
 - HealthChecker (центральный компонент)
 """
 
+import asyncio
+
 import pytest
 
 from src.core.health import (
@@ -657,8 +659,5 @@ class TestHealthCheckerEdgeCases:
         for result in results:
             assert result.overall_status == HealthStatus.HEALTHY
 
-
-# Нужно импортировать asyncio для тестов
-import asyncio
 
 pytest.mark.unit(__name__)

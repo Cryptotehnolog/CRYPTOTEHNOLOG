@@ -13,15 +13,16 @@ Health Check System — система проверки здоровья ком�
 from __future__ import annotations
 
 import asyncio
-import time
+import contextlib
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable
+import time
+from typing import TYPE_CHECKING, Any
 
-from cryptotechnolog.config import get_logger, get_settings
+from cryptotechnolog.config import get_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable
+    from collections.abc import Awaitable, Callable
 
 logger = get_logger(__name__)
 
@@ -176,7 +177,7 @@ class DatabaseHealthCheck(HealthCheck):
                     latency_ms=latency_ms,
                 )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = (time.time() - start_time) * 1000
             logger.error("Таймаут проверки PostgreSQL", component=self.name)
             return ComponentHealth(
@@ -192,7 +193,7 @@ class DatabaseHealthCheck(HealthCheck):
             return ComponentHealth(
                 component=self.name,
                 status=HealthStatus.UNHEALTHY,
-                message=f"Ошибка: {str(e)}",
+                message=f"Ошибка: {e!s}",
                 latency_ms=latency_ms,
             )
 
@@ -255,7 +256,7 @@ class RedisHealthCheck(HealthCheck):
                     latency_ms=latency_ms,
                 )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = (time.time() - start_time) * 1000
             logger.error("Таймаут проверки Redis", component=self.name)
             return ComponentHealth(
@@ -271,7 +272,7 @@ class RedisHealthCheck(HealthCheck):
             return ComponentHealth(
                 component=self.name,
                 status=HealthStatus.UNHEALTHY,
-                message=f"Ошибка: {str(e)}",
+                message=f"Ошибка: {e!s}",
                 latency_ms=latency_ms,
             )
 
@@ -341,7 +342,7 @@ class EventBusHealthCheck(HealthCheck):
                 latency_ms=(time.time() - start_time) * 1000,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = (time.time() - start_time) * 1000
             logger.error("Таймаут проверки Event Bus", component=self.name)
             return ComponentHealth(
@@ -357,7 +358,7 @@ class EventBusHealthCheck(HealthCheck):
             return ComponentHealth(
                 component=self.name,
                 status=HealthStatus.UNHEALTHY,
-                message=f"Ошибка: {str(e)}",
+                message=f"Ошибка: {e!s}",
                 latency_ms=latency_ms,
             )
 
@@ -425,7 +426,7 @@ class MetricsHealthCheck(HealthCheck):
             return ComponentHealth(
                 component=self.name,
                 status=HealthStatus.UNHEALTHY,
-                message=f"Ошибка: {str(e)}",
+                message=f"Ошибка: {e!s}",
                 latency_ms=latency_ms,
             )
 
@@ -456,8 +457,6 @@ class HealthChecker:
         self._check_interval: float = 60.0  # Интервал автоматической проверки
         self._running: bool = False
         self._monitor_task: asyncio.Task | None = None
-
-        settings = get_settings()
 
         logger.info(
             "Инициализирован HealthChecker",
@@ -681,10 +680,8 @@ class HealthChecker:
 
         if self._monitor_task:
             self._monitor_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._monitor_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("Мониторинг остановлен")
 

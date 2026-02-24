@@ -9,6 +9,8 @@
 - Формат Prometheus
 """
 
+import asyncio
+
 import pytest
 
 from src.core.metrics import (
@@ -260,8 +262,6 @@ class TestMetricsCollector:
         collector.get_counter("event_published_total")  # Pre-create
 
         # Это должно работать без ошибок
-        import asyncio
-
         asyncio.get_event_loop().run_until_complete(
             collector.record_event("TEST_EVENT", "test_source", "normal")
         )
@@ -276,8 +276,6 @@ class TestMetricsCollector:
         """Запись длительности запроса."""
         collector = MetricsCollector()
 
-        import asyncio
-
         asyncio.get_event_loop().run_until_complete(
             collector.record_query_duration("SELECT", "postgresql", 0.125)
         )
@@ -289,8 +287,6 @@ class TestMetricsCollector:
     def test_record_connection_count(self) -> None:
         """Запись количества соединений."""
         collector = MetricsCollector()
-
-        import asyncio
 
         asyncio.get_event_loop().run_until_complete(
             collector.record_connection_count("postgresql", 5, 3)
@@ -318,8 +314,6 @@ class TestMetricsCollector:
         collector = MetricsCollector()
         collector.get_counter("test_counter").inc_sync(100)
         collector.get_gauge("test_gauge").set_sync(50)
-
-        import asyncio
 
         asyncio.get_event_loop().run_until_complete(collector.reset_all())
 

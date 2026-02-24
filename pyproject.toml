@@ -185,7 +185,9 @@ ignore = [
     "PLR0913",  # Too many arguments
     "ARG001",  # Unused function argument
     "ARG002",  # Unused method argument
+    "RUF001",  # Ambiguous unicode character (cyrillic letters in strings)
     "RUF002",  # Ambiguous unicode character (cyrillic)
+    "RUF003",  # Ambiguous unicode character in comments (cyrillic)
     "C901",  # Too complex
 ]
 
