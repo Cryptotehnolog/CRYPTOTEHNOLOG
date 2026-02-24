@@ -7,6 +7,8 @@
 - Гарантирует отсутствие конфликтов event loops на Windows
 """
 
+import uuid
+
 import pytest
 
 from src.core.redis_manager import RedisManager, TypedRedisClient, get_redis
@@ -51,7 +53,6 @@ class TestRedisManagerOperations:
     @pytest.mark.asyncio
     async def test_set_and_get(self, redis_client_factory) -> None:
         """Тест установки и получения значения."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -66,7 +67,6 @@ class TestRedisManagerOperations:
     @pytest.mark.asyncio
     async def test_set_with_ttl(self, redis_client_factory) -> None:
         """Тест установки значения с TTL."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -95,7 +95,6 @@ class TestRedisManagerOperations:
     @pytest.mark.asyncio
     async def test_delete(self, redis_client_factory) -> None:
         """Тест удаления ключа."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -113,7 +112,6 @@ class TestRedisManagerOperations:
     @pytest.mark.asyncio
     async def test_delete_multiple(self, redis_client_factory) -> None:
         """Тест удаления нескольких ключей."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -131,7 +129,6 @@ class TestRedisManagerOperations:
     @pytest.mark.asyncio
     async def test_exists(self, redis_client_factory) -> None:
         """Тест проверки существования ключа."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -146,7 +143,6 @@ class TestRedisManagerOperations:
     @pytest.mark.asyncio
     async def test_expire(self, redis_client_factory) -> None:
         """Тест установки TTL на существующий ключ."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -164,7 +160,6 @@ class TestRedisManagerOperations:
     @pytest.mark.asyncio
     async def test_incr(self, redis_client_factory) -> None:
         """Тест инкремента."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -182,7 +177,6 @@ class TestRedisManagerOperations:
     @pytest.mark.asyncio
     async def test_decr(self, redis_client_factory) -> None:
         """Тест декремента."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -205,7 +199,6 @@ class TestRedisManagerHashOperations:
     @pytest.mark.asyncio
     async def test_hset_hget(self, redis_client_factory) -> None:
         """Тест установки и получения значения хеша."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -225,7 +218,6 @@ class TestRedisManagerHashOperations:
     @pytest.mark.asyncio
     async def test_hgetall(self, redis_client_factory) -> None:
         """Тест получения всех полей хеша."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -242,7 +234,6 @@ class TestRedisManagerHashOperations:
     @pytest.mark.asyncio
     async def test_hdel(self, redis_client_factory) -> None:
         """Тест удаления полей хеша."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -267,7 +258,6 @@ class TestRedisManagerListOperations:
     @pytest.mark.asyncio
     async def test_lpush_rpush(self, redis_client_factory) -> None:
         """Тест добавления в список."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -284,7 +274,6 @@ class TestRedisManagerListOperations:
     @pytest.mark.asyncio
     async def test_lpop_rpop(self, redis_client_factory) -> None:
         """Тест получения и удаления из списка."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -305,7 +294,6 @@ class TestRedisManagerListOperations:
     @pytest.mark.asyncio
     async def test_llen(self, redis_client_factory) -> None:
         """Тест получения длины списка."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -325,7 +313,6 @@ class TestRedisManagerSetOperations:
     @pytest.mark.asyncio
     async def test_sadd_smembers(self, redis_client_factory) -> None:
         """Тест добавления в множество и получения элементов."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -341,7 +328,6 @@ class TestRedisManagerSetOperations:
     @pytest.mark.asyncio
     async def test_sismember(self, redis_client_factory) -> None:
         """Тест проверки членства в множестве."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -360,7 +346,6 @@ class TestRedisManagerSetOperations:
     @pytest.mark.asyncio
     async def test_srem(self, redis_client_factory) -> None:
         """Тест удаления из множества."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -383,7 +368,6 @@ class TestRedisManagerPubSub:
     @pytest.mark.asyncio
     async def test_publish_subscribe(self, redis_client_factory) -> None:
         """Тест публикации и подписки."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -414,7 +398,6 @@ class TestRedisManagerStreams:
     @pytest.mark.asyncio
     async def test_xadd_xlen(self, redis_client_factory) -> None:
         """Тест добавления в stream и получения длины."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -431,7 +414,6 @@ class TestRedisManagerStreams:
     @pytest.mark.asyncio
     async def test_xrange(self, redis_client_factory) -> None:
         """Тест получения диапазона из stream."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -448,7 +430,6 @@ class TestRedisManagerStreams:
     @pytest.mark.asyncio
     async def test_xdel(self, redis_client_factory) -> None:
         """Тест удаления из stream."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
@@ -496,7 +477,6 @@ class TestRedisManagerUtilities:
     @pytest.mark.asyncio
     async def test_keys_pattern(self, redis_client_factory) -> None:
         """Тест поиска ключей по шаблону."""
-        import uuid
 
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
