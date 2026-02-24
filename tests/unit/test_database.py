@@ -47,6 +47,7 @@ class TestDatabaseManagerConnection:
         assert not db.is_connected
 
 
+@pytest.mark.db
 class TestDatabaseManagerOperations:
     """Тесты операций с БД (с транзакционной изоляцией)."""
 
@@ -158,6 +159,7 @@ class TestDatabaseManagerOperations:
         assert count == 3
 
 
+@pytest.mark.db
 class TestDatabaseManagerHighLevel:
     """Тесты высокоуровневых методов DatabaseManager."""
 
@@ -186,6 +188,7 @@ class TestDatabaseManagerHighLevel:
         assert result == 42
 
 
+@pytest.mark.db
 class TestDatabaseManagerHealthCheck:
     """Тесты health check."""
 
@@ -210,6 +213,7 @@ class TestDatabaseManagerHealthCheck:
         assert "pool_size" in health
 
 
+@pytest.mark.db
 class TestDatabaseManagerTableInfo:
     """Тесты получения информации о таблицах."""
 

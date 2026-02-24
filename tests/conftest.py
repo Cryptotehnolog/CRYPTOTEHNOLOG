@@ -85,3 +85,34 @@ async def db_connection(db_pool: "Pool") -> AsyncGenerator["Connection", None]:
             yield cast("Connection", conn)
         finally:
             await conn.execute("ROLLBACK")
+
+
+# ==================== Settings Fixtures ====================
+
+
+@pytest.fixture
+def test_env(monkeypatch: pytest.MonkeyPatch) -> "Generator[dict[str, str], None, None]":
+    """Устанавливает тестовое окружение."""
+    env_vars = {
+        "ENVIRONMENT": "test",
+        "DEBUG": "true",
+    }
+    for key, value in env_vars.items():
+        monkeypatch.setenv(key, value)
+    yield env_vars
+
+
+@pytest.fixture
+def test_settings(test_env: dict[str, str]) -> "Settings":
+    """Возвращает экземпляр настроек для тестов."""
+    from cryptotechnolog.config.settings import Settings  # noqa: PLC0415
+
+    return Settings()
+
+
+# ==================== Markers ====================
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Регистрирует маркеры."""
+    config.addinivalue_line("markers", "db: тесты, требующие подключения к БД")
