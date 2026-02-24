@@ -4,6 +4,7 @@
 import asyncio
 from collections.abc import AsyncGenerator, Generator
 import os
+import sys
 from typing import TYPE_CHECKING
 
 import asyncpg
@@ -11,6 +12,10 @@ import pytest
 import redis.asyncio as redis
 
 from cryptotechnolog.config.settings import Settings
+
+# Windows asyncio fix: use SelectorEventLoop for Redis/socket operations
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 if TYPE_CHECKING:
     from asyncpg import Pool
@@ -110,37 +115,36 @@ def pytest_configure(config: pytest.Config) -> None:
 # ==================== Redis Fixtures ====================
 
 
-@pytest.fixture(scope="session")
-async def redis_client(event_loop: asyncio.AbstractEventLoop) -> AsyncGenerator[redis.Redis, None]:
-    """Один клиент Redis на всю тестовую сессию.
+@pytest.fixture
+def redis_client_factory():
+    """Фабрика для создания Redis клиента внутри теста.
 
-    Создаётся один раз и переиспользуется всеми тестами.
+    Создаёт клиент в том же event loop, где выполняется тест.
+    Гарантирует отсутствие конфликтов event loops.
     """
-    settings = Settings()
 
-    client = redis.from_url(
-        settings.redis_url,
-        max_connections=settings.redis_pool_max_connections,
-        socket_timeout=settings.redis_pool_socket_timeout,
-        decode_responses=True,
-    )
+    class RedisClientFactory:
+        """Фабрика создания Redis клиента."""
 
-    # Проверить подключение
-    await client.ping()
+        @staticmethod
+        async def create() -> redis.Redis:
+            """Создать новый Redis клиент."""
+            settings = Settings()
 
-    yield client
+            client = redis.from_url(
+                settings.redis_url,
+                max_connections=settings.redis_pool_max_connections,
+                socket_timeout=settings.redis_pool_socket_timeout,
+                socket_connect_timeout=10,
+                decode_responses=True,
+            )
 
-    await client.close()
+            # Проверить подключение
+            await asyncio.wait_for(client.ping(), timeout=10.0)
 
+            # Очистить базу перед тестом
+            await client.flushdb()
 
-@pytest.fixture(scope="session")
-async def redis_manager(redis_client: redis.Redis) -> AsyncGenerator["RedisManager", None]:
-    """RedisManager с переданным клиентом."""
-    from src.core.redis_manager import RedisManager  # noqa: PLC0415
+            return client
 
-    mgr = RedisManager()
-    # Используем переданный клиент
-    mgr._redis = redis_client
-    mgr._connected = True
-
-    yield mgr
+    return RedisClientFactory

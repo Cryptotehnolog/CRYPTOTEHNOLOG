@@ -10,14 +10,15 @@ Redis Manager — асинхронный менеджер подключения
 - Streams
 """
 
-import asyncio
+from __future__ import annotations
+
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, Set, cast
+from typing import Any, cast
 
 import redis.asyncio as redis
 from redis.asyncio import Redis
-from redis.asyncio.client import PubSub, Pipeline
+from redis.asyncio.client import Pipeline, PubSub
 
 from cryptotechnolog.config import get_logger, get_settings
 
@@ -477,7 +478,7 @@ class RedisManager:
             raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
 
         result = await self._redis.lpop(key)
-        return cast(str | None, result)
+        return cast("str | None", result)
 
     async def rpop(self, key: str) -> str | None:
         """
@@ -496,7 +497,7 @@ class RedisManager:
             raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
 
         result = await self._redis.rpop(key)
-        return cast(str | None, result)
+        return cast("str | None", result)
 
     async def lrange(self, key: str, start: int = 0, end: int = -1) -> list[str]:
         """
@@ -557,7 +558,7 @@ class RedisManager:
 
         return await self._redis.sadd(key, *members)
 
-    async def smembers(self, key: str) -> Set[str]:
+    async def smembers(self, key: str) -> set[str]:
         """
         Получить все элементы множества.
 
@@ -768,7 +769,7 @@ class RedisManager:
         if self._redis is None:
             raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
 
-        return await self._redis.xrange(stream, start=start, end=end, count=count)
+        return await self._redis.xrange(stream, min=start, max=end, count=count)
 
     async def xlen(self, stream: str) -> int:
         """
