@@ -376,7 +376,7 @@ SELECT EXISTS (
         if self._redis is None:
             raise RuntimeError("Redis не подключён. Вызовите set_redis()")
 
-        return await self._redis.get(key)
+        return cast("str | None", await self._redis.get(key))
 
     async def cache_set(
         self,
@@ -398,7 +398,7 @@ SELECT EXISTS (
         if self._redis is None:
             raise RuntimeError("Redis не подключён. Вызовите set_redis()")
 
-        return await self._redis.set(key, str(value), ttl=ttl)
+        return cast("bool", await self._redis.set(key, str(value), ttl=ttl))
 
     async def cache_delete(self, key: str) -> int:
         """
@@ -413,7 +413,7 @@ SELECT EXISTS (
         if self._redis is None:
             raise RuntimeError("Redis не подключён. Вызовите set_redis()")
 
-        return await self._redis.delete(key)
+        return cast("int", await self._redis.delete(key))
 
     async def fetch_cached(
         self,
@@ -457,7 +457,7 @@ SELECT EXISTS (
         cached = await self._redis.get(cache_key)
         if cached is not None:
             logger.debug("Кэш найден", key=cache_key)
-            return json.loads(cached)
+            return cast("list[dict[str, Any]]", json.loads(cached))
 
         # Выполняем запрос
         rows = await self.fetch(query, *args)
@@ -487,7 +487,7 @@ SELECT EXISTS (
         keys = await self._redis.keys(pattern)
 
         if keys:
-            count = await self._redis.delete(*keys)
+            count = cast("int", await self._redis.delete(*keys))
             logger.info("Кэш инвалидирован", pattern=pattern, deleted=count)
             return count
 
@@ -513,7 +513,7 @@ SELECT EXISTS (
         if self._redis is None:
             raise RuntimeError("Redis не подключён. Вызовите set_redis()")
 
-        return await self._redis.publish(channel, str(message))
+        return cast("int", await self._redis.publish(channel, str(message)))
 
 
 # Глобальный экземпляр
