@@ -280,19 +280,14 @@ class DatabaseManager:
         try:
             async with self.connection() as conn:
                 # Простой запрос для проверки
-                await conn.fetchval("SELECT 1")
-
-                # Получить статистику пула
-                pool_stats = self._pool.get_stats()  # type: ignore[union-attr]
+                result = await conn.fetchval("SELECT 1")
 
                 return {
                     "status": "healthy",
                     "connected": True,
                     "pool_size": self._min_size,
                     "pool_max_size": self._max_size,
-                    "idle_connections": pool_stats.idle_count,
-                    "busy_connections": pool_stats.busy_count,
-                    "max_concurrent_requests": pool_stats.max_concurrent_requests,
+                    "test_query_result": result,
                 }
         except Exception as e:
             return {
