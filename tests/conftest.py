@@ -68,25 +68,6 @@ async def db_manager(db_pool: "Pool") -> AsyncGenerator["DatabaseManager", None]
     yield db
 
 
-@pytest.fixture
-async def db_connection(db_pool: "Pool") -> AsyncGenerator["Connection", None]:
-    """Соединение с транзакцией. После теста - ROLLBACK.
-
-    Каждый тест получает чистое соединение:
-    - BEGIN в начале
-    - ROLLBACK в конце (даже при ошибке)
-
-    Это гарантирует 100% изоляцию тестов.
-    """
-    async with db_pool.acquire() as conn:
-        await conn.execute("BEGIN")
-
-        try:
-            yield cast("Connection", conn)
-        finally:
-            await conn.execute("ROLLBACK")
-
-
 # ==================== Settings Fixtures ====================
 
 
