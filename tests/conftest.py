@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     from asyncpg import Pool
 
     from src.core.database import DatabaseManager
-    from src.core.redis_manager import RedisManager
 
 # Set test environment
 os.environ["ENVIRONMENT"] = "test"

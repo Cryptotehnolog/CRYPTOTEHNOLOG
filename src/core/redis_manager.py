@@ -12,15 +12,18 @@ Redis Manager — асинхронный менеджер подключения
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import redis.asyncio as redis
-from redis.asyncio import Redis
-from redis.asyncio.client import Pipeline, PubSub
 
 from cryptotechnolog.config import get_logger, get_settings
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from redis.asyncio import Redis
+    from redis.asyncio.client import Pipeline, PubSub
 
 logger = get_logger(__name__)
 
