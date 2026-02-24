@@ -67,120 +67,120 @@ class TypedRedisClient:
 
     async def get(self, key: str) -> str | None:
         """Получить значение по ключу."""
-        result = cast(str | None, await self._client.get(key))
+        result = cast("str | None", await self._client.get(key))
         return result
 
     async def delete(self, *keys: str) -> int:
         """Удалить ключи."""
-        result = cast(int, await self._client.delete(*keys))
+        result = cast("int", await self._client.delete(*keys))
         return result
 
     async def exists(self, *keys: str) -> int:
         """Проверить существование ключей."""
-        result = cast(int, await self._client.exists(*keys))
+        result = cast("int", await self._client.exists(*keys))
         return result
 
     async def expire(self, key: str, time: int) -> bool:
         """Установить TTL для ключа."""
-        result = cast(bool, await self._client.expire(key, time))
+        result = cast("bool", await self._client.expire(key, time))
         return result
 
     async def ttl(self, key: str) -> int:
         """Получить TTL ключа."""
-        result = cast(int, await self._client.ttl(key))
+        result = cast("int", await self._client.ttl(key))
         return result
 
     async def incrby(self, key: str, amount: int) -> int:
         """Увеличить значение ключа."""
-        result = cast(int, await self._client.incrby(key, amount))
+        result = cast("int", await self._client.incrby(key, amount))
         return result
 
     async def decrby(self, key: str, amount: int) -> int:
         """Уменьшить значение ключа."""
-        result = cast(int, await self._client.decrby(key, amount))
+        result = cast("int", await self._client.decrby(key, amount))
         return result
 
     # ==================== Хеш-операции ====================
 
     async def hset(self, key: str, field: str, value: str) -> int:
         """Установить значение поля в хеше."""
-        result = cast(int, await self._client.hset(key, field, value))
+        result = cast("int", await self._client.hset(key, field, value))
         return result
 
     async def hget(self, key: str, field: str) -> str | None:
         """Получить значение поля из хеша."""
-        result = cast(str | None, await self._client.hget(key, field))
+        result = cast("str | None", await self._client.hget(key, field))
         return result
 
     async def hgetall(self, key: str) -> dict[str, str]:
         """Получить все поля и значения хеша."""
-        result = cast(dict[str, str], await self._client.hgetall(key))
+        result = cast("dict[str, str]", await self._client.hgetall(key))
         return result
 
     async def hdel(self, key: str, *fields: str) -> int:
         """Удалить поля из хеша."""
-        result = cast(int, await self._client.hdel(key, *fields))
+        result = cast("int", await self._client.hdel(key, *fields))
         return result
 
     # ==================== Списки (List) ====================
 
     async def lpush(self, key: str, *values: str) -> int:
         """Добавить значения в начало списка."""
-        result = cast(int, await self._client.lpush(key, *values))
+        result = cast("int", await self._client.lpush(key, *values))
         return result
 
     async def rpush(self, key: str, *values: str) -> int:
         """Добавить значения в конец списка."""
-        result = cast(int, await self._client.rpush(key, *values))
+        result = cast("int", await self._client.rpush(key, *values))
         return result
 
     async def lpop(self, key: str) -> str | None:
         """Получить и удалить первый элемент списка."""
-        result = cast(str | None, await self._client.lpop(key))
+        result = cast("str | None", await self._client.lpop(key))
         return result
 
     async def rpop(self, key: str) -> str | None:
         """Получить и удалить последний элемент списка."""
-        result = cast(str | None, await self._client.rpop(key))
+        result = cast("str | None", await self._client.rpop(key))
         return result
 
     async def lrange(self, key: str, start: int, end: int) -> list[str]:
         """Получить диапазон элементов списка."""
-        result = cast(list[str], await self._client.lrange(key, start, end))
+        result = cast("list[str]", await self._client.lrange(key, start, end))
         return result
 
     async def llen(self, key: str) -> int:
         """Получить длину списка."""
-        result = cast(int, await self._client.llen(key))
+        result = cast("int", await self._client.llen(key))
         return result
 
     # ==================== Множества (Set) ====================
 
     async def sadd(self, key: str, *members: str) -> int:
         """Добавить элементы в множество."""
-        result = cast(int, await self._client.sadd(key, *members))
+        result = cast("int", await self._client.sadd(key, *members))
         return result
 
     async def smembers(self, key: str) -> set[str]:
         """Получить все элементы множества."""
-        result = cast(set[str], await self._client.smembers(key))
+        result = cast("set[str]", await self._client.smembers(key))
         return result
 
     async def sismember(self, key: str, member: str) -> int:
         """Проверить членство в множестве."""
-        result = cast(int, await self._client.sismember(key, member))
+        result = cast("int", await self._client.sismember(key, member))
         return result
 
     async def srem(self, key: str, *members: str) -> int:
         """Удалить элементы из множества."""
-        result = cast(int, await self._client.srem(key, *members))
+        result = cast("int", await self._client.srem(key, *members))
         return result
 
     # ==================== Pub/Sub ====================
 
     async def publish(self, channel: str, message: str) -> int:
         """Опубликовать сообщение в канал."""
-        result = cast(int, await self._client.publish(channel, message))
+        result = cast("int", await self._client.publish(channel, message))
         return result
 
     def pubsub(self) -> PubSub:
@@ -203,7 +203,7 @@ class TypedRedisClient:
             if approximate:
                 options["~"] = "*"
 
-        result = cast(str, await self._client.xadd(stream, fields, **options))
+        result = cast("str", await self._client.xadd(stream, fields, **options))
         return result
 
     async def xread(
@@ -235,12 +235,12 @@ class TypedRedisClient:
 
     async def xlen(self, stream: str) -> int:
         """Получить длину stream."""
-        result = cast(int, await self._client.xlen(stream))
+        result = cast("int", await self._client.xlen(stream))
         return result
 
     async def xdel(self, stream: str, *ids: str) -> int:
         """Удалить сообщения из stream."""
-        result = cast(int, await self._client.xdel(stream, *ids))
+        result = cast("int", await self._client.xdel(stream, *ids))
         return result
 
     # ==================== Pipeline ====================
@@ -253,22 +253,22 @@ class TypedRedisClient:
 
     async def keys(self, pattern: str) -> list[str]:
         """Найти ключи по шаблону."""
-        result = cast(list[str], await self._client.keys(pattern))
+        result = cast("list[str]", await self._client.keys(pattern))
         return result
 
     async def flushdb(self) -> bool:
         """Очистить базу данных."""
-        result = cast(bool, await self._client.flushdb())
+        result = cast("bool", await self._client.flushdb())
         return result
 
     async def info(self, section: str | None = None) -> dict[str, Any]:
         """Получить информацию о Redis."""
-        result = cast(dict[str, Any], await self._client.info(section))
+        result = cast("dict[str, Any]", await self._client.info(section))
         return result
 
     async def ping(self) -> bool:
         """Проверить подключение."""
-        result = cast(bool, await self._client.ping())
+        result = cast("bool", await self._client.ping())
         return result
 
 
