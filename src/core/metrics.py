@@ -459,7 +459,7 @@ class MetricsCollector:
         self._event_callbacks: list[Callable[..., Awaitable[None]]] = []
 
         settings = get_settings()
-        self._enabled = settings.metrics_enabled
+        self._enabled: bool = settings.metrics_enabled
 
         logger.info(
             "Инициализирован коллектор метрик",
@@ -844,7 +844,7 @@ class MetricsCollector:
 
     def get_metric_names(self) -> list[str]:
         """Получить список всех имен метрик."""
-        names = []
+        names: list[str] = []
         names.extend(counter.name for counter in self._counters.values())
         names.extend(gauge.name for gauge in self._gauges.values())
         names.extend(histogram.name for histogram in self._histograms.values())
