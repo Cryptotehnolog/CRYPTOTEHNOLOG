@@ -42,41 +42,52 @@ def event_loop() -> "Generator[asyncio.AbstractEventLoop, None, None]":
 # ==================== Database Fixtures ====================
 
 
-@pytest.fixture(scope="session")
-async def db_pool(event_loop: asyncio.AbstractEventLoop) -> AsyncGenerator["Pool", None]:
-    """Один пул соединений на всю тестовую сессию.
+@pytest.fixture(scope="session", autouse=True)
+async def db_clean_state() -> None:
+    """Очищает PostgreSQL перед началом всех тестов.
 
-    Создаётся один раз и переиспользуется всеми тестами.
+    Выполняется один раз перед всеми тестами сессии.
     """
     settings = Settings()
-
-    pool = await asyncpg.create_pool(
+    conn = await asyncpg.connect(
         settings.postgres_async_url,
-        min_size=2,
-        max_size=10,
         command_timeout=60,
     )
+    try:
+        # Удаляем все таблицы и пересоздаём схему
+        tables = await conn.fetch(
+            "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+        )
+        for table in tables:
+            await conn.execute(f"DROP TABLE IF EXISTS {table['tablename']} CASCADE")
+    finally:
+        await conn.close()
 
-    yield pool
 
-    await pool.close()
+@pytest.fixture
+def db_connection_factory():
+    """Фабрика для создания соединения с БД внутри теста.
 
+    Создаёт соединение в том же event loop, где выполняется тест.
+    Гарантирует отсутствие конфликтов event loops.
+    """
 
-@pytest.fixture(scope="session")
-async def db_manager(db_pool: "Pool") -> AsyncGenerator["DatabaseManager", None]:
-    """DatabaseManager с переданным пулом."""
-    from src.core.database import DatabaseManager  # noqa: PLC0415
+    class DBConnectionFactory:
+        """Фабрика создания соединения с БД."""
 
-    db = DatabaseManager(min_size=2, max_size=10)
-    # Используем переданный пул
-    db._pool = db_pool
-    db._connected = True
+        @staticmethod
+        async def create() -> asyncpg.Connection:
+            """Создать новое соединение с БД."""
+            settings = Settings()
 
-    # Прогрев пула - выполняем простой запрос чтобы убедиться что всё работает
-    async with db_pool.acquire() as conn:
-        await conn.fetchval("SELECT 1")
+            conn = await asyncpg.connect(
+                settings.postgres_async_url,
+                command_timeout=60,
+            )
 
-    yield db
+            return conn
+
+    return DBConnectionFactory
 
 
 # ==================== Settings Fixtures ====================

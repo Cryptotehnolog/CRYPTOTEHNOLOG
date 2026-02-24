@@ -56,6 +56,7 @@ class DatabaseManager:
         self._url = settings.postgres_async_url
 
         self._pool: asyncpg.Pool | None = None
+        self._connection: asyncpg.Connection | None = None
         self._connected = False
 
         logger.info(
@@ -67,7 +68,7 @@ class DatabaseManager:
     @property
     def is_connected(self) -> bool:
         """Проверить подключение к БД."""
-        return self._connected and self._pool is not None
+        return self._connected and (self._pool is not None or self._connection is not None)
 
     @property
     def pool(self) -> asyncpg.Pool | None:
@@ -120,7 +121,7 @@ class DatabaseManager:
     @asynccontextmanager
     async def connection(self) -> AsyncIterator[asyncpg.Connection]:
         """
-        Контекстный менеджер для получения соединения из пула.
+        Контекстный менеджер для получения соединения.
 
         Yields:
             asyncpg.Connection: Соединение с БД
@@ -129,11 +130,15 @@ class DatabaseManager:
             >>> async with db.connection() as conn:
             ...     await conn.fetch("SELECT 1")
         """
-        if self._pool is None:
+        if self._connection is not None:
+            # Одиночное соединение
+            yield self._connection
+        elif self._pool is not None:
+            # Пул соединений
+            async with self._pool.acquire() as conn:
+                yield cast("asyncpg.Connection", conn)
+        else:
             raise RuntimeError("Нет подключения к БД. Вызовите connect()")
-
-        async with self._pool.acquire() as conn:
-            yield cast("asyncpg.Connection", conn)
 
     @asynccontextmanager
     async def transaction(self) -> AsyncIterator[asyncpg.Connection]:
@@ -285,8 +290,8 @@ class DatabaseManager:
                 return {
                     "status": "healthy",
                     "connected": True,
-                    "pool_size": self._min_size,
-                    "pool_max_size": self._max_size,
+                    "pool_size": self._min_size if self._pool else 1,
+                    "pool_max_size": self._max_size if self._pool else 1,
                     "test_query_result": result,
                 }
         except Exception as e:

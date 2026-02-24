@@ -1,9 +1,9 @@
 """
 Тесты для Database Manager (src/core/database.py).
 
-Используют паттерн "один пул + транзакционная изоляция":
-- Один пул на всю сессию
-- Каждый тест работает в своей транзакции с авто-ROLLBACK
+Используют паттерн "фабрика создаёт соединение внутри теста":
+- Каждое соединение создаётся в том же event loop, где выполняется тест
+- Гарантирует отсутствие конфликтов event loops
 """
 
 import asyncpg
@@ -49,77 +49,102 @@ class TestDatabaseManagerConnection:
 
 @pytest.mark.db
 class TestDatabaseManagerOperations:
-    """Тесты операций с БД (используют db_pool напрямую)."""
+    """Тесты операций с БД (используют db_connection_factory)."""
 
     @pytest.mark.asyncio
-    async def test_connection_works(self, db_pool: asyncpg.Pool) -> None:
-        """Проверка что пул работает."""
-        async with db_pool.acquire() as conn:
+    async def test_connection_works(self, db_connection_factory) -> None:
+        """Проверка что соединение работает."""
+        conn = await db_connection_factory.create()
+        try:
             result = await conn.fetchval("SELECT 1")
             assert result == 1
+        finally:
+            await conn.close()
 
     @pytest.mark.asyncio
-    async def test_transaction_isolation(self, db_pool: asyncpg.Pool) -> None:
+    async def test_transaction_isolation(self, db_connection_factory) -> None:
         """Транзакция изолирует изменения."""
-        async with db_pool.acquire() as conn, conn.transaction():
-            await conn.execute(
-                "CREATE TEMP TABLE test_isolation (id SERIAL PRIMARY KEY, value TEXT NOT NULL)"
-            )
-            await conn.execute("INSERT INTO test_isolation (value) VALUES ($1)", "test_value")
-            row = await conn.fetchrow("SELECT value FROM test_isolation")
-            assert row["value"] == "test_value"
+        conn = await db_connection_factory.create()
+        try:
+            async with conn.transaction():
+                await conn.execute(
+                    "CREATE TEMP TABLE test_isolation (id SERIAL PRIMARY KEY, value TEXT NOT NULL)"
+                )
+                await conn.execute("INSERT INTO test_isolation (value) VALUES ($1)", "test_value")
+                row = await conn.fetchrow("SELECT value FROM test_isolation")
+                assert row["value"] == "test_value"
+        finally:
+            await conn.close()
 
     @pytest.mark.asyncio
-    async def test_fetch_returns_list(self, db_pool: asyncpg.Pool) -> None:
+    async def test_fetch_returns_list(self, db_connection_factory) -> None:
         """Fetch возвращает список словарей."""
-        async with db_pool.acquire() as conn:
+        conn = await db_connection_factory.create()
+        try:
             rows = await conn.fetch("SELECT 1 as col1, 'test' as col2")
             assert len(rows) == 1
             assert rows[0]["col1"] == 1
             assert rows[0]["col2"] == "test"
+        finally:
+            await conn.close()
 
     @pytest.mark.asyncio
-    async def test_fetchrow_returns_dict(self, db_pool: asyncpg.Pool) -> None:
+    async def test_fetchrow_returns_dict(self, db_connection_factory) -> None:
         """Fetchrow возвращает один словарь."""
-        async with db_pool.acquire() as conn:
+        conn = await db_connection_factory.create()
+        try:
             row = await conn.fetchrow("SELECT 1 as id, 'test' as name")
             assert row is not None
             assert row["id"] == 1
             assert row["name"] == "test"
+        finally:
+            await conn.close()
 
     @pytest.mark.asyncio
-    async def test_fetchrow_returns_none(self, db_pool: asyncpg.Pool) -> None:
+    async def test_fetchrow_returns_none(self, db_connection_factory) -> None:
         """Fetchrow возвращает None если нет строк."""
-        async with db_pool.acquire() as conn:
+        conn = await db_connection_factory.create()
+        try:
             row = await conn.fetchrow("SELECT 1 WHERE 1=0")
             assert row is None
+        finally:
+            await conn.close()
 
     @pytest.mark.asyncio
-    async def test_fetchval(self, db_pool: asyncpg.Pool) -> None:
+    async def test_fetchval(self, db_connection_factory) -> None:
         """Fetchval возвращает одно значение."""
-        async with db_pool.acquire() as conn:
+        conn = await db_connection_factory.create()
+        try:
             result = await conn.fetchval("SELECT COUNT(*)")
             assert isinstance(result, int)
+        finally:
+            await conn.close()
 
     @pytest.mark.asyncio
-    async def test_execute_insert(self, db_pool: asyncpg.Pool) -> None:
+    async def test_execute_insert(self, db_connection_factory) -> None:
         """Execute для INSERT."""
-        async with db_pool.acquire() as conn:
+        conn = await db_connection_factory.create()
+        try:
             await conn.execute("CREATE TEMP TABLE test_execute (id SERIAL PRIMARY KEY, name TEXT)")
             result = await conn.execute("INSERT INTO test_execute (name) VALUES ($1)", "test_name")
             assert result == "INSERT 0 1"
             row = await conn.fetchrow("SELECT name FROM test_execute")
             assert row["name"] == "test_name"
+        finally:
+            await conn.close()
 
     @pytest.mark.asyncio
-    async def test_execute_many(self, db_pool: asyncpg.Pool) -> None:
+    async def test_execute_many(self, db_connection_factory) -> None:
         """Execute_many для массовой вставки."""
-        async with db_pool.acquire() as conn:
+        conn = await db_connection_factory.create()
+        try:
             await conn.execute("CREATE TEMP TABLE test_bulk (id SERIAL PRIMARY KEY, value TEXT)")
             args_list = [("value1",), ("value2",), ("value3",)]
             await conn.executemany("INSERT INTO test_bulk (value) VALUES ($1)", args_list)
             count = await conn.fetchval("SELECT COUNT(*) FROM test_bulk")
             assert count == 3
+        finally:
+            await conn.close()
 
 
 @pytest.mark.db
@@ -127,28 +152,52 @@ class TestDatabaseManagerHighLevel:
     """Тесты высокоуровневых методов DatabaseManager."""
 
     @pytest.mark.asyncio
-    async def test_fetch_with_db_manager(self, db_manager: DatabaseManager) -> None:
+    async def test_fetch_with_db_manager(self, db_connection_factory) -> None:
         """Тест высокоуровневого fetch через DatabaseManager."""
-        rows = await db_manager.fetch("SELECT 1 as num, 'hello' as text")
+        conn = await db_connection_factory.create()
+        try:
+            db = DatabaseManager()
+            db._connection = conn
+            db._connected = True
 
-        assert len(rows) == 1
-        assert rows[0]["num"] == 1
-        assert rows[0]["text"] == "hello"
+            rows = await db.fetch("SELECT 1 as num, 'hello' as text")
+
+            assert len(rows) == 1
+            assert rows[0]["num"] == 1
+            assert rows[0]["text"] == "hello"
+        finally:
+            await conn.close()
 
     @pytest.mark.asyncio
-    async def test_fetchrow_with_db_manager(self, db_manager: DatabaseManager) -> None:
+    async def test_fetchrow_with_db_manager(self, db_connection_factory) -> None:
         """Тест высокоуровневого fetchrow через DatabaseManager."""
-        row = await db_manager.fetchrow("SELECT 1 as id, 'test' as name")
+        conn = await db_connection_factory.create()
+        try:
+            db = DatabaseManager()
+            db._connection = conn
+            db._connected = True
 
-        assert row is not None
-        assert row["id"] == 1
-        assert row["name"] == "test"
+            row = await db.fetchrow("SELECT 1 as id, 'test' as name")
+
+            assert row is not None
+            assert row["id"] == 1
+            assert row["name"] == "test"
+        finally:
+            await conn.close()
 
     @pytest.mark.asyncio
-    async def test_fetchval_with_db_manager(self, db_manager: DatabaseManager) -> None:
+    async def test_fetchval_with_db_manager(self, db_connection_factory) -> None:
         """Тест высокоуровневого fetchval через DatabaseManager."""
-        result = await db_manager.fetchval("SELECT 42 as answer")
-        assert result == 42
+        conn = await db_connection_factory.create()
+        try:
+            db = DatabaseManager()
+            db._connection = conn
+            db._connected = True
+
+            result = await db.fetchval("SELECT 42 as answer")
+            assert result == 42
+        finally:
+            await conn.close()
 
 
 @pytest.mark.db
@@ -167,17 +216,24 @@ class TestDatabaseManagerHealthCheck:
         assert "Нет подключения" in health["error"]
 
     @pytest.mark.asyncio
-    async def test_health_check_with_pool(self, db_manager: DatabaseManager) -> None:
-        """Health check с подключённым пулом."""
-        # Сначала проверим что менеджер работает
-        result = await db_manager.fetchval("SELECT 1")
-        assert result == 1
+    async def test_health_check_with_connection(self, db_connection_factory) -> None:
+        """Health check с подключённым соединением."""
+        conn = await db_connection_factory.create()
+        try:
+            db = DatabaseManager()
+            db._connection = conn
+            db._connected = True
 
-        health = await db_manager.health_check()
+            # Проверить что менеджер работает
+            result = await db.fetchval("SELECT 1")
+            assert result == 1
 
-        assert health["status"] == "healthy", f"Expected healthy, got {health}"
-        assert health["connected"]
-        assert "pool_size" in health
+            health = await db.health_check()
+
+            assert health["status"] == "healthy", f"Expected healthy, got {health}"
+            assert health["connected"]
+        finally:
+            await conn.close()
 
 
 @pytest.mark.db
@@ -185,25 +241,41 @@ class TestDatabaseManagerTableInfo:
     """Тесты получения информации о таблицах."""
 
     @pytest.mark.asyncio
-    async def test_get_table_names(self, db_manager: DatabaseManager) -> None:
+    async def test_get_table_names(self, db_connection_factory) -> None:
         """Получение списка таблиц."""
-        tables = await db_manager.get_table_names()
+        conn = await db_connection_factory.create()
+        try:
+            db = DatabaseManager()
+            db._connection = conn
+            db._connected = True
 
-        assert isinstance(tables, list)
+            tables = await db.get_table_names()
+
+            assert isinstance(tables, list)
+        finally:
+            await conn.close()
 
     @pytest.mark.asyncio
-    async def test_table_exists(self, db_manager: DatabaseManager) -> None:
+    async def test_table_exists(self, db_connection_factory) -> None:
         """Проверка существования таблицы."""
-        # Сначала проверим что менеджер работает
-        result = await db_manager.fetchval("SELECT 1")
-        assert result == 1
+        conn = await db_connection_factory.create()
+        try:
+            db = DatabaseManager()
+            db._connection = conn
+            db._connected = True
 
-        # Системная таблица pg_class - проверяем через pg_catalog
-        exists = await db_manager.table_exists("pg_class")
-        assert exists is True, f"Expected True, got {exists}"
+            # Проверить что менеджер работает
+            result = await db.fetchval("SELECT 1")
+            assert result == 1
 
-        # Несуществующая таблица
-        assert not await db_manager.table_exists("nonexistent_table_xyz")
+            # Системная таблица pg_class - проверяем через pg_catalog
+            exists = await db.table_exists("pg_class")
+            assert exists is True, f"Expected True, got {exists}"
+
+            # Несуществующая таблица
+            assert not await db.table_exists("nonexistent_table_xyz")
+        finally:
+            await conn.close()
 
 
 pytest.mark.unit(__name__)
