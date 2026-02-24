@@ -5,7 +5,7 @@
 """
 
 from collections.abc import AsyncGenerator
-from typing import Any, cast
+from typing import cast
 
 import asyncpg
 import pytest
@@ -75,7 +75,7 @@ async def db_connection(
         await conn.execute("BEGIN")
 
         try:
-            yield cast(asyncpg.Connection, conn)
+            yield cast("asyncpg.Connection", conn)
         finally:
             # Всегда откатывать - тест не должен мусорить в БД
             await conn.execute("ROLLBACK")
