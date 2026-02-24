@@ -130,9 +130,7 @@ impl DoubleEntryValidator {
     pub fn validate(&self, transactions: &[Transaction]) -> Result<(), ValidationError> {
         // Validate each transaction amount first
         for tx in transactions {
-            if let Err(e) = self.validate_amount(tx.amount) {
-                return Err(e);
-            }
+            self.validate_amount(tx.amount)?;
         }
 
         let total_debit: f64 = transactions
