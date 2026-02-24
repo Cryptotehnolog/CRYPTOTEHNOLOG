@@ -114,6 +114,24 @@ def pytest_configure(config: pytest.Config) -> None:
 # ==================== Redis Fixtures ====================
 
 
+@pytest.fixture(scope="session", autouse=True)
+async def redis_clean_state() -> None:
+    """Очищает Redis перед началом всех тестов.
+
+    Выполняется один раз перед всеми тестами сессии.
+    """
+    settings = Settings()
+    client = redis.from_url(
+        settings.redis_url,
+        socket_timeout=10,
+        socket_connect_timeout=10,
+    )
+    try:
+        await client.flushdb()
+    finally:
+        await client.close()
+
+
 @pytest.fixture
 def redis_client_factory():
     """Фабрика для создания Redis клиента внутри теста.
@@ -140,9 +158,6 @@ def redis_client_factory():
 
             # Проверить подключение
             await asyncio.wait_for(client.ping(), timeout=10.0)
-
-            # Очистить базу перед тестом
-            await client.flushdb()
 
             return client
 
