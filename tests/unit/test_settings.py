@@ -31,7 +31,7 @@ class TestSettings:
         assert settings.postgres_host == "localhost"
         assert settings.postgres_port == 5432
         assert settings.postgres_user == "bot_user"
-        assert settings.postgres_db == "trading_test"  # test_env sets POSTGRES_DB=trading_test
+        assert settings.postgres_db == "trading_dev"  # test_env sets POSTGRES_DB=trading_dev
 
         # Check risk parameters
         assert settings.base_r_percent == 0.01

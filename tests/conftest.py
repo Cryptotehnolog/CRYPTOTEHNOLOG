@@ -1,7 +1,8 @@
 # ==================== CRYPTOTEHNOLOG Test Configuration ====================
 # Pytest configuration and fixtures
 
-from collections.abc import AsyncGenerator
+import asyncio
+from collections.abc import AsyncGenerator, Generator
 import os
 from typing import TYPE_CHECKING, cast
 
@@ -20,11 +21,23 @@ os.environ["ENVIRONMENT"] = "test"
 os.environ["DEBUG"] = "true"
 
 
+# ==================== Event Loop Fixture ====================
+
+
+@pytest.fixture(scope="session")
+def event_loop() -> "Generator[asyncio.AbstractEventLoop, None, None]":
+    """Один event loop на всю тестовую сессию."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+    loop.close()
+
+
 # ==================== Database Fixtures ====================
 
 
 @pytest.fixture(scope="session")
-async def db_pool() -> AsyncGenerator["Pool", None]:
+async def db_pool(event_loop: asyncio.AbstractEventLoop) -> AsyncGenerator["Pool", None]:
     """Один пул соединений на всю тестовую сессию.
 
     Создаётся один раз и переиспользуется всеми тестами.
