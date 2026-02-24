@@ -7,6 +7,8 @@ Database Layer — PostgreSQL Manager с асинхронным подключе
 - Транзакции
 - Prepared statements
 - Контекстные менеджеры
+- Redis кэширование
+- Pub/Sub уведомления
 """
 
 from collections.abc import AsyncIterator
@@ -18,6 +20,10 @@ import asyncpg
 from cryptotechnolog.config import get_logger, get_settings
 
 logger = get_logger(__name__)
+
+
+# Тип для Redis клиента
+RedisClientType = Any  # redis.asyncio.Redis
 
 
 class DatabaseManager:
@@ -58,6 +64,7 @@ class DatabaseManager:
         self._pool: asyncpg.Pool | None = None
         self._connection: asyncpg.Connection | None = None
         self._connected = False
+        self._redis: RedisClientType | None = None
 
         logger.info(
             "Инициализирован менеджер БД",
@@ -337,6 +344,181 @@ SELECT EXISTS (
 """
         result = await self.fetchval(query, table_name)
         return result is True
+
+    # ==================== Redis Integration ====================
+
+    def set_redis(self, redis_client: RedisClientType) -> None:
+        """
+        Установить Redis клиент для кэширования.
+
+        Аргументы:
+            redis_client: Redis клиент (redis.asyncio.Redis)
+        """
+        self._redis = redis_client
+        logger.info("Redis клиент установлен для DatabaseManager")
+
+    def has_redis(self) -> bool:
+        """Проверить подключён ли Redis."""
+        return self._redis is not None
+
+    async def cache_get(self, key: str) -> str | None:
+        """
+        Получить значение из кэша.
+
+        Аргументы:
+            key: Ключ кэша
+
+        Returns:
+            Значение или None если не найдено
+        """
+        if self._redis is None:
+            raise RuntimeError("Redis не подключён. Вызовите set_redis()")
+
+        return await self._redis.get(key)
+
+    async def cache_set(
+        self,
+        key: str,
+        value: str | int | float | bool,
+        ttl: int | None = None,
+    ) -> bool:
+        """
+        Установить значение в кэш.
+
+        Аргументы:
+            key: Ключ кэша
+            value: Значение
+            ttl: TTL в секундах (опционально)
+
+        Returns:
+            True если установлено
+        """
+        if self._redis is None:
+            raise RuntimeError("Redis не подключён. Вызовите set_redis()")
+
+        return await self._redis.set(key, str(value), ttl=ttl)
+
+    async def cache_delete(self, key: str) -> int:
+        """
+        Удалить ключ из кэша.
+
+        Аргументы:
+            key: Ключ для удаления
+
+        Returns:
+            Количество удалённых ключей
+        """
+        if self._redis is None:
+            raise RuntimeError("Redis не подключён. Вызовите set_redis()")
+
+        return await self._redis.delete(key)
+
+    async def fetch_cached(
+        self,
+        query: str,
+        *args: Any,
+        ttl: int = 60,
+        cache_key: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Выполнить запрос с кэшированием результата.
+
+        Сначала проверяет кэш, если есть — возвращает из кэша.
+        Если нет — выполняет запрос и сохраняет результат в кэш.
+
+        Аргументы:
+            query: SQL запрос
+            *args: Аргументы запроса
+            ttl: TTL кэша в секундах (по умолчанию 60)
+            cache_key: Кастомный ключ кэша (по умолчанию хэш запроса)
+
+        Returns:
+            Список словарей с результатами
+
+        Пример:
+            >>> # Кэшировать результат на 5 минут
+            >>> rows = await db.fetch_cached("SELECT * FROM symbols", ttl=300)
+            >>> # С кастомным ключом
+            >>> rows = await db.fetch_cached("SELECT * FROM symbols", ttl=60, cache_key="all_symbols")
+        """
+        if self._redis is None:
+            # Без Redis — просто выполняем запрос
+            return await self.fetch(query, *args)
+
+        # Генерируем ключ кэша
+        import hashlib
+        import json
+
+        if cache_key is None:
+            # Хэшируем запрос + аргументы
+            key_data = json.dumps({"query": query, "args": args}, sort_keys=True)
+            cache_key = f"db_cache:{hashlib.md5(key_data.encode()).hexdigest()}"
+
+        # Пробуем получить из кэша
+        cached = await self._redis.get(cache_key)
+        if cached is not None:
+            logger.debug("Кэш найден", key=cache_key)
+            import json
+
+            return json.loads(cached)
+
+        # Выполняем запрос
+        rows = await self.fetch(query, *args)
+
+        # Сохраняем в кэш
+        if rows:
+            import json
+
+            await self._redis.set(cache_key, json.dumps(rows), ttl=ttl)
+            logger.debug("Результат сохранён в кэш", key=cache_key, ttl=ttl)
+
+        return rows
+
+    async def invalidate_cache(self, pattern: str | None = None) -> int:
+        """
+        Инвалидировать кэш по шаблону.
+
+        Аргументы:
+            pattern: Шаблон ключей для удаления (например "db_cache:*").
+                    Если None — удаляет все ключи с префиксом "db_cache:"
+
+        Returns:
+            Количество удалённых ключей
+        """
+        if self._redis is None:
+            raise RuntimeError("Redis не подключён. Вызовите set_redis()")
+
+        pattern = pattern or "db_cache:*"
+        keys = await self._redis.keys(pattern)
+
+        if keys:
+            count = await self._redis.delete(*keys)
+            logger.info("Кэш инвалидирован", pattern=pattern, deleted=count)
+            return count
+
+        return 0
+
+    async def publish(self, channel: str, message: str | int | float | bool) -> int:
+        """
+        Опубликовать сообщение в Redis канал.
+
+        Используется для межкомпонентной коммуникации.
+
+        Аргументы:
+            channel: Имя канала
+            message: Сообщение
+
+        Returns:
+            Количество подписчиков
+
+        Пример:
+            >>> # Уведомить о новом ордере
+            >>> await db.publish("orders", '{"event": "new", "order_id": 123}')
+        """
+        if self._redis is None:
+            raise RuntimeError("Redis не подключён. Вызовите set_redis()")
+
+        return await self._redis.publish(channel, str(message))
 
 
 # Глобальный экземпляр
