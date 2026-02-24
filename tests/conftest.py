@@ -52,9 +52,7 @@ async def db_clean_state() -> None:
     )
     try:
         # Удаляем все таблицы и пересоздаём схему
-        tables = await conn.fetch(
-            "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
-        )
+        tables = await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
         for table in tables:
             await conn.execute(f"DROP TABLE IF EXISTS {table['tablename']} CASCADE")
     finally:
