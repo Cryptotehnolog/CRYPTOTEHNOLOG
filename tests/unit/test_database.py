@@ -198,7 +198,7 @@ class TestDatabaseManagerTableInfo:
         result = await db_manager.fetchval("SELECT 1")
         assert result == 1
 
-        # Системная таблица
+        # Системная таблица pg_class - проверяем через pg_catalog
         exists = await db_manager.table_exists("pg_class")
         assert exists is True, f"Expected True, got {exists}"
 

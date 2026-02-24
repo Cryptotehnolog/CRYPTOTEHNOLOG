@@ -325,9 +325,9 @@ ORDER BY table_name
         """
         query = """
 SELECT EXISTS (
-    SELECT FROM information_schema.tables
-    WHERE table_schema = 'public'
-    AND table_name = $1
+    SELECT 1 FROM pg_catalog.pg_class
+    WHERE relname = $1
+    AND relkind IN ('r', 'v', 'm', 'f')
 ) AS exists
 """
         result = await self.fetchval(query, table_name)
