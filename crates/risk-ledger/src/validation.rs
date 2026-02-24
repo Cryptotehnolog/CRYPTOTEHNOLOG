@@ -128,6 +128,13 @@ impl DoubleEntryValidator {
     ///
     /// Ensures that total debits equal total credits
     pub fn validate(&self, transactions: &[Transaction]) -> Result<(), ValidationError> {
+        // Validate each transaction amount first
+        for tx in transactions {
+            if let Err(e) = self.validate_amount(tx.amount) {
+                return Err(e);
+            }
+        }
+
         let total_debit: f64 = transactions
             .iter()
             .filter(|t| t.is_debit())
@@ -140,9 +147,16 @@ impl DoubleEntryValidator {
             .map(|t| t.abs_amount())
             .sum();
 
+        // Check for NaN or Infinite results
+        if total_debit.is_nan() || total_credit.is_nan() {
+            return Err(ValidationError::InvalidAmount {
+                amount: if total_debit.is_nan() { total_debit } else { total_credit },
+            });
+        }
+
         let difference = (total_debit - total_credit).abs();
 
-        if difference > self.tolerance {
+        if difference > self.tolerance || difference.is_infinite() {
             return Err(ValidationError::Imbalance {
                 total_debit,
                 total_credit,
