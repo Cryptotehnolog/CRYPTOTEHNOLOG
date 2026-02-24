@@ -13,19 +13,262 @@ Redis Manager — асинхронный менеджер подключения
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Set, cast
 
 import redis.asyncio as redis
+from redis.asyncio import Redis
+from redis.asyncio.client import Pipeline, PubSub
 
 from cryptotechnolog.config import get_logger, get_settings
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from redis.asyncio import Redis
-    from redis.asyncio.client import Pipeline, PubSub
-
 logger = get_logger(__name__)
+
+
+class TypedRedisClient:
+    """
+    Типобезопасная обёртка над redis.asyncio.Redis.
+
+    Скрывает проблемы с типами библиотеки redis-py, которая возвращает
+    Union[Awaitable[T], T] вместо Awaitable[T]. Использует cast() для
+    корректного сужения типов.
+
+    Это внутренняя обёртка, используемая RedisManager.
+    """
+
+    def __init__(self, client: Redis) -> None:
+        """Инициализировать обёртку с клиентом Redis."""
+        self._client = client
+
+    # ==================== Основные операции ====================
+
+    async def set(
+        self,
+        key: str,
+        value: str,
+        ex: int | None = None,
+        nx: bool = False,
+        xx: bool = False,
+    ) -> bool | None:
+        """Установить значение ключа."""
+        options: dict[str, Any] = {}
+        if nx:
+            options["nx"] = True
+        if xx:
+            options["xx"] = True
+        if ex is not None:
+            options["ex"] = ex
+
+        result = cast("bool | None", await self._client.set(key, value, **options))
+        return result
+
+    async def get(self, key: str) -> str | None:
+        """Получить значение по ключу."""
+        result = cast(str | None, await self._client.get(key))
+        return result
+
+    async def delete(self, *keys: str) -> int:
+        """Удалить ключи."""
+        result = cast(int, await self._client.delete(*keys))
+        return result
+
+    async def exists(self, *keys: str) -> int:
+        """Проверить существование ключей."""
+        result = cast(int, await self._client.exists(*keys))
+        return result
+
+    async def expire(self, key: str, time: int) -> bool:
+        """Установить TTL для ключа."""
+        result = cast(bool, await self._client.expire(key, time))
+        return result
+
+    async def ttl(self, key: str) -> int:
+        """Получить TTL ключа."""
+        result = cast(int, await self._client.ttl(key))
+        return result
+
+    async def incrby(self, key: str, amount: int) -> int:
+        """Увеличить значение ключа."""
+        result = cast(int, await self._client.incrby(key, amount))
+        return result
+
+    async def decrby(self, key: str, amount: int) -> int:
+        """Уменьшить значение ключа."""
+        result = cast(int, await self._client.decrby(key, amount))
+        return result
+
+    # ==================== Хеш-операции ====================
+
+    async def hset(self, key: str, field: str, value: str) -> int:
+        """Установить значение поля в хеше."""
+        result = cast(int, await self._client.hset(key, field, value))
+        return result
+
+    async def hget(self, key: str, field: str) -> str | None:
+        """Получить значение поля из хеша."""
+        result = cast(str | None, await self._client.hget(key, field))
+        return result
+
+    async def hgetall(self, key: str) -> dict[str, str]:
+        """Получить все поля и значения хеша."""
+        result = cast(dict[str, str], await self._client.hgetall(key))
+        return result
+
+    async def hdel(self, key: str, *fields: str) -> int:
+        """Удалить поля из хеша."""
+        result = cast(int, await self._client.hdel(key, *fields))
+        return result
+
+    # ==================== Списки (List) ====================
+
+    async def lpush(self, key: str, *values: str) -> int:
+        """Добавить значения в начало списка."""
+        result = cast(int, await self._client.lpush(key, *values))
+        return result
+
+    async def rpush(self, key: str, *values: str) -> int:
+        """Добавить значения в конец списка."""
+        result = cast(int, await self._client.rpush(key, *values))
+        return result
+
+    async def lpop(self, key: str) -> str | None:
+        """Получить и удалить первый элемент списка."""
+        result = cast(str | None, await self._client.lpop(key))
+        return result
+
+    async def rpop(self, key: str) -> str | None:
+        """Получить и удалить последний элемент списка."""
+        result = cast(str | None, await self._client.rpop(key))
+        return result
+
+    async def lrange(self, key: str, start: int, end: int) -> list[str]:
+        """Получить диапазон элементов списка."""
+        result = cast(list[str], await self._client.lrange(key, start, end))
+        return result
+
+    async def llen(self, key: str) -> int:
+        """Получить длину списка."""
+        result = cast(int, await self._client.llen(key))
+        return result
+
+    # ==================== Множества (Set) ====================
+
+    async def sadd(self, key: str, *members: str) -> int:
+        """Добавить элементы в множество."""
+        result = cast(int, await self._client.sadd(key, *members))
+        return result
+
+    async def smembers(self, key: str) -> Set[str]:
+        """Получить все элементы множества."""
+        result = cast(set[str], await self._client.smembers(key))
+        return result
+
+    async def sismember(self, key: str, member: str) -> int:
+        """Проверить членство в множестве."""
+        result = cast(int, await self._client.sismember(key, member))
+        return result
+
+    async def srem(self, key: str, *members: str) -> int:
+        """Удалить элементы из множества."""
+        result = cast(int, await self._client.srem(key, *members))
+        return result
+
+    # ==================== Pub/Sub ====================
+
+    async def publish(self, channel: str, message: str) -> int:
+        """Опубликовать сообщение в канал."""
+        result = cast(int, await self._client.publish(channel, message))
+        return result
+
+    def pubsub(self) -> PubSub:
+        """Создать PubSub объект."""
+        return self._client.pubsub()
+
+    # ==================== Streams ====================
+
+    async def xadd(
+        self,
+        stream: str,
+        fields: dict[str, str],
+        maxlen: int | None = None,
+        approximate: bool = True,
+    ) -> str:
+        """Добавить сообщение в stream."""
+        options: dict[str, Any] = {}
+        if maxlen is not None:
+            options["maxlen"] = maxlen
+            if approximate:
+                options["~"] = "*"
+
+        result = cast(str, await self._client.xadd(stream, fields, **options))
+        return result
+
+    async def xread(
+        self,
+        streams: dict[str, str],
+        count: int | None = None,
+        block: int | None = None,
+    ) -> list[list[tuple[str, dict[str, str]]]]:
+        """Прочитать сообщения из stream."""
+        result = cast(
+            "list[list[tuple[str, dict[str, str]]]]",
+            await self._client.xread(streams, count=count, block=block),
+        )
+        return result
+
+    async def xrange(
+        self,
+        stream: str,
+        min: str,
+        max: str,
+        count: int | None = None,
+    ) -> list[tuple[str, dict[str, str]]]:
+        """Прочитать диапазон сообщений из stream."""
+        result = cast(
+            "list[tuple[str, dict[str, str]]]",
+            await self._client.xrange(stream, min=min, max=max, count=count),
+        )
+        return result
+
+    async def xlen(self, stream: str) -> int:
+        """Получить длину stream."""
+        result = cast(int, await self._client.xlen(stream))
+        return result
+
+    async def xdel(self, stream: str, *ids: str) -> int:
+        """Удалить сообщения из stream."""
+        result = cast(int, await self._client.xdel(stream, *ids))
+        return result
+
+    # ==================== Pipeline ====================
+
+    def pipeline(self) -> Pipeline:
+        """Создать pipeline."""
+        return self._client.pipeline()
+
+    # ==================== Утилиты ====================
+
+    async def keys(self, pattern: str) -> list[str]:
+        """Найти ключи по шаблону."""
+        result = cast(list[str], await self._client.keys(pattern))
+        return result
+
+    async def flushdb(self) -> bool:
+        """Очистить базу данных."""
+        result = cast(bool, await self._client.flushdb())
+        return result
+
+    async def info(self, section: str | None = None) -> dict[str, Any]:
+        """Получить информацию о Redis."""
+        result = cast(dict[str, Any], await self._client.info(section))
+        return result
+
+    async def ping(self) -> bool:
+        """Проверить подключение."""
+        result = cast(bool, await self._client.ping())
+        return result
 
 
 class RedisManager:
@@ -66,6 +309,7 @@ class RedisManager:
         self._url = settings.redis_url
 
         self._redis: Redis | None = None
+        self._typed_client: TypedRedisClient | None = None
         self._connected = False
 
         logger.info(
@@ -84,6 +328,13 @@ class RedisManager:
         """Получить экземпляр Redis."""
         return self._redis
 
+    def _require_typed_client(self) -> TypedRedisClient:
+        """Получить типизированный клиент."""
+        if self._typed_client is None:
+            msg = "Нет подключения к Redis. Вызовите connect()"
+            raise RuntimeError(msg)
+        return self._typed_client
+
     async def connect(self) -> None:
         """
         Подключиться к Redis.
@@ -93,14 +344,15 @@ class RedisManager:
             redis.ConnectionError: Если не удалось подключиться
         """
         if self._connected and self._redis is not None:
-            raise RuntimeError("Уже подключено к Redis")
+            msg = "Уже подключено к Redis"
+            raise RuntimeError(msg)
 
         logger.info(
             "Подключение к Redis", url=self._url.split("@")[-1] if "@" in self._url else self._url
         )
 
         try:
-            self._redis = redis.from_url(
+            client = redis.from_url(
                 self._url,
                 max_connections=self._max_connections,
                 socket_timeout=self._socket_timeout,
@@ -109,16 +361,19 @@ class RedisManager:
             )
 
             # Проверить подключение
-            await self._redis.ping()
+            await client.ping()
+            self._redis = client
+            self._typed_client = TypedRedisClient(client)
             self._connected = True
 
-            info = await self._redis.info("server")
+            info = await client.info("server")
             redis_version = info.get("redis_version", "unknown")
             logger.info("Подключение к Redis установлено", version=redis_version)
 
         except Exception as e:
             logger.error("Ошибка подключения к Redis", error=str(e))
             self._redis = None
+            self._typed_client = None
             self._connected = False
             raise
 
@@ -128,6 +383,7 @@ class RedisManager:
             logger.info("Закрытие соединений Redis")
             await self._redis.close()
             self._redis = None
+            self._typed_client = None
             self._connected = False
             logger.info("Отключение от Redis выполнено")
 
@@ -146,10 +402,10 @@ class RedisManager:
             }
 
         try:
-            # Простой запрос для проверки
-            await self._redis.ping()
+            client = self._require_typed_client()
+            await client.ping()
 
-            info = await self._redis.info("stats")
+            info = await client.info("stats")
             return {
                 "status": "healthy",
                 "connected": True,
@@ -180,165 +436,54 @@ class RedisManager:
             key: Имя ключа
             value: Значение для установки
             ttl: Time-to-live в секундах (опционально)
-            nx: Установить только если ключ не существует (nx = "only if not exists")
-            xx: Установить только если ключ существует (xx = "only if exists")
+            nx: Установить только если ключ не существует
+            xx: Установить только если ключ существует
 
         Returns:
             True если значение установлено, иначе False
-
-        Пример:
-            >>> await redis_mgr.set("user:1", "Alice", ttl=3600)
-            >>> await redis_mgr.set("lock", "1", nx=True)  # только если не существует
         """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        options: dict[str, Any] = {}
-        if nx:
-            options["nx"] = True
-        if xx:
-            options["xx"] = True
-        if ttl is not None:
-            options["ex"] = ttl
-
-        result = await self._redis.set(key, str(value), **options)
+        client = self._require_typed_client()
+        result = await client.set(key, str(value), ex=ttl, nx=nx, xx=xx)
         return result is True
 
     async def get(self, key: str) -> str | None:
-        """
-        Получить значение по ключу.
-
-        Аргументы:
-            key: Имя ключа
-
-        Returns:
-            Значение ключа или None если ключ не существует
-
-        Пример:
-            >>> value = await redis_mgr.get("user:1")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.get(key)
+        """Получить значение по ключу."""
+        client = self._require_typed_client()
+        return await client.get(key)
 
     async def delete(self, *keys: str) -> int:
-        """
-        Удалить один или несколько ключей.
-
-        Аргументы:
-            *keys: Имена ключей для удаления
-
-        Returns:
-            Количество удалённых ключей
-
-        Пример:
-            >>> deleted = await redis_mgr.delete("key1", "key2", "key3")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
+        """Удалить ключи."""
+        client = self._require_typed_client()
         if not keys:
             return 0
-
-        return await self._redis.delete(*keys)
+        return await client.delete(*keys)
 
     async def exists(self, *keys: str) -> int:
-        """
-        Проверить существование ключей.
-
-        Аргументы:
-            *keys: Имена ключей для проверки
-
-        Returns:
-            Количество существующих ключей
-
-        Пример:
-            >>> count = await redis_mgr.exists("key1", "key2")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
+        """Проверить существование ключей."""
+        client = self._require_typed_client()
         if not keys:
             return 0
-
-        return await self._redis.exists(*keys)
+        return await client.exists(*keys)
 
     async def expire(self, key: str, ttl: int) -> bool:
-        """
-        Установить TTL для ключа.
-
-        Аргументы:
-            key: Имя ключа
-            ttl: TTL в секундах
-
-        Returns:
-            True если TTL установлен, иначе False
-
-        Пример:
-            >>> await redis_mgr.expire("key", 60)  # истечёт через 60 секунд
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.expire(key, ttl)
+        """Установить TTL для ключа."""
+        client = self._require_typed_client()
+        return await client.expire(key, ttl)
 
     async def ttl(self, key: str) -> int:
-        """
-        Получить TTL ключа.
-
-        Аргументы:
-            key: Имя ключа
-
-        Returns:
-            TTL в секундах (-1 если нет TTL, -2 если ключ не существует)
-
-        Пример:
-            >>> ttl = await redis_mgr.ttl("key")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.ttl(key)
+        """Получить TTL ключа."""
+        client = self._require_typed_client()
+        return await client.ttl(key)
 
     async def incr(self, key: str, amount: int = 1) -> int:
-        """
-        Увеличить значение ключа на amount.
-
-        Аргументы:
-            key: Имя ключа
-            amount: Значение для увеличения (по умолчанию 1)
-
-        Returns:
-            Новое значение ключа
-
-        Пример:
-            >>> new_value = await redis_mgr.incr("counter")
-            >>> new_value = await redis_mgr.incr("counter", 10)
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.incrby(key, amount)
+        """Увеличить значение ключа."""
+        client = self._require_typed_client()
+        return await client.incrby(key, amount)
 
     async def decr(self, key: str, amount: int = 1) -> int:
-        """
-        Уменьшить значение ключа на amount.
-
-        Аргументы:
-            key: Имя ключа
-            amount: Значение для уменьшения (по умолчанию 1)
-
-        Returns:
-            Новое значение ключа
-
-        Пример:
-            >>> new_value = await redis_mgr.decr("counter")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.decrby(key, amount)
+        """Уменьшить значение ключа."""
+        client = self._require_typed_client()
+        return await client.decrby(key, amount)
 
     # ==================== Хеш-операции ====================
 
@@ -348,344 +493,105 @@ class RedisManager:
         field: str,
         value: str | int | float | bool,
     ) -> int:
-        """
-        Установить значение поля в хеше.
-
-        Аргументы:
-            key: Имя ключа
-            field: Имя поля
-            value: Значение поля
-
-        Returns:
-            1 если установлено новое поле, 0 если поле обновлено
-
-        Пример:
-            >>> await redis_mgr.hset("user:1", "name", "Alice")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.hset(key, field, str(value))
+        """Установить значение поля в хеше."""
+        client = self._require_typed_client()
+        return await client.hset(key, field, str(value))
 
     async def hget(self, key: str, field: str) -> str | None:
-        """
-        Получить значение поля из хеша.
-
-        Аргументы:
-            key: Имя ключа
-            field: Имя поля
-
-        Returns:
-            Значение поля или None
-
-        Пример:
-            >>> name = await redis_mgr.hget("user:1", "name")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.hget(key, field)
+        """Получить значение поля из хеша."""
+        client = self._require_typed_client()
+        return await client.hget(key, field)
 
     async def hgetall(self, key: str) -> dict[str, str]:
-        """
-        Получить все поля и значения хеша.
-
-        Аргументы:
-            key: Имя ключа
-
-        Returns:
-            Словарь всех полей и значений
-
-        Пример:
-            >>> user_data = await redis_mgr.hgetall("user:1")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.hgetall(key)
+        """Получить все поля и значения хеша."""
+        client = self._require_typed_client()
+        return await client.hgetall(key)
 
     async def hdel(self, key: str, *fields: str) -> int:
-        """
-        Удалить поля из хеша.
-
-        Аргументы:
-            key: Имя ключа
-            *fields: Имена полей для удаления
-
-        Returns:
-            Количество удалённых полей
-
-        Пример:
-            >>> await redis_mgr.hdel("user:1", "name", "email")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
+        """Удалить поля из хеша."""
+        client = self._require_typed_client()
         if not fields:
             return 0
-
-        return await self._redis.hdel(key, *fields)
+        return await client.hdel(key, *fields)
 
     # ==================== Списки (List) ====================
 
     async def lpush(self, key: str, *values: str) -> int:
-        """
-        Добавить значения в начало списка.
-
-        Аргументы:
-            key: Имя ключа
-            *values: Значения для добавления
-
-        Returns:
-            Длина списка после добавления
-
-        Пример:
-            >>> await redis_mgr.lpush("queue", "item1", "item2")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.lpush(key, *values)
+        """Добавить значения в начало списка."""
+        client = self._require_typed_client()
+        return await client.lpush(key, *values)
 
     async def rpush(self, key: str, *values: str) -> int:
-        """
-        Добавить значения в конец списка.
-
-        Аргументы:
-            key: Имя ключа
-            *values: Значения для добавления
-
-        Returns:
-            Длина списка после добавления
-
-        Пример:
-            >>> await redis_mgr.rpush("queue", "item1", "item2")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.rpush(key, *values)
+        """Добавить значения в конец списка."""
+        client = self._require_typed_client()
+        return await client.rpush(key, *values)
 
     async def lpop(self, key: str) -> str | None:
-        """
-        Получить и удалить первый элемент списка.
-
-        Аргументы:
-            key: Имя ключа
-
-        Returns:
-            Значение первого элемента или None
-
-        Пример:
-            >>> item = await redis_mgr.lpop("queue")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        result = await self._redis.lpop(key)
-        return cast("str | None", result)
+        """Получить и удалить первый элемент списка."""
+        client = self._require_typed_client()
+        return await client.lpop(key)
 
     async def rpop(self, key: str) -> str | None:
-        """
-        Получить и удалить последний элемент списка.
-
-        Аргументы:
-            key: Имя ключа
-
-        Returns:
-            Значение последнего элемента или None
-
-        Пример:
-            >>> item = await redis_mgr.rpop("queue")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        result = await self._redis.rpop(key)
-        return cast("str | None", result)
+        """Получить и удалить последний элемент списка."""
+        client = self._require_typed_client()
+        return await client.rpop(key)
 
     async def lrange(self, key: str, start: int = 0, end: int = -1) -> list[str]:
-        """
-        Получить диапазон элементов списка.
-
-        Аргументы:
-            key: Имя ключа
-            start: Начальный индекс
-            end: Конечный индекс (-1 для всех)
-
-        Returns:
-            Список элементов
-
-        Пример:
-            >>> items = await redis_mgr.lrange("queue", 0, 9)
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.lrange(key, start, end)
+        """Получить диапазон элементов списка."""
+        client = self._require_typed_client()
+        return await client.lrange(key, start, end)
 
     async def llen(self, key: str) -> int:
-        """
-        Получить длину списка.
-
-        Аргументы:
-            key: Имя ключа
-
-        Returns:
-            Длина списка
-
-        Пример:
-            >>> length = await redis_mgr.llen("queue")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.llen(key)
+        """Получить длину списка."""
+        client = self._require_typed_client()
+        return await client.llen(key)
 
     # ==================== Множества (Set) ====================
 
     async def sadd(self, key: str, *members: str) -> int:
-        """
-        Добавить элементы в множество.
+        """Добавить элементы в множество."""
+        client = self._require_typed_client()
+        return await client.sadd(key, *members)
 
-        Аргументы:
-            key: Имя ключа
-            *members: Элементы для добавления
-
-        Returns:
-            Количество добавленных элементов
-
-        Пример:
-            >>> await redis_mgr.sadd("tags", "python", "redis", "async")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.sadd(key, *members)
-
-    async def smembers(self, key: str) -> set[str]:
-        """
-        Получить все элементы множества.
-
-        Аргументы:
-            key: Имя ключа
-
-        Returns:
-            Множество элементов
-
-        Пример:
-            >>> tags = await redis_mgr.smembers("tags")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.smembers(key)
+    async def smembers(self, key: str) -> Set[str]:
+        """Получить все элементы множества."""
+        client = self._require_typed_client()
+        return await client.smembers(key)
 
     async def sismember(self, key: str, member: str) -> bool:
-        """
-        Проверить является ли элемент членом множества.
-
-        Аргументы:
-            key: Имя ключа
-            member: Элемент для проверки
-
-        Returns:
-            True если элемент в множестве
-
-        Пример:
-            >>> is_member = await redis_mgr.sismember("tags", "python")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        result = await self._redis.sismember(key, member)
-        return bool(result)
+        """Проверить членство в множестве."""
+        client = self._require_typed_client()
+        result = await client.sismember(key, member)
+        return result == 1
 
     async def srem(self, key: str, *members: str) -> int:
-        """
-        Удалить элементы из множества.
-
-        Аргументы:
-            key: Имя ключа
-            *members: Элементы для удаления
-
-        Returns:
-            Количество удалённых элементов
-
-        Пример:
-            >>> await redis_mgr.srem("tags", "python")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
+        """Удалить элементы из множества."""
+        client = self._require_typed_client()
         if not members:
             return 0
-
-        return await self._redis.srem(key, *members)
+        return await client.srem(key, *members)
 
     # ==================== Pub/Sub ====================
 
     @asynccontextmanager
     async def pubsub(self) -> AsyncIterator[PubSub]:
-        """
-        Контекстный менеджер для Pub/Sub.
-
-        Yields:
-            PubSub: Объект PubSub для подписки на каналы
-
-        Пример:
-            >>> async with redis_mgr.pubsub() as pub:
-            ...     await pub.subscribe("channel1")
-            ...     async for msg in pub.listen():
-            ...         print(msg)
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        pubsub = self._redis.pubsub()
+        """Контекстный менеджер для Pub/Sub."""
+        client = self._require_typed_client()
+        pubsub = client.pubsub()
         try:
             yield pubsub
         finally:
             await pubsub.close()
 
     async def publish(self, channel: str, message: str | int | float | bool) -> int:
-        """
-        Опубликовать сообщение в канал.
-
-        Аргументы:
-            channel: Имя канала
-            message: Сообщение для публикации
-
-        Returns:
-            Количество подписчиков, получивших сообщение
-
-        Пример:
-            >>> await redis_mgr.publish("trades", "BTC/USDT bought: 0.5")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.publish(channel, str(message))
+        """Опубликовать сообщение в канал."""
+        client = self._require_typed_client()
+        return await client.publish(channel, str(message))
 
     async def subscribe(self, *channels: str) -> PubSub:
-        """
-        Подписаться на каналы.
-
-        Аргументы:
-            *channels: Имена каналов для подписки
-
-        Returns:
-            Объект PubSub
-
-        Пример:
-            >>> pubsub = await redis_mgr.subscribe("trades", "orders")
-            >>> async for msg in pubsub.listen():
-            ...     print(msg)
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        pubsub = self._redis.pubsub()
+        """Подписаться на каналы."""
+        client = self._require_typed_client()
+        pubsub = client.pubsub()
         await pubsub.subscribe(*channels)
         return pubsub
 
@@ -698,31 +604,9 @@ class RedisManager:
         maxlen: int | None = None,
         approximate: bool = True,
     ) -> str:
-        """
-        Добавить сообщение в stream.
-
-        Аргументы:
-            stream: Имя stream
-            fields: Поля сообщения
-            maxlen: Максимальная длина stream (опционально)
-            approximate: Использовать приблизительный maxlen (быстрее)
-
-        Returns:
-            ID добавленного сообщения
-
-        Пример:
-            >>> msg_id = await redis_mgr.xadd("events", {"type": "trade", "symbol": "BTC"})
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        options: dict[str, Any] = {}
-        if maxlen is not None:
-            options["maxlen"] = maxlen
-            if approximate:
-                options["~"] = "*"  # Приблизительное количество
-
-        return await self._redis.xadd(stream, fields, **options)
+        """Добавить сообщение в stream."""
+        client = self._require_typed_client()
+        return await client.xadd(stream, fields, maxlen=maxlen, approximate=approximate)
 
     async def xread(
         self,
@@ -730,24 +614,9 @@ class RedisManager:
         count: int | None = None,
         block: int | None = None,
     ) -> list[list[tuple[str, dict[str, str]]]]:
-        """
-        Прочитать сообщения из stream.
-
-        Аргументы:
-            streams: Словарь {stream_name: last_id} для каждого stream
-            count: Максимум сообщений на stream
-            block: Блокировать milliseconds если нет сообщений
-
-        Returns:
-            Список сообщений
-
-        Пример:
-            >>> msgs = await redis_mgr.xread({"events": "0"}, block=5000)
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.xread(streams, count=count, block=block)
+        """Прочитать сообщения из stream."""
+        client = self._require_typed_client()
+        return await client.xread(streams, count=count, block=block)
 
     async def xrange(
         self,
@@ -756,143 +625,46 @@ class RedisManager:
         end: str = "+",
         count: int | None = None,
     ) -> list[tuple[str, dict[str, str]]]:
-        """
-        Прочитать диапазон сообщений из stream.
-
-        Аргументы:
-            stream: Имя stream
-            start: Начальный ID (по умолчанию "-")
-            end: Конечный ID (по умолчанию "+")
-            count: Максимум сообщений
-
-        Returns:
-            Список сообщений (id, fields)
-
-        Пример:
-            >>> msgs = await redis_mgr.xrange("events", count=10)
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.xrange(stream, min=start, max=end, count=count)
+        """Прочитать диапазон сообщений из stream."""
+        client = self._require_typed_client()
+        return await client.xrange(stream, start, end, count=count)
 
     async def xlen(self, stream: str) -> int:
-        """
-        Получить длину stream.
-
-        Аргументы:
-            stream: Имя stream
-
-        Returns:
-            Количество сообщений в stream
-
-        Пример:
-            >>> length = await redis_mgr.xlen("events")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.xlen(stream)
+        """Получить длину stream."""
+        client = self._require_typed_client()
+        return await client.xlen(stream)
 
     async def xdel(self, stream: str, *ids: str) -> int:
-        """
-        Удалить сообщения из stream.
-
-        Аргументы:
-            stream: Имя stream
-            *ids: ID сообщений для удаления
-
-        Returns:
-            Количество удалённых сообщений
-
-        Пример:
-            >>> await redis_mgr.xdel("events", "1234567890-0")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
+        """Удалить сообщения из stream."""
+        client = self._require_typed_client()
         if not ids:
             return 0
-
-        return await self._redis.xdel(stream, *ids)
+        return await client.xdel(stream, *ids)
 
     # ==================== Pipeline ====================
 
     async def pipeline(self) -> Pipeline:
-        """
-        Создать pipeline для пакетного выполнения команд.
-
-        Returns:
-            Pipeline объект
-
-        Пример:
-            >>> pipe = await redis_mgr.pipeline()
-            >>> pipe.set("key1", "value1")
-            >>> pipe.get("key2")
-            >>> results = await pipe.execute()
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return self._redis.pipeline()
+        """Создать pipeline."""
+        client = self._require_typed_client()
+        return client.pipeline()
 
     # ==================== Утилиты ====================
 
     async def keys(self, pattern: str) -> list[str]:
-        """
-        Найти ключи по шаблону.
-
-        ⚠️  Внимание: Не использовать в production на больших数据集.
-
-        Аргументы:
-            pattern: Шаблон (например, "user:*")
-
-        Returns:
-            Список найденных ключей
-
-        Пример:
-            >>> keys = await redis_mgr.keys("user:*")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.keys(pattern)
+        """Найти ключи по шаблону."""
+        client = self._require_typed_client()
+        return await client.keys(pattern)
 
     async def flushdb(self) -> bool:
-        """
-        Очистить текущую базу данных Redis.
-
-        ⚠️  Внимание: Удаляет все ключи в текущей базе данных!
-
-        Returns:
-            True при успехе
-
-        Пример:
-            >>> await redis_mgr.flushdb()
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
+        """Очистить базу данных."""
+        client = self._require_typed_client()
         logger.warning("Очистка базы данных Redis")
-        return await self._redis.flushdb()
+        return await client.flushdb()
 
     async def info(self, section: str | None = None) -> dict[str, Any]:
-        """
-        Получить информацию о Redis.
-
-        Аргументы:
-            section: Секция информации (опционально)
-
-        Returns:
-            Словарь с информацией
-
-        Пример:
-            >>> info = await redis_mgr.info("stats")
-        """
-        if self._redis is None:
-            raise RuntimeError("Нет подключения к Redis. Вызовите connect()")
-
-        return await self._redis.info(section)
+        """Получить информацию о Redis."""
+        client = self._require_typed_client()
+        return await client.info(section)
 
 
 # Глобальный экземпляр
@@ -900,12 +672,7 @@ _redis_manager: RedisManager | None = None
 
 
 def get_redis() -> RedisManager:
-    """
-    Получить глобальный экземпляр RedisManager.
-
-    Returns:
-        Экземпляр менеджера Redis
-    """
+    """Получить глобальный экземпляр RedisManager."""
     global _redis_manager  # noqa: PLW0603
     if _redis_manager is None:
         _redis_manager = RedisManager()
@@ -913,12 +680,7 @@ def get_redis() -> RedisManager:
 
 
 async def init_redis() -> RedisManager:
-    """
-    Инициализировать подключение к Redis.
-
-    Returns:
-        Подключённый экземпляр RedisManager
-    """
+    """Инициализировать подключение к Redis."""
     redis_mgr = get_redis()
     await redis_mgr.connect()
     return redis_mgr

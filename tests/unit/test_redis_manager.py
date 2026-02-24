@@ -9,7 +9,7 @@
 
 import pytest
 
-from src.core.redis_manager import RedisManager, get_redis
+from src.core.redis_manager import RedisManager, TypedRedisClient, get_redis
 
 
 class TestRedisManagerInit:
@@ -53,7 +53,7 @@ class TestRedisManagerOperations:
         """Тест установки и получения значения."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.set("test_key", "test_value")
@@ -65,7 +65,7 @@ class TestRedisManagerOperations:
         """Тест установки значения с TTL."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.set("ttl_key", "ttl_value", ttl=60)
@@ -80,7 +80,7 @@ class TestRedisManagerOperations:
         """Тест получения несуществующего ключа."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             value = await redis_mgr.get("nonexistent_key_xyz")
@@ -91,7 +91,7 @@ class TestRedisManagerOperations:
         """Тест удаления ключа."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.set("delete_key", "delete_value")
@@ -106,7 +106,7 @@ class TestRedisManagerOperations:
         """Тест удаления нескольких ключей."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.set("key1", "value1")
@@ -121,7 +121,7 @@ class TestRedisManagerOperations:
         """Тест проверки существования ключа."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.set("exists_key", "value")
@@ -133,7 +133,7 @@ class TestRedisManagerOperations:
         """Тест установки TTL на существующий ключ."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.set("expire_key", "value")
@@ -148,7 +148,7 @@ class TestRedisManagerOperations:
         """Тест инкремента."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.set("counter", "10")
@@ -163,7 +163,7 @@ class TestRedisManagerOperations:
         """Тест декремента."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.set("decr_counter", "10")
@@ -183,7 +183,7 @@ class TestRedisManagerHashOperations:
         """Тест установки и получения значения хеша."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.hset("user:1", "name", "Alice")
@@ -200,7 +200,7 @@ class TestRedisManagerHashOperations:
         """Тест получения всех полей хеша."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.hset("user:2", "name", "Bob")
@@ -214,7 +214,7 @@ class TestRedisManagerHashOperations:
         """Тест удаления полей хеша."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.hset("user:3", "name", "Charlie")
@@ -236,7 +236,7 @@ class TestRedisManagerListOperations:
         """Тест добавления в список."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.lpush("queue", "item1")
@@ -250,7 +250,7 @@ class TestRedisManagerListOperations:
         """Тест получения и удаления из списка."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.rpush("mylist", "a", "b", "c")
@@ -266,7 +266,7 @@ class TestRedisManagerListOperations:
         """Тест получения длины списка."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.rpush("listlen", "a", "b", "c")
@@ -283,7 +283,7 @@ class TestRedisManagerSetOperations:
         """Тест добавления в множество и получения элементов."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.sadd("tags", "python", "redis", "async", "python")
@@ -296,7 +296,7 @@ class TestRedisManagerSetOperations:
         """Тест проверки членства в множестве."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.sadd("colors", "red", "green", "blue")
@@ -312,7 +312,7 @@ class TestRedisManagerSetOperations:
         """Тест удаления из множества."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.sadd("letters", "a", "b", "c")
@@ -332,7 +332,7 @@ class TestRedisManagerPubSub:
         """Тест публикации и подписки."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             # Подписаться на канал
@@ -360,7 +360,7 @@ class TestRedisManagerStreams:
         """Тест добавления в stream и получения длины."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             msg_id = await redis_mgr.xadd("test_stream", {"event": "test", "data": "value"})
@@ -374,7 +374,7 @@ class TestRedisManagerStreams:
         """Тест получения диапазона из stream."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.xadd("test_stream2", {"field1": "value1"})
@@ -388,7 +388,7 @@ class TestRedisManagerStreams:
         """Тест удаления из stream."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             msg_id = await redis_mgr.xadd("test_stream3", {"data": "value"})
@@ -415,6 +415,7 @@ class TestRedisManagerHealthCheck:
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             health = await redis_mgr.health_check()
@@ -432,7 +433,7 @@ class TestRedisManagerUtilities:
         """Тест поиска ключей по шаблону."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             await redis_mgr.set("pattern_test_1", "value1")
@@ -446,7 +447,7 @@ class TestRedisManagerUtilities:
         """Тест получения информации о Redis."""
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
-            redis_mgr._redis = client
+            redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
             info = await redis_mgr.info("server")

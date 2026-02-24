@@ -218,8 +218,10 @@ module = [
     "ccxt.*",
     "hvac.*",
     "timescaledb.*",
+    "redis.*",
 ]
 ignore_missing_imports = true
+follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 module = "tests/*"
