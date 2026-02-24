@@ -12,17 +12,21 @@ import uuid
 
 import pytest
 
+from cryptotechnolog.config import get_logger
 from src.core.database import DatabaseManager
 from src.core.health import (
     DatabaseHealthCheck,
     HealthChecker,
     HealthStatus,
+    MetricsHealthCheck,
     RedisHealthCheck,
     init_health_checker,
 )
 from src.core.metrics import MetricsCollector
-from src.core.health import MetricsHealthCheck
 from src.core.redis_manager import RedisManager
+
+
+logger = get_logger(__name__)
 
 
 @pytest.mark.integration
@@ -364,10 +368,5 @@ class TestHealthCheckIntegration:
             await db_manager.disconnect()
             await redis_manager.disconnect()
 
-
-# Импорт для логирования
-from cryptotechnolog.config import get_logger
-
-logger = get_logger(__name__)
 
 pytest.mark.integration(__name__)
