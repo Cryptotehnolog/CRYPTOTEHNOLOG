@@ -51,28 +51,34 @@ class TestRedisManagerOperations:
     @pytest.mark.asyncio
     async def test_set_and_get(self, redis_client_factory) -> None:
         """Тест установки и получения значения."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set_value("test_key", "test_value")
-            value = await redis_mgr.get("test_key")
+            key = f"test_key:{uuid.uuid4()}"
+            await redis_mgr.set_value(key, "test_value")
+            value = await redis_mgr.get(key)
             assert value == "test_value"
 
     @pytest.mark.asyncio
     async def test_set_with_ttl(self, redis_client_factory) -> None:
         """Тест установки значения с TTL."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set_value("ttl_key", "ttl_value", ttl=60)
-            value = await redis_mgr.get("ttl_key")
+            key = f"ttl_key:{uuid.uuid4()}"
+            await redis_mgr.set_value(key, "ttl_value", ttl=60)
+            value = await redis_mgr.get(key)
             assert value == "ttl_value"
 
-            ttl = await redis_mgr.ttl("ttl_key")
+            ttl = await redis_mgr.ttl(key)
             assert 58 <= ttl <= 60
 
     @pytest.mark.asyncio
@@ -89,88 +95,106 @@ class TestRedisManagerOperations:
     @pytest.mark.asyncio
     async def test_delete(self, redis_client_factory) -> None:
         """Тест удаления ключа."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set_value("delete_key", "delete_value")
-            deleted = await redis_mgr.delete("delete_key")
+            key = f"delete_key:{uuid.uuid4()}"
+            await redis_mgr.set_value(key, "delete_value")
+            deleted = await redis_mgr.delete(key)
             assert deleted == 1
 
-            value = await redis_mgr.get("delete_key")
+            value = await redis_mgr.get(key)
             assert value is None
 
     @pytest.mark.asyncio
     async def test_delete_multiple(self, redis_client_factory) -> None:
         """Тест удаления нескольких ключей."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set_value("key1", "value1")
-            await redis_mgr.set_value("key2", "value2")
-            await redis_mgr.set_value("key3", "value3")
+            prefix = f"key:{uuid.uuid4().hex[:8]}"
+            await redis_mgr.set_value(f"{prefix}1", "value1")
+            await redis_mgr.set_value(f"{prefix}2", "value2")
+            await redis_mgr.set_value(f"{prefix}3", "value3")
 
-            deleted = await redis_mgr.delete("key1", "key2", "key3")
+            deleted = await redis_mgr.delete(f"{prefix}1", f"{prefix}2", f"{prefix}3")
             assert deleted == 3
 
     @pytest.mark.asyncio
     async def test_exists(self, redis_client_factory) -> None:
         """Тест проверки существования ключа."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set_value("exists_key", "value")
-            count = await redis_mgr.exists("exists_key", "nonexistent")
+            key = f"exists_key:{uuid.uuid4()}"
+            await redis_mgr.set_value(key, "value")
+            count = await redis_mgr.exists(key, "nonexistent")
             assert count == 1
 
     @pytest.mark.asyncio
     async def test_expire(self, redis_client_factory) -> None:
         """Тест установки TTL на существующий ключ."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set_value("expire_key", "value")
-            result = await redis_mgr.expire("expire_key", 100)
+            key = f"expire_key:{uuid.uuid4()}"
+            await redis_mgr.set_value(key, "value")
+            result = await redis_mgr.expire(key, 100)
             assert result is True
 
-            ttl = await redis_mgr.ttl("expire_key")
+            ttl = await redis_mgr.ttl(key)
             assert 98 <= ttl <= 100
 
     @pytest.mark.asyncio
     async def test_incr(self, redis_client_factory) -> None:
         """Тест инкремента."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set_value("counter", "10")
-            new_value = await redis_mgr.incr("counter")
+            key = f"counter:{uuid.uuid4()}"
+            await redis_mgr.set_value(key, "10")
+            new_value = await redis_mgr.incr(key)
             assert new_value == 11
 
-            new_value = await redis_mgr.incr("counter", 5)
+            new_value = await redis_mgr.incr(key, 5)
             assert new_value == 16
 
     @pytest.mark.asyncio
     async def test_decr(self, redis_client_factory) -> None:
         """Тест декремента."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set_value("decr_counter", "10")
-            new_value = await redis_mgr.decr("decr_counter")
+            key = f"decr_counter:{uuid.uuid4()}"
+            await redis_mgr.set_value(key, "10")
+            new_value = await redis_mgr.decr(key)
             assert new_value == 9
 
-            new_value = await redis_mgr.decr("decr_counter", 3)
+            new_value = await redis_mgr.decr(key, 3)
             assert new_value == 6
 
 
@@ -181,16 +205,19 @@ class TestRedisManagerHashOperations:
     @pytest.mark.asyncio
     async def test_hset_hget(self, redis_client_factory) -> None:
         """Тест установки и получения значения хеша."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.hset("user:1", "name", "Alice")
-            await redis_mgr.hset("user:1", "age", "30")
+            key = f"user:{uuid.uuid4()}"
+            await redis_mgr.hset(key, "name", "Alice")
+            await redis_mgr.hset(key, "age", "30")
 
-            name = await redis_mgr.hget("user:1", "name")
-            age = await redis_mgr.hget("user:1", "age")
+            name = await redis_mgr.hget(key, "name")
+            age = await redis_mgr.hget(key, "age")
 
             assert name == "Alice"
             assert age == "30"
@@ -198,32 +225,38 @@ class TestRedisManagerHashOperations:
     @pytest.mark.asyncio
     async def test_hgetall(self, redis_client_factory) -> None:
         """Тест получения всех полей хеша."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.hset("user:2", "name", "Bob")
-            await redis_mgr.hset("user:2", "email", "bob@example.com")
+            key = f"user:{uuid.uuid4()}"
+            await redis_mgr.hset(key, "name", "Bob")
+            await redis_mgr.hset(key, "email", "bob@example.com")
 
-            data = await redis_mgr.hgetall("user:2")
+            data = await redis_mgr.hgetall(key)
             assert data == {"name": "Bob", "email": "bob@example.com"}
 
     @pytest.mark.asyncio
     async def test_hdel(self, redis_client_factory) -> None:
         """Тест удаления полей хеша."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.hset("user:3", "name", "Charlie")
-            await redis_mgr.hset("user:3", "email", "charlie@example.com")
+            key = f"user:{uuid.uuid4()}"
+            await redis_mgr.hset(key, "name", "Charlie")
+            await redis_mgr.hset(key, "email", "charlie@example.com")
 
-            deleted = await redis_mgr.hdel("user:3", "email")
+            deleted = await redis_mgr.hdel(key, "email")
             assert deleted == 1
 
-            data = await redis_mgr.hgetall("user:3")
+            data = await redis_mgr.hgetall(key)
             assert data == {"name": "Charlie"}
 
 
@@ -234,43 +267,54 @@ class TestRedisManagerListOperations:
     @pytest.mark.asyncio
     async def test_lpush_rpush(self, redis_client_factory) -> None:
         """Тест добавления в список."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.lpush("queue", "item1")
-            await redis_mgr.lpush("queue", "item2")
+            key = f"queue:{uuid.uuid4()}"
+            await redis_mgr.lpush(key, "item1")
+            await redis_mgr.lpush(key, "item2")
 
-            items = await redis_mgr.lrange("queue")
+            items = await redis_mgr.lrange(key)
             assert items == ["item2", "item1"]
 
     @pytest.mark.asyncio
     async def test_lpop_rpop(self, redis_client_factory) -> None:
         """Тест получения и удаления из списка."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.rpush("mylist", "a", "b", "c")
+            # Уникальный ключ для изоляции тестов
+            key = f"mylist:{uuid.uuid4()}"
 
-            item = await redis_mgr.lpop("mylist")
+            await redis_mgr.rpush(key, "a", "b", "c")
+
+            item = await redis_mgr.lpop(key)
             assert item == "a"
 
-            item = await redis_mgr.rpop("mylist")
+            item = await redis_mgr.rpop(key)
             assert item == "c"
 
     @pytest.mark.asyncio
     async def test_llen(self, redis_client_factory) -> None:
         """Тест получения длины списка."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.rpush("listlen", "a", "b", "c")
-            length = await redis_mgr.llen("listlen")
+            key = f"listlen:{uuid.uuid4()}"
+            await redis_mgr.rpush(key, "a", "b", "c")
+            length = await redis_mgr.llen(key)
             assert length == 3
 
 
@@ -281,45 +325,54 @@ class TestRedisManagerSetOperations:
     @pytest.mark.asyncio
     async def test_sadd_smembers(self, redis_client_factory) -> None:
         """Тест добавления в множество и получения элементов."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.sadd("tags", "python", "redis", "async", "python")
+            key = f"tags:{uuid.uuid4()}"
+            await redis_mgr.sadd(key, "python", "redis", "async", "python")
 
-            members = await redis_mgr.smembers("tags")
+            members = await redis_mgr.smembers(key)
             assert members == {"python", "redis", "async"}
 
     @pytest.mark.asyncio
     async def test_sismember(self, redis_client_factory) -> None:
         """Тест проверки членства в множестве."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.sadd("colors", "red", "green", "blue")
+            key = f"colors:{uuid.uuid4()}"
+            await redis_mgr.sadd(key, "red", "green", "blue")
 
-            is_member = await redis_mgr.sismember("colors", "green")
+            is_member = await redis_mgr.sismember(key, "green")
             assert is_member is True
 
-            is_member = await redis_mgr.sismember("colors", "yellow")
+            is_member = await redis_mgr.sismember(key, "yellow")
             assert is_member is False
 
     @pytest.mark.asyncio
     async def test_srem(self, redis_client_factory) -> None:
         """Тест удаления из множества."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.sadd("letters", "a", "b", "c")
-            removed = await redis_mgr.srem("letters", "b")
+            key = f"letters:{uuid.uuid4()}"
+            await redis_mgr.sadd(key, "a", "b", "c")
+            removed = await redis_mgr.srem(key, "b")
             assert removed == 1
 
-            members = await redis_mgr.smembers("letters")
+            members = await redis_mgr.smembers(key)
             assert members == {"a", "c"}
 
 
@@ -330,16 +383,19 @@ class TestRedisManagerPubSub:
     @pytest.mark.asyncio
     async def test_publish_subscribe(self, redis_client_factory) -> None:
         """Тест публикации и подписки."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
+            channel = f"test_channel:{uuid.uuid4()}"
             # Подписаться на канал
-            pubsub = await redis_mgr.subscribe("test_channel")
+            pubsub = await redis_mgr.subscribe(channel)
 
             # Опубликовать сообщение
-            subscribers = await redis_mgr.publish("test_channel", "test_message")
+            subscribers = await redis_mgr.publish(channel, "test_message")
             assert subscribers >= 0
 
             # Получить сообщение
@@ -347,7 +403,7 @@ class TestRedisManagerPubSub:
             if message:
                 assert message["data"] == "test_message"
 
-            await pubsub.unsubscribe("test_channel")
+            await pubsub.unsubscribe(channel)
             await pubsub.close()
 
 
@@ -358,41 +414,50 @@ class TestRedisManagerStreams:
     @pytest.mark.asyncio
     async def test_xadd_xlen(self, redis_client_factory) -> None:
         """Тест добавления в stream и получения длины."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            msg_id = await redis_mgr.xadd("test_stream", {"event": "test", "data": "value"})
+            key = f"test_stream:{uuid.uuid4()}"
+            msg_id = await redis_mgr.xadd(key, {"event": "test", "data": "value"})
             assert msg_id is not None
 
-            length = await redis_mgr.xlen("test_stream")
+            length = await redis_mgr.xlen(key)
             assert length == 1
 
     @pytest.mark.asyncio
     async def test_xrange(self, redis_client_factory) -> None:
         """Тест получения диапазона из stream."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.xadd("test_stream2", {"field1": "value1"})
-            await redis_mgr.xadd("test_stream2", {"field2": "value2"})
+            key = f"test_stream2:{uuid.uuid4()}"
+            await redis_mgr.xadd(key, {"field1": "value1"})
+            await redis_mgr.xadd(key, {"field2": "value2"})
 
-            messages = await redis_mgr.xrange("test_stream2")
+            messages = await redis_mgr.xrange(key)
             assert len(messages) == 2
 
     @pytest.mark.asyncio
     async def test_xdel(self, redis_client_factory) -> None:
         """Тест удаления из stream."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            msg_id = await redis_mgr.xadd("test_stream3", {"data": "value"})
-            deleted = await redis_mgr.xdel("test_stream3", msg_id)
+            key = f"test_stream3:{uuid.uuid4()}"
+            msg_id = await redis_mgr.xadd(key, {"data": "value"})
+            deleted = await redis_mgr.xdel(key, msg_id)
             assert deleted == 1
 
 
@@ -431,15 +496,18 @@ class TestRedisManagerUtilities:
     @pytest.mark.asyncio
     async def test_keys_pattern(self, redis_client_factory) -> None:
         """Тест поиска ключей по шаблону."""
+        import uuid
+
         async with await redis_client_factory.create() as client:
             redis_mgr = RedisManager()
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set_value("pattern_test_1", "value1")
-            await redis_mgr.set_value("pattern_test_2", "value2")
+            prefix = f"pattern_test_{uuid.uuid4().hex[:8]}"
+            await redis_mgr.set_value(f"{prefix}_1", "value1")
+            await redis_mgr.set_value(f"{prefix}_2", "value2")
 
-            keys = await redis_mgr.keys("pattern_test_*")
+            keys = await redis_mgr.keys(f"{prefix}_*")
             assert len(keys) >= 2
 
     @pytest.mark.asyncio
