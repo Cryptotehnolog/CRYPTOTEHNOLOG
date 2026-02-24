@@ -133,7 +133,7 @@ class DatabaseManager:
             raise RuntimeError("Нет подключения к БД. Вызовите connect()")
 
         async with self._pool.acquire() as conn:
-            yield cast(asyncpg.Connection, conn)
+            yield cast("asyncpg.Connection", conn)
 
     @asynccontextmanager
     async def transaction(self) -> AsyncIterator[asyncpg.Connection]:
