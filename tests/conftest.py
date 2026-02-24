@@ -62,8 +62,13 @@ async def db_manager(db_pool: "Pool") -> AsyncGenerator["DatabaseManager", None]
     from src.core.database import DatabaseManager  # noqa: PLC0415
 
     db = DatabaseManager(min_size=2, max_size=10)
+    # Используем переданный пул
     db._pool = db_pool
     db._connected = True
+
+    # Прогрев пула - выполняем простой запрос чтобы убедиться что всё работает
+    async with db_pool.acquire() as conn:
+        await conn.fetchval("SELECT 1")
 
     yield db
 

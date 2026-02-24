@@ -169,9 +169,13 @@ class TestDatabaseManagerHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_with_pool(self, db_manager: DatabaseManager) -> None:
         """Health check с подключённым пулом."""
+        # Сначала проверим что менеджер работает
+        result = await db_manager.fetchval("SELECT 1")
+        assert result == 1
+
         health = await db_manager.health_check()
 
-        assert health["status"] == "healthy"
+        assert health["status"] == "healthy", f"Expected healthy, got {health}"
         assert health["connected"]
         assert "pool_size" in health
 
@@ -190,8 +194,13 @@ class TestDatabaseManagerTableInfo:
     @pytest.mark.asyncio
     async def test_table_exists(self, db_manager: DatabaseManager) -> None:
         """Проверка существования таблицы."""
+        # Сначала проверим что менеджер работает
+        result = await db_manager.fetchval("SELECT 1")
+        assert result == 1
+
         # Системная таблица
-        assert await db_manager.table_exists("pg_class")
+        exists = await db_manager.table_exists("pg_class")
+        assert exists is True, f"Expected True, got {exists}"
 
         # Несуществующая таблица
         assert not await db_manager.table_exists("nonexistent_table_xyz")
