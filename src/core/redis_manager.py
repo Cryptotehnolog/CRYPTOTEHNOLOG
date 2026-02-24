@@ -325,7 +325,7 @@ class RedisManager:
         return self._connected and self._redis is not None
 
     @property
-    def redis(self) -> "Redis | None":
+    def redis(self) -> Redis | None:
         """Получить экземпляр Redis."""
         return self._redis
 
