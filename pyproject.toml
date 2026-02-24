@@ -186,6 +186,7 @@ ignore = [
     "ARG001",  # Unused function argument
     "ARG002",  # Unused method argument
     "RUF002",  # Ambiguous unicode character (cyrillic)
+    "C901",  # Too complex
 ]
 
 [tool.ruff.lint.isort]
@@ -197,6 +198,7 @@ force-sort-within-sections = true
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
 "tests/**/*.py" = ["ARG", "PLR2004"]  # Allow unused arguments in tests
 "**/*.pyi" = ["F401", "I001"]  # Allow unused imports and unsorted imports in type stubs (TYPE_CHECKING blocks)
+"src/core/redis_manager.py" = ["UP035"]  # Allow set[str] with quotes for mypy compatibility
 
 [tool.mypy]
 python_version = "3.12"

@@ -161,7 +161,7 @@ class TypedRedisClient:
         result = cast(int, await self._client.sadd(key, *members))
         return result
 
-    async def smembers(self, key: str) -> "set[str]":
+    async def smembers(self, key: str) -> set[str]:
         """Получить все элементы множества."""
         result = cast(set[str], await self._client.smembers(key))
         return result
@@ -554,7 +554,7 @@ class RedisManager:
         client = self._require_typed_client()
         return await client.sadd(key, *members)
 
-    async def smembers(self, key: str) -> "set[str]":
+    async def smembers(self, key: str) -> set[str]:
         """Получить все элементы множества."""
         client = self._require_typed_client()
         return await client.smembers(key)
