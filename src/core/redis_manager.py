@@ -16,13 +16,14 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, cast
 
 import redis.asyncio as redis
-from redis.asyncio import Redis
-from redis.asyncio.client import Pipeline, PubSub
 
 from cryptotechnolog.config import get_logger, get_settings
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
+
+    from redis.asyncio import Redis
+    from redis.asyncio.client import Pipeline, PubSub
 
 logger = get_logger(__name__)
 
@@ -38,13 +39,13 @@ class TypedRedisClient:
     Это внутренняя обёртка, используемая RedisManager.
     """
 
-    def __init__(self, client: Redis) -> None:
+    def __init__(self, client: "Redis") -> None:
         """Инициализировать обёртку с клиентом Redis."""
         self._client = client
 
     # ==================== Основные операции ====================
 
-    async def set(
+    async def set_value(
         self,
         key: str,
         value: str,
@@ -160,7 +161,7 @@ class TypedRedisClient:
         result = cast(int, await self._client.sadd(key, *members))
         return result
 
-    async def smembers(self, key: str) -> set[str]:
+    async def smembers(self, key: str) -> "set[str]":
         """Получить все элементы множества."""
         result = cast(set[str], await self._client.smembers(key))
         return result
@@ -308,7 +309,7 @@ class RedisManager:
         self._socket_timeout = socket_timeout or settings.redis_pool_socket_timeout
         self._url = settings.redis_url
 
-        self._redis: Redis | None = None
+        self._redis: "Redis | None" = None
         self._typed_client: TypedRedisClient | None = None
         self._connected = False
 
@@ -324,7 +325,7 @@ class RedisManager:
         return self._connected and self._redis is not None
 
     @property
-    def redis(self) -> Redis | None:
+    def redis(self) -> "Redis | None":
         """Получить экземпляр Redis."""
         return self._redis
 
@@ -421,7 +422,7 @@ class RedisManager:
 
     # ==================== Основные операции ====================
 
-    async def set(
+    async def set_value(
         self,
         key: str,
         value: str | int | float | bool,
@@ -443,7 +444,7 @@ class RedisManager:
             True если значение установлено, иначе False
         """
         client = self._require_typed_client()
-        result = await client.set(key, str(value), ex=ttl, nx=nx, xx=xx)
+        result = await client.set_value(key, str(value), ex=ttl, nx=nx, xx=xx)
         return result is True
 
     async def get(self, key: str) -> str | None:
@@ -553,7 +554,7 @@ class RedisManager:
         client = self._require_typed_client()
         return await client.sadd(key, *members)
 
-    async def smembers(self, key: str) -> set[str]:
+    async def smembers(self, key: str) -> "set[str]":
         """Получить все элементы множества."""
         client = self._require_typed_client()
         return await client.smembers(key)

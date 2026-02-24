@@ -56,7 +56,7 @@ class TestRedisManagerOperations:
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set("test_key", "test_value")
+            await redis_mgr.set_value("test_key", "test_value")
             value = await redis_mgr.get("test_key")
             assert value == "test_value"
 
@@ -68,7 +68,7 @@ class TestRedisManagerOperations:
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set("ttl_key", "ttl_value", ttl=60)
+            await redis_mgr.set_value("ttl_key", "ttl_value", ttl=60)
             value = await redis_mgr.get("ttl_key")
             assert value == "ttl_value"
 
@@ -94,7 +94,7 @@ class TestRedisManagerOperations:
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set("delete_key", "delete_value")
+            await redis_mgr.set_value("delete_key", "delete_value")
             deleted = await redis_mgr.delete("delete_key")
             assert deleted == 1
 
@@ -109,9 +109,9 @@ class TestRedisManagerOperations:
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set("key1", "value1")
-            await redis_mgr.set("key2", "value2")
-            await redis_mgr.set("key3", "value3")
+            await redis_mgr.set_value("key1", "value1")
+            await redis_mgr.set_value("key2", "value2")
+            await redis_mgr.set_value("key3", "value3")
 
             deleted = await redis_mgr.delete("key1", "key2", "key3")
             assert deleted == 3
@@ -124,7 +124,7 @@ class TestRedisManagerOperations:
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set("exists_key", "value")
+            await redis_mgr.set_value("exists_key", "value")
             count = await redis_mgr.exists("exists_key", "nonexistent")
             assert count == 1
 
@@ -136,7 +136,7 @@ class TestRedisManagerOperations:
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set("expire_key", "value")
+            await redis_mgr.set_value("expire_key", "value")
             result = await redis_mgr.expire("expire_key", 100)
             assert result is True
 
@@ -151,7 +151,7 @@ class TestRedisManagerOperations:
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set("counter", "10")
+            await redis_mgr.set_value("counter", "10")
             new_value = await redis_mgr.incr("counter")
             assert new_value == 11
 
@@ -166,7 +166,7 @@ class TestRedisManagerOperations:
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set("decr_counter", "10")
+            await redis_mgr.set_value("decr_counter", "10")
             new_value = await redis_mgr.decr("decr_counter")
             assert new_value == 9
 
@@ -436,8 +436,8 @@ class TestRedisManagerUtilities:
             redis_mgr._typed_client = TypedRedisClient(client)
             redis_mgr._connected = True
 
-            await redis_mgr.set("pattern_test_1", "value1")
-            await redis_mgr.set("pattern_test_2", "value2")
+            await redis_mgr.set_value("pattern_test_1", "value1")
+            await redis_mgr.set_value("pattern_test_2", "value2")
 
             keys = await redis_mgr.keys("pattern_test_*")
             assert len(keys) >= 2
