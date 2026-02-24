@@ -2,7 +2,6 @@
 # Pytest configuration and fixtures
 
 import asyncio
-from collections.abc import Generator
 import os
 import sys
 from typing import TYPE_CHECKING
@@ -18,7 +17,7 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 if TYPE_CHECKING:
-    from asyncpg import Pool
+    from collections.abc import Generator
 
 # Set test environment
 os.environ["ENVIRONMENT"] = "test"
