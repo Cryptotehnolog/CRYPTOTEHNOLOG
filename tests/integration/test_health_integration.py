@@ -25,7 +25,6 @@ from src.core.health import (
 from src.core.metrics import MetricsCollector
 from src.core.redis_manager import RedisManager
 
-
 logger = get_logger(__name__)
 
 
