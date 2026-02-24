@@ -78,4 +78,3 @@ async def db_connection(
         finally:
             # Всегда откатывать - тест не должен мусорить в БД
             await conn.execute("ROLLBACK")
-

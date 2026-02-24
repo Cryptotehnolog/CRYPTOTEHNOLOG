@@ -59,9 +59,7 @@ class TestDatabaseManagerOperations:
         assert result == 1
 
     @pytest.mark.asyncio
-    async def test_transaction_isolation(
-        self, db_connection: asyncpg.PoolConnectionProxy
-    ) -> None:
+    async def test_transaction_isolation(self, db_connection: asyncpg.PoolConnectionProxy) -> None:
         """Транзакция изолирует изменения."""
         # Создать таблицу в транзакции
         await db_connection.execute("""
@@ -72,10 +70,7 @@ class TestDatabaseManagerOperations:
         """)
 
         # Вставить данные
-        await db_connection.execute(
-            "INSERT INTO test_isolation (value) VALUES ($1)",
-            "test_value"
-        )
+        await db_connection.execute("INSERT INTO test_isolation (value) VALUES ($1)", "test_value")
 
         # Данные есть в транзакции
         row = await db_connection.fetchrow("SELECT value FROM test_isolation")
@@ -124,9 +119,7 @@ class TestDatabaseManagerOperations:
         assert isinstance(result, int)
 
     @pytest.mark.asyncio
-    async def test_execute_insert(
-        self, db_connection: asyncpg.PoolConnectionProxy
-    ) -> None:
+    async def test_execute_insert(self, db_connection: asyncpg.PoolConnectionProxy) -> None:
         """Метод execute для INSERT."""
         # Создать временную таблицу (удаляется при rollback)
         await db_connection.execute("""
@@ -138,8 +131,7 @@ class TestDatabaseManagerOperations:
 
         # Вставить данные
         result = await db_connection.execute(
-            "INSERT INTO test_execute (name) VALUES ($1)",
-            "test_name"
+            "INSERT INTO test_execute (name) VALUES ($1)", "test_name"
         )
 
         assert result == "INSERT 0 1"
@@ -150,9 +142,7 @@ class TestDatabaseManagerOperations:
         assert row["name"] == "test_name"
 
     @pytest.mark.asyncio
-    async def test_execute_many(
-        self, db_connection: asyncpg.PoolConnectionProxy
-    ) -> None:
+    async def test_execute_many(self, db_connection: asyncpg.PoolConnectionProxy) -> None:
         """Метод execute_many для массовой вставки."""
         # Создать таблицу
         await db_connection.execute("""
@@ -169,10 +159,7 @@ class TestDatabaseManagerOperations:
             ("value3",),
         ]
 
-        await db_connection.executemany(
-            "INSERT INTO test_bulk (value) VALUES ($1)",
-            args_list
-        )
+        await db_connection.executemany("INSERT INTO test_bulk (value) VALUES ($1)", args_list)
 
         # Проверить
         count = await db_connection.fetchval("SELECT COUNT(*) FROM test_bulk")
@@ -183,9 +170,7 @@ class TestDatabaseManagerHighLevel:
     """Тесты высокоуровневых методов DatabaseManager."""
 
     @pytest.mark.asyncio
-    async def test_fetch_with_db_manager(
-        self, db_manager: DatabaseManager
-    ) -> None:
+    async def test_fetch_with_db_manager(self, db_manager: DatabaseManager) -> None:
         """Тест высокоуровневого fetch через DatabaseManager."""
         rows = await db_manager.fetch("SELECT 1 as num, 'hello' as text")
 
@@ -194,9 +179,7 @@ class TestDatabaseManagerHighLevel:
         assert rows[0]["text"] == "hello"
 
     @pytest.mark.asyncio
-    async def test_fetchrow_with_db_manager(
-        self, db_manager: DatabaseManager
-    ) -> None:
+    async def test_fetchrow_with_db_manager(self, db_manager: DatabaseManager) -> None:
         """Тест высокоуровневого fetchrow через DatabaseManager."""
         row = await db_manager.fetchrow("SELECT 1 as id, 'test' as name")
 
@@ -205,9 +188,7 @@ class TestDatabaseManagerHighLevel:
         assert row["name"] == "test"
 
     @pytest.mark.asyncio
-    async def test_fetchval_with_db_manager(
-        self, db_manager: DatabaseManager
-    ) -> None:
+    async def test_fetchval_with_db_manager(self, db_manager: DatabaseManager) -> None:
         """Тест высокоуровневого fetchval через DatabaseManager."""
         result = await db_manager.fetchval("SELECT 42 as answer")
         assert result == 42
