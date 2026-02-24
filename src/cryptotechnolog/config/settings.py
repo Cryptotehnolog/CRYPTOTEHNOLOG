@@ -61,8 +61,8 @@ class Settings(BaseSettings):
 
     # ==================== Connection Pooling ====================
     # PostgreSQL Connection Pool Settings
-    postgres_pool_min_size: int = 10
-    postgres_pool_max_size: int = 100
+    postgres_pool_min_size: int = 2
+    postgres_pool_max_size: int = 10
     postgres_pool_max_idle: int = 300  # seconds
     postgres_pool_max_inactive_connection_lifetime: int = 300  # seconds
 
