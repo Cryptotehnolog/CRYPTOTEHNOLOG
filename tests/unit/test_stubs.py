@@ -13,15 +13,18 @@
 import pytest
 
 from src.core.stubs import (
+    ExecutionLayer,
     ExecutionLayerStub,
     Order,
     OrderResult,
     PortfolioGovernorStub,
     RiskCheckResult,
+    RiskEngine,
     RiskEngineStub,
     State,
     StateMachineStub,
     Strategy,
+    StrategyManager,
     StrategyManagerStub,
     create_stub,
     get_stub_components,
@@ -512,20 +515,14 @@ class TestStubsAliases:
 
     def test_risk_engine_alias(self) -> None:
         """Проверка alias RiskEngine."""
-        from src.core.stubs import RiskEngine
-
         assert RiskEngine is RiskEngineStub
 
     def test_execution_layer_alias(self) -> None:
         """Проверка alias ExecutionLayer."""
-        from src.core.stubs import ExecutionLayer
-
         assert ExecutionLayer is ExecutionLayerStub
 
     def test_strategy_manager_alias(self) -> None:
         """Проверка alias StrategyManager."""
-        from src.core.stubs import StrategyManager
-
         assert StrategyManager is StrategyManagerStub
 
 

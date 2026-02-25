@@ -13,12 +13,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any
+import uuid
 
 from cryptotechnolog.config import get_logger
-
-if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
 
 logger = get_logger(__name__)
 
@@ -35,7 +33,7 @@ class RiskCheckResult:
     """Результат проверки риска."""
 
     allowed: bool
-    reason: Optional[str] = None
+    reason: str | None = None
     risk_score: float = 0.0
     details: dict[str, Any] = field(default_factory=dict)
 
@@ -128,7 +126,7 @@ class RiskEngineStub:
         order_type: str,
         symbol: str,
         size: float,
-        price: Optional[float] = None,
+        price: float | None = None,
     ) -> RiskCheckResult:
         """
         Проверить допустимость ордера.
@@ -256,10 +254,10 @@ class Order:
     side: str  # "buy" или "sell"
     order_type: str  # "market", "limit", "stop"
     size: float
-    price: Optional[float] = None
+    price: float | None = None
     status: str = "pending"  # "pending", "filled", "cancelled", "rejected"
     filled_size: float = 0.0
-    average_price: Optional[float] = None
+    average_price: float | None = None
 
 
 @dataclass
@@ -270,7 +268,7 @@ class OrderResult:
     order_id: str
     message: str
     filled_size: float = 0.0
-    average_price: Optional[float] = None
+    average_price: float | None = None
 
 
 class ExecutionLayerStub:
@@ -360,8 +358,6 @@ class ExecutionLayerStub:
         )
 
         # Генерируем фиктивный order_id если не предоставлен
-        import uuid
-
         actual_order_id = order.order_id or f"stub_{uuid.uuid4().hex[:8]}"
 
         return OrderResult(
@@ -396,7 +392,7 @@ class ExecutionLayerStub:
 
         return True
 
-    async def cancel_all_orders(self, symbol: Optional[str] = None) -> list[str]:
+    async def cancel_all_orders(self, symbol: str | None = None) -> list[str]:
         """
         Отменить все активные ордера.
 
@@ -420,7 +416,7 @@ class ExecutionLayerStub:
 
         return cancelled
 
-    async def get_order_status(self, order_id: str) -> Optional[Order]:
+    async def get_order_status(self, order_id: str) -> Order | None:
         """
         Получить статус ордера.
 
@@ -434,7 +430,7 @@ class ExecutionLayerStub:
         """
         return self._pending_orders.get(order_id)
 
-    async def get_open_orders(self, symbol: Optional[str] = None) -> list[Order]:
+    async def get_open_orders(self, symbol: str | None = None) -> list[Order]:
         """
         Получить список открытых ордеров.
 
@@ -643,7 +639,7 @@ class StrategyManagerStub:
 
         return 0  # Заглушка всегда возвращает 0
 
-    async def get_strategy(self, strategy_name: str) -> Optional[Strategy]:
+    async def get_strategy(self, strategy_name: str) -> Strategy | None:
         """
         Получить стратегию по имени.
 

@@ -18,19 +18,18 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from typing import TYPE_CHECKING, Any
 import uuid
-from typing import Any, Callable
 
 import pytest
 
-from src.core.database import DatabaseManager
 from src.core.health import (
     ComponentHealth,
+    DatabaseHealthCheck,
     HealthChecker,
     HealthStatus,
 )
 from src.core.metrics import MetricsCollector
-from src.core.redis_manager import RedisManager
 from src.core.stubs import (
     ExecutionLayerStub,
     Order,
@@ -39,8 +38,11 @@ from src.core.stubs import (
     StateMachineStub,
     Strategy,
     StrategyManagerStub,
+    get_stub_components,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ============================================================================
 # Утилиты для бенчмарков
@@ -288,12 +290,10 @@ class TestStateMachineBenchmarks:
         iterations = 10000
 
         states = ["TRADING", "HALTED", "DEGRADED", "READY"]
-        state_index = 0
 
         start = time.perf_counter()
-        for _ in range(iterations):
-            await sm.transition(states[state_index % len(states)], "benchmark")
-            state_index += 1
+        for idx, _ in enumerate(range(iterations)):
+            await sm.transition(states[idx % len(states)], "benchmark")
         end = time.perf_counter()
 
         duration = end - start
@@ -381,9 +381,7 @@ class TestHealthCheckBenchmarks:
         iterations = 1000
 
         # Регистрируем проверки
-        for i in range(5):
-            from src.core.health import DatabaseHealthCheck
-
+        for _i in range(5):
             class MockDB:
                 async def health_check(self):
                     return {"status": "healthy", "connected": True}
@@ -417,7 +415,7 @@ class TestMetricsBenchmarks:
         start = time.perf_counter()
         for i in range(iterations):
             counter = collector.get_counter(f"counter_{i % 10}")
-            counter.inc()
+            counter.inc_sync()
         end = time.perf_counter()
 
         duration = end - start
@@ -433,7 +431,7 @@ class TestMetricsBenchmarks:
         start = time.perf_counter()
         for i in range(iterations):
             gauge = collector.get_gauge(f"gauge_{i % 10}")
-            gauge.set(float(i))
+            gauge.set_sync(float(i))
         end = time.perf_counter()
 
         duration = end - start
@@ -530,8 +528,6 @@ class TestStubsUtilitiesBenchmarks:
 
     def test_get_stub_components(self) -> None:
         """Бенчмарк получения списка stubs."""
-        from src.core.stubs import get_stub_components
-
         iterations = 100000
 
         start = time.perf_counter()

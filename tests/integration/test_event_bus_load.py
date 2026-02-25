@@ -13,12 +13,13 @@ from __future__ import annotations
 
 import asyncio
 import time
-import uuid
 from typing import Any
 
 import pytest
 
-from cryptotechnolog.config import get_logger, get_settings
+from cryptotechnolog.config import get_logger
+
+logger = get_logger(__name__)
 
 logger = get_logger(__name__)
 
@@ -250,7 +251,8 @@ class TestEventBusLoad:
         Проверяет percentiles: p50, p95, p99.
         """
         bus = EventBusStub(capacity=10000)
-        subscriber = bus.subscribe()
+        # Подписка для тестирования pub/sub
+        bus.subscribe()
 
         event_count = 1000
         latencies: list[float] = []
@@ -421,7 +423,7 @@ class TestEventBusLoad:
                 try:
                     event = await asyncio.wait_for(subscriber.get(), timeout=timeout)
                     received.append(event)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     break
 
             return received
@@ -503,8 +505,8 @@ class TestEventBusMemoryAndStability:
 
         # Быстрое создание и удаление подписчиков
         for _ in range(100):
-            subscriber = bus.subscribe()
-            bus.unsubscribe(subscriber)
+            sub = bus.subscribe()
+            bus.unsubscribe(sub)
 
         # Проверяем, что Event Bus работает
         await bus.publish({"type": "test", "index": 0})
