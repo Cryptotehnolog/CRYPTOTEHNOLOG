@@ -120,7 +120,7 @@ def _write_to_file_processor(
             func_name = event_dict.get("func", "unknown")
             lineno = event_dict.get("lineno", 0)
             error_line = (
-                f"{timestamp} | {level:8} | {logger_name} | " f"{func_name}:{lineno} | {message}\n"
+                f"{timestamp} | {level:8} | {logger_name} | {func_name}:{lineno} | {message}\n"
             )
             handler = handlers["error"]
             handler.acquire()
