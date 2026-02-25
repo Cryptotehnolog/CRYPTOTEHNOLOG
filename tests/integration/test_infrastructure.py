@@ -294,5 +294,288 @@ class TestInfrastructureIntegration:
             await redis_client.close()
 
 
+# ==================== Stubs Integration Tests ====================
+
+from src.core.stubs import (
+    ExecutionLayerStub,
+    PortfolioGovernorStub,
+    RiskEngineStub,
+    StateMachineStub,
+    Strategy,
+    StrategyManagerStub,
+)
+
+
+@pytest.mark.integration
+class TestStubsIntegration:
+    """Test cases for stubs integration."""
+
+    @pytest.mark.asyncio
+    async def test_risk_engine_with_database(self, test_settings):
+        """Test RiskEngine integration with database."""
+        # Create Redis client for caching
+        redis_client = await redis.from_url(
+            test_settings.redis_url,
+            encoding="utf-8",
+            decode_responses=True,
+        )
+
+        try:
+            # Create risk engine
+            engine = RiskEngineStub()
+
+            # Cache risk limits
+            limits = await engine.get_risk_limits()
+            cache_key = "risk:limits"
+            await redis_client.set(cache_key, str(limits))
+
+            # Retrieve cached limits
+            cached = await redis_client.get(cache_key)
+            assert cached is not None
+
+            # Check trade
+            result = await engine.check_trade("BTC/USDT", 1000.0, "buy")
+            assert result.allowed is True
+
+            # Clean up
+            await redis_client.delete(cache_key)
+        finally:
+            await redis_client.close()
+
+    @pytest.mark.asyncio
+    async def test_execution_layer_with_database(self, test_settings):
+        """Test ExecutionLayer integration with database."""
+        # Create PostgreSQL connection
+        pg_conn = await asyncpg_connect(test_settings.postgres_async_url)
+
+        try:
+            # Create execution layer
+            executor = ExecutionLayerStub()
+
+            # Create orders table
+            await pg_conn.execute("""
+                CREATE TEMP TABLE orders (
+                    id SERIAL PRIMARY KEY,
+                    order_id VARCHAR(100),
+                    symbol VARCHAR(50),
+                    side VARCHAR(10),
+                    size FLOAT,
+                    status VARCHAR(20)
+                )
+            """)
+
+            # Execute order
+            from src.core.stubs import Order
+            order = Order(
+                order_id="int_test_001",
+                symbol="BTC/USDT",
+                side="buy",
+                order_type="market",
+                size=0.1,
+            )
+            result = await executor.execute_order(order)
+
+            # Store order in database
+            await pg_conn.execute(
+                "INSERT INTO orders (order_id, symbol, side, size, status) VALUES ($1, $2, $3, $4, $5)",
+                result.order_id,
+                order.symbol,
+                order.side,
+                order.size,
+                "filled",
+            )
+
+            # Verify stored
+            stored = await pg_conn.fetchrow(
+                "SELECT * FROM orders WHERE order_id = $1", result.order_id
+            )
+            assert stored is not None
+            assert stored["symbol"] == "BTC/USDT"
+        finally:
+            await pg_conn.close()
+
+    @pytest.mark.asyncio
+    async def test_strategy_manager_with_redis(self, test_settings):
+        """Test StrategyManager integration with Redis."""
+        redis_client = await redis.from_url(
+            test_settings.redis_url,
+            encoding="utf-8",
+            decode_responses=True,
+        )
+
+        try:
+            manager = StrategyManagerStub()
+
+            # Register strategies
+            await manager.register_strategy(Strategy(name="momentum", enabled=True))
+            await manager.register_strategy(Strategy(name="mean_reversion", enabled=False))
+
+            # Cache enabled strategies
+            enabled = await manager.get_enabled_strategies()
+            cache_key = "strategies:enabled"
+            await redis_client.set(cache_key, str([s.name for s in enabled]))
+
+            # Retrieve cached
+            cached = await redis_client.get(cache_key)
+            assert "momentum" in cached
+
+            # Clean up
+            await redis_client.delete(cache_key)
+        finally:
+            await redis_client.close()
+
+    @pytest.mark.asyncio
+    async def test_portfolio_governor_with_database(self, test_settings):
+        """Test PortfolioGovernor integration with database."""
+        pg_conn = await asyncpg_connect(test_settings.postgres_async_url)
+
+        try:
+            # Create portfolio governor
+            pg = PortfolioGovernorStub()
+
+            # Create positions table
+            await pg_conn.execute("""
+                CREATE TEMP TABLE positions (
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(50),
+                    size FLOAT,
+                    entry_price FLOAT
+                )
+            """)
+
+            # Open position
+            await pg.open_position("BTC/USDT", 0.1, 50000.0)
+
+            # Store in database
+            await pg_conn.execute(
+                "INSERT INTO positions (symbol, size, entry_price) VALUES ($1, $2, $3)",
+                "BTC/USDT",
+                0.1,
+                50000.0,
+            )
+
+            # Verify stored
+            stored = await pg_conn.fetchrow("SELECT * FROM positions WHERE symbol = $1", "BTC/USDT")
+            assert stored is not None
+
+            # Close position
+            await pg.close_position("BTC/USDT")
+        finally:
+            await pg_conn.close()
+
+    @pytest.mark.asyncio
+    async def test_state_machine_with_redis(self, test_settings):
+        """Test StateMachine integration with Redis."""
+        redis_client = await redis.from_url(
+            test_settings.redis_url,
+            encoding="utf-8",
+            decode_responses=True,
+        )
+
+        try:
+            sm = StateMachineStub()
+
+            # Transition state
+            from src.core.stubs import State
+            await sm.transition(State.TRADING, "starting")
+
+            # Cache state
+            cache_key = "system:state"
+            await redis_client.set(cache_key, sm.current_state)
+
+            # Retrieve cached
+            cached = await redis_client.get(cache_key)
+            assert cached == State.TRADING
+
+            # Clean up
+            await redis_client.delete(cache_key)
+        finally:
+            await redis_client.close()
+
+
+# ==================== Event Bus Integration Tests ====================
+
+@pytest.mark.integration
+class TestEventBusIntegration:
+    """Test cases for Event Bus integration with infrastructure."""
+
+    @pytest.mark.asyncio
+    async def test_event_bus_with_redis_pubsub(self, test_settings):
+        """Test Event Bus with Redis Pub/Sub."""
+        redis_client = await redis.from_url(
+            test_settings.redis_url,
+            encoding="utf-8",
+            decode_responses=True,
+        )
+
+        try:
+            # Subscribe to channel
+            pubsub = redis_client.pubsub()
+            await pubsub.subscribe("test_events")
+
+            # Publish event
+            await redis_client.publish("test_events", '{"event": "test", "data": 123}')
+
+            # Give time for message to propagate
+            await asyncio.sleep(0.1)
+
+            # Receive message
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+
+            assert message is not None
+            assert "test" in message["data"]
+
+            # Clean up
+            await pubsub.unsubscribe("test_events")
+            await pubsub.close()
+        finally:
+            await redis_client.close()
+
+    @pytest.mark.asyncio
+    async def test_event_bus_with_postgresql(self, test_settings):
+        """Test Event Bus with PostgreSQL event log."""
+        pg_conn = await asyncpg_connect(test_settings.postgres_async_url)
+
+        try:
+            # Create event log table
+            await pg_conn.execute("""
+                CREATE TEMP TABLE event_log (
+                    id SERIAL PRIMARY KEY,
+                    event_type VARCHAR(100),
+                    source VARCHAR(100),
+                    payload JSONB,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+
+            # Log events
+            import json
+            events = [
+                ("ORDER_CREATED", "execution", {"order_id": "1"}),
+                ("ORDER_FILLED", "execution", {"order_id": "1", "price": 50000}),
+                ("RISK_CHECK", "risk", {"allowed": True}),
+            ]
+
+            for event_type, source, payload in events:
+                await pg_conn.execute(
+                    "INSERT INTO event_log (event_type, source, payload) VALUES ($1, $2, $3)",
+                    event_type,
+                    source,
+                    json.dumps(payload),
+                )
+
+            # Query events
+            results = await pg_conn.fetch("SELECT * FROM event_log ORDER BY id")
+            assert len(results) == 3
+
+            # Query specific event type
+            filled = await pg_conn.fetch(
+                "SELECT * FROM event_log WHERE event_type = $1", "ORDER_FILLED"
+            )
+            assert len(filled) == 1
+        finally:
+            await pg_conn.close()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-m", "integration"])
