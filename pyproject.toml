@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cryptotechnolog"
-version = "1.1.0"
+version = "1.2.0"
 description = "Institutional-Grade Crypto Trading Platform"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
@@ -90,9 +90,10 @@ docs = [
     "mkdocstrings[python]>=0.26.2",
 ]
 
-rust = [
-    "cryptotechnolog-rust @ file:///${PROJECT_ROOT}/rust_components",
-]
+# rust = [
+#     "cryptotechnolog-rust @ file:///${PROJECT_ROOT}/rust_components",
+# ]
+# TODO: Раскомментировать после создания rust_components (Фаза 3)
 
 [project.urls]
 Homepage = "https://github.com/your-org/cryptotechnolog"
