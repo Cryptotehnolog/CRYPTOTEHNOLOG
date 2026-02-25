@@ -12,9 +12,7 @@ import redis.asyncio as redis
 from src.core.stubs import (
     ExecutionLayerStub,
     Order,
-    OrderResult,
     PortfolioGovernorStub,
-    RiskCheckResult,
     RiskEngineStub,
     State,
     StateMachineStub,
