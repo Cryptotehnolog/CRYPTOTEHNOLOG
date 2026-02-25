@@ -3,6 +3,8 @@
 
 from contextvars import ContextVar
 import logging
+import logging.handlers
+from pathlib import Path
 import sys
 from typing import TYPE_CHECKING, Any
 
@@ -23,28 +25,147 @@ def _init_context() -> dict[str, Any]:
     return {}
 
 
+# Глобальный путь для логов
+_logs_dir: Path | None = None
+_file_handlers: dict[str, Any] = {}
+
+
+def _get_logs_dir(settings: Any) -> Path:
+    """Получить директорию для логов."""
+    global _logs_dir
+    if _logs_dir is None:
+        _logs_dir = settings.logs_dir
+        _logs_dir.mkdir(parents=True, exist_ok=True)
+    assert _logs_dir is not None
+    return _logs_dir
+
+
+def _setup_file_logging(settings: Any) -> None:
+    """Настроить файловые обработчики для логирования."""
+    global _file_handlers
+
+    from datetime import datetime
+
+    logs_dir = _get_logs_dir(settings)
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    # Основной файл - ротация по времени (каждый день, 30 дней)
+    app_handler = logging.handlers.TimedRotatingFileHandler(
+        filename=logs_dir / f"app-{today}.log",
+        when="midnight",
+        interval=1,
+        backupCount=30,
+        encoding="utf-8",
+    )
+    app_handler.suffix = "%Y-%m-%d"
+    _file_handlers["app"] = app_handler
+
+    # Файл для ошибок - только ERROR и выше
+    error_handler = logging.handlers.TimedRotatingFileHandler(
+        filename=logs_dir / f"error-{today}.log",
+        when="midnight",
+        interval=1,
+        backupCount=30,
+        encoding="utf-8",
+    )
+    error_handler.suffix = "%Y-%m-%d"
+    _file_handlers["error"] = error_handler
+
+
+def _write_to_file_processor(
+    logger: logging.Logger, method_name: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
+    """Процессор для записи логов в файл."""
+    if not _file_handlers:
+        return event_dict
+
+    try:
+        # Форматируем сообщение - получаем финальную строку после всех преобразований
+        message = event_dict.get("event", "")
+        level = method_name.upper()
+        logger_name = event_dict.get("logger", "unknown")
+
+        # Формируем строку
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_line = f"{timestamp} | {level:8} | {logger_name} | {message}\n"
+
+        # Записываем в основной файл
+        if "app" in _file_handlers:
+            handler = _file_handlers["app"]
+            handler.acquire()
+            try:
+                handler.emit(
+                    logging.LogRecord(
+                        name=logger_name,
+                        level=getattr(logging, level, logging.INFO),
+                        pathname="",
+                        lineno=0,
+                        msg=log_line,
+                        args=(),
+                        exc_info=None,
+                    )
+                )
+            finally:
+                handler.release()
+
+        # Записываем в файл ошибок
+        if level in ("ERROR", "CRITICAL"):
+            if "error" in _file_handlers:
+                func_name = event_dict.get("func", "unknown")
+                lineno = event_dict.get("lineno", 0)
+                error_line = (
+                    f"{timestamp} | {level:8} | {logger_name} | "
+                    f"{func_name}:{lineno} | {message}\n"
+                )
+                handler = _file_handlers["error"]
+                handler.acquire()
+                try:
+                    handler.emit(
+                        logging.LogRecord(
+                            name=logger_name,
+                            level=getattr(logging, level, logging.ERROR),
+                            pathname="",
+                            lineno=0,
+                            msg=error_line,
+                            args=(),
+                            exc_info=None,
+                        )
+                    )
+                finally:
+                    handler.release()
+    except Exception as e:
+        print(f"Error writing to file: {e}", file=sys.stderr)
+
+    return event_dict
+
+
 def configure_logging() -> None:
     """
-    Configure structlog for structured logging.
+    Настроить structlog для структурированного логирования.
 
-    This function sets up structlog with processors for:
-    - Filtering by log level
-    - Adding logger name and log level
-    - Timestamp formatting
-    - Stack info rendering
-    - Exception info formatting
-    - JSON or text output based on settings
+    Настраивает:
+    - Вывод в консоль (stdout)
+    - Запись в файл (каждый день, 30 дней)
+    - Отдельный файл для ошибок
+    - Фильтрация по уровню
+    - JSON или TEXT формат (настраивается в .env)
 
-    The configuration is loaded from the global settings instance.
+    Конфигурация загружается из глобальных настроек.
     """
     settings = get_settings()
 
-    # Configure standard library logging
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=getattr(logging, settings.log_level),
-    )
+    # Настраиваем файловые обработчики
+    _setup_file_logging(settings)
+
+    # Configure console logging (stdout) через стандартный logging
+    root_logger = logging.getLogger()
+    root_logger.setLevel(getattr(logging, settings.log_level))
+    root_logger.handlers.clear()
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(logging.Formatter("%(message)s"))
+    root_logger.addHandler(console_handler)
 
     # Define shared processors with explicit type
     shared_processors: list[Callable[..., Any]] = [
@@ -52,21 +173,21 @@ def configure_logging() -> None:
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
         structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
     ]
 
     # Add format-specific processor
-    if settings.log_format == "JSON":
-        shared_processors.append(structlog.processors.JSONRenderer())
-    else:  # TEXT
-        shared_processors.append(
-            structlog.dev.ConsoleRenderer(
-                colors=settings.environment != "production",
-                exception_formatter=structlog.dev.plain_traceback,
-            )
+    # Добавляем процессор для записи в файл ДО ConsoleRenderer
+    shared_processors.append(_write_to_file_processor)
+
+    # ConsoleRenderer для вывода в консоль
+    shared_processors.append(
+        structlog.dev.ConsoleRenderer(
+            colors=settings.environment != "production",
+            exception_formatter=structlog.dev.plain_traceback,
         )
+    )
 
     # Configure structlog
     structlog.configure(
@@ -74,7 +195,7 @@ def configure_logging() -> None:
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
-        wrapper_class=structlog.stdlib.BoundLogger,
+        wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
     )
 
 

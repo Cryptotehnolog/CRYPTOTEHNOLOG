@@ -23,16 +23,16 @@ class Settings(BaseSettings):
 
     # ==================== Paths ====================
     # Base directory (project root)
-    base_dir: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent)
+    base_dir: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent.parent)
 
     # Data directory
-    data_dir: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent / "data")
+    data_dir: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent.parent / "data")
 
     # Logs directory
-    logs_dir: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent / "logs")
+    logs_dir: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent.parent / "logs")
 
     # Config directory
-    config_dir: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent / "config")
+    config_dir: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent.parent / "config")
 
     # ==================== Database Settings ====================
     # PostgreSQL + TimescaleDB
