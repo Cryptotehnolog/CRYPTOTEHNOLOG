@@ -2070,7 +2070,7 @@ class Watchdog:
 
 ### Existing Infrastructure (как было)
 - [x] Event Bus (Rust) с priority queues
-- [x] Structured Logging (JSON)
+- [x] Structured Logging (JSON в консоль + файловый логинг с ротацией)
 - [x] PostgreSQL Manager
 - [x] Redis Manager
 - [x] Health Check System
@@ -2089,7 +2089,14 @@ class Watchdog:
 
 Помимо базовой инфраструктуры, реализовано:
 
-1. **Stubs для будущих фаз:**
+1. **Файловый логинг (расширение logging.py):**
+   - `FileLoggingManager` — менеджер файловых обработчиков
+   - `TimedRotatingFileHandler` — ротация по времени (каждый день, 30 дней)
+   - Отдельный файл `app-{date}.log` — все логи
+   - Отдельный файл `error-{date}.log` — только ERROR и CRITICAL
+   - `_write_to_file_processor()` — процессор для записи в файл
+
+2. **Stubs для будущих фаз:**
    - `RiskEngineStub` — Фаза 5 (Risk Engine)
    - `ExecutionLayerStub` — Фаза 10 (Execution Layer)
    - `StrategyManagerStub` — Фаза 14 (Strategy Manager)
