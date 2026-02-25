@@ -9,6 +9,19 @@ from asyncpg import connect as asyncpg_connect
 import pytest
 import redis.asyncio as redis
 
+from src.core.stubs import (
+    ExecutionLayerStub,
+    Order,
+    OrderResult,
+    PortfolioGovernorStub,
+    RiskCheckResult,
+    RiskEngineStub,
+    State,
+    StateMachineStub,
+    Strategy,
+    StrategyManagerStub,
+)
+
 
 @pytest.mark.integration
 class TestRedisConnection:
@@ -296,15 +309,6 @@ class TestInfrastructureIntegration:
 
 # ==================== Stubs Integration Tests ====================
 
-from src.core.stubs import (
-    ExecutionLayerStub,
-    PortfolioGovernorStub,
-    RiskEngineStub,
-    StateMachineStub,
-    Strategy,
-    StrategyManagerStub,
-)
-
 
 @pytest.mark.integration
 class TestStubsIntegration:
@@ -365,7 +369,6 @@ class TestStubsIntegration:
             """)
 
             # Execute order
-            from src.core.stubs import Order
             order = Order(
                 order_id="int_test_001",
                 symbol="BTC/USDT",
@@ -476,7 +479,6 @@ class TestStubsIntegration:
             sm = StateMachineStub()
 
             # Transition state
-            from src.core.stubs import State
             await sm.transition(State.TRADING, "starting")
 
             # Cache state
@@ -549,7 +551,6 @@ class TestEventBusIntegration:
             """)
 
             # Log events
-            import json
             events = [
                 ("ORDER_CREATED", "execution", {"order_id": "1"}),
                 ("ORDER_FILLED", "execution", {"order_id": "1", "price": 50000}),
