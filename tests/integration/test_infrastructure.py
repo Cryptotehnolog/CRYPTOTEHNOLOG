@@ -495,6 +495,7 @@ class TestStubsIntegration:
 
 # ==================== Event Bus Integration Tests ====================
 
+
 @pytest.mark.integration
 class TestEventBusIntegration:
     """Test cases for Event Bus integration with infrastructure."""

@@ -48,6 +48,7 @@ if TYPE_CHECKING:
 # Утилиты для бенчмарков
 # ============================================================================
 
+
 def benchmark(
     name: str,
     iterations: int = 10000,
@@ -62,6 +63,7 @@ def benchmark(
     Returns:
         Декоратор для тестовой функции
     """
+
     def decorator(func: Callable) -> Callable:
         async def wrapper() -> dict[str, Any]:
             # Warmup
@@ -105,6 +107,7 @@ def sync_benchmark(
     Returns:
         Декоратор для тестовой функции
     """
+
     def decorator(func: Callable) -> Callable:
         def wrapper() -> dict[str, Any]:
             # Warmup
@@ -137,6 +140,7 @@ def sync_benchmark(
 # ============================================================================
 # Risk Engine Benchmarks
 # ============================================================================
+
 
 @pytest.mark.benchmark
 class TestRiskEngineBenchmarks:
@@ -179,6 +183,7 @@ class TestRiskEngineBenchmarks:
 # ============================================================================
 # Execution Layer Benchmarks
 # ============================================================================
+
 
 @pytest.mark.benchmark
 class TestExecutionLayerBenchmarks:
@@ -227,6 +232,7 @@ class TestExecutionLayerBenchmarks:
 # ============================================================================
 # Strategy Manager Benchmarks
 # ============================================================================
+
 
 @pytest.mark.benchmark
 class TestStrategyManagerBenchmarks:
@@ -279,6 +285,7 @@ class TestStrategyManagerBenchmarks:
 # State Machine Benchmarks
 # ============================================================================
 
+
 @pytest.mark.benchmark
 class TestStateMachineBenchmarks:
     """Бенчмарки StateMachineStub."""
@@ -305,6 +312,7 @@ class TestStateMachineBenchmarks:
 # ============================================================================
 # Portfolio Governor Benchmarks
 # ============================================================================
+
 
 @pytest.mark.benchmark
 class TestPortfolioGovernorBenchmarks:
@@ -352,6 +360,7 @@ class TestPortfolioGovernorBenchmarks:
 # Health Check Benchmarks
 # ============================================================================
 
+
 @pytest.mark.benchmark
 class TestHealthCheckBenchmarks:
     """Бенчмарки Health Checker."""
@@ -382,6 +391,7 @@ class TestHealthCheckBenchmarks:
 
         # Регистрируем проверки
         for _i in range(5):
+
             class MockDB:
                 async def health_check(self):
                     return {"status": "healthy", "connected": True}
@@ -402,6 +412,7 @@ class TestHealthCheckBenchmarks:
 # ============================================================================
 # Metrics Benchmarks
 # ============================================================================
+
 
 @pytest.mark.benchmark
 class TestMetricsBenchmarks:
@@ -444,6 +455,7 @@ class TestMetricsBenchmarks:
 # Data Processing Benchmarks
 # ============================================================================
 
+
 @pytest.mark.benchmark
 class TestDataProcessingBenchmarks:
     """Бенчмарки обработки данных."""
@@ -471,12 +483,14 @@ class TestDataProcessingBenchmarks:
 
     def test_json_deserialization(self) -> None:
         """Бенчмарк JSON десериализации."""
-        json_str = json.dumps({
-            "symbol": "BTC/USDT",
-            "price": 50000.0,
-            "quantity": 0.1,
-            "timestamp": 1234567890,
-        })
+        json_str = json.dumps(
+            {
+                "symbol": "BTC/USDT",
+                "price": 50000.0,
+                "quantity": 0.1,
+                "timestamp": 1234567890,
+            }
+        )
         iterations = 50000
 
         start = time.perf_counter()
@@ -507,6 +521,7 @@ class TestDataProcessingBenchmarks:
 # ============================================================================
 # Stubs Utilities Benchmarks
 # ============================================================================
+
 
 @pytest.mark.benchmark
 class TestStubsUtilitiesBenchmarks:
@@ -544,6 +559,7 @@ class TestStubsUtilitiesBenchmarks:
 # ============================================================================
 # Combined Scenarios Benchmarks
 # ============================================================================
+
 
 @pytest.mark.benchmark
 class TestCombinedScenariosBenchmarks:
@@ -596,13 +612,15 @@ class TestCombinedScenariosBenchmarks:
 
         async def process_event(i: int) -> None:
             await risk_engine.check_trade("BTC/USDT", 1000.0, "buy")
-            await execution_layer.execute_order(Order(
-                order_id=f"order_{i}",
-                symbol="BTC/USDT",
-                side="buy",
-                order_type="market",
-                size=0.1,
-            ))
+            await execution_layer.execute_order(
+                Order(
+                    order_id=f"order_{i}",
+                    symbol="BTC/USDT",
+                    side="buy",
+                    order_type="market",
+                    size=0.1,
+                )
+            )
 
         start = time.perf_counter()
         await asyncio.gather(*[process_event(i) for i in range(iterations)])

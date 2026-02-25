@@ -28,6 +28,7 @@ USE_STUBS: bool = True
 # ФАЗА 5: RISK ENGINE
 # ============================================================================
 
+
 @dataclass
 class RiskCheckResult:
     """Результат проверки риска."""
@@ -245,6 +246,7 @@ class RiskEngineStub:
 # ФАЗА 10: EXECUTION LAYER
 # ============================================================================
 
+
 @dataclass
 class Order:
     """Ордер на бирже."""
@@ -443,11 +445,7 @@ class ExecutionLayerStub:
             Пустой список
         """
         if symbol:
-            return [
-                order
-                for order in self._pending_orders.values()
-                if order.symbol == symbol
-            ]
+            return [order for order in self._pending_orders.values() if order.symbol == symbol]
         return list(self._pending_orders.values())
 
     async def get_balance(self, symbol: str) -> dict[str, float | str]:
@@ -484,6 +482,7 @@ class ExecutionLayerStub:
 # ============================================================================
 # ФАЗА 14: STRATEGY MANAGER
 # ============================================================================
+
 
 @dataclass
 class Strategy:
@@ -674,6 +673,7 @@ class StrategyManagerStub:
 # ФАЗА 2: STATE MACHINE (дополнительно)
 # ============================================================================
 
+
 class State:
     """Состояние системы."""
 
@@ -755,6 +755,7 @@ class StateMachineStub:
 # ============================================================================
 # ФАЗА 9: PORTFOLIO GOVERNOR (дополнительно)
 # ============================================================================
+
 
 @dataclass
 class Position:
@@ -847,6 +848,7 @@ class PortfolioGovernorStub:
 # ============================================================================
 # УТИЛИТЫ ДЛЯ ИСПОЛЬЗОВАНИЯ ЗАГЛУШЕК
 # ============================================================================
+
 
 def get_stub_components() -> dict[str, type]:
     """
