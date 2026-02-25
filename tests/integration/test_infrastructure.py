@@ -514,16 +514,19 @@ class TestEventBusIntegration:
             pubsub = redis_client.pubsub()
             await pubsub.subscribe("test_events")
 
-            # Publish event
-            await redis_client.publish("test_events", '{"event": "test", "data": 123}')
+            # Wait for subscription confirmation BEFORE publishing
+            # Redis Pub/Sub doesn't buffer messages - they are lost if subscriber isn't ready
+            confirm = await pubsub.get_message(timeout=1.0)
+            assert confirm is not None, "Failed to confirm subscription"
+            assert confirm["type"] == "subscribe"
 
-            # Give time for message to propagate
-            await asyncio.sleep(0.1)
+            # Now publish - subscription is guaranteed to be active
+            await redis_client.publish("test_events", '{"event": "test", "data": 123}')
 
             # Receive message
             message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
 
-            assert message is not None
+            assert message is not None, "Message not received from Redis pub/sub"
             assert "test" in message["data"]
 
             # Clean up
