@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from datetime import UTC, datetime
+import json
 from typing import Any
 
 from cryptotechnolog.config import get_logger
@@ -255,6 +256,7 @@ class StateMachine:
         trigger: str,
         metadata: dict[str, Any] | None = None,
         operator: str | None = None,
+        max_retries: int = 3,
     ) -> TransitionResult:
         """
         Выполнить переход в новое состояние.
@@ -282,9 +284,10 @@ class StateMachine:
         """
         start_time = datetime.now(UTC)
 
-        # Используем lock для предотвращения concurrent transitions
+        # Используем lock для предотвращения concurrent transitions в одном инстансе
         async with self._transition_lock:
             from_state = self._current_state
+            expected_version = self._version
 
             # Проверить допустимость перехода
             if not is_transition_allowed(from_state, to_state):
@@ -313,91 +316,131 @@ class StateMachine:
                 operator=operator,
             )
 
-            try:
-                # 1. Выполнить on_exit callbacks
-                await self._execute_exit_callbacks(from_state, to_state)
+            # Цикл с retry для optimistic locking
+            for attempt in range(max_retries):
+                try:
+                    # 1. Выполнить on_exit callbacks
+                    await self._execute_exit_callbacks(from_state, to_state)
 
-                # 2. Обновить состояние
-                self._current_state = to_state
-                self._version += 1
-                self._transition_counter += 1
+                    # 2. Обновить состояние в памяти
+                    self._current_state = to_state
+                    self._version += 1
+                    self._transition_counter += 1
 
-                # 3. Выполнить on_enter callbacks
-                await self._execute_enter_callbacks(from_state, to_state)
+                    # 3. Выполнить on_enter callbacks
+                    await self._execute_enter_callbacks(from_state, to_state)
 
-                # 4. Создать запись о переходе
-                transition = StateTransition(
-                    transition_id=self._transition_counter,
-                    from_state=from_state,
-                    to_state=to_state,
-                    trigger=trigger,
-                    timestamp=start_time,
-                    metadata=metadata or {},
-                    operator=operator,
-                )
+                    # 4. Создать запись о переходе
+                    transition = StateTransition(
+                        transition_id=self._transition_counter,
+                        from_state=from_state,
+                        to_state=to_state,
+                        trigger=trigger,
+                        timestamp=start_time,
+                        metadata=metadata or {},
+                        operator=operator,
+                    )
 
-                # 5. Сохранить в историю
-                self._history.add(transition)
+                    # 5. Сохранить в историю
+                    self._history.add(transition)
 
-                # 6. Сохранить в БД (audit trail)
-                if self._db:
-                    try:
-                        await self._save_transition_to_db(transition)
-                        await self._update_state_in_db(to_state)
-                    except Exception as e:
-                        logger.error(
-                            "Не удалось сохранить переход в БД",
-                            error=str(e),
+                    # 6. Сохранить в БД (audit trail) с optimistic locking
+                    if self._db:
+                        db_success = await self._save_transition_with_optimistic_lock(
+                            transition=transition,
+                            to_state=to_state,
+                            expected_version=expected_version,
                         )
-                        # Не блокируем переход, но логируем
+                        
+                        if not db_success:
+                            # Конфликт версий - откат локальных изменений и retry
+                            logger.warning(
+                                "Конфликт версий при optimistic locking, повторная попытка",
+                                attempt=attempt + 1,
+                                max_retries=max_retries,
+                                expected_version=expected_version,
+                            )
+                            
+                            # Откат локального состояния
+                            self._current_state = from_state
+                            self._version = expected_version
+                            
+                            # Экспоненциальный backoff
+                            await asyncio.sleep(0.01 * (2 ** attempt))
+                            continue
 
-                # 7. Опубликовать событие
-                if self._event_bus:
-                    try:
-                        await self._publish_transition_event(transition)
-                    except Exception as e:
-                        logger.warning(
-                            "Не удалось опубликовать событие",
-                            error=str(e),
-                        )
+                    # 7. Опубликовать событие
+                    if self._event_bus:
+                        try:
+                            await self._publish_transition_event(transition)
+                        except Exception as e:
+                            logger.warning(
+                                "Не удалось опубликовать событие",
+                                error=str(e),
+                            )
 
-                # 8. Записать метрики
-                self._record_transition_metrics(from_state, to_state, trigger)
+                    # 8. Записать метрики
+                    self._record_transition_metrics(from_state, to_state, trigger)
 
-                # Вычислить длительность
-                duration_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
-                transition.duration_ms = duration_ms
+                    # Вычислить длительность
+                    duration_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
+                    transition.duration_ms = duration_ms
 
-                # Обновить время входа в состояние
-                self._state_entered_at = datetime.now(UTC)
+                    # Обновить время входа в состояние
+                    self._state_entered_at = datetime.now(UTC)
 
-                logger.info(
-                    "Переход состояния выполнен",
-                    from_state=from_state.value,
-                    to_state=to_state.value,
-                    version=self._version,
-                    duration_ms=duration_ms,
-                )
+                    logger.info(
+                        "Переход состояния выполнен",
+                        from_state=from_state.value,
+                        to_state=to_state.value,
+                        version=self._version,
+                        duration_ms=duration_ms,
+                    )
 
-                return TransitionResult(
-                    success=True,
-                    transition=transition,
-                )
+                    return TransitionResult(
+                        success=True,
+                        transition=transition,
+                    )
 
-            except Exception as e:
-                error_msg = f"Ошибка при переходе: {e!s}"
-                logger.critical(
-                    "Критическая ошибка при переходе состояния",
-                    from_state=from_state.value,
-                    to_state=to_state.value,
-                    error=str(e),
-                )
+                except Exception as e:
+                    # При ошибке пробуем следующую попытку
+                    logger.warning(
+                        "Ошибка при переходе, повторная попытка",
+                        attempt=attempt + 1,
+                        error=str(e),
+                    )
+                    
+                    # Откат локального состояния при ошибке
+                    self._current_state = from_state
+                    self._version = expected_version
+                    
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(0.01 * (2 ** attempt))
+                        continue
+                    
+                    # Все попытки исчерпаны
+                    error_msg = f"Не удалось выполнить переход после {max_retries} попыток: {e!s}"
+                    logger.critical(
+                        "Критическая ошибка при переходе состояния",
+                        from_state=from_state.value,
+                        to_state=to_state.value,
+                        attempts=max_retries,
+                        error=str(e),
+                    )
 
-                return TransitionResult(
-                    success=False,
-                    error=error_msg,
-                    reason="transition_error",
-                )
+                    return TransitionResult(
+                        success=False,
+                        error=error_msg,
+                        reason="transition_error",
+                    )
+
+            # Если мы здесь - все попытки исчерпаны
+            error_msg = f"Не удалось выполнить переход: конфликт версий после {max_retries} попыток"
+            return TransitionResult(
+                success=False,
+                error=error_msg,
+                reason="optimistic_lock_conflict",
+            )
 
     # ==================== Callbacks ====================
 
@@ -607,8 +650,6 @@ class StateMachine:
         if not self._db:
             return
 
-        import json
-
         # Сериализуем metadata в JSON строку
         metadata_json = json.dumps(transition.metadata) if transition.metadata else "{}"
 
@@ -634,6 +675,98 @@ class StateMachine:
         except Exception as e:
             logger.error("Ошибка при сохранении перехода в БД", error=str(e))
             await self._db.execute("ROLLBACK")
+
+    async def _save_transition_with_optimistic_lock(
+        self,
+        transition: StateTransition,
+        to_state: SystemState,
+        expected_version: int,
+    ) -> bool:
+        """
+        Сохранить переход в БД с использованием optimistic locking.
+        
+        Использует транзакцию с проверкой версии:
+        - Если версия совпала - переход сохраняется
+        - Если версия не совпала (конфликт) - возвращает False для retry
+        
+        Аргументы:
+            transition: Запись о переходе
+            to_state: Новое состояние
+            expected_version: Ожидаемая версия для проверки
+            
+        Возвращает:
+            True если сохранение успешно, False при конфликте версий
+        """
+        if not self._db:
+            return True
+
+        # Сериализуем metadata в JSON строку
+        metadata_json = json.dumps(transition.metadata) if transition.metadata else "{}"
+
+        # Конвертируем timestamp в naive datetime для совместимости с PostgreSQL
+        timestamp_naive = transition.timestamp.replace(tzinfo=None)
+
+        try:
+            # Начинаем транзакцию
+            await self._db.execute("BEGIN")
+            
+            # Вставляем запись о переходе
+            await self._db.execute(
+                """
+                INSERT INTO state_transitions
+                (from_state, to_state, trigger, metadata, operator, timestamp)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                """,
+                transition.from_state.value,
+                transition.to_state.value,
+                transition.trigger,
+                metadata_json,
+                transition.operator,
+                timestamp_naive,
+            )
+            
+            # Обновляем состояние с проверкой версии (OPTIMISTIC LOCKING)
+            result = await self._db.execute(
+                """
+                UPDATE state_machine_states
+                SET current_state = $1, version = version + 1, updated_at = NOW()
+                WHERE id = 1 AND version = $2
+                """,
+                to_state.value,
+                expected_version,
+            )
+            
+            # Проверяем сколько строк обновлено
+            # "UPDATE 0" означает что версия не совпала - конфликт
+            updated_rows = int(result.split()[-1]) if result else 0
+            
+            if updated_rows == 0:
+                # Конфликт версий - откатываем транзакцию
+                await self._db.execute("ROLLBACK")
+                logger.warning(
+                    "Конфликт optimistic locking - версия не совпала",
+                    expected_version=expected_version,
+                    from_state=transition.from_state.value,
+                    to_state=to_state.value,
+                )
+                return False
+            
+            # Успех - коммитим транзакцию
+            await self._db.execute("COMMIT")
+            
+            logger.debug(
+                "Сохранен переход с optimistic locking",
+                from_state=transition.from_state.value,
+                to_state=to_state.value,
+                version=expected_version + 1,
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error("Ошибка при сохранении перехода с optimistic locking", error=str(e))
+            await self._db.execute("ROLLBACK")
+            raise
 
     async def _update_state_in_db(self, state: SystemState) -> None:
         """Обновить состояние в БД."""

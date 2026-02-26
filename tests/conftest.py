@@ -47,7 +47,7 @@ async def test_db_setup() -> None:
     Выполняется один раз перед всеми тестами сессии.
     """
     settings = Settings()
-    
+
     # Подключаемся к ТЕСТОВОЙ БД
     conn = await asyncpg.connect(
         settings.postgres_test_async_url,
@@ -58,7 +58,7 @@ async def test_db_setup() -> None:
         tables = await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
         for table in tables:
             await conn.execute(f"DROP TABLE IF EXISTS {table['tablename']} CASCADE")
-        
+
         # Создаём таблицы
         init_db_sql = """
         -- State Machine States (текущее состояние)
@@ -183,7 +183,7 @@ async def test_db_setup() -> None:
         );
 
         -- Индексы для оптимизации
-        CREATE INDEX IF NOT EXISTS idx_market_data_symbol_timeframe_timestamp 
+        CREATE INDEX IF NOT EXISTS idx_market_data_symbol_timeframe_timestamp
             ON market_data(symbol, timeframe, timestamp);
         CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
         CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions(symbol);
@@ -192,11 +192,11 @@ async def test_db_setup() -> None:
         CREATE INDEX IF NOT EXISTS idx_audit_events_timestamp ON audit_events(timestamp);
 
         -- Вставляем начальное состояние для State Machine
-        INSERT INTO state_machine_states (current_state, version) 
+        INSERT INTO state_machine_states (current_state, version)
         VALUES ('boot', 0)
         ON CONFLICT (id) DO NOTHING;
         """
-        
+
         await conn.execute(init_db_sql)
     finally:
         await conn.close()
