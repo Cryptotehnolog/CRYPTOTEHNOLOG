@@ -66,8 +66,34 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          uv pip uninstall cryptotechnolog --yes || true
           uv pip install -e ".[dev]" --force-reinstall
+
+      - name: Create test database
+        run: |
+          .venv/bin/python -c "
+          import asyncio
+          import asyncpg
+
+          async def create_test_db():
+              conn = await asyncpg.connect(
+                  host='localhost',
+                  port=5432,
+                  user='bot_user',
+                  password='bot_password_dev',
+                  database='postgres'
+              )
+              exists = await conn.fetchval(
+                  \"SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = 'trading_test')\"
+              )
+              if not exists:
+                  await conn.execute('CREATE DATABASE trading_test OWNER bot_user')
+                  print('Created trading_test database')
+              else:
+                  print('trading_test already exists')
+              await conn.close()
+
+          asyncio.run(create_test_db())
+          "
 
       - name: Run linter (ruff)
         run: |
@@ -249,7 +275,6 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          uv pip uninstall cryptotechnolog --yes || true
           uv pip install -e ".[dev]" --force-reinstall
           uv pip install detect-secrets bandit[toml] safety
 
@@ -302,7 +327,6 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          uv pip uninstall cryptotechnolog --yes || true
           uv pip install -e ".[dev]" --force-reinstall
           uv pip install pip-audit safety
 
@@ -366,7 +390,6 @@ jobs:
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
-          uv pip uninstall cryptotechnolog --yes || true
           uv pip install -e ".[dev]" --force-reinstall
           uv pip install radon
 
