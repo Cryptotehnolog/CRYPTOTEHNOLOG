@@ -1,5 +1,5 @@
-# ==================== CRYPTOTEHNOLOG Test Configuration ====================
-# Pytest configuration for unit tests (no DB required by default)
+# ==================== CRYPTOTEHNOLOG Integration Test Configuration ====================
+# Pytest configuration for integration tests (requires real DB)
 
 import asyncio
 import os
@@ -29,10 +29,7 @@ os.environ["DEBUG"] = "true"
 
 @pytest.fixture(scope="session")
 def event_loop() -> "Generator[asyncio.AbstractEventLoop, None, None]":
-    """One event loop for entire test session.
-
-    Creates new event loop for session scope fixtures.
-    """
+    """One event loop for entire test session."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     yield loop
@@ -42,16 +39,11 @@ def event_loop() -> "Generator[asyncio.AbstractEventLoop, None, None]":
 # ==================== Database Fixtures ====================
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 async def test_db_setup() -> None:
-    """Initialize test DB before all tests.
+    """Initialize test DB before all integration tests.
 
     Uses separate test DB (trading_test) for isolation from production.
-    This fixture is NOT auto-used - it must be requested by tests that need DB.
-
-    Note: This fixture creates tables in DB. When running in parallel
-    with multiple workers, conflicts may occur. For tests with DB,
-    use sequential execution (-n 0).
     """
     settings = Settings()
 
@@ -211,13 +203,13 @@ async def test_db_setup() -> None:
             """)
         else:
             # Tables exist - just clean data
-            await conn.execute(
-                "TRUNCATE TABLE state_machine_states, state_transitions, audit_events, "
-                "market_data, orders, positions, risk_events, risk_ledger, "
-                "risk_limits, system_metrics RESTART IDENTITY CASCADE"
-            )
+            await conn.execute("""
+                TRUNCATE TABLE state_machine_states, state_transitions, audit_events,
+                market_data, orders, positions, risk_events, risk_ledger,
+                risk_limits, system_metrics RESTART IDENTITY CASCADE
+            """)
 
-            # Insert initial state for State Machine
+            # Insert initial state
             await conn.execute("""
                 INSERT INTO state_machine_states (current_state, version)
                 VALUES ('boot', 0)
@@ -229,24 +221,15 @@ async def test_db_setup() -> None:
 
 @pytest.fixture
 def db_connection_factory():
-    """Factory for creating test DB connection inside test.
-
-    Creates connection in same event loop where test runs.
-    Uses test DB (trading_test) for isolation.
-    """
+    """Factory for creating test DB connection."""
     class DBConnectionFactory:
-        """Test DB connection factory."""
-
         @staticmethod
         async def create() -> asyncpg.Connection:
-            """Create new test DB connection."""
             settings = Settings()
-
             conn = await asyncpg.connect(
-                settings.postgres_test_async_url,  # Use test DB
+                settings.postgres_test_async_url,
                 command_timeout=60,
             )
-
             return conn
 
     return DBConnectionFactory
@@ -270,8 +253,6 @@ def test_env(monkeypatch: pytest.MonkeyPatch) -> "Generator[dict[str, str], None
 @pytest.fixture
 def test_settings(test_env: dict[str, str]) -> "Settings":
     """Return test settings instance."""
-    from cryptotechnolog.config.settings import Settings  # noqa: PLC0415
-
     return Settings()
 
 
@@ -288,12 +269,9 @@ def pytest_configure(config: pytest.Config) -> None:
 # ==================== Redis Fixtures ====================
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 async def redis_clean_state() -> None:
-    """Clean Redis before all tests.
-
-    Executes once before all tests in session.
-    """
+    """Clean Redis before all tests."""
     settings = Settings()
     client = redis.from_url(
         settings.redis_url,
@@ -308,20 +286,11 @@ async def redis_clean_state() -> None:
 
 @pytest.fixture
 def redis_client_factory():
-    """Factory for creating Redis client inside test.
-
-    Creates client in same event loop where test runs.
-    Ensures no event loop conflicts.
-    """
-
+    """Factory for creating Redis client."""
     class RedisClientFactory:
-        """Redis client factory."""
-
         @staticmethod
         async def create() -> redis.Redis:
-            """Create new Redis client."""
             settings = Settings()
-
             client = redis.from_url(
                 settings.redis_url,
                 max_connections=settings.redis_pool_max_connections,
@@ -329,10 +298,7 @@ def redis_client_factory():
                 socket_connect_timeout=10,
                 decode_responses=True,
             )
-
-            # Verify connection
             await asyncio.wait_for(client.ping(), timeout=10.0)
-
             return client
 
     return RedisClientFactory
