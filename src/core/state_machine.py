@@ -36,21 +36,25 @@ StateCallback = Callable[[SystemState, SystemState], Any]
 
 class StateMachineError(Exception):
     """Ошибка при работе State Machine."""
+
     pass
 
 
 class InvalidTransitionError(StateMachineError):
     """Недопустимый переход состояния."""
+
     pass
 
 
 class TransitionTimeoutError(StateMachineError):
     """Таймаут при выполнении перехода."""
+
     pass
 
 
 class DatabaseError(StateMachineError):
     """Ошибка базы данных."""
+
     pass
 
 
@@ -361,9 +365,7 @@ class StateMachine:
                 self._record_transition_metrics(from_state, to_state, trigger)
 
                 # Вычислить длительность
-                duration_ms = int(
-                    (datetime.now(UTC) - start_time).total_seconds() * 1000
-                )
+                duration_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
                 transition.duration_ms = duration_ms
 
                 # Обновить время входа в состояние

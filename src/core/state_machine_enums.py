@@ -125,19 +125,16 @@ ALLOWED_TRANSITIONS: dict[SystemState, Set[SystemState]] = {
         SystemState.INIT,
         SystemState.ERROR,  # Если ошибка при загрузке
     },
-
     # Инициализация компонентов
     SystemState.INIT: {
         SystemState.READY,
         SystemState.ERROR,  # Если ошибка при инициализации
     },
-
     # Готова к торговле
     SystemState.READY: {
         SystemState.TRADING,
         SystemState.HALT,
     },
-
     # Нормальная торговля
     SystemState.TRADING: {
         SystemState.DEGRADED,
@@ -145,7 +142,6 @@ ALLOWED_TRANSITIONS: dict[SystemState, Set[SystemState]] = {
         SystemState.HALT,
         SystemState.ERROR,
     },
-
     # Деградированный режим
     SystemState.DEGRADED: {
         SystemState.TRADING,  # Восстановление
@@ -153,24 +149,20 @@ ALLOWED_TRANSITIONS: dict[SystemState, Set[SystemState]] = {
         SystemState.HALT,
         SystemState.ERROR,
     },
-
     # Режим выживания
     SystemState.SURVIVAL: {
         SystemState.HALT,
         SystemState.ERROR,
     },
-
     # Критическая ошибка
     SystemState.ERROR: {
         SystemState.RECOVERY,
         SystemState.HALT,
     },
-
     # Полная остановка
     SystemState.HALT: {
         SystemState.RECOVERY,
     },
-
     # Восстановление
     SystemState.RECOVERY: {
         SystemState.READY,

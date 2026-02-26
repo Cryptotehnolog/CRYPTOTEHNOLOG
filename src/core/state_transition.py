@@ -139,7 +139,7 @@ class StateHistory:
 
         # Ограничить размер истории
         if len(self.transitions) > self.max_size:
-            self.transitions = self.transitions[-self.max_size:]
+            self.transitions = self.transitions[-self.max_size :]
 
     def get_recent(self, count: int = 10) -> list[StateTransition]:
         """
