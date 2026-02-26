@@ -351,7 +351,7 @@ class StateMachine:
                             to_state=to_state,
                             expected_version=expected_version,
                         )
-                        
+
                         if not db_success:
                             # Конфликт версий - откат локальных изменений и retry
                             logger.warning(
@@ -360,11 +360,11 @@ class StateMachine:
                                 max_retries=max_retries,
                                 expected_version=expected_version,
                             )
-                            
+
                             # Откат локального состояния
                             self._current_state = from_state
                             self._version = expected_version
-                            
+
                             # Экспоненциальный backoff
                             await asyncio.sleep(0.01 * (2 ** attempt))
                             continue
@@ -409,15 +409,15 @@ class StateMachine:
                         attempt=attempt + 1,
                         error=str(e),
                     )
-                    
+
                     # Откат локального состояния при ошибке
                     self._current_state = from_state
                     self._version = expected_version
-                    
+
                     if attempt < max_retries - 1:
                         await asyncio.sleep(0.01 * (2 ** attempt))
                         continue
-                    
+
                     # Все попытки исчерпаны
                     error_msg = f"Не удалось выполнить переход после {max_retries} попыток: {e!s}"
                     logger.critical(
@@ -684,16 +684,16 @@ class StateMachine:
     ) -> bool:
         """
         Сохранить переход в БД с использованием optimistic locking.
-        
+
         Использует транзакцию с проверкой версии:
         - Если версия совпала - переход сохраняется
         - Если версия не совпала (конфликт) - возвращает False для retry
-        
+
         Аргументы:
             transition: Запись о переходе
             to_state: Новое состояние
             expected_version: Ожидаемая версия для проверки
-            
+
         Возвращает:
             True если сохранение успешно, False при конфликте версий
         """
@@ -709,7 +709,7 @@ class StateMachine:
         try:
             # Начинаем транзакцию
             await self._db.execute("BEGIN")
-            
+
             # Вставляем запись о переходе
             await self._db.execute(
                 """
@@ -724,7 +724,7 @@ class StateMachine:
                 transition.operator,
                 timestamp_naive,
             )
-            
+
             # Обновляем состояние с проверкой версии (OPTIMISTIC LOCKING)
             result = await self._db.execute(
                 """
@@ -735,11 +735,11 @@ class StateMachine:
                 to_state.value,
                 expected_version,
             )
-            
+
             # Проверяем сколько строк обновлено
             # "UPDATE 0" означает что версия не совпала - конфликт
             updated_rows = int(result.split()[-1]) if result else 0
-            
+
             if updated_rows == 0:
                 # Конфликт версий - откатываем транзакцию
                 await self._db.execute("ROLLBACK")
@@ -750,19 +750,19 @@ class StateMachine:
                     to_state=to_state.value,
                 )
                 return False
-            
+
             # Успех - коммитим транзакцию
             await self._db.execute("COMMIT")
-            
+
             logger.debug(
                 "Сохранен переход с optimistic locking",
                 from_state=transition.from_state.value,
                 to_state=to_state.value,
                 version=expected_version + 1,
             )
-            
+
             return True
-            
+
         except Exception as e:
             logger.error("Ошибка при сохранении перехода с optimistic locking", error=str(e))
             await self._db.execute("ROLLBACK")
