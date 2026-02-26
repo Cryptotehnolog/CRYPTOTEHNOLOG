@@ -1,4 +1,0 @@
-# file: C:\Users\Victor\AppData\Roaming\Python\Python314\site-packages\xdist\plugin.py
-# hypothesis_version: 6.151.9
-
-['--dist', '--max-worker-restart', '--maxprocesses', '--maxschedchunk', '--numprocesses', '--rsyncdir', '--rsyncignore', '--testrunuid', '--tx', '-d', '-n', 'DIR', 'GLOB', 'TRAVIS', 'append', 'auto', 'collectonly', 'dist', 'distload', 'distmode', 'dsession', 'each', 'load', 'loadfile', 'loadgroup', 'loadscope', 'logical', 'looponfail', 'looponfailroots', 'markers', 'master', 'maxprocesses', 'maxworkerrestart', 'no', 'numprocesses', 'pathlist', 'paths', 'popen', 'rsyncdir', 'rsyncdirs', 'rsyncignore', 'session', 'store', 'store_true', 'terminalreporter', 'testrunuid', 'true', 'tx', 'usepdb', 'version_tuple', 'workerid', 'workerinput', 'worksteal', 'xdist', 'xspec']
