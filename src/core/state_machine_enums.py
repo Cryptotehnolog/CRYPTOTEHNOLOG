@@ -9,17 +9,17 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Set
 
 
-class SystemState(str, Enum):
+class SystemState(StrEnum):
     """
     Состояния системы с четкой семантикой.
-    
+
     Состояния (от безопасного к опасному):
     - BOOT: Загрузка (0-30 сек после старта)
     - INIT: Инициализация компонентов (проверка БД, Redis, биржи)
@@ -50,7 +50,7 @@ class SystemState(str, Enum):
     def is_trading_allowed(self) -> bool:
         """
         Проверить разрешена ли торговля в данном состоянии.
-        
+
         Возвращает:
             True если торговля разрешена
         """
@@ -63,7 +63,7 @@ class SystemState(str, Enum):
     def is_critical(self) -> bool:
         """
         Проверить является ли состояние критическим.
-        
+
         Возвращает:
             True если состояние критическое
         """
@@ -77,7 +77,7 @@ class SystemState(str, Enum):
     def requires_manual_intervention(self) -> bool:
         """
         Проверить требуется ли ручное вмешательство.
-        
+
         Возвращает:
             True если требуется вмешательство оператора
         """
@@ -87,10 +87,10 @@ class SystemState(str, Enum):
         }
 
 
-class TriggerType(str, Enum):
+class TriggerType(StrEnum):
     """
     Типы триггеров для переходов состояний.
-    
+
     Используются для логирования и аудита.
     """
 
@@ -125,19 +125,19 @@ ALLOWED_TRANSITIONS: dict[SystemState, Set[SystemState]] = {
         SystemState.INIT,
         SystemState.ERROR,  # Если ошибка при загрузке
     },
-    
+
     # Инициализация компонентов
     SystemState.INIT: {
         SystemState.READY,
         SystemState.ERROR,  # Если ошибка при инициализации
     },
-    
+
     # Готова к торговле
     SystemState.READY: {
         SystemState.TRADING,
         SystemState.HALT,
     },
-    
+
     # Нормальная торговля
     SystemState.TRADING: {
         SystemState.DEGRADED,
@@ -145,7 +145,7 @@ ALLOWED_TRANSITIONS: dict[SystemState, Set[SystemState]] = {
         SystemState.HALT,
         SystemState.ERROR,
     },
-    
+
     # Деградированный режим
     SystemState.DEGRADED: {
         SystemState.TRADING,  # Восстановление
@@ -153,24 +153,24 @@ ALLOWED_TRANSITIONS: dict[SystemState, Set[SystemState]] = {
         SystemState.HALT,
         SystemState.ERROR,
     },
-    
+
     # Режим выживания
     SystemState.SURVIVAL: {
         SystemState.HALT,
         SystemState.ERROR,
     },
-    
+
     # Критическая ошибка
     SystemState.ERROR: {
         SystemState.RECOVERY,
         SystemState.HALT,
     },
-    
+
     # Полная остановка
     SystemState.HALT: {
         SystemState.RECOVERY,
     },
-    
+
     # Восстановление
     SystemState.RECOVERY: {
         SystemState.READY,
@@ -182,11 +182,11 @@ ALLOWED_TRANSITIONS: dict[SystemState, Set[SystemState]] = {
 def is_transition_allowed(from_state: SystemState, to_state: SystemState) -> bool:
     """
     Проверить допустимость перехода между состояниями.
-    
+
     Аргументы:
         from_state: Текущее состояние
         to_state: Целевое состояние
-    
+
     Возвращает:
         True если переход допустим
     """
@@ -196,10 +196,10 @@ def is_transition_allowed(from_state: SystemState, to_state: SystemState) -> boo
 def get_allowed_transitions(from_state: SystemState) -> Set[SystemState]:
     """
     Получить все допустимые переходы из состояния.
-    
+
     Аргументы:
         from_state: Текущее состояние
-    
+
     Возвращает:
         Множество допустимых целевых состояний
     """
