@@ -22,7 +22,9 @@ class TestStateMachinePostgreSQL:
 
         # Очищаем состояние перед тестом
         await db.execute("DELETE FROM state_transitions")
-        await db.execute("UPDATE state_machine_states SET current_state = 'boot', version = 0 WHERE id = 1")
+        await db.execute(
+            "UPDATE state_machine_states SET current_state = 'boot', version = 0 WHERE id = 1"
+        )
         await db.execute("COMMIT")
 
         # Создаём State Machine с подключением к БД
@@ -33,7 +35,9 @@ class TestStateMachinePostgreSQL:
 
         # Очистка: удаляем тестовые записи
         await db.execute("DELETE FROM state_transitions")
-        await db.execute("UPDATE state_machine_states SET current_state = 'boot', version = 0 WHERE id = 1")
+        await db.execute(
+            "UPDATE state_machine_states SET current_state = 'boot', version = 0 WHERE id = 1"
+        )
         await db.execute("COMMIT")
         await db.close()
 
@@ -47,7 +51,7 @@ class TestStateMachinePostgreSQL:
             SystemState.INIT,
             trigger="SYSTEM_STARTUP",
             operator="test_operator",
-            metadata={"test": True}
+            metadata={"test": True},
         )
 
         assert result.success is True
@@ -57,7 +61,7 @@ class TestStateMachinePostgreSQL:
         # Проверяем, что переход записан в БД
         row = await sm._db.fetchrow(
             "SELECT * FROM state_transitions WHERE operator = $1 ORDER BY id DESC LIMIT 1",
-            "test_operator"
+            "test_operator",
         )
 
         assert row is not None
@@ -95,9 +99,7 @@ class TestStateMachinePostgreSQL:
         await sm.transition(SystemState.INIT, "SYSTEM_STARTUP", operator="test_operator")
 
         # Проверяем, что состояние обновлено в БД
-        row = await sm._db.fetchrow(
-            "SELECT * FROM state_machine_states WHERE id = 1"
-        )
+        row = await sm._db.fetchrow("SELECT * FROM state_machine_states WHERE id = 1")
 
         assert row is not None
         assert row["current_state"] == "init"
@@ -108,25 +110,15 @@ class TestStateMachinePostgreSQL:
         """Test that metadata is saved in audit trail."""
         sm = sm_with_db
 
-        metadata = {
-            "strategy_count": 5,
-            "risk_limits_loaded": True,
-            "execution_layer_ready": True
-        }
+        metadata = {"strategy_count": 5, "risk_limits_loaded": True, "execution_layer_ready": True}
 
         # Выполняем переход с метаданными (boot -> init -> ready)
         await sm.transition(
-            SystemState.INIT,
-            "SYSTEM_STARTUP",
-            operator="test_operator",
-            metadata={"init": True}
+            SystemState.INIT, "SYSTEM_STARTUP", operator="test_operator", metadata={"init": True}
         )
 
         await sm.transition(
-            SystemState.READY,
-            "STRATEGIES_LOADED",
-            operator="test_operator",
-            metadata=metadata
+            SystemState.READY, "STRATEGIES_LOADED", operator="test_operator", metadata=metadata
         )
 
         # Проверяем метаданные в БД

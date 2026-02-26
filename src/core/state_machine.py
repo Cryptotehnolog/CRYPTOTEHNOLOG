@@ -366,7 +366,7 @@ class StateMachine:
                             self._version = expected_version
 
                             # Экспоненциальный backoff
-                            await asyncio.sleep(0.01 * (2 ** attempt))
+                            await asyncio.sleep(0.01 * (2**attempt))
                             continue
 
                     # 7. Опубликовать событие
@@ -415,7 +415,7 @@ class StateMachine:
                     self._version = expected_version
 
                     if attempt < max_retries - 1:
-                        await asyncio.sleep(0.01 * (2 ** attempt))
+                        await asyncio.sleep(0.01 * (2**attempt))
                         continue
 
                     # Все попытки исчерпаны
