@@ -590,7 +590,7 @@ class StateMachine:
 
         try:
             row = await self._db.fetchrow(
-                "SELECT current_state, version FROM system_state WHERE id = 1"
+                "SELECT current_state, version FROM state_machine_states WHERE id = 1"
             )
             if row:
                 return {
@@ -607,33 +607,53 @@ class StateMachine:
         if not self._db:
             return
 
-        await self._db.execute(
-            """
-            INSERT INTO state_transitions
-            (from_state, to_state, trigger, metadata, operator, timestamp)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            """,
-            transition.from_state.value,
-            transition.to_state.value,
-            transition.trigger,
-            transition.metadata,
-            transition.operator,
-            transition.timestamp,
-        )
+        import json
+
+        # Сериализуем metadata в JSON строку
+        metadata_json = json.dumps(transition.metadata) if transition.metadata else "{}"
+
+        # Конвертируем timestamp в naive datetime для совместимости с PostgreSQL
+        timestamp_naive = transition.timestamp.replace(tzinfo=None)
+
+        try:
+            await self._db.execute(
+                """
+                INSERT INTO state_transitions
+                (from_state, to_state, trigger, metadata, operator, timestamp)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                """,
+                transition.from_state.value,
+                transition.to_state.value,
+                transition.trigger,
+                metadata_json,
+                transition.operator,
+                timestamp_naive,
+            )
+            # Явный commit для гарантии сохранения
+            await self._db.execute("COMMIT")
+        except Exception as e:
+            logger.error("Ошибка при сохранении перехода в БД", error=str(e))
+            await self._db.execute("ROLLBACK")
 
     async def _update_state_in_db(self, state: SystemState) -> None:
         """Обновить состояние в БД."""
         if not self._db:
             return
 
-        await self._db.execute(
-            """
-            UPDATE system_state
-            SET current_state = $1, version = version + 1, updated_at = NOW()
-            WHERE id = 1
-            """,
-            state.value,
-        )
+        try:
+            await self._db.execute(
+                """
+                UPDATE state_machine_states
+                SET current_state = $1, version = version + 1, updated_at = NOW()
+                WHERE id = 1
+                """,
+                state.value,
+            )
+            # Явный commit для гарантии сохранения
+            await self._db.execute("COMMIT")
+        except Exception as e:
+            logger.error("Ошибка при обновлении состояния в БД", error=str(e))
+            await self._db.execute("ROLLBACK")
 
     async def _publish_transition_event(self, transition: StateTransition) -> None:
         """Опубликовать событие перехода."""

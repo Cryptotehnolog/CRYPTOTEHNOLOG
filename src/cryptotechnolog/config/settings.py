@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     postgres_password: SecretStr = SecretStr("bot_password_dev")
     postgres_db: str = "trading_dev"
 
+    # Test database (отдельная БД для интеграционных тестов)
+    postgres_test_db: str = "trading_test"
+
     @property
     def postgres_url(self) -> str:
         """Construct PostgreSQL connection URL."""
@@ -63,6 +66,22 @@ class Settings(BaseSettings):
         return (
             f"postgresql://{self.postgres_user}:{self.postgres_password.get_secret_value()}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        )
+
+    @property
+    def postgres_test_url(self) -> str:
+        """Construct test PostgreSQL connection URL."""
+        return (
+            f"postgresql://{self.postgres_user}:{self.postgres_password.get_secret_value()}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_test_db}"
+        )
+
+    @property
+    def postgres_test_async_url(self) -> str:
+        """Construct test async PostgreSQL connection URL."""
+        return (
+            f"postgresql://{self.postgres_user}:{self.postgres_password.get_secret_value()}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_test_db}"
         )
 
     # ==================== Connection Pooling ====================
