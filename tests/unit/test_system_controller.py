@@ -71,8 +71,10 @@ def mock_redis_manager():
 def mock_health_checker():
     """Создать мок Health Checker."""
     checker = AsyncMock()
-    checker.register_component = MagicMock()
-    checker.check_all = AsyncMock(return_value=[])
+    checker.register_check = MagicMock()
+    checker.check_system = AsyncMock(
+        return_value=MagicMock(components={}, get_unhealthy_components=MagicMock(return_value=[]))
+    )
     return checker
 
 
@@ -92,7 +94,7 @@ def mock_component():
     component.start = AsyncMock()
     component.stop = AsyncMock()
     component.health_check = AsyncMock(
-        return_value=MagicMock(name="test", status="healthy", message="OK")
+        return_value=MagicMock(component="test", status="healthy", message="OK")
     )
     return component
 
@@ -447,7 +449,7 @@ class TestHealthChecks:
 
         await controller.startup()
 
-        mock_health_checker.register_component.assert_called()
+        mock_health_checker.register_check.assert_called()
 
 
 # ============================================================================
