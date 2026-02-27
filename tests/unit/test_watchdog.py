@@ -119,9 +119,7 @@ class TestComponentChecker:
     @pytest.mark.asyncio
     async def test_dict_result(self):
         """Тест результата в виде словаря."""
-        check_func = MagicMock(
-            return_value={"status": "healthy", "message": "All good"}
-        )
+        check_func = MagicMock(return_value={"status": "healthy", "message": "All good"})
         checker = ComponentChecker("test", check_func)
 
         health = await checker.check()
@@ -424,7 +422,7 @@ async def test_watchdog_performance():
     await watchdog.check_all()
     elapsed = time.perf_counter() - start
 
-    print(f"Check 100 components: {elapsed*1000:.2f}ms")
+    print(f"Check 100 components: {elapsed * 1000:.2f}ms")
 
     # Should complete in reasonable time
     assert elapsed < 1.0  # Less than 1 second

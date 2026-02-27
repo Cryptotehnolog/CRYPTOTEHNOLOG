@@ -511,4 +511,3 @@ async def publish_alert(
         },
     )
     return get_event_bus().publish(event)
-

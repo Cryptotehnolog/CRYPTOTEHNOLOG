@@ -159,12 +159,15 @@ class Event:
             source=data["source"],
             timestamp=datetime.fromisoformat(data["timestamp"]),
             payload=data["payload"],
-            correlation_id=uuid.UUID(data["correlation_id"]) if data.get("correlation_id") else None,
+            correlation_id=uuid.UUID(data["correlation_id"])
+            if data.get("correlation_id")
+            else None,
             metadata=data.get("metadata", {}),
         )
 
 
 # ==================== Event Types ====================
+
 
 class SystemEventType:
     """Стандартные типы системных событий."""

@@ -97,7 +97,7 @@ class RecoveryStrategy:
 
     def get_backoff_delay(self) -> float:
         """Получить задержку перед следующей попыткой."""
-        delay = self.backoff_base * (self.backoff_multiplier ** self._attempt)
+        delay = self.backoff_base * (self.backoff_multiplier**self._attempt)
         return min(delay, self.max_backoff)
 
     def increment_attempt(self) -> None:
@@ -415,6 +415,7 @@ class Watchdog:
 
     def _create_circuit_callback(self, component_name: str) -> Callable:
         """Создать callback для circuit breaker."""
+
         def callback(old_state: CircuitState, new_state: CircuitState) -> None:
             if new_state == CircuitState.OPEN:
                 self._publish_alert(
@@ -705,4 +706,3 @@ class Watchdog:
             f"components={self.component_count}, "
             f"checks={self._total_checks})"
         )
-
