@@ -9,9 +9,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta
 
-import pytest
 from hypothesis import given
 from hypothesis import strategies as st
+import pytest
 
 from src.core.dual_control import (
     DualControlRequest,
