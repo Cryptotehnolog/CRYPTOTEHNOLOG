@@ -15,13 +15,14 @@ from __future__ import annotations
 
 import asyncio
 from enum import Enum
+from functools import wraps
 import time
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from cryptotechnolog.config import get_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Coroutine
 
 logger = get_logger(__name__)
 
@@ -203,9 +204,10 @@ class CircuitBreaker:
             else:
                 await self._record_failure()
 
-    async def execute(self, func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
-        """
-        Execute function with circuit breaker protection.
+    async def execute(
+        self, func: Callable[..., Coroutine[Any, Any, T]], *args: Any, **kwargs: Any
+    ) -> Coroutine[Any, Any, T]:
+        """Execute function with circuit breaker protection.
 
         Args:
             func: Async function to execute
@@ -213,13 +215,17 @@ class CircuitBreaker:
             **kwargs: Keyword arguments
 
         Returns:
-            Result of function execution
+            Coroutine that executes the function with circuit breaker protection
 
         Raises:
             CircuitBreakerError: If circuit is open
         """
-        async with self:
-            return await func(*args, **kwargs)
+        @wraps(func)
+        async def wrapped() -> T:
+            async with self:
+                return await func(*args, **kwargs)
+
+        return wrapped()
 
     def reset(self) -> None:
         """Manually reset circuit breaker to closed state."""
@@ -251,9 +257,10 @@ def circuit_breaker(
     failure_threshold: int = 5,
     recovery_timeout: int = 60,
     success_threshold: int = 3,
-) -> Callable[[Callable[..., T]], Callable[..., T]]:
-    """
-    Decorator to add circuit breaker to async functions.
+) -> Callable[
+    [Callable[..., Coroutine[Any, Any, T]]], Callable[..., Coroutine[Any, Any, T]]
+]:
+    """Decorator to add circuit breaker to async functions.
 
     Args:
         name: Circuit breaker name
@@ -266,19 +273,24 @@ def circuit_breaker(
         async def get_from_redis(key: str) -> str | None:
             return await redis.get(key)
     """
-    _breaker = CircuitBreaker(
-        name=name,
-        failure_threshold=failure_threshold,
-        recovery_timeout=recovery_timeout,
-        success_threshold=success_threshold,
-    )
 
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+    def decorator(
+        func: Callable[..., Coroutine[Any, Any, T]]
+    ) -> Callable[..., Coroutine[Any, Any, T]]:
+        _breaker = CircuitBreaker(
+            name=name,
+            failure_threshold=failure_threshold,
+            recovery_timeout=recovery_timeout,
+            success_threshold=success_threshold,
+        )
+
+        @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> T:
-            return await _breaker.execute(func, *args, **kwargs)
+            async with _breaker:
+                return await func(*args, **kwargs)
 
         # Attach breaker to function for inspection
         wrapper.circuit_breaker = _breaker  # type: ignore[attr-defined]
-        return wrapper  # type: ignore[return-type]
+        return wrapper
 
     return decorator
