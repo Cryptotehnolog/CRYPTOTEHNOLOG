@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from cryptotechnolog.config import get_logger
 from src.core.circuit_breaker import CircuitBreaker, CircuitState
-from src.core.health import ComponentHealth, HealthChecker, HealthStatus
+from src.core.health import ComponentHealth, HealthCheck, HealthChecker, HealthStatus
 from src.core.state_machine import StateMachine
 from src.core.state_machine_enums import SystemState, TriggerType
 
@@ -628,53 +628,57 @@ class SystemController:
         # Регистрируем компоненты для health checks
         for name, info in self._components.items():
             if info.health_check_enabled:
-                self._health_checker.register_component(
-                    name=name,
-                    check_func=self._create_health_check(name, info),
-                )
+                check = self._create_health_check(name, info)
+                self._health_checker.register_check(check)
 
         logger.info("Health checks инициализированы")
 
-    def _create_health_check(self, name: str, info: ComponentInfo):
-        """Создать функцию health check для компонента."""
+    def _create_health_check(self, name: str, info: ComponentInfo) -> HealthCheck:
+        """Создать health check для компонента."""
 
-        async def check() -> ComponentHealth:
-            component = info.component
+        class ComponentHealthCheck(HealthCheck):
+            """Health check для компонента системы."""
 
-            try:
-                # Проверяем разные способы проверки здоровья
-                if hasattr(component, "health_check"):
-                    result = await component.health_check()
-                    return result
-                elif hasattr(component, "ping"):
-                    await component.ping()
-                    return ComponentHealth(
-                        name=name,
-                        status=HealthStatus.HEALTHY,
-                        message="OK",
-                    )
-                elif hasattr(component, "is_healthy"):
-                    is_healthy = component.is_healthy()
-                    return ComponentHealth(
-                        name=name,
-                        status=HealthStatus.HEALTHY if is_healthy else HealthStatus.UNHEALTHY,
-                        message="OK" if is_healthy else "Unhealthy",
-                    )
-                else:
-                    # Компонент без явного health check - считаем здоровым
-                    return ComponentHealth(
-                        name=name,
-                        status=HealthStatus.HEALTHY,
-                        message="No health check defined",
-                    )
-            except Exception as e:
-                return ComponentHealth(
-                    name=name,
-                    status=HealthStatus.UNHEALTHY,
-                    message=f"Error: {e!s}",
-                )
+            def __init__(self, component_name: str, component: Any) -> None:
+                super().__init__(component_name)
+                self._component = component
 
-        return check
+            async def check(self) -> ComponentHealth:
+                """Выполнить проверку здоровья компонента."""
+                try:
+                    # Проверяем разные способы проверки здоровья
+                    if hasattr(self._component, "health_check"):
+                        result: ComponentHealth = await self._component.health_check()
+                        return result
+                    elif hasattr(self._component, "ping"):
+                        await self._component.ping()
+                        return ComponentHealth(
+                            component=self.name,
+                            status=HealthStatus.HEALTHY,
+                            message="OK",
+                        )
+                    elif hasattr(self._component, "is_healthy"):
+                        is_healthy = self._component.is_healthy()
+                        return ComponentHealth(
+                            component=self.name,
+                            status=HealthStatus.HEALTHY if is_healthy else HealthStatus.UNHEALTHY,
+                            message="OK" if is_healthy else "Unhealthy",
+                        )
+                    else:
+                        # Компонент без явного health check - считаем здоровым
+                        return ComponentHealth(
+                            component=self.name,
+                            status=HealthStatus.HEALTHY,
+                            message="No health check defined",
+                        )
+                except Exception as e:
+                    return ComponentHealth(
+                        component=self.name,
+                        status=HealthStatus.UNHEALTHY,
+                        message=f"Error: {e!s}",
+                    )
+
+        return ComponentHealthCheck(name, info.component)
 
     async def _initialize_components(self) -> tuple[list[str], list[str]]:
         """
@@ -934,14 +938,14 @@ class SystemController:
 
                     # Выполняем health check
                     if self._health_checker:
-                        results = await self._health_checker.check_all()
+                        system_health = await self._health_checker.check_system()
 
                         # Проверяем есть ли проблемы
-                        unhealthy = [h for h in results if h.status == HealthStatus.UNHEALTHY]
+                        unhealthy = system_health.get_unhealthy_components()
                         if unhealthy:
                             logger.warning(
                                 "Обнаружены нездоровые компоненты",
-                                components=[h.name for h in unhealthy],
+                                components=unhealthy,
                             )
 
                 except asyncio.CancelledError:
@@ -989,9 +993,8 @@ class SystemController:
         components_health = {}
         if self._health_checker:
             try:
-                results = await self._health_checker.check_all()
-                for health in results:
-                    components_health[health.name] = health
+                system_health = await self._health_checker.check_system()
+                components_health = system_health.components
             except Exception as e:
                 logger.warning("Ошибка получения health status", error=str(e))
 
