@@ -319,7 +319,9 @@ class DatabaseManager:
             Словарь с статусом проверки
         """
         # Check circuit breaker state
-        cb_state = self._circuit_breaker.state.value if self._circuit_breaker_enabled else "disabled"
+        cb_state = (
+            self._circuit_breaker.state.value if self._circuit_breaker_enabled else "disabled"
+        )
 
         if not self.is_connected:
             return {
