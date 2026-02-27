@@ -399,8 +399,34 @@ class EventBus:
 
 # ==================== Global Event Bus ====================
 
-_global_event_bus: EventBus | None = None
-_global_bus_lock = threading.Lock()
+
+class _GlobalEventBus:
+    """Class-based singleton для глобального Event Bus."""
+
+    _instance: EventBus | None = None
+    _lock = threading.Lock()
+
+    @classmethod
+    def get_instance(cls) -> EventBus:
+        """Получить экземпляр Event Bus."""
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = EventBus()
+            return cls._instance
+
+    @classmethod
+    def set_instance(cls, bus: EventBus) -> None:
+        """Установить экземпляр Event Bus."""
+        with cls._lock:
+            cls._instance = bus
+
+    @classmethod
+    def reset(cls) -> None:
+        """Сбросить экземпляр (для тестов)."""
+        with cls._lock:
+            if cls._instance:
+                cls._instance.clear()
+            cls._instance = None
 
 
 def get_event_bus() -> EventBus:
@@ -413,11 +439,7 @@ def get_event_bus() -> EventBus:
     Возвращает:
         Глобальный экземпляр EventBus
     """
-    global _global_event_bus
-    with _global_bus_lock:
-        if _global_event_bus is None:
-            _global_event_bus = EventBus()
-        return _global_event_bus
+    return _GlobalEventBus.get_instance()
 
 
 def set_event_bus(bus: EventBus) -> None:
@@ -427,18 +449,12 @@ def set_event_bus(bus: EventBus) -> None:
     Аргументы:
         bus: Экземпляр EventBus для установки
     """
-    global _global_event_bus
-    with _global_bus_lock:
-        _global_event_bus = bus
+    _GlobalEventBus.set_instance(bus)
 
 
 def reset_event_bus() -> None:
     """Сбросить глобальный Event Bus (для тестов)."""
-    global _global_event_bus
-    with _global_bus_lock:
-        if _global_event_bus:
-            _global_event_bus.clear()
-        _global_event_bus = None
+    _GlobalEventBus.reset()
 
 
 # ==================== Convenience Functions ====================

@@ -385,9 +385,7 @@ class TestWatchdogIntegration:
         def check_func():
             nonlocal failure_count
             failure_count += 1
-            if failure_count <= 2:
-                return False  # Fail first two times
-            return True  # Then succeed
+            return failure_count > 2  # Fail first two times, then succeed
 
         recovery_call_count = 0
 
