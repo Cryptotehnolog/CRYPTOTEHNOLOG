@@ -222,6 +222,7 @@ async def test_db_setup() -> None:
 @pytest.fixture
 def db_connection_factory():
     """Factory for creating test DB connection."""
+
     class DBConnectionFactory:
         @staticmethod
         async def create() -> asyncpg.Connection:
@@ -287,6 +288,7 @@ async def redis_clean_state() -> None:
 @pytest.fixture
 def redis_client_factory():
     """Factory for creating Redis client."""
+
     class RedisClientFactory:
         @staticmethod
         async def create() -> redis.Redis:

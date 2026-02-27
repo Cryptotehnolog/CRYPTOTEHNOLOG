@@ -234,6 +234,7 @@ def db_connection_factory():
     Creates connection in same event loop where test runs.
     Uses test DB (trading_test) for isolation.
     """
+
     class DBConnectionFactory:
         """Test DB connection factory."""
 
