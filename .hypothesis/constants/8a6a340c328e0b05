@@ -1,0 +1,4 @@
+# file: d:\CRYPTOTEHNOLOG\src\cryptotechnolog\backtest\recorder.py
+# hypothesis_version: 6.151.9
+
+[9000, '%Y%m%d_%H%M%S', 'ask', 'asset', 'average_fill_price', 'balance_after', 'balance_before', 'balance_updates', 'bid', 'commission', 'current_price', 'delta', 'end_time', 'entry_price', 'exchange', 'filled_quantity', 'last', 'mid', 'order_id', 'order_type', 'orders', 'position_size', 'position_updates', 'price', 'quantity', 'realized_pnl', 'reason', 'side', 'spread', 'start_time', 'status', 'symbol', 'ticks', 'timestamp', 'total_events', 'total_value', 'trade_id', 'trades', 'unrealized_pnl', 'volume', 'w']

@@ -23,14 +23,15 @@ from typing import TYPE_CHECKING, Any
 
 from cryptotechnolog.config import get_logger
 
-from src.core.state_machine import StateMachine
-from src.core.state_machine_enums import SystemState, TriggerType
 from src.core.circuit_breaker import CircuitBreaker, CircuitState
 from src.core.health import HealthChecker, ComponentHealth, HealthStatus
-from src.core.metrics import MetricsCollector
+from src.core.state_machine import StateMachine
+from src.core.state_machine_enums import SystemState, TriggerType
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
+
+    from src.core.metrics import MetricsCollector
 
 logger = get_logger(__name__)
 
@@ -393,7 +394,7 @@ class SystemController:
 
     # ==================== Startup ====================
 
-    async def startup(self) -> StartupResult:
+    async def startup(self) -> StartupResult:  # noqa: PLR0915
         """
         Запустить систему.
 
@@ -588,7 +589,7 @@ class SystemController:
     async def _initialize_circuit_breakers(self) -> None:
         """Инициализировать circuit breakers для компонентов."""
         # Создаём circuit breakers для каждого компонента с указанием имени
-        for name, info in self._components.items():
+        for _name, info in self._components.items():
             if info.circuit_breaker_name:
                 self.register_circuit_breaker(
                     name=info.circuit_breaker_name,
@@ -878,7 +879,7 @@ class SystemController:
             elif hasattr(component, 'close'):
                 await asyncio.wait_for(component.close(), timeout=timeout)
             # Если ничего нет - компонент пассивный
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Таймаут при остановке компонента", name=info.name)
         except Exception as e:
             logger.warning("Ошибка при остановке компонента", name=info.name, error=str(e))

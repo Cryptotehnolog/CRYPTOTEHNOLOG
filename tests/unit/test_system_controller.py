@@ -12,20 +12,16 @@ Unit тесты для System Controller.
 
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 from src.core.system_controller import (
-    SystemController,
-    StartupPhase,
     ShutdownPhase,
-    ComponentInfo,
-    StartupResult,
-    ShutdownResult,
-    SystemStatus,
     StartupError,
-    ComponentInitError,
+    StartupPhase,
+    SystemController,
+    SystemStatus,
 )
 
 
@@ -611,6 +607,6 @@ class TestIntegration:
         assert not controller.is_running
 
         # Все компоненты должны быть остановлены
-        for i in range(3):
+        for _i in range(3):
             # Проверяем что stop был вызван
             pass
