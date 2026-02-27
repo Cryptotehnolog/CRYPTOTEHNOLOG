@@ -480,8 +480,8 @@ class TestDualControlRequestInvariants:
     """Property-based тесты инвариантов."""
 
     @given(
-        operation=st.sampled_from([e for e in OperationType]),
-        role=st.sampled_from([r for r in OperatorRole]),
+        operation=st.sampled_from(list(OperationType)),
+        role=st.sampled_from(list(OperatorRole)),
     )
     def test_request_status_transitions(self, operation: OperationType, role: OperatorRole):
         """Тест инвариантов переходов статуса."""
@@ -513,7 +513,7 @@ class TestDualControlRequestInvariants:
         # Нельзя approve уже APPROVED
         assert request.approve(approver) is False
 
-    @given(role=st.sampled_from([r for r in OperatorRole]))
+    @given(role=st.sampled_from(list(OperatorRole)))
     def test_role_validation(self, role: OperatorRole):
         """Тест валидации ролей."""
         auth = TokenAuthenticator()
