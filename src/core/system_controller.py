@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Any
 
 from cryptotechnolog.config import get_logger
 
-
 from src.core.circuit_breaker import CircuitBreaker, CircuitState
 from src.core.health import HealthChecker, ComponentHealth, HealthStatus
 from src.core.state_machine import StateMachine
