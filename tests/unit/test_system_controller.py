@@ -29,6 +29,7 @@ from src.core.system_controller import (
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_state_machine():
     """Создать мок State Machine."""
