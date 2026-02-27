@@ -26,8 +26,6 @@ from src.core.system_controller import (
 
 
 @pytest.fixture
-
-
 # ============================================================================
 # Fixtures
 # ============================================================================
@@ -40,13 +38,13 @@ def mock_state_machine():
     sm.current_state.value = "boot"  # lowercase как в реальной State Machine
     sm.is_initialized = False
     sm.initialize = AsyncMock(return_value=True)
-    sm.transition = AsyncMock(
-        return_value=MagicMock(success=True, error=None)
-    )
+    sm.transition = AsyncMock(return_value=MagicMock(success=True, error=None))
+
     # Обновляем current_state при transition
     def mock_transition(to_state, trigger, metadata=None):
         sm.current_state.value = to_state.value
         return MagicMock(success=True, error=None)
+
     sm.transition.side_effect = mock_transition
     sm.register_on_enter = MagicMock()
     return sm
@@ -95,11 +93,7 @@ def mock_component():
     component.start = AsyncMock()
     component.stop = AsyncMock()
     component.health_check = AsyncMock(
-        return_value=MagicMock(
-            name="test",
-            status="healthy",
-            message="OK"
-        )
+        return_value=MagicMock(name="test", status="healthy", message="OK")
     )
     return component
 
@@ -107,6 +101,7 @@ def mock_component():
 # ============================================================================
 # Тесты инициализации
 # ============================================================================
+
 
 class TestInitialization:
     """Тесты инициализации System Controller."""
@@ -136,6 +131,7 @@ class TestInitialization:
 # ============================================================================
 # Тесты регистрации компонентов
 # ============================================================================
+
 
 class TestComponentRegistration:
     """Тесты регистрации компонентов."""
@@ -194,6 +190,7 @@ class TestComponentRegistration:
 # Тесты Circuit Breaker
 # ============================================================================
 
+
 class TestCircuitBreaker:
     """Тесты Circuit Breaker."""
 
@@ -231,6 +228,7 @@ class TestCircuitBreaker:
 # ============================================================================
 # Тесты Startup
 # ============================================================================
+
 
 class TestStartup:
     """Тесты startup процедуры."""
@@ -318,6 +316,7 @@ class TestStartup:
 # Тесты Shutdown
 # ============================================================================
 
+
 class TestShutdown:
     """Тесты shutdown процедуры."""
 
@@ -372,6 +371,7 @@ class TestShutdown:
 # Тесты State Machine интеграции
 # ============================================================================
 
+
 class TestStateMachineIntegration:
     """Тесты интеграции с State Machine."""
 
@@ -394,7 +394,7 @@ class TestStateMachineIntegration:
         # Проверяем что был вызван transition
         mock_state_machine.transition.assert_called()
         call_args = mock_state_machine.transition.call_args
-        assert call_args[1]['to_state'].value == "ready"
+        assert call_args[1]["to_state"].value == "ready"
 
     @pytest.mark.asyncio
     async def test_transition_to_halt_on_shutdown(self, mock_state_machine):
@@ -406,13 +406,14 @@ class TestStateMachineIntegration:
 
         # Проверяем что был вызван transition в HALT
         calls = mock_state_machine.transition.call_args_list
-        halt_call = [c for c in calls if c[1]['to_state'].value == "halt"]
+        halt_call = [c for c in calls if c[1]["to_state"].value == "halt"]
         assert len(halt_call) > 0
 
 
 # ============================================================================
 # Тесты Health Checks
 # ============================================================================
+
 
 class TestHealthChecks:
     """Тесты health checks."""
@@ -430,7 +431,9 @@ class TestHealthChecks:
         assert status.current_state.value == "ready"
 
     @pytest.mark.asyncio
-    async def test_health_check_registration(self, mock_state_machine, mock_health_checker, mock_component):
+    async def test_health_check_registration(
+        self, mock_state_machine, mock_health_checker, mock_component
+    ):
         """Тест регистрации health check для компонента."""
         controller = SystemController(
             state_machine=mock_state_machine,
@@ -451,6 +454,7 @@ class TestHealthChecks:
 # ============================================================================
 # Тесты Lifecycle
 # ============================================================================
+
 
 class TestLifecycle:
     """Тесты lifecycle context manager."""
@@ -484,6 +488,7 @@ class TestLifecycle:
 # Тесты uptime
 # ============================================================================
 
+
 class TestUptime:
     """Тесты uptime."""
 
@@ -507,6 +512,7 @@ class TestUptime:
 # ============================================================================
 # Тесты error handling
 # ============================================================================
+
 
 class TestErrorHandling:
     """Тесты обработки ошибок."""
@@ -539,6 +545,7 @@ class TestErrorHandling:
 # Тесты representation
 # ============================================================================
 
+
 class TestRepresentation:
     """Тесты строкового представления."""
 
@@ -560,6 +567,7 @@ class TestRepresentation:
 # ============================================================================
 # Интеграционные тесты
 # ============================================================================
+
 
 class TestIntegration:
     """Интеграционные тесты."""

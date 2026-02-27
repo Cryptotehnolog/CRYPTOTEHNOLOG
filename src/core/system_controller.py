@@ -541,10 +541,10 @@ class SystemController:
 
         try:
             # Проверяем есть ли метод connect
-            if hasattr(self._db, 'connect'):
+            if hasattr(self._db, "connect"):
                 await self._db.connect()
                 logger.info("Подключение к БД установлено")
-            elif hasattr(self._db, 'pool'):
+            elif hasattr(self._db, "pool"):
                 # Пул уже инициализирован
                 logger.info("Пул БД уже инициализирован")
             else:
@@ -561,7 +561,7 @@ class SystemController:
 
         try:
             # Проверяем есть ли метод ping
-            if hasattr(self._redis, 'ping'):
+            if hasattr(self._redis, "ping"):
                 await self._redis.ping()
                 logger.info("Подключение к Redis установлено")
             else:
@@ -637,22 +637,23 @@ class SystemController:
 
     def _create_health_check(self, name: str, info: ComponentInfo):
         """Создать функцию health check для компонента."""
+
         async def check() -> ComponentHealth:
             component = info.component
 
             try:
                 # Проверяем разные способы проверки здоровья
-                if hasattr(component, 'health_check'):
+                if hasattr(component, "health_check"):
                     result = await component.health_check()
                     return result
-                elif hasattr(component, 'ping'):
+                elif hasattr(component, "ping"):
                     await component.ping()
                     return ComponentHealth(
                         name=name,
                         status=HealthStatus.HEALTHY,
                         message="OK",
                     )
-                elif hasattr(component, 'is_healthy'):
+                elif hasattr(component, "is_healthy"):
                     is_healthy = component.is_healthy()
                     return ComponentHealth(
                         name=name,
@@ -688,7 +689,10 @@ class SystemController:
         for name, info in self._components.items():
             try:
                 # Проверяем circuit breaker если есть
-                if info.circuit_breaker_name and info.circuit_breaker_name in self._circuit_breakers:
+                if (
+                    info.circuit_breaker_name
+                    and info.circuit_breaker_name in self._circuit_breakers
+                ):
                     breaker = self._circuit_breakers[info.circuit_breaker_name]
                     async with breaker:
                         await self._init_component(name, info)
@@ -704,7 +708,9 @@ class SystemController:
                 self._failed_components.append(name)  # Сохраняем для результата
 
                 if info.required:
-                    raise ComponentInitError(f"Обязательный компонент {name} не инициализирован: {e!s}") from e
+                    raise ComponentInitError(
+                        f"Обязательный компонент {name} не инициализирован: {e!s}"
+                    ) from e
 
         return (initialized, failed)
 
@@ -713,11 +719,11 @@ class SystemController:
         component = info.component
 
         # Пробуем разные методы инициализации
-        if hasattr(component, 'start'):
+        if hasattr(component, "start"):
             await component.start()
-        elif hasattr(component, 'connect'):
+        elif hasattr(component, "connect"):
             await component.connect()
-        elif hasattr(component, 'initialize'):
+        elif hasattr(component, "initialize"):
             await component.initialize()
         # Если ничего нет - компонент пассивный, не требует инициализации
 
@@ -854,7 +860,9 @@ class SystemController:
                 continue
 
             try:
-                await self._shutdown_component(info, timeout=5.0 if force else info.shutdown_timeout)
+                await self._shutdown_component(
+                    info, timeout=5.0 if force else info.shutdown_timeout
+                )
                 stopped.append(name)
                 logger.info("Компонент остановлен", name=name)
             except Exception as e:
@@ -871,11 +879,11 @@ class SystemController:
 
         try:
             # Пробуем разные методы shutdown
-            if hasattr(component, 'stop'):
+            if hasattr(component, "stop"):
                 await asyncio.wait_for(component.stop(), timeout=timeout)
-            elif hasattr(component, 'disconnect'):
+            elif hasattr(component, "disconnect"):
                 await asyncio.wait_for(component.disconnect(), timeout=timeout)
-            elif hasattr(component, 'close'):
+            elif hasattr(component, "close"):
                 await asyncio.wait_for(component.close(), timeout=timeout)
             # Если ничего нет - компонент пассивный
         except TimeoutError:
@@ -889,7 +897,7 @@ class SystemController:
         self._stop_health_monitor()
 
         # Закрываем Redis
-        if self._redis and hasattr(self._redis, 'close'):
+        if self._redis and hasattr(self._redis, "close"):
             try:
                 await self._redis.close()
                 logger.info("Redis соединение закрыто")
@@ -897,7 +905,7 @@ class SystemController:
                 logger.warning("Ошибка закрытия Redis", error=str(e))
 
         # Закрываем БД
-        if self._db and hasattr(self._db, 'close'):
+        if self._db and hasattr(self._db, "close"):
             try:
                 await self._db.close()
                 logger.info("DB соединение закрыто")
