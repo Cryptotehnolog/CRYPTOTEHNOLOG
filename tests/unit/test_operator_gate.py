@@ -192,8 +192,6 @@ class TestDualControlRequest:
         assert request.is_pending() is True
 
         # Имитируем истечение - устанавливаем в прошлом
-        from datetime import timedelta
-
         request.expires_at = datetime.now(datetime.UTC) - timedelta(seconds=10)
 
         assert request.is_expired() is True
