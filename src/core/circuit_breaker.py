@@ -220,6 +220,7 @@ class CircuitBreaker:
         Raises:
             CircuitBreakerError: If circuit is open
         """
+
         @wraps(func)
         async def wrapped() -> T:
             async with self:
@@ -257,9 +258,7 @@ def circuit_breaker(
     failure_threshold: int = 5,
     recovery_timeout: int = 60,
     success_threshold: int = 3,
-) -> Callable[
-    [Callable[..., Coroutine[Any, Any, T]]], Callable[..., Coroutine[Any, Any, T]]
-]:
+) -> Callable[[Callable[..., Coroutine[Any, Any, T]]], Callable[..., Coroutine[Any, Any, T]]]:
     """Decorator to add circuit breaker to async functions.
 
     Args:
@@ -275,7 +274,7 @@ def circuit_breaker(
     """
 
     def decorator(
-        func: Callable[..., Coroutine[Any, Any, T]]
+        func: Callable[..., Coroutine[Any, Any, T]],
     ) -> Callable[..., Coroutine[Any, Any, T]]:
         _breaker = CircuitBreaker(
             name=name,
