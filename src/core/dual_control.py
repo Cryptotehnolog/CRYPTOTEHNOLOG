@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 import uuid
 
@@ -186,7 +186,7 @@ MAX_REQUEST_TIMEOUT_MINUTES = 30
 MIN_APPROVERS_FOR_CRITICAL = 2
 
 # Роли операторов
-class OperatorRole(str, Enum):
+class OperatorRole(StrEnum):
     """Роли операторов."""
 
     ADMIN = "admin"
