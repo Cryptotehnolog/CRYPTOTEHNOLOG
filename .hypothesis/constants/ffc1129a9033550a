@@ -1,0 +1,4 @@
+# file: d:\CRYPTOTEHNOLOG\src\core\redis_manager.py
+# hypothesis_version: 6.151.9
+
+['*', '+', '-', '@', 'bool', 'bool | None', 'connected', 'dict[str, Any]', 'dict[str, str]', 'error', 'ex', 'healthy', 'int', 'list[str]', 'max_connections', 'maxlen', 'nx', 'redis_version', 'server', 'set[str]', 'stats', 'status', 'str', 'str | None', 'unhealthy', 'unknown', 'xx', '~', 'Подключение к Redis']

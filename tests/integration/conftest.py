@@ -23,6 +23,9 @@ if TYPE_CHECKING:
 os.environ["ENVIRONMENT"] = "test"
 os.environ["DEBUG"] = "true"
 
+# Unique lock ID for test DB initialization
+_TEST_DB_INIT_LOCK_ID = 1234567890
+
 
 # ==================== Event Loop Fixture ====================
 
@@ -43,7 +46,8 @@ def event_loop() -> "Generator[asyncio.AbstractEventLoop, None, None]":
 async def test_db_setup() -> None:
     """Initialize test DB before all integration tests.
 
-    Uses separate test DB (trading_test) for isolation from production.
+    Uses PostgreSQL Advisory Lock to prevent concurrent initialization
+    from multiple pytest-xdist workers.
     """
     settings = Settings()
 
@@ -53,168 +57,189 @@ async def test_db_setup() -> None:
         command_timeout=60,
     )
     try:
-        # Check if tables already exist
-        tables_exist = await conn.fetch(
-            "SELECT COUNT(*) as cnt FROM pg_tables WHERE schemaname = 'public'"
+        # Acquire advisory lock to serialize DB initialization across workers
+        # This prevents race condition when multiple xdist workers try to create tables
+        lock_acquired = await conn.fetchval(
+            "SELECT pg_try_advisory_lock($1)",
+            _TEST_DB_INIT_LOCK_ID,
         )
-        tables_count = tables_exist[0]["cnt"] if tables_exist else 0
 
-        if tables_count == 0:
-            # Create tables only if they don't exist
-            init_db_sql = """
-            -- State Machine States (current state)
-            CREATE TABLE IF NOT EXISTS state_machine_states (
-                id SERIAL PRIMARY KEY,
-                current_state VARCHAR(50) NOT NULL,
-                version INTEGER NOT NULL DEFAULT 0,
-                updated_at TIMESTAMP DEFAULT NOW()
-            );
+        if not lock_acquired:
+            # Another worker is initializing - wait for it
+            await conn.execute(
+                "SELECT pg_advisory_lock($1)",
+                _TEST_DB_INIT_LOCK_ID,
+            )
 
-            -- State Transitions (transition history)
-            CREATE TABLE IF NOT EXISTS state_transitions (
-                id SERIAL PRIMARY KEY,
-                from_state VARCHAR(50) NOT NULL,
-                to_state VARCHAR(50) NOT NULL,
-                trigger VARCHAR(100) NOT NULL,
-                metadata JSONB,
-                operator VARCHAR(100),
-                timestamp TIMESTAMP DEFAULT NOW(),
-                duration_ms INTEGER
-            );
+        try:
+            # Check if tables already exist
+            tables_exist = await conn.fetch(
+                "SELECT COUNT(*) as cnt FROM pg_tables WHERE schemaname = 'public'"
+            )
+            tables_count = tables_exist[0]["cnt"] if tables_exist else 0
 
-            -- Audit Events (audit trail)
-            CREATE TABLE IF NOT EXISTS audit_events (
-                id SERIAL PRIMARY KEY,
-                event_type VARCHAR(100) NOT NULL,
-                entity_type VARCHAR(100),
-                entity_id VARCHAR(100),
-                old_state JSONB,
-                new_state JSONB,
-                operator VARCHAR(100),
-                metadata JSONB,
-                timestamp TIMESTAMP DEFAULT NOW()
-            );
+            if tables_count == 0:
+                # Create tables only if they don't exist
+                init_db_sql = """
+                -- State Machine States (current state)
+                CREATE TABLE IF NOT EXISTS state_machine_states (
+                    id SERIAL PRIMARY KEY,
+                    current_state VARCHAR(50) NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 0,
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
 
-            -- Market Data (OHLCV data)
-            CREATE TABLE IF NOT EXISTS market_data (
-                id SERIAL PRIMARY KEY,
-                symbol VARCHAR(50) NOT NULL,
-                timeframe VARCHAR(10) NOT NULL,
-                open REAL NOT NULL,
-                high REAL NOT NULL,
-                low REAL NOT NULL,
-                close REAL NOT NULL,
-                volume REAL NOT NULL,
-                timestamp TIMESTAMP NOT NULL
-            );
+                -- State Transitions (transition history)
+                CREATE TABLE IF NOT EXISTS state_transitions (
+                    id SERIAL PRIMARY KEY,
+                    from_state VARCHAR(50) NOT NULL,
+                    to_state VARCHAR(50) NOT NULL,
+                    trigger VARCHAR(100) NOT NULL,
+                    metadata JSONB,
+                    operator VARCHAR(100),
+                    timestamp TIMESTAMP DEFAULT NOW(),
+                    duration_ms INTEGER
+                );
 
-            -- Orders
-            CREATE TABLE IF NOT EXISTS orders (
-                id SERIAL PRIMARY KEY,
-                order_id VARCHAR(100) UNIQUE NOT NULL,
-                symbol VARCHAR(50) NOT NULL,
-                side VARCHAR(10) NOT NULL,
-                order_type VARCHAR(20) NOT NULL,
-                size REAL NOT NULL,
-                price REAL,
-                status VARCHAR(20) NOT NULL,
-                filled_size REAL DEFAULT 0,
-                average_price REAL,
-                created_at TIMESTAMP DEFAULT NOW(),
-                updated_at TIMESTAMP DEFAULT NOW()
-            );
+                -- Audit Events (audit trail)
+                CREATE TABLE IF NOT EXISTS audit_events (
+                    id SERIAL PRIMARY KEY,
+                    event_type VARCHAR(100) NOT NULL,
+                    entity_type VARCHAR(100),
+                    entity_id VARCHAR(100),
+                    old_state JSONB,
+                    new_state JSONB,
+                    operator VARCHAR(100),
+                    metadata JSONB,
+                    timestamp TIMESTAMP DEFAULT NOW()
+                );
 
-            -- Positions
-            CREATE TABLE IF NOT EXISTS positions (
-                id SERIAL PRIMARY KEY,
-                symbol VARCHAR(50) UNIQUE NOT NULL,
-                side VARCHAR(10) NOT NULL,
-                size REAL NOT NULL,
-                entry_price REAL NOT NULL,
-                current_price REAL,
-                unrealized_pnl REAL,
-                realized_pnl REAL DEFAULT 0,
-                opened_at TIMESTAMP DEFAULT NOW(),
-                updated_at TIMESTAMP DEFAULT NOW()
-            );
+                -- Market Data (OHLCV data)
+                CREATE TABLE IF NOT EXISTS market_data (
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(50) NOT NULL,
+                    timeframe VARCHAR(10) NOT NULL,
+                    open REAL NOT NULL,
+                    high REAL NOT NULL,
+                    low REAL NOT NULL,
+                    close REAL NOT NULL,
+                    volume REAL NOT NULL,
+                    timestamp TIMESTAMP NOT NULL
+                );
 
-            -- Risk Events
-            CREATE TABLE IF NOT EXISTS risk_events (
-                id SERIAL PRIMARY KEY,
-                event_type VARCHAR(100) NOT NULL,
-                symbol VARCHAR(50),
-                size REAL,
-                price REAL,
-                risk_amount REAL,
-                allowed BOOLEAN NOT NULL,
-                reason TEXT,
-                timestamp TIMESTAMP DEFAULT NOW()
-            );
+                -- Orders
+                CREATE TABLE IF NOT EXISTS orders (
+                    id SERIAL PRIMARY KEY,
+                    order_id VARCHAR(100) UNIQUE NOT NULL,
+                    symbol VARCHAR(50) NOT NULL,
+                    side VARCHAR(10) NOT NULL,
+                    order_type VARCHAR(20) NOT NULL,
+                    size REAL NOT NULL,
+                    price REAL,
+                    status VARCHAR(20) NOT NULL,
+                    filled_size REAL DEFAULT 0,
+                    average_price REAL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
 
-            -- Risk Ledger
-            CREATE TABLE IF NOT EXISTS risk_ledger (
-                id SERIAL PRIMARY KEY,
-                limit_type VARCHAR(50) NOT NULL,
-                limit_value REAL NOT NULL,
-                current_value REAL NOT NULL,
-                period_seconds INTEGER,
-                reset_at TIMESTAMP,
-                created_at TIMESTAMP DEFAULT NOW()
-            );
+                -- Positions
+                CREATE TABLE IF NOT EXISTS positions (
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(50) UNIQUE NOT NULL,
+                    side VARCHAR(10) NOT NULL,
+                    size REAL NOT NULL,
+                    entry_price REAL NOT NULL,
+                    current_price REAL,
+                    unrealized_pnl REAL,
+                    realized_pnl REAL DEFAULT 0,
+                    opened_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
 
-            -- Risk Limits
-            CREATE TABLE IF NOT EXISTS risk_limits (
-                id SERIAL PRIMARY KEY,
-                limit_name VARCHAR(100) UNIQUE NOT NULL,
-                limit_type VARCHAR(50) NOT NULL,
-                max_value REAL NOT NULL,
-                current_value REAL DEFAULT 0,
-                enabled BOOLEAN DEFAULT TRUE,
-                updated_at TIMESTAMP DEFAULT NOW()
-            );
+                -- Risk Events
+                CREATE TABLE IF NOT EXISTS risk_events (
+                    id SERIAL PRIMARY KEY,
+                    event_type VARCHAR(100) NOT NULL,
+                    symbol VARCHAR(50),
+                    size REAL,
+                    price REAL,
+                    risk_amount REAL,
+                    allowed BOOLEAN NOT NULL,
+                    reason TEXT,
+                    timestamp TIMESTAMP DEFAULT NOW()
+                );
 
-            -- System Metrics
-            CREATE TABLE IF NOT EXISTS system_metrics (
-                id SERIAL PRIMARY KEY,
-                metric_name VARCHAR(100) NOT NULL,
-                metric_type VARCHAR(50) NOT NULL,
-                value REAL NOT NULL,
-                labels JSONB,
-                timestamp TIMESTAMP DEFAULT NOW()
-            );
+                -- Risk Ledger
+                CREATE TABLE IF NOT EXISTS risk_ledger (
+                    id SERIAL PRIMARY KEY,
+                    limit_type VARCHAR(50) NOT NULL,
+                    limit_value REAL NOT NULL,
+                    current_value REAL NOT NULL,
+                    period_seconds INTEGER,
+                    reset_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
 
-            -- Indexes
-            CREATE INDEX IF NOT EXISTS idx_market_data_symbol_timeframe_timestamp
-                ON market_data(symbol, timeframe, timestamp);
-            CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-            CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions(symbol);
-            CREATE INDEX IF NOT EXISTS idx_risk_events_timestamp ON risk_events(timestamp);
-            CREATE INDEX IF NOT EXISTS idx_state_transitions_timestamp ON state_transitions(timestamp);
-            CREATE INDEX IF NOT EXISTS idx_audit_events_timestamp ON audit_events(timestamp);
-            """
+                -- Risk Limits
+                CREATE TABLE IF NOT EXISTS risk_limits (
+                    id SERIAL PRIMARY KEY,
+                    limit_name VARCHAR(100) UNIQUE NOT NULL,
+                    limit_type VARCHAR(50) NOT NULL,
+                    max_value REAL NOT NULL,
+                    current_value REAL DEFAULT 0,
+                    enabled BOOLEAN DEFAULT TRUE,
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
 
-            await conn.execute(init_db_sql)
+                -- System Metrics
+                CREATE TABLE IF NOT EXISTS system_metrics (
+                    id SERIAL PRIMARY KEY,
+                    metric_name VARCHAR(100) NOT NULL,
+                    metric_type VARCHAR(50) NOT NULL,
+                    value REAL NOT NULL,
+                    labels JSONB,
+                    timestamp TIMESTAMP DEFAULT NOW()
+                );
 
-            # Insert initial state for State Machine
-            await conn.execute("""
-                INSERT INTO state_machine_states (current_state, version)
-                VALUES ('boot', 0)
-                ON CONFLICT (id) DO NOTHING
-            """)
-        else:
-            # Tables exist - just clean data
-            await conn.execute("""
-                TRUNCATE TABLE state_machine_states, state_transitions, audit_events,
-                market_data, orders, positions, risk_events, risk_ledger,
-                risk_limits, system_metrics RESTART IDENTITY CASCADE
-            """)
+                -- Indexes
+                CREATE INDEX IF NOT EXISTS idx_market_data_symbol_timeframe_timestamp
+                    ON market_data(symbol, timeframe, timestamp);
+                CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+                CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions(symbol);
+                CREATE INDEX IF NOT EXISTS idx_risk_events_timestamp ON risk_events(timestamp);
+                CREATE INDEX IF NOT EXISTS idx_state_transitions_timestamp ON state_transitions(timestamp);
+                CREATE INDEX IF NOT EXISTS idx_audit_events_timestamp ON audit_events(timestamp);
+                """
 
-            # Insert initial state
-            await conn.execute("""
-                INSERT INTO state_machine_states (current_state, version)
-                VALUES ('boot', 0)
-                ON CONFLICT (id) DO NOTHING
-            """)
+                await conn.execute(init_db_sql)
+
+                # Insert initial state for State Machine
+                await conn.execute("""
+                    INSERT INTO state_machine_states (current_state, version)
+                    VALUES ('boot', 0)
+                    ON CONFLICT (id) DO NOTHING
+                """)
+            else:
+                # Tables exist - just clean data
+                await conn.execute("""
+                    TRUNCATE TABLE state_machine_states, state_transitions, audit_events,
+                    market_data, orders, positions, risk_events, risk_ledger,
+                    risk_limits, system_metrics RESTART IDENTITY CASCADE
+                """)
+
+                # Insert initial state
+                await conn.execute("""
+                    INSERT INTO state_machine_states (current_state, version)
+                    VALUES ('boot', 0)
+                    ON CONFLICT (id) DO NOTHING
+                """)
+        finally:
+            # Release advisory lock
+            await conn.execute(
+                "SELECT pg_advisory_unlock($1)",
+                _TEST_DB_INIT_LOCK_ID,
+            )
     finally:
         await conn.close()
 

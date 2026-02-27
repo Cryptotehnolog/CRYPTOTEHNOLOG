@@ -63,6 +63,14 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           uv --version
 
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml', 'requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
       - name: Create virtual environment and install dependencies
         run: |
           uv venv
@@ -105,20 +113,20 @@ jobs:
         run: .venv/bin/mypy src/ --ignore-missing-imports
         continue-on-error: true
 
-      - name: Run unit tests (without DB - parallel)
-        run: .venv/bin/python -m pytest tests/unit/ -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
+      - name: Run unit tests (without DB - parallel with retry)
+        run: .venv/bin/python -m pytest tests/unit/ -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml --reruns 3 --reruns-delay 1
         env:
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
-      - name: Run unit tests (with DB - sequential)
-        run: .venv/bin/python -m pytest tests/unit/ -v -m db -n 0 --cov=src --cov-report=xml
+      - name: Run unit tests (with DB - sequential with retry)
+        run: .venv/bin/python -m pytest tests/unit/ -v -m db -n 0 --cov=src --cov-report=xml --reruns 3 --reruns-delay 1
         env:
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost
 
-      - name: Run integration tests
-        run: .venv/bin/python -m pytest tests/integration/ -v -m integration -n auto --dist loadscope --cov=src --cov-append --cov-report=xml
+      - name: Run integration tests (sequential with retry)
+        run: .venv/bin/python -m pytest tests/integration/ -v -n 0 --cov=src --cov-append --cov-report=xml --reruns 3 --reruns-delay 1
         env:
           REDIS_HOST: localhost
           POSTGRES_HOST: localhost

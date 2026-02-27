@@ -8,6 +8,7 @@ Redis Manager — асинхронный менеджер подключения
 - TTL (time-to-live)
 - Pub/Sub
 - Streams
+- Circuit breaker для отказоустойчивости
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from typing import TYPE_CHECKING, Any, cast
 import redis.asyncio as redis
 
 from cryptotechnolog.config import get_logger, get_settings
+from src.core.circuit_breaker import CircuitBreaker
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -295,6 +297,7 @@ class RedisManager:
         self,
         max_connections: int | None = None,
         socket_timeout: int | None = None,
+        circuit_breaker_enabled: bool = True,
     ) -> None:
         """
         Инициализировать менеджер Redis.
@@ -302,6 +305,7 @@ class RedisManager:
         Аргументы:
             max_connections: Максимальное количество соединений в пуле
             socket_timeout: Таймаут сокета в секундах
+            circuit_breaker_enabled: Включить circuit breaker
         """
         settings = get_settings()
 
@@ -313,10 +317,21 @@ class RedisManager:
         self._typed_client: TypedRedisClient | None = None
         self._connected = False
 
+        # Circuit breaker for fault tolerance
+        self._circuit_breaker_enabled = circuit_breaker_enabled
+        self._circuit_breaker = CircuitBreaker(
+            name="redis",
+            failure_threshold=5,
+            recovery_timeout=30,
+            success_threshold=2,
+            excluded_exceptions=(redis.AuthenticationError,),
+        )
+
         logger.info(
             "Инициализирован менеджер Redis",
             max_connections=self._max_connections,
             url=self._url.split("@")[-1] if "@" in self._url else self._url,
+            circuit_breaker_enabled=circuit_breaker_enabled,
         )
 
     @property
@@ -328,6 +343,17 @@ class RedisManager:
     def redis(self) -> Redis | None:
         """Получить экземпляр Redis."""
         return self._redis
+
+    @property
+    def circuit_breaker(self) -> CircuitBreaker:
+        """Получить circuit breaker."""
+        return self._circuit_breaker
+
+    def is_healthy(self) -> bool:
+        """Проверить здоровье подключения (учитывая circuit breaker)."""
+        if self._circuit_breaker_enabled and self._circuit_breaker.is_open:
+            return False
+        return self.is_connected
 
     def _require_typed_client(self) -> TypedRedisClient:
         """Получить типизированный клиент."""
@@ -395,11 +421,24 @@ class RedisManager:
         Returns:
             Словарь с статусом проверки
         """
+        # Check circuit breaker state
+        cb_state = self._circuit_breaker.state.value if self._circuit_breaker_enabled else "disabled"
+
         if not self.is_connected:
             return {
                 "status": "unhealthy",
                 "connected": False,
+                "circuit_breaker": cb_state,
                 "error": "Нет подключения к Redis",
+            }
+
+        # If circuit is open, report degraded
+        if self._circuit_breaker_enabled and self._circuit_breaker.is_open:
+            return {
+                "status": "degraded",
+                "connected": True,
+                "circuit_breaker": cb_state,
+                "error": "Circuit breaker is OPEN - service degraded",
             }
 
         try:
@@ -410,6 +449,7 @@ class RedisManager:
             return {
                 "status": "healthy",
                 "connected": True,
+                "circuit_breaker": cb_state,
                 "max_connections": self._max_connections,
                 "total_commands_processed": info.get("total_commands_processed", 0),
             }
@@ -417,6 +457,7 @@ class RedisManager:
             return {
                 "status": "unhealthy",
                 "connected": False,
+                "circuit_breaker": cb_state,
                 "error": str(e),
             }
 

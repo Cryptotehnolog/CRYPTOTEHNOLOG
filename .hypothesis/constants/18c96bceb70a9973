@@ -1,0 +1,4 @@
+# file: d:\CRYPTOTEHNOLOG\src\cryptotechnolog\backtest\events.py
+# hypothesis_version: 6.151.9
+
+[0.0, 'USDT', 'balance_update', 'order', 'pending', 'position_update', 'risk_check', 'tick', 'trade', 'unknown']

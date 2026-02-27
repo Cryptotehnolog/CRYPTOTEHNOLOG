@@ -1,0 +1,4 @@
+# file: d:\CRYPTOTEHNOLOG\src\core\state_machine.py
+# hypothesis_version: 6.151.9
+
+[0.01, 100, 1000, 'BEGIN', 'COMMIT', 'ROLLBACK', 'STATE_TRANSITION', 'current_state', 'current_system_state', 'event_type', 'high', 'invalid_transition', 'payload', 'priority', 'source', 'state_machine', 'transition_error', 'version', '{}']

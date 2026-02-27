@@ -9,6 +9,7 @@ Database Layer — PostgreSQL Manager с асинхронным подключе
 - Контекстные менеджеры
 - Redis кэширование
 - Pub/Sub уведомления
+- Circuit breaker для отказоустойчивости
 """
 
 from collections.abc import AsyncIterator
@@ -20,6 +21,7 @@ from typing import Any, cast
 import asyncpg
 
 from cryptotechnolog.config import get_logger, get_settings
+from src.core.circuit_breaker import CircuitBreaker, CircuitBreakerError
 
 logger = get_logger(__name__)
 
@@ -37,6 +39,7 @@ class DatabaseManager:
     - Асинхронные операции
     - Транзакции с автоматическим rollback
     - Graceful shutdown
+    - Circuit breaker для fault tolerance
 
     Пример:
         >>> db = DatabaseManager()
@@ -49,6 +52,7 @@ class DatabaseManager:
         self,
         min_size: int | None = None,
         max_size: int | None = None,
+        circuit_breaker_enabled: bool = True,
     ) -> None:
         """
         Инициализировать менеджер базы данных.
@@ -56,6 +60,7 @@ class DatabaseManager:
         Аргументы:
             min_size: Минимальный размер пула (по умолчанию из настроек)
             max_size: Максимальный размер пула (по умолчанию из настроек)
+            circuit_breaker_enabled: Включить circuit breaker
         """
         settings = get_settings()
 
@@ -68,10 +73,21 @@ class DatabaseManager:
         self._connected = False
         self._redis: RedisClientType | None = None
 
+        # Circuit breaker for fault tolerance
+        self._circuit_breaker_enabled = circuit_breaker_enabled
+        self._circuit_breaker = CircuitBreaker(
+            name="postgresql",
+            failure_threshold=5,
+            recovery_timeout=30,
+            success_threshold=2,
+            excluded_exceptions=(asyncpg.InvalidCatalogNameError, asyncpg.InvalidPasswordError),
+        )
+
         logger.info(
             "Инициализирован менеджер БД",
             min_size=self._min_size,
             max_size=self._max_size,
+            circuit_breaker_enabled=circuit_breaker_enabled,
         )
 
     @property
@@ -84,6 +100,17 @@ class DatabaseManager:
         """Получить пул соединений."""
         return self._pool
 
+    @property
+    def circuit_breaker(self) -> CircuitBreaker:
+        """Получить circuit breaker."""
+        return self._circuit_breaker
+
+    def is_healthy(self) -> bool:
+        """Проверить здоровье подключения (учитывая circuit breaker)."""
+        if self._circuit_breaker_enabled and self._circuit_breaker.is_open:
+            return False
+        return self.is_connected
+
     async def connect(self) -> None:
         """
         Подключиться к PostgreSQL и создать пул соединений.
@@ -95,6 +122,13 @@ class DatabaseManager:
         """
         if self._connected and self._pool is not None:
             raise RuntimeError("Уже подключено к БД")
+
+        # Check circuit breaker before attempting connection
+        if self._circuit_breaker_enabled and self._circuit_breaker.is_open:
+            raise CircuitBreakerError(
+                "Cannot connect to PostgreSQL: circuit breaker is OPEN. "
+                "Service is currently unavailable."
+            )
 
         logger.info("Подключение к PostgreSQL", url=self._url.split("@")[1])
 
@@ -284,11 +318,24 @@ class DatabaseManager:
         Returns:
             Словарь с статусом проверки
         """
+        # Check circuit breaker state
+        cb_state = self._circuit_breaker.state.value if self._circuit_breaker_enabled else "disabled"
+
         if not self.is_connected:
             return {
                 "status": "unhealthy",
                 "connected": False,
+                "circuit_breaker": cb_state,
                 "error": "Нет подключения к БД",
+            }
+
+        # If circuit is open, report degraded
+        if self._circuit_breaker_enabled and self._circuit_breaker.is_open:
+            return {
+                "status": "degraded",
+                "connected": True,
+                "circuit_breaker": cb_state,
+                "error": "Circuit breaker is OPEN - service degraded",
             }
 
         try:
@@ -299,6 +346,7 @@ class DatabaseManager:
                 return {
                     "status": "healthy",
                     "connected": True,
+                    "circuit_breaker": cb_state,
                     "pool_size": self._min_size if self._pool else 1,
                     "pool_max_size": self._max_size if self._pool else 1,
                     "test_query_result": result,
@@ -307,6 +355,7 @@ class DatabaseManager:
             return {
                 "status": "unhealthy",
                 "connected": False,
+                "circuit_breaker": cb_state,
                 "error": str(e),
             }
 
