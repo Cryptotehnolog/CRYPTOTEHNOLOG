@@ -225,6 +225,42 @@ async def test_db_setup() -> None:
 
                 await conn.execute(init_db_sql)
 
+                -- Run migration 007 to add missing columns (idempotent)
+                await conn.execute("""
+                    -- Add status column to orders if not exists
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name = 'orders' AND column_name = 'status'
+                        ) THEN
+                            ALTER TABLE orders ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending';
+                        END IF;
+                    END $$;
+
+                    -- Add status column to positions if not exists
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name = 'positions' AND column_name = 'status'
+                        ) THEN
+                            ALTER TABLE positions ADD COLUMN status VARCHAR(20) DEFAULT 'open';
+                        END IF;
+                    END $$;
+
+                    -- Add position_id to positions if not exists
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name = 'positions' AND column_name = 'position_id'
+                        ) THEN
+                            ALTER TABLE positions ADD COLUMN position_id VARCHAR(100);
+                        END IF;
+                    END $$;
+                """)
+
                 # Insert initial state for State Machine
                 await conn.execute("""
                     INSERT INTO state_machine_states (current_state, version)
