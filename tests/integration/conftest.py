@@ -4,7 +4,7 @@
 import asyncio
 import os
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, AsyncGenerator
 
 import asyncpg
 import pytest
@@ -40,250 +40,142 @@ def event_loop() -> "Generator[asyncio.AbstractEventLoop, None, None]":
     loop.close()
 
 
+# ==================== Migration Helpers ====================
+
+from pathlib import Path
+
+
+def get_migration_files() -> list[Path]:
+    """Get sorted list of migration SQL files."""
+    migrations_dir = Path(__file__).parent.parent.parent / "scripts" / "migrations"
+
+    if not migrations_dir.exists():
+        return []
+
+    migrations = []
+    for f in migrations_dir.glob("*.sql"):
+        # Skip control_plane_additions.sql - apply it last
+        if f.name == "control_plane_additions.sql":
+            continue
+        migrations.append(f)
+
+    # Sort by version number (001, 002, etc.)
+    migrations.sort(key=lambda x: x.name.split("_")[0])
+    return migrations
+
+
+async def apply_migrations(conn: asyncpg.Connection) -> None:
+    """Apply all migrations in order."""
+    migration_files = get_migration_files()
+
+    for migration_file in migration_files:
+        sql = migration_file.read_text(encoding="utf-8")
+        await conn.execute(sql)
+
+    # Apply control_plane_additions.sql last
+    control_plane = (
+        Path(__file__).parent.parent.parent / "scripts" / "migrations" / "control_plane_additions.sql"
+    )
+    if control_plane.exists():
+        sql = control_plane.read_text(encoding="utf-8")
+        await conn.execute(sql)
+
+
+async def drop_all_tables(conn: asyncpg.Connection) -> None:
+    """Drop all tables in public schema."""
+    tables = await conn.fetch(
+        "SELECT tablename FROM pg_tables WHERE schemaname = 'public' "
+        "AND tablename NOT LIKE 'pg_%' AND tablename NOT LIKE 'sql_%'"
+    )
+
+    if tables:
+        table_names = [t["tablename"] for t in tables]
+        for table in table_names:
+            await conn.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+
+
 # ==================== Database Fixtures ====================
 
 
-@pytest.fixture(scope="session", autouse=True)
-async def test_db_setup() -> None:
-    """Initialize test DB before all integration tests.
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def test_db_setup() -> AsyncGenerator[None, None]:
+    """Initialize test DB using migrations (single source of truth).
 
     Uses PostgreSQL Advisory Lock to prevent concurrent initialization
     from multiple pytest-xdist workers.
+
+    This approach ensures:
+    - CI and local environments have identical schema
+    - Schema always matches migrations (not hardcoded SQL)
+    - No duplication between init-db.sql and conftest.py
     """
     settings = Settings()
 
-    # Connect to TEST DB
     conn = await asyncpg.connect(
         settings.postgres_test_async_url,
         command_timeout=60,
     )
     try:
-        # Acquire advisory lock to serialize DB initialization across workers
-        # This prevents race condition when multiple xdist workers try to create tables
         lock_acquired = await conn.fetchval(
             "SELECT pg_try_advisory_lock($1)",
             _TEST_DB_INIT_LOCK_ID,
         )
 
         if not lock_acquired:
-            # Another worker is initializing - wait for it
             await conn.execute(
                 "SELECT pg_advisory_lock($1)",
                 _TEST_DB_INIT_LOCK_ID,
             )
 
         try:
-            # Check if tables already exist
-            tables_exist = await conn.fetch(
-                "SELECT COUNT(*) as cnt FROM pg_tables WHERE schemaname = 'public'"
-            )
-            tables_count = tables_exist[0]["cnt"] if tables_exist else 0
+            # Always refresh schema from migrations for consistency
+            print("\n[test_db_setup] Dropping existing tables...")
+            await drop_all_tables(conn)
 
-            if tables_count == 0:
-                # Create tables only if they don't exist
-                init_db_sql = """
-                -- State Machine States (current state)
-                CREATE TABLE IF NOT EXISTS state_machine_states (
-                    id SERIAL PRIMARY KEY,
-                    current_state VARCHAR(50) NOT NULL,
-                    version INTEGER NOT NULL DEFAULT 0,
-                    updated_at TIMESTAMP DEFAULT NOW()
-                );
+            print("[test_db_setup] Applying migrations...")
+            await apply_migrations(conn)
+            print("[test_db_setup] Migrations applied successfully.")
 
-                -- State Transitions (transition history)
-                CREATE TABLE IF NOT EXISTS state_transitions (
-                    id SERIAL PRIMARY KEY,
-                    from_state VARCHAR(50) NOT NULL,
-                    to_state VARCHAR(50) NOT NULL,
-                    trigger VARCHAR(100) NOT NULL,
-                    metadata JSONB,
-                    operator VARCHAR(100),
-                    timestamp TIMESTAMP DEFAULT NOW(),
-                    duration_ms INTEGER
-                );
-
-                -- Audit Events (audit trail)
-                CREATE TABLE IF NOT EXISTS audit_events (
-                    id SERIAL PRIMARY KEY,
-                    event_type VARCHAR(100) NOT NULL,
-                    entity_type VARCHAR(100),
-                    entity_id VARCHAR(100),
-                    old_state JSONB,
-                    new_state JSONB,
-                    operator VARCHAR(100),
-                    metadata JSONB,
-                    timestamp TIMESTAMP DEFAULT NOW()
-                );
-
-                -- Market Data (OHLCV data)
-                CREATE TABLE IF NOT EXISTS market_data (
-                    id SERIAL PRIMARY KEY,
-                    symbol VARCHAR(50) NOT NULL,
-                    timeframe VARCHAR(10) NOT NULL,
-                    open REAL NOT NULL,
-                    high REAL NOT NULL,
-                    low REAL NOT NULL,
-                    close REAL NOT NULL,
-                    volume REAL NOT NULL,
-                    timestamp TIMESTAMP NOT NULL
-                );
-
-                -- Orders
-                CREATE TABLE IF NOT EXISTS orders (
-                    id SERIAL PRIMARY KEY,
-                    order_id VARCHAR(100) UNIQUE NOT NULL,
-                    client_order_id VARCHAR(100),
-                    exchange_order_id VARCHAR(100),
-                    symbol VARCHAR(50) NOT NULL,
-                    side VARCHAR(10) NOT NULL,
-                    order_type VARCHAR(20) NOT NULL,
-                    size REAL NOT NULL,
-                    price REAL,
-                    status VARCHAR(20) NOT NULL,
-                    state VARCHAR(50) DEFAULT 'pending',
-                    filled_size REAL DEFAULT 0,
-                    average_price REAL,
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW()
-                );
-
-                -- Positions
-                CREATE TABLE IF NOT EXISTS positions (
-                    id SERIAL PRIMARY KEY,
-                    position_id VARCHAR(100) UNIQUE NOT NULL,
-                    symbol VARCHAR(50) NOT NULL,
-                    side VARCHAR(10) NOT NULL,
-                    size REAL NOT NULL,
-                    entry_price REAL NOT NULL,
-                    current_price REAL,
-                    leverage REAL DEFAULT 1.0,
-                    unrealized_pnl REAL DEFAULT 0,
-                    realized_pnl REAL DEFAULT 0,
-                    margin_used REAL DEFAULT 0,
-                    liquidation_price REAL,
-                    status VARCHAR(20) DEFAULT 'open',
-                    opened_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW(),
-                    closed_at TIMESTAMP,
-                    metadata JSONB DEFAULT '{}'::jsonb
-                );
-
-                -- Risk Events
-                CREATE TABLE IF NOT EXISTS risk_events (
-                    id SERIAL PRIMARY KEY,
-                    event_type VARCHAR(100) NOT NULL,
-                    symbol VARCHAR(50),
-                    size REAL,
-                    price REAL,
-                    risk_amount REAL,
-                    allowed BOOLEAN NOT NULL,
-                    reason TEXT,
-                    timestamp TIMESTAMP DEFAULT NOW()
-                );
-
-                -- Risk Ledger
-                CREATE TABLE IF NOT EXISTS risk_ledger (
-                    id SERIAL PRIMARY KEY,
-                    limit_type VARCHAR(50) NOT NULL,
-                    limit_value REAL NOT NULL,
-                    current_value REAL NOT NULL,
-                    period_seconds INTEGER,
-                    reset_at TIMESTAMP,
-                    created_at TIMESTAMP DEFAULT NOW()
-                );
-
-                -- Risk Limits
-                CREATE TABLE IF NOT EXISTS risk_limits (
-                    id SERIAL PRIMARY KEY,
-                    limit_name VARCHAR(100) UNIQUE NOT NULL,
-                    limit_type VARCHAR(50) NOT NULL,
-                    max_value REAL NOT NULL,
-                    current_value REAL DEFAULT 0,
-                    enabled BOOLEAN DEFAULT TRUE,
-                    updated_at TIMESTAMP DEFAULT NOW()
-                );
-
-                -- System Metrics
-                CREATE TABLE IF NOT EXISTS system_metrics (
-                    id SERIAL PRIMARY KEY,
-                    metric_name VARCHAR(100) NOT NULL,
-                    metric_type VARCHAR(50) NOT NULL,
-                    value REAL NOT NULL,
-                    labels JSONB,
-                    timestamp TIMESTAMP DEFAULT NOW()
-                );
-
-                -- Indexes
-                CREATE INDEX IF NOT EXISTS idx_market_data_symbol_timeframe_timestamp
-                    ON market_data(symbol, timeframe, timestamp);
-                CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-                CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions(symbol);
-                CREATE INDEX IF NOT EXISTS idx_risk_events_timestamp ON risk_events(timestamp);
-                CREATE INDEX IF NOT EXISTS idx_state_transitions_timestamp ON state_transitions(timestamp);
-                CREATE INDEX IF NOT EXISTS idx_audit_events_timestamp ON audit_events(timestamp);
-                """
-
-                await conn.execute(init_db_sql)
-
-                # Insert initial state for State Machine
-                await conn.execute("""
-                    INSERT INTO state_machine_states (current_state, version)
-                    VALUES ('boot', 0)
-                    ON CONFLICT (id) DO NOTHING
-                """)
-            else:
-                # Tables exist - just clean data
-                await conn.execute("""
-                    TRUNCATE TABLE state_machine_states, state_transitions, audit_events,
-                    market_data, orders, positions, risk_events, risk_ledger,
-                    risk_limits, system_metrics RESTART IDENTITY CASCADE
-                """)
-
-                # Insert initial state
-                await conn.execute("""
-                    INSERT INTO state_machine_states (current_state, version)
-                    VALUES ('boot', 0)
-                    ON CONFLICT (id) DO NOTHING
-                """)
-
-            # Always run migration to ensure columns exist (idempotent)
-            await conn.execute("""
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns 
-                        WHERE table_name = 'orders' AND column_name = 'status'
-                    ) THEN
-                        ALTER TABLE orders ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending';
-                    END IF;
-                END $$;
-
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns 
-                        WHERE table_name = 'positions' AND column_name = 'status'
-                    ) THEN
-                        ALTER TABLE positions ADD COLUMN status VARCHAR(20) DEFAULT 'open';
-                    END IF;
-                END $$;
-
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns 
-                        WHERE table_name = 'positions' AND column_name = 'position_id'
-                    ) THEN
-                        ALTER TABLE positions ADD COLUMN position_id VARCHAR(100);
-                    END IF;
-                END $$;
-            """)
         finally:
-            # Release advisory lock
             await conn.execute(
                 "SELECT pg_advisory_unlock($1)",
                 _TEST_DB_INIT_LOCK_ID,
             )
+    finally:
+        await conn.close()
+
+    yield  # Required for async generator fixture
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def clean_tables_between_tests() -> AsyncGenerator[None, None]:
+    """Clean tables between tests (but keep schema from migrations)."""
+    settings = Settings()
+    conn = await asyncpg.connect(
+        settings.postgres_test_async_url,
+        command_timeout=60,
+    )
+    try:
+        tables = await conn.fetch(
+            "SELECT tablename FROM pg_tables WHERE schemaname = 'public' "
+            "AND tablename NOT LIKE 'pg_%' AND tablename NOT LIKE 'sql_%' "
+            "AND tablename != 'schema_migrations'"
+        )
+
+        if tables:
+            table_names = [t["tablename"] for t in tables]
+            await conn.execute(
+                f"TRUNCATE TABLE {', '.join(table_names)} RESTART IDENTITY CASCADE"
+            )
+
+        # Re-insert initial state for state_machine_states
+        await conn.execute("""
+            INSERT INTO state_machine_states (id, current_state, version)
+            VALUES (1, 'boot', 0)
+            ON CONFLICT (id) DO NOTHING
+        """)
+
+        yield
     finally:
         await conn.close()
 
