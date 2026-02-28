@@ -297,9 +297,7 @@ class OperatorGate:
             return self._authenticator.validate_operator_role(operator, OperatorRole.ADMIN)
         elif operation in DUAL_CONTROL_OPERATIONS:
             # Для высокорисковых - ADMIN или RISK_MANAGER
-            return self._authenticator.validate_operator_role(
-                operator, OperatorRole.RISK_MANAGER
-            )
+            return self._authenticator.validate_operator_role(operator, OperatorRole.RISK_MANAGER)
         else:
             # Для низкорисковых - любой авторизованный
             return operator.role != OperatorRole.VIEWER
@@ -483,9 +481,7 @@ class OperatorGate:
     def _check_expiration(self) -> None:
         """Проверить истечение запросов."""
         with self._requests_lock:
-            expired = [
-                r for r in self._requests.values() if r.is_pending() and r.is_expired()
-            ]
+            expired = [r for r in self._requests.values() if r.is_pending() and r.is_expired()]
 
         for request in expired:
             request.expire()
@@ -581,10 +577,7 @@ class OperatorGate:
         }
 
     def __repr__(self) -> str:
-        return (
-            f"OperatorGate(active={self.active_request_count}, "
-            f"total={self._total_requests})"
-        )
+        return f"OperatorGate(active={self.active_request_count}, total={self._total_requests})"
 
 
 # ==================== Convenience Functions ====================
