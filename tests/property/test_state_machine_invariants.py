@@ -12,17 +12,16 @@ Property-Based Tests for State Machine Invariants.
 from __future__ import annotations
 
 from collections import deque
-from typing import Set
 
-import pytest
+from hypothesis import Verbosity, given, settings
 import hypothesis.strategies as st
-from hypothesis import given, settings, Verbosity
+import pytest
 
 from src.core.state_machine_enums import (
     ALLOWED_TRANSITIONS,
     SystemState,
-    is_transition_allowed,
     get_allowed_transitions,
+    is_transition_allowed,
 )
 
 
@@ -85,7 +84,7 @@ class TestStateMachineInvariants:
         """
         Инвариант: Все состояния достижимы из начального состояния BOOT.
         """
-        reachable: Set[SystemState] = {SystemState.BOOT}
+        reachable: set[SystemState] = {SystemState.BOOT}
         queue = deque([SystemState.BOOT])
 
         while queue:
@@ -102,7 +101,7 @@ class TestStateMachineInvariants:
         """
         Инвариант: Из состояния BOOT можно добраться до TRADING.
         """
-        reachable: Set[SystemState] = {SystemState.BOOT}
+        reachable: set[SystemState] = {SystemState.BOOT}
         queue = deque([SystemState.BOOT])
 
         while queue:
@@ -133,13 +132,13 @@ class TestStateMachineInvariants:
         """
         Инвариант: Каждое состояние имеет хотя бы один входящий переход.
         """
-        states_with_incoming: dict[SystemState, Set[SystemState]] = {
+        states_with_incoming: dict[SystemState, set[SystemState]] = {
             state: set() for state in SystemState
         }
 
-        for from_state, to_states in ALLOWED_TRANSITIONS.items():
+        for _from_state, to_states in ALLOWED_TRANSITIONS.items():
             for to_state in to_states:
-                states_with_incoming[to_state].add(from_state)
+                states_with_incoming[to_state].add(_from_state)
 
         states_without_incoming = [
             state for state, incoming in states_with_incoming.items()
@@ -196,9 +195,6 @@ class TestStateMachineInvariants:
         for from_state in SystemState:
             for to_state in get_allowed_transitions(from_state):
                 # Если есть A->B, то B->A быть не должно (обычно)
-                # Проверяем обратный переход - он должен быть либо запрещен,
-                # либо вести в другое состояние
-                reverse_allowed = is_transition_allowed(to_state, from_state)
                 # Для большинства пар это не так
                 if from_state != to_state:
                     # Логаем для отладки, но не断言
@@ -216,7 +212,7 @@ class TestStateMachineInvariants:
         """
         Инвариант: Все целевые состояния в ALLOWED_TRANSITIONS валидны.
         """
-        for from_state, to_states in ALLOWED_TRANSITIONS.items():
+        for _from_state, to_states in ALLOWED_TRANSITIONS.items():
             for to_state in to_states:
                 assert isinstance(to_state, SystemState), (
                     f"Неверный тип состояния: {to_state}"
