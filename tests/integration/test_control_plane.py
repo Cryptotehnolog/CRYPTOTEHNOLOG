@@ -40,13 +40,13 @@ class PoolAcquireContext:
         return MockConnection()
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         return None
-    
+
 
 class MockPool:
     """Mock database pool that properly implements async context manager."""
     def acquire(self):
         return PoolAcquireContext()
-    
+
     async def close(self):
         pass
 

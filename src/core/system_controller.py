@@ -979,7 +979,7 @@ class SystemController:
                 await asyncio.wait_for(self._health_monitor_task, timeout=5.0)
             except asyncio.CancelledError:
                 pass
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("Health monitor не завершился за 5 секунд, принудительная остановка")
             self._health_monitor_task = None
             logger.info("Health monitor остановлен")

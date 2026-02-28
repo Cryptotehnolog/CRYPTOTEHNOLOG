@@ -2,9 +2,11 @@
 # Pytest configuration for integration tests (requires real DB)
 
 import asyncio
+from collections.abc import AsyncGenerator
 import os
+from pathlib import Path
 import sys
-from typing import TYPE_CHECKING, AsyncGenerator
+from typing import TYPE_CHECKING
 
 import asyncpg
 import pytest
@@ -41,8 +43,6 @@ def event_loop() -> "Generator[asyncio.AbstractEventLoop, None, None]":
 
 
 # ==================== Migration Helpers ====================
-
-from pathlib import Path
 
 
 def get_migration_files() -> list[Path]:

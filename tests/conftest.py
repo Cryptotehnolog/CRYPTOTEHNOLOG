@@ -2,6 +2,7 @@
 # Pytest configuration for unit tests (no DB required by default)
 
 import asyncio
+import logging
 import os
 import sys
 from typing import TYPE_CHECKING
@@ -9,6 +10,7 @@ from typing import TYPE_CHECKING
 import asyncpg
 import pytest
 import redis.asyncio as redis
+from redis.asyncio import Redis as AsyncRedis
 
 from cryptotechnolog.config.settings import Settings
 
@@ -324,8 +326,6 @@ def redis_client_factory():
     Creates async client in same event loop where test runs.
     Ensures no event loop conflicts.
     """
-    from redis.asyncio import Redis as AsyncRedis
-    import logging
     logger = logging.getLogger(__name__)
 
     class RedisClientFactory:
