@@ -9,15 +9,16 @@ Risk Listener for Event Bus.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.core.database import get_db_pool
-from src.core.event import Event
 from src.core.listeners.base import BaseListener, ListenerConfig
 
+if TYPE_CHECKING:
+    from src.core.event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,6 @@ class RiskListener(BaseListener):
         side = payload.get("side")
         size = payload.get("filled_size", 0)
         price = payload.get("price", 0)
-        order_id = payload.get("order_id")
 
         logger.info(
             f"[{self.name}] Order filled: {symbol} {side} {size} @ {price}"
@@ -233,7 +233,7 @@ class RiskListener(BaseListener):
                 await conn.execute(
                     """
                     INSERT INTO risk_events
-                    (event_type, symbol, side, size, price, risk_amount, allowed, 
+                    (event_type, symbol, side, size, price, risk_amount, allowed,
                      reason, rejected_order_id, metadata)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                     """,
@@ -264,9 +264,9 @@ class RiskListener(BaseListener):
                 await conn.execute(
                     """
                     INSERT INTO risk_ledger (limit_type, limit_value, current_value, updated_at)
-                    VALUES ($1, 
+                    VALUES ($1,
                         (SELECT max_value FROM risk_limits WHERE limit_type = $1 LIMIT 1),
-                        $2, 
+                        $2,
                         NOW())
                     ON CONFLICT (limit_type) DO UPDATE SET
                         current_value = risk_ledger.current_value + $2,
@@ -289,12 +289,12 @@ class RiskListener(BaseListener):
         pool = None
         try:
             pool = await get_db_pool()
-            today = datetime.now(timezone.utc).date()
+            today = datetime.now(UTC).date()
 
             async with pool.acquire() as conn:
                 await conn.execute(
                     """
-                    INSERT INTO daily_risk_summary 
+                    INSERT INTO daily_risk_summary
                     (trade_date, total_orders_submitted, total_risk_amount, last_updated)
                     VALUES ($1, $2, $3, NOW())
                     ON CONFLICT (trade_date) DO UPDATE SET

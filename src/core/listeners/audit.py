@@ -10,12 +10,13 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.core.database import get_db_pool
-from src.core.event import Event
 from src.core.listeners.base import BaseListener, ListenerConfig
 
+if TYPE_CHECKING:
+    from src.core.event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +183,7 @@ class AuditListener(BaseListener):
                 await conn.execute(
                     """
                     INSERT INTO audit_events
-                    (event_type, entity_type, entity_id, old_state, new_state, 
+                    (event_type, entity_type, entity_id, old_state, new_state,
                      operator, metadata, severity)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                     """,

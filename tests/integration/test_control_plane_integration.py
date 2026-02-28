@@ -9,21 +9,18 @@ Integration Tests for Control Plane with Real Database.
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
+import uuid
 
 import pytest
-import pytest_asyncio
 
 from src.core.event import Event, SystemEventSource, SystemEventType
-from src.core.event_bus import EventBus, get_event_bus, set_event_bus
+from src.core.event_bus import EventBus, set_event_bus
 from src.core.listeners import (
     register_all_listeners,
-    get_listener_registry,
 )
 from src.core.state_machine_enums import SystemState
-
 
 # ==================== Fixtures ====================
 
@@ -42,14 +39,16 @@ def test_event_bus():
 def setup_listeners(test_event_bus, db_pool):
     """Register all listeners on the test EventBus with real DB pool."""
     # Мокаем get_db_pool чтобы возвращал реальный пул из фикстуры
-    with patch('src.core.listeners.state_machine.get_db_pool', return_value=db_pool):
-        with patch('src.core.listeners.risk.get_db_pool', return_value=db_pool):
-            with patch('src.core.listeners.audit.get_db_pool', return_value=db_pool):
-                with patch('src.core.listeners.metrics.get_db_pool', return_value=db_pool):
-                    registry = register_all_listeners()
-                    test_event_bus.enable_listeners()
-                    yield registry
-                    test_event_bus.disable_listeners()
+    with (
+        patch('src.core.listeners.state_machine.get_db_pool', return_value=db_pool),
+        patch('src.core.listeners.risk.get_db_pool', return_value=db_pool),
+        patch('src.core.listeners.audit.get_db_pool', return_value=db_pool),
+        patch('src.core.listeners.metrics.get_db_pool', return_value=db_pool),
+    ):
+        registry = register_all_listeners()
+        test_event_bus.enable_listeners()
+        yield registry
+        test_event_bus.disable_listeners()
 
 
 # ==================== State Machine Tests ====================
@@ -70,12 +69,12 @@ async def test_state_transition_persisted(db_pool, test_event_bus, setup_listene
             "duration_ms": 150,
         },
     )
-    
+
     test_event_bus.publish(event)
-    
+
     # Wait for async processing
     await test_event_bus.flush()
-    
+
     # Verify transition was recorded
     async with db_pool.acquire() as conn:
         result = await conn.fetchrow(
@@ -85,7 +84,7 @@ async def test_state_transition_persisted(db_pool, test_event_bus, setup_listene
             ORDER BY id DESC LIMIT 1
             """
         )
-    
+
     assert result is not None
     assert result["from_state"] == "boot"
     assert result["to_state"] == "ready"
@@ -107,16 +106,16 @@ async def test_current_state_updated(db_pool, test_event_bus, setup_listeners):
             "trigger": "auto",
         },
     )
-    
+
     test_event_bus.publish(event)
     await test_event_bus.flush()
-    
+
     # Verify current state
     async with db_pool.acquire() as conn:
         result = await conn.fetchrow(
             "SELECT current_state, version FROM state_machine_states WHERE id = 1"
         )
-    
+
     assert result is not None
     assert result["current_state"] == "ready"
     assert result["version"] >= 1
@@ -129,18 +128,18 @@ async def test_system_events_persisted(db_pool, test_event_bus, setup_listeners)
     event = Event.new(
         SystemEventType.SYSTEM_READY,
         SystemEventSource.SYSTEM_CONTROLLER,
-        {"timestamp": datetime.now(timezone.utc).isoformat()},
+        {"timestamp": datetime.now(UTC).isoformat()},
     )
-    
+
     test_event_bus.publish(event)
     await test_event_bus.flush()
-    
+
     # Verify state machine was updated
     async with db_pool.acquire() as conn:
         state = await conn.fetchrow(
             "SELECT current_state FROM state_machine_states WHERE id = 1"
         )
-    
+
     assert state["current_state"] == "ready"
 
 
@@ -153,23 +152,23 @@ async def test_audit_events_persisted(db_pool, test_event_bus, setup_listeners):
     # Publish various events
     events = [
         Event.new(SystemEventType.SYSTEM_BOOT, SystemEventSource.SYSTEM_CONTROLLER, {}),
-        Event.new(SystemEventType.STATE_TRANSITION, SystemEventSource.STATE_MACHINE, 
+        Event.new(SystemEventType.STATE_TRANSITION, SystemEventSource.STATE_MACHINE,
                   {"from_state": "boot", "to_state": "ready"}),
         Event.new(SystemEventType.WATCHDOG_ALERT, SystemEventSource.WATCHDOG,
                   {"reason": "test alert"}),
     ]
-    
+
     for event in events:
         test_event_bus.publish(event)
-    
+
     await test_event_bus.flush()
-    
+
     # Verify audit events - ищем запись с правильной severity
     async with db_pool.acquire() as conn:
         result = await conn.fetchrow(
             "SELECT event_type, severity FROM audit_events WHERE event_type = 'WATCHDOG_ALERT' AND severity = 'WARNING' LIMIT 1"
         )
-    
+
     assert result is not None
     assert result["severity"] == "WARNING"
 
@@ -188,10 +187,10 @@ async def test_audit_event_structure(db_pool, test_event_bus, setup_listeners):
     )
     event.correlation_id = uuid.uuid4()
     event.metadata = {"source": "test"}
-    
+
     test_event_bus.publish(event)
     await test_event_bus.flush()
-    
+
     # Verify audit event structure
     async with db_pool.acquire() as conn:
         result = await conn.fetchrow(
@@ -201,7 +200,7 @@ async def test_audit_event_structure(db_pool, test_event_bus, setup_listeners):
             WHERE event_type = 'STATE_TRANSITION'
             """
         )
-    
+
     assert result is not None
     assert result["entity_type"] == "state_machine"
     assert "source" in result["metadata"]
@@ -229,10 +228,10 @@ async def test_risk_events_persisted(db_pool, test_event_bus, setup_listeners):
             "order_id": "order-123",
         },
     )
-    
+
     test_event_bus.publish(event)
     await test_event_bus.flush()
-    
+
     # Verify risk event
     async with db_pool.acquire() as conn:
         result = await conn.fetchrow(
@@ -242,7 +241,7 @@ async def test_risk_events_persisted(db_pool, test_event_bus, setup_listeners):
             ORDER BY id DESC LIMIT 1
             """
         )
-    
+
     assert result is not None
     assert result["event_type"] == "RISK_VIOLATION"
     assert result["symbol"] == "BTCUSDT"
@@ -265,16 +264,16 @@ async def test_order_rejected_persisted(db_pool, test_event_bus, setup_listeners
             "reason": "Insufficient balance",
         },
     )
-    
+
     test_event_bus.publish(event)
     await test_event_bus.flush()
-    
+
     # Verify order rejection
     async with db_pool.acquire() as conn:
         result = await conn.fetchrow(
             "SELECT event_type, symbol, allowed, rejected_order_id FROM risk_events WHERE event_type = 'ORDER_REJECTED' ORDER BY id DESC LIMIT 1"
         )
-    
+
     assert result is not None
     assert result["event_type"] == "ORDER_REJECTED"
     assert result["rejected_order_id"] == "order-456"
@@ -287,9 +286,9 @@ async def test_order_rejected_persisted(db_pool, test_event_bus, setup_listeners
 async def test_performance_metrics_persisted(db_pool, test_event_bus, setup_listeners):
     """Test that performance metrics are persisted."""
     # Publish order filled event with timing
-    submit_time = datetime.now(timezone.utc)
-    fill_time = datetime.now(timezone.utc)
-    
+    submit_time = datetime.now(UTC)
+    fill_time = datetime.now(UTC)
+
     event = Event.new(
         SystemEventType.ORDER_FILLED,
         SystemEventSource.EXECUTION_CORE,
@@ -303,16 +302,16 @@ async def test_performance_metrics_persisted(db_pool, test_event_bus, setup_list
             "fill_time": fill_time,
         },
     )
-    
+
     test_event_bus.publish(event)
     await test_event_bus.flush()
-    
+
     # Verify metrics
     async with db_pool.acquire() as conn:
         results = await conn.fetch(
             "SELECT metric_name, value FROM performance_metrics WHERE metric_category = 'order_latency'"
         )
-    
+
     assert len(results) >= 1
 
 
@@ -323,7 +322,7 @@ async def test_performance_metrics_persisted(db_pool, test_event_bus, setup_list
 async def test_db_connection_available(db_pool):
     """Test that database connection is available."""
     assert db_pool is not None
-    
+
     async with db_pool.acquire() as conn:
         result = await conn.fetchval("SELECT 1")
         assert result == 1
@@ -335,14 +334,14 @@ async def test_migrations_applied(db_pool):
     async with db_pool.acquire() as conn:
         # Check key tables exist
         tables = await conn.fetch("""
-            SELECT table_name FROM information_schema.tables 
+            SELECT table_name FROM information_schema.tables
             WHERE table_schema = 'public'
             AND table_name IN (
                 'state_machine_states', 'state_transitions', 'audit_events',
                 'risk_events', 'performance_metrics', 'event_store'
             )
         """)
-        
+
         table_names = [t["table_name"] for t in tables]
         assert "state_machine_states" in table_names
         assert "audit_events" in table_names

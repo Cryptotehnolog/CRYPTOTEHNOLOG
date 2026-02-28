@@ -269,16 +269,16 @@ def db_connection_factory():
 async def db_pool():
     """
     Function-scoped database pool for integration tests.
-    
+
     Использует существующий DatabaseManager из проекта.
     """
-    from src.core.database import get_database, close_database
-    
+    from src.core.database import close_database, get_database  # noqa: PLC0415
+
     db = get_database()
     await db.connect()
-    
+
     yield db.pool
-    
+
     await close_database()
 
 

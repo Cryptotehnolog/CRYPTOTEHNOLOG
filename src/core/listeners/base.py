@@ -7,15 +7,17 @@ Base Listener Classes for Event Bus.
 
 from __future__ import annotations
 
-import asyncio
-import logging
 from abc import ABC, abstractmethod
+import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Coroutine
+from datetime import UTC, datetime
+import logging
+from typing import TYPE_CHECKING, Any
 
-from src.core.event import Event
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
 
+    from src.core.event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +142,7 @@ class BaseListener(ABC):
             try:
                 await self._process_event(event)
                 self._events_processed += 1
-                self._last_event_time = datetime.now(timezone.utc)
+                self._last_event_time = datetime.now(UTC)
                 return True
 
             except Exception as e:
@@ -300,7 +302,7 @@ class ListenerRegistry:
             if listener and listener.handles_event(event):
                 listeners.append(listener)
 
-        return sorted(listeners, key=lambda l: l.config.priority, reverse=True)
+        return sorted(listeners, key=lambda listener: listener.config.priority, reverse=True)
 
     @property
     def all_listeners(self) -> list[BaseListener]:
@@ -310,7 +312,7 @@ class ListenerRegistry:
     @property
     def enabled_listeners(self) -> list[BaseListener]:
         """Получить все включенные listeners."""
-        return [l for l in self._listeners.values() if l.is_enabled]
+        return [listener for listener in self._listeners.values() if listener.is_enabled]
 
     @property
     def metrics(self) -> dict[str, Any]:
@@ -333,7 +335,7 @@ def get_listener_registry() -> ListenerRegistry:
     Возвращает:
         Глобальный реестр listeners
     """
-    global _listener_registry
+    global _listener_registry  # noqa: PLW0603
     if _listener_registry is None:
         _listener_registry = ListenerRegistry()
     return _listener_registry

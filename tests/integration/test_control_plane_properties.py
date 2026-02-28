@@ -8,19 +8,16 @@ Property-Based Tests for Control Plane Invariants.
 from __future__ import annotations
 
 import asyncio
-import uuid
-from datetime import datetime, timezone
 from typing import Any
+import uuid
 
 import hypothesis
-import pytest
-from hypothesis import given, settings, assume, example
+from hypothesis import given, settings
 
 from src.core.event import Event, SystemEventSource, SystemEventType
 from src.core.event_bus import EventBus, set_event_bus
-from src.core.listeners import register_all_listeners, get_listener_registry
+from src.core.listeners import register_all_listeners
 from src.core.state_machine_enums import SystemState
-
 
 # ==================== Hypothesis Settings ====================
 
@@ -61,7 +58,7 @@ def generate_order_side(draw) -> str:
 def generate_symbol(draw) -> str:
     """Generate valid trading symbols."""
     symbols = [
-        "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", 
+        "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT",
         "ADAUSDT", "XRPUSDT", "DOGEUSDT", "DOTUSDT"
     ]
     return draw(hypothesis.strategies.sampled_from(symbols))
@@ -70,7 +67,7 @@ def generate_symbol(draw) -> str:
 @hypothesis.strategies.composite
 def generate_event_payload(draw, event_type: str) -> dict[str, Any]:
     """Generate valid event payloads based on event type."""
-    
+
     if event_type == "STATE_TRANSITION":
         return {
             "from_state": draw(generate_valid_state()),
@@ -79,7 +76,7 @@ def generate_event_payload(draw, event_type: str) -> dict[str, Any]:
             "operator": draw(hypothesis.strategies.text(min_size=1, max_size=50)),
             "duration_ms": draw(hypothesis.strategies.integers(min_value=0, max_value=60000)),
         }
-    
+
     elif event_type in ["ORDER_SUBMITTED", "ORDER_FILLED", "ORDER_REJECTED"]:
         return {
             "symbol": draw(generate_symbol()),
@@ -89,7 +86,7 @@ def generate_event_payload(draw, event_type: str) -> dict[str, Any]:
             "order_id": str(uuid.uuid4()),
             "leverage": draw(hypothesis.strategies.floats(min_value=1.0, max_value=125.0)),
         }
-    
+
     elif event_type in ["POSITION_OPENED", "POSITION_CLOSED"]:
         return {
             "symbol": draw(generate_symbol()),
@@ -99,7 +96,7 @@ def generate_event_payload(draw, event_type: str) -> dict[str, Any]:
             "position_id": str(uuid.uuid4()),
             "realized_pnl": draw(hypothesis.strategies.floats(min_value=-100000, max_value=100000)),
         }
-    
+
     elif event_type == "RISK_VIOLATION":
         limit_types = ["POSITION_SIZE", "DRAWDOWN", "DAILY_LOSS", "LEVERAGE_EXCEEDED"]
         return {
@@ -113,7 +110,7 @@ def generate_event_payload(draw, event_type: str) -> dict[str, Any]:
             "reason": draw(hypothesis.strategies.text(min_size=1, max_size=200)),
             "order_id": str(uuid.uuid4()),
         }
-    
+
     else:
         return {
             "data": draw(hypothesis.strategies.text(max_size=100)),
@@ -172,7 +169,7 @@ class TestEventPayloadInvariants:
         assert "side" in payload
         assert "size" in payload
         assert "price" in payload
-        
+
         # Size and price should be positive
         assert payload["size"] > 0
         assert payload["price"] > 0
@@ -186,7 +183,7 @@ class TestEventPayloadInvariants:
         assert "current_value" in payload
         assert "max_value" in payload
         assert "reason" in payload
-        
+
         # Values should be non-negative
         assert payload["current_value"] >= 0
         assert payload["max_value"] >= 0
@@ -206,7 +203,7 @@ class TestEventBusInvariants:
     def test_event_creation_invariants(self, event_type, payload):
         """Test that created events maintain invariants."""
         event = Event.new(event_type, "test_source", payload)
-        
+
         assert event.event_type == event_type
         assert event.source == "test_source"
         assert event.payload == payload
@@ -239,17 +236,17 @@ class TestListenerInvariants:
         # Create fresh EventBus and register listeners
         bus = EventBus(capacity=100)
         set_event_bus(bus)
-        
+
         registry = register_all_listeners()
         bus.enable_listeners()
-        
+
         event = Event.new(event_type, "test", {})
         listeners = registry.get_listeners_for_event(event)
-        
+
         # At least one listener should handle each event type
         # (audit_listener handles all events)
         assert len(listeners) >= 1
-        
+
         # Cleanup
         bus.disable_listeners()
         bus.clear()
@@ -262,9 +259,9 @@ class TestListenerInvariants:
         """Test that publishing multiple events maintains consistency."""
         bus = EventBus(capacity=1000)
         set_event_bus(bus)
-        
+
         initial_count = bus.publish_count
-        
+
         for i in range(count):
             event = Event.new(
                 "TEST_EVENT",
@@ -272,9 +269,9 @@ class TestListenerInvariants:
                 {"index": i}
             )
             bus.publish(event)
-        
+
         assert bus.publish_count == initial_count + count
-        
+
         bus.clear()
 
     @given(
@@ -289,21 +286,21 @@ class TestListenerInvariants:
         """Test that sequence of state transitions is handled correctly."""
         bus = EventBus(capacity=100)
         set_event_bus(bus)
-        
-        for i, payload in enumerate(events):
+
+        for i, payload in enumerate(events):  # noqa: B007
             # Ensure from_state != to_state for valid transitions
             if payload.get("from_state") == payload.get("to_state"):
                 payload["to_state"] = SystemState.HALT.value
-            
+
             event = Event.new(
                 SystemEventType.STATE_TRANSITION,
                 SystemEventSource.STATE_MACHINE,
                 payload
             )
             bus.publish(event)
-        
+
         assert bus.publish_count >= len(events)
-        
+
         bus.clear()
 
 
@@ -334,7 +331,7 @@ class TestDatabaseInvariants:
         """Test that state machine records have valid structure."""
         # Version should be non-negative
         assert version >= 0
-        
+
         # State should be a string
         assert isinstance(state, str)
 
@@ -365,7 +362,7 @@ class TestRiskInvariants:
         """Test risk limit comparison logic."""
         # Violation occurs when current > max_limit
         is_violation = current > max_limit
-        
+
         # This should always be consistent
         if is_violation:
             assert current > max_limit
@@ -380,10 +377,10 @@ class TestRiskInvariants:
     def test_position_risk_calculation(self, size, price):
         """Test that position risk is calculated correctly."""
         risk_amount = size * price
-        
+
         # Risk amount should be positive
         assert risk_amount > 0
-        
+
         # Risk amount should be reasonable
         assert risk_amount < size * price * 1.01  # Allow small float error
 
@@ -436,7 +433,7 @@ class TestEdgeCases:
         """Test that metadata is handled correctly."""
         event = Event.new("TEST", "test_source", {"key": value})
         event.metadata[key] = value
-        
+
         assert key in event.metadata
         assert event.metadata[key] == value
 
@@ -448,7 +445,7 @@ class TestEdgeCases:
         """Test that correlation IDs are handled correctly."""
         event = Event.new("TEST", "test_source", {})
         event.correlation_id = correlation_id
-        
+
         assert event.correlation_id == correlation_id
         assert str(event.correlation_id) == str(correlation_id)
 
@@ -478,21 +475,21 @@ class TestIntegrationInvariants:
         set_event_bus(bus)
         registry = register_all_listeners()
         bus.enable_listeners()
-        
+
         for event_type in events:
             event = Event.new(event_type, SystemEventSource.SYSTEM_CONTROLLER, {})
             bus.publish(event)
-        
+
         # All events should be published
         assert bus.publish_count >= len(events)
-        
+
         # Wait for async processing
         await asyncio.sleep(0.2)
-        
+
         # Listeners should have processed events
         audit_listener = registry.get_listener("audit_listener")
         assert audit_listener is not None
-        
+
         bus.disable_listeners()
         bus.clear()
 
@@ -507,7 +504,7 @@ class TestIntegrationInvariants:
         set_event_bus(bus)
         register_all_listeners()
         bus.enable_listeners()
-        
+
         for i in range(order_count):
             event = Event.new(
                 SystemEventType.ORDER_SUBMITTED,
@@ -521,12 +518,12 @@ class TestIntegrationInvariants:
                 }
             )
             bus.publish(event)
-        
+
         await asyncio.sleep(0.3)
-        
+
         # All orders should be published
         assert bus.publish_count >= order_count
-        
+
         bus.disable_listeners()
         bus.clear()
 
@@ -546,16 +543,16 @@ class TestPerformanceInvariants:
         capacity = 100
         bus = EventBus(capacity=capacity)
         set_event_bus(bus)
-        
+
         # Publish more events than capacity
         for i in range(event_count):
             event = Event.new("TEST", "test", {"index": i})
             bus.publish(event)
-        
+
         # Some events may be dropped due to capacity
         # But bus should still be functional
         assert bus.publish_count == event_count
-        
+
         bus.clear()
 
     @given(
@@ -565,24 +562,24 @@ class TestPerformanceInvariants:
     def test_multiple_handlers(self, handler_count):
         """Test that multiple handlers work correctly."""
         bus = EventBus(capacity=100)
-        
+
         call_count = 0
-        
+
         def make_handler(i):
             def handler(event):
                 nonlocal call_count
                 call_count += 1
             return handler
-        
+
         # Register multiple handlers
         for i in range(handler_count):
             bus.on("TEST_EVENT", make_handler(i))
-        
+
         # Publish event
         event = Event.new("TEST_EVENT", "test", {})
         bus.publish(event)
-        
+
         # All handlers should be called
         assert call_count == handler_count
-        
+
         bus.clear()

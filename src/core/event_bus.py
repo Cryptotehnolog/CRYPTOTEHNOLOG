@@ -19,6 +19,7 @@ import asyncio
 from asyncio import Queue
 from collections import defaultdict
 import enum
+from functools import partial
 import threading
 from typing import TYPE_CHECKING, Any
 import uuid
@@ -30,8 +31,9 @@ from .event import Event, SystemEventSource, SystemEventType
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
 
+    from src.core.listeners.base import BaseListener
+
 from src.core.listeners import get_listener_registry
-from src.core.listeners.base import BaseListener
 
 logger = get_logger(__name__)
 
@@ -262,6 +264,84 @@ class EventBus:
                     )
                     return
 
+    def _deliver_to_subscribers(self, event: Event) -> int:
+        """Доставить событие подписчикам через queue. Возвращает количество доставленных."""
+        delivered = 0
+        with self._subscriber_lock:
+            if not self._subscribers:
+                return 0
+
+            disconnected = []
+            for subscriber_id, receiver in self._subscribers.items():
+                try:
+                    receiver._queue.put_nowait(event)
+                    delivered += 1
+                except asyncio.QueueFull:
+                    logger.warning(
+                        "Буфер подписчика полон",
+                        subscriber_id=subscriber_id,
+                        event_type=event.event_type,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Ошибка доставки события подписчику",
+                        subscriber_id=subscriber_id,
+                        error=str(e),
+                    )
+                    disconnected.append(subscriber_id)
+
+            for sid in disconnected:
+                del self._subscribers[sid]
+
+        return delivered
+
+    def _deliver_to_wildcard_listeners(self, event: Event) -> None:
+        """Доставить событие wildcard listeners."""
+        if not self._wildcard_listeners:
+            return
+
+        for listener in self._wildcard_listeners:
+            if listener.handles_event(event):
+                try:
+                    result = listener.handle(event)
+                    if asyncio.iscoroutine(result):
+                        self._run_async_handler(result)
+                except Exception as e:
+                    logger.error(
+                        "Ошибка в wildcard listener",
+                        listener=listener.name,
+                        error=str(e),
+                    )
+
+    def _deliver_to_handlers(self, event: Event) -> None:
+        """Доставить событие зарегистрированным обработчикам."""
+        handlers = self._handlers.get(event.event_type, [])
+        for handler in handlers:
+            try:
+                if asyncio.iscoroutinefunction(handler):
+                    result = handler(event)
+                    if asyncio.iscoroutine(result):
+                        self._run_async_handler(result)
+                else:
+                    handler(event)
+            except Exception as e:
+                logger.error(
+                    "Ошибка в обработчике",
+                    event_type=event.event_type,
+                    error=str(e),
+                )
+
+    def _deliver_to_registry_listeners(self, event: Event) -> None:
+        """Доставить событие listeners через registry."""
+        if self._listener_registry is None:
+            return
+
+        try:
+            coro = self._dispatch_to_listeners(event)
+            self._run_async_handler(coro)
+        except Exception as e:
+            logger.debug("Не удалось диспетчеризовать listeners", error=str(e))
+
     def publish(self, event: Event) -> bool:
         """
         Опубликовать событие.
@@ -277,77 +357,16 @@ class EventBus:
             True если хотя бы один подписчик получил событие
         """
         self._publish_count += 1
-        delivered_count = 0
 
-        # 1. Dispatch to subscribers (async queue backend)
-        with self._subscriber_lock:
-            if self._subscribers:
-                disconnected = []
+        delivered_count = self._deliver_to_subscribers(event)
+        self._deliver_to_wildcard_listeners(event)
 
-                for subscriber_id, receiver in self._subscribers.items():
-                    try:
-                        receiver._queue.put_nowait(event)
-                        delivered_count += 1
-                    except asyncio.QueueFull:
-                        logger.warning(
-                            "Буфер подписчика полон",
-                            subscriber_id=subscriber_id,
-                            event_type=event.event_type,
-                        )
-                    except Exception as e:
-                        logger.error(
-                            "Ошибка доставки события подписчику",
-                            subscriber_id=subscriber_id,
-                            error=str(e),
-                        )
-                        disconnected.append(subscriber_id)
-
-                # Remove disconnected subscribers
-                for sid in disconnected:
-                    del self._subscribers[sid]
-
-        # 2. Dispatch to wildcard listeners (AuditListener и др.)
-        if self._wildcard_listeners:
-            for listener in self._wildcard_listeners:
-                if listener.handles_event(event):
-                    try:
-                        result = listener.handle(event)
-                        if asyncio.iscoroutine(result):
-                            self._run_async_handler(result)
-                    except Exception as e:
-                        logger.error(
-                            "Ошибка в wildcard listener",
-                            listener=listener.name,
-                            error=str(e),
-                        )
-
-        # 3. Dispatch to handlers - вызываем напрямую
         try:
-            handlers = self._handlers.get(event.event_type, [])
-            for handler in handlers:
-                try:
-                    if asyncio.iscoroutinefunction(handler):
-                        result = handler(event)
-                        if asyncio.iscoroutine(result):
-                            self._run_async_handler(result)
-                    else:
-                        handler(event)
-                except Exception as e:
-                    logger.error(
-                        "Ошибка в обработчике",
-                        event_type=event.event_type,
-                        error=str(e),
-                    )
+            self._deliver_to_handlers(event)
         except Exception as e:
             logger.error("Ошибка dispatch handlers", error=str(e))
 
-        # 4. Dispatch to listeners via registry
-        if self._listener_registry is not None:
-            try:
-                coro = self._dispatch_to_listeners(event)
-                self._run_async_handler(coro)
-            except Exception as e:
-                logger.debug("Не удалось диспетчеризовать listeners", error=str(e))
+        self._deliver_to_registry_listeners(event)
 
         return delivered_count > 0
 
@@ -363,7 +382,7 @@ class EventBus:
         и начинает обрабатывать события через них.
         """
         self._listener_registry = get_listener_registry()
-        
+
         # Регистрируем каждого listener в EventBus для всех его типов событий
         for listener in self._listener_registry.all_listeners:
             event_types = listener.event_types
@@ -371,10 +390,9 @@ class EventBus:
                 self._wildcard_listeners.append(listener)
             else:
                 for event_type in event_types:
-                    from functools import partial
                     handler = partial(self._listener_wrapper, listener)
                     self.on(event_type, handler)
-        
+
         logger.info(
             "Listeners enabled",
             listener_count=len(self._listener_registry.all_listeners),
@@ -389,7 +407,9 @@ class EventBus:
             if asyncio.iscoroutine(result):
                 try:
                     loop = asyncio.get_running_loop()
-                    loop.create_task(result)
+                    task = loop.create_task(result)
+                    # Сохраняем ссылку на задачу
+                    self._pending_tasks.append(task)
                 except RuntimeError:
                     # Нет running loop - пробуем запустить
                     try:
@@ -535,10 +555,10 @@ class EventBus:
         for task in self._pending_tasks:
             if not task.done():
                 task.cancel()
-        
+
         if self._pending_tasks:
             await asyncio.gather(*self._pending_tasks, return_exceptions=True)
-        
+
         self._pending_tasks.clear()
         self.disable_listeners()
         self.clear()

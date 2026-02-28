@@ -15,16 +15,15 @@ from src.core.listeners.metrics import MetricsListener
 from src.core.listeners.risk import RiskListener
 from src.core.listeners.state_machine import StateMachineListener
 
-
 __all__ = [
+    "AuditListener",
     "BaseListener",
     "ListenerConfig",
     "ListenerRegistry",
-    "get_listener_registry",
-    "StateMachineListener",
-    "RiskListener",
-    "AuditListener",
     "MetricsListener",
+    "RiskListener",
+    "StateMachineListener",
+    "get_listener_registry",
     "register_all_listeners",
 ]
 

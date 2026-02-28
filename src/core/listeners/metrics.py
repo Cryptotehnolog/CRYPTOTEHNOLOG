@@ -9,15 +9,16 @@ Metrics Listener for Event Bus.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING
 
 from src.core.database import get_db_pool
-from src.core.event import Event
 from src.core.listeners.base import BaseListener, ListenerConfig
 
+if TYPE_CHECKING:
+    from src.core.event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ class MetricsListener(BaseListener):
         """Обработать ORDER_SUBMITTED - записать submission latency metric."""
         payload = event.payload
         submit_time = payload.get("submit_time")
-        receive_time = datetime.now(timezone.utc)
+        receive_time = datetime.now(UTC)
 
         if submit_time:
             latency_ms = (receive_time - submit_time).total_seconds() * 1000

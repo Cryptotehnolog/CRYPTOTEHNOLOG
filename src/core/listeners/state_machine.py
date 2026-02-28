@@ -9,15 +9,16 @@ State Machine Listener for Event Bus.
 
 from __future__ import annotations
 
+import json
 import logging
-from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.core.database import get_db_pool
-from src.core.event import Event
 from src.core.listeners.base import BaseListener, ListenerConfig
 from src.core.state_machine_enums import SystemState
 
+if TYPE_CHECKING:
+    from src.core.event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -200,14 +201,13 @@ class StateMachineListener(BaseListener):
         metadata: dict[str, Any],
     ) -> None:
         """Записать переход состояния в БД."""
-        import json
         pool = None
         try:
             pool = await get_db_pool()
             async with pool.acquire() as conn:
                 await conn.execute(
                     """
-                    INSERT INTO state_transitions 
+                    INSERT INTO state_transitions
                     (from_state, to_state, trigger, metadata, operator, duration_ms, correlation_id)
                     VALUES ($1, $2, $3, $4, $5, $6, $7)
                     """,
@@ -254,7 +254,6 @@ class StateMachineListener(BaseListener):
         metadata: dict[str, Any],
     ) -> None:
         """Записать audit событие."""
-        import json
         pool = None
         try:
             pool = await get_db_pool()
