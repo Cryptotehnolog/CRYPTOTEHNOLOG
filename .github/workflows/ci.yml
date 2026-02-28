@@ -124,6 +124,8 @@ jobs:
                   await conn.execute(f.read())
               with open('scripts/migrations/006_monitoring_alerts.sql') as f:
                   await conn.execute(f.read())
+              with open('scripts/migrations/007_add_status_columns.sql') as f:
+                  await conn.execute(f.read())
               with open('scripts/migrations/control_plane_additions.sql') as f:
                   await conn.execute(f.read())
 
