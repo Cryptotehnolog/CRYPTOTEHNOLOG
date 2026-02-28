@@ -211,7 +211,7 @@ class ListenerRegistry:
     Управляет регистрацией и вызовом listeners.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Инициализировать реестр."""
         self._listeners: dict[str, BaseListener] = {}
         self._event_type_to_listeners: dict[str, list[str]] = {}

@@ -98,7 +98,7 @@ class StateMachineListener(BaseListener):
             trigger=trigger,
             duration_ms=duration_ms,
             operator=operator,
-            correlation_id=event.correlation_id,
+            correlation_id=str(event.correlation_id) if event.correlation_id else None,
             metadata=event.metadata,
         )
 
@@ -123,7 +123,7 @@ class StateMachineListener(BaseListener):
     async def _handle_system_shutdown(self, event: Event) -> None:
         """Обработать событие SYSTEM_SHUTDOWN."""
         logger.info(f"[{self.name}] System shutdown event received")
-        await self._update_current_state(SystemState.SHUTDOWN.value)
+        await self._update_current_state(SystemState.HALT.value)
 
     async def _handle_health_check_failed(self, event: Event) -> None:
         """Обработать событие HEALTH_CHECK_FAILED."""

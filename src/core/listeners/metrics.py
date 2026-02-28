@@ -95,7 +95,10 @@ class MetricsListener(BaseListener):
                 metric_category="order_latency",
                 metric_name="order_submission_latency_ms",
                 value=latency_ms,
-                tags={"symbol": payload.get("symbol"), "side": payload.get("side")},
+                tags={
+                    "symbol": str(payload.get("symbol") or ""),
+                    "side": str(payload.get("side") or ""),
+                },
             )
 
     async def _handle_order_filled(self, event: Event) -> None:
@@ -112,7 +115,7 @@ class MetricsListener(BaseListener):
                 metric_category="order_latency",
                 metric_name="order_fill_latency_ms",
                 value=latency_ms,
-                tags={"symbol": symbol},
+                tags={"symbol": str(symbol or "")},
             )
 
         # Fill rate (успешные fills)
@@ -120,7 +123,7 @@ class MetricsListener(BaseListener):
             metric_category="fill_rate",
             metric_name="orders_filled_total",
             value=1,
-            tags={"symbol": symbol},
+            tags={"symbol": str(symbol or "")},
         )
 
         # Size filled
@@ -130,7 +133,7 @@ class MetricsListener(BaseListener):
                 metric_category="throughput",
                 metric_name="volume_filled",
                 value=filled_size,
-                tags={"symbol": symbol},
+                tags={"symbol": str(symbol or "")},
             )
 
     async def _handle_order_cancelled(self, event: Event) -> None:
@@ -142,7 +145,7 @@ class MetricsListener(BaseListener):
             metric_category="fill_rate",
             metric_name="orders_cancelled_total",
             value=1,
-            tags={"symbol": symbol},
+            tags={"symbol": str(symbol or "")},
         )
 
     async def _handle_order_rejected(self, event: Event) -> None:
@@ -154,7 +157,7 @@ class MetricsListener(BaseListener):
             metric_category="error_rate",
             metric_name="orders_rejected_total",
             value=1,
-            tags={"symbol": symbol},
+            tags={"symbol": str(symbol or "")},
         )
 
     async def _handle_position_opened(self, event: Event) -> None:
@@ -170,7 +173,7 @@ class MetricsListener(BaseListener):
             metric_category="resource_usage",
             metric_name="position_exposure",
             value=exposure,
-            tags={"symbol": symbol},
+            tags={"symbol": str(symbol or "")},
         )
 
     async def _handle_position_closed(self, event: Event) -> None:
@@ -183,7 +186,7 @@ class MetricsListener(BaseListener):
             metric_category="throughput",
             metric_name="realized_pnl",
             value=realized_pnl,
-            tags={"symbol": symbol},
+            tags={"symbol": str(symbol or "")},
         )
 
     async def _handle_risk_violation(self, event: Event) -> None:
@@ -196,7 +199,7 @@ class MetricsListener(BaseListener):
             metric_category="error_rate",
             metric_name="risk_violations_total",
             value=1,
-            tags={"symbol": symbol, "violation_type": event_type},
+            tags={"symbol": str(symbol or ""), "violation_type": str(event_type)},
         )
 
     async def _handle_system_boot(self, event: Event) -> None:

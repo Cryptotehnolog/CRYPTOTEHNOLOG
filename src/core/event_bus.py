@@ -31,7 +31,7 @@ from .event import Event, SystemEventSource, SystemEventType
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
 
-    from src.core.listeners.base import BaseListener
+    from src.core.listeners.base import BaseListener, ListenerRegistry
 
 from src.core.listeners import get_listener_registry
 
@@ -176,7 +176,7 @@ class EventBus:
         self._handlers: dict[str, list[Callable[[Event], Any]]] = defaultdict(list)
 
         # Listener registry integration
-        self._listener_registry = None
+        self._listener_registry: ListenerRegistry | None = None
         self._wildcard_listeners: list[BaseListener] = []
         self._pending_tasks: list[asyncio.Task] = []
 
@@ -381,10 +381,11 @@ class EventBus:
         Регистрирует всех listeners из ListenerRegistry
         и начинает обрабатывать события через них.
         """
-        self._listener_registry = get_listener_registry()
+        registry = get_listener_registry()
+        self._listener_registry = registry
 
         # Регистрируем каждого listener в EventBus для всех его типов событий
-        for listener in self._listener_registry.all_listeners:
+        for listener in registry.all_listeners:
             event_types = listener.event_types
             if "*" in event_types:
                 self._wildcard_listeners.append(listener)
@@ -395,7 +396,7 @@ class EventBus:
 
         logger.info(
             "Listeners enabled",
-            listener_count=len(self._listener_registry.all_listeners),
+            listener_count=len(registry.all_listeners),
         )
 
     def _listener_wrapper(self, listener: BaseListener, event: Event) -> None:
@@ -440,7 +441,7 @@ class EventBus:
                 await asyncio.gather(*pending, return_exceptions=True)
             self._pending_tasks.clear()
 
-    def _run_async_handler(self, coro) -> None:
+    def _run_async_handler(self, coro: Any) -> None:
         """Запустить асинхронный обработчик и отслеживать задачу."""
         try:
             loop = asyncio.get_running_loop()

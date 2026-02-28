@@ -111,7 +111,7 @@ class RiskListener(BaseListener):
 
         # Обновление daily summary
         await self._update_daily_summary(
-            symbol=symbol,
+            symbol=symbol or "UNKNOWN",
             orders_submitted=0,
             orders_filled=1,
             pnl=payload.get("realized_pnl", 0),
@@ -170,7 +170,7 @@ class RiskListener(BaseListener):
 
         # Обновление daily summary
         await self._update_daily_summary(
-            symbol=symbol,
+            symbol=symbol or "UNKNOWN",
             orders_filled=0,
             pnl=realized_pnl,
         )
