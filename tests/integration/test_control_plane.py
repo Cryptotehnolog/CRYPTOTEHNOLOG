@@ -20,12 +20,41 @@ from src.core.listeners import (
 # ==================== Test Configuration ====================
 
 
+class MockConnection:
+    """Mock asyncpg connection for tests."""
+    async def execute(self, *args, **kwargs):
+        return None
+    async def fetch(self, *args, **kwargs):
+        return []
+    async def fetchrow(self, *args, **kwargs):
+        return None
+    async def fetchval(self, *args, **kwargs):
+        return None
+    async def close(self):
+        pass
+
+
+class PoolAcquireContext:
+    """Mock for async with pool.acquire() as conn."""
+    async def __aenter__(self):
+        return MockConnection()
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return None
+    
+
+class MockPool:
+    """Mock database pool that properly implements async context manager."""
+    def acquire(self):
+        return PoolAcquireContext()
+    
+    async def close(self):
+        pass
+
+
 @pytest.fixture(autouse=True)
 def mock_database():
     """Mock database to avoid real connections in tests."""
-    mock_pool = AsyncMock()
-    mock_pool.acquire = AsyncMock()
-    mock_pool.close = AsyncMock()
+    mock_pool = MockPool()
 
     with patch("src.core.database.get_database") as mock_db:
         mock_db_instance = MagicMock()

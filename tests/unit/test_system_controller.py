@@ -30,6 +30,12 @@ from src.core.system_controller import (
 
 
 @pytest.fixture
+def controller(mock_state_machine):
+    """Создать контроллер для тестов (test_mode=True - без health monitor)."""
+    return SystemController(state_machine=mock_state_machine, test_mode=True)
+
+
+@pytest.fixture
 def mock_state_machine():
     """Создать мок State Machine."""
     sm = AsyncMock()
@@ -109,7 +115,7 @@ class TestInitialization:
 
     def test_init_without_dependencies(self):
         """Тест создания без внешних зависимостей."""
-        controller = SystemController()
+        controller = SystemController(test_mode=True)
 
         assert controller is not None
         assert not controller.is_running
@@ -139,7 +145,7 @@ class TestComponentRegistration:
 
     def test_register_component(self, mock_component):
         """Тест регистрации компонента."""
-        controller = SystemController()
+        controller = SystemController(test_mode=True)
 
         controller.register_component(
             name="test_component",
@@ -157,7 +163,7 @@ class TestComponentRegistration:
 
     def test_register_duplicate_component(self, mock_component):
         """Тест перерегистрации компонента."""
-        controller = SystemController()
+        controller = SystemController(test_mode=True)
 
         controller.register_component("test", mock_component)
         controller.register_component("test", mock_component)  # Перезапись
@@ -166,7 +172,7 @@ class TestComponentRegistration:
 
     def test_unregister_component(self, mock_component):
         """Тест удаления компонента."""
-        controller = SystemController()
+        controller = SystemController(test_mode=True)
 
         controller.register_component("test", mock_component)
         assert controller.unregister_component("test") is True
@@ -174,13 +180,13 @@ class TestComponentRegistration:
 
     def test_unregister_nonexistent_component(self):
         """Тест удаления несуществующего компонента."""
-        controller = SystemController()
+        controller = SystemController(test_mode=True)
 
         assert controller.unregister_component("nonexistent") is False
 
     def test_get_component(self, mock_component):
         """Тест получения компонента."""
-        controller = SystemController()
+        controller = SystemController(test_mode=True)
 
         controller.register_component("test", mock_component)
         assert controller.get_component("test") == mock_component
@@ -197,7 +203,7 @@ class TestCircuitBreaker:
 
     def test_register_circuit_breaker(self):
         """Тест регистрации circuit breaker."""
-        controller = SystemController()
+        controller = SystemController(test_mode=True)
 
         breaker = controller.register_circuit_breaker(
             name="test_breaker",
@@ -210,7 +216,7 @@ class TestCircuitBreaker:
 
     def test_register_duplicate_circuit_breaker(self):
         """Тест перерегистрации circuit breaker."""
-        controller = SystemController()
+        controller = SystemController(test_mode=True)
 
         breaker1 = controller.register_circuit_breaker("test")
         breaker2 = controller.register_circuit_breaker("test")
@@ -219,7 +225,7 @@ class TestCircuitBreaker:
 
     def test_get_circuit_breaker(self):
         """Тест получения circuit breaker."""
-        controller = SystemController()
+        controller = SystemController(test_mode=True)
 
         controller.register_circuit_breaker("test")
         assert controller.get_circuit_breaker("test") is not None
@@ -237,7 +243,7 @@ class TestStartup:
     @pytest.mark.asyncio
     async def test_startup_success(self, mock_state_machine):
         """Тест успешного startup."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         result = await controller.startup()
 
@@ -249,7 +255,7 @@ class TestStartup:
     @pytest.mark.asyncio
     async def test_startup_already_running(self, mock_state_machine):
         """Тест повторного startup."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         await controller.startup()
         result = await controller.startup()
@@ -259,7 +265,7 @@ class TestStartup:
     @pytest.mark.asyncio
     async def test_startup_with_components(self, mock_state_machine, mock_component):
         """Тест startup с компонентами."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         controller.register_component(
             name="test_component",
@@ -276,7 +282,7 @@ class TestStartup:
     @pytest.mark.asyncio
     async def test_startup_required_component_failure(self, mock_state_machine):
         """Тест ошибки обязательного компонента."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         bad_component = AsyncMock()
         bad_component.start = AsyncMock(side_effect=Exception("Init failed"))
@@ -295,7 +301,7 @@ class TestStartup:
     @pytest.mark.asyncio
     async def test_startup_non_required_component_failure(self, mock_state_machine):
         """Тест ошибки необязательного компонента."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         bad_component = AsyncMock()
         bad_component.start = AsyncMock(side_effect=Exception("Init failed"))
@@ -324,7 +330,7 @@ class TestShutdown:
     @pytest.mark.asyncio
     async def test_shutdown_not_running(self):
         """Тест shutdown когда система не запущена."""
-        controller = SystemController()
+        controller = SystemController(test_mode=True)
 
         result = await controller.shutdown()
 
@@ -334,7 +340,7 @@ class TestShutdown:
     @pytest.mark.asyncio
     async def test_shutdown_success(self, mock_state_machine, mock_component):
         """Тест успешного shutdown."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         controller.register_component(
             name="test_component",
@@ -352,7 +358,7 @@ class TestShutdown:
     @pytest.mark.asyncio
     async def test_shutdown_already_shutting_down(self, mock_state_machine):
         """Тест повторного shutdown - должен быть idempotent."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         await controller.startup()
 
@@ -379,7 +385,7 @@ class TestStateMachineIntegration:
     @pytest.mark.asyncio
     async def test_state_machine_initialized_on_startup(self, mock_state_machine):
         """Тест инициализации State Machine при startup."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         await controller.startup()
 
@@ -388,7 +394,7 @@ class TestStateMachineIntegration:
     @pytest.mark.asyncio
     async def test_transition_to_ready_on_startup(self, mock_state_machine):
         """Тест перехода в READY при startup."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         await controller.startup()
 
@@ -400,7 +406,7 @@ class TestStateMachineIntegration:
     @pytest.mark.asyncio
     async def test_transition_to_halt_on_shutdown(self, mock_state_machine):
         """Тест перехода в HALT при shutdown."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         await controller.startup()
         await controller.shutdown()
@@ -422,7 +428,7 @@ class TestHealthChecks:
     @pytest.mark.asyncio
     async def test_get_status(self, mock_state_machine):
         """Тест получения статуса системы."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         await controller.startup()
         status = await controller.get_status()
@@ -439,6 +445,7 @@ class TestHealthChecks:
         controller = SystemController(
             state_machine=mock_state_machine,
             health_checker=mock_health_checker,
+            test_mode=True,
         )
 
         controller.register_component(
@@ -463,7 +470,7 @@ class TestLifecycle:
     @pytest.mark.asyncio
     async def test_lifecycle_context_manager(self, mock_state_machine):
         """Тест использования lifecycle как context manager."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         async with controller.lifecycle():
             assert controller.is_running
@@ -473,7 +480,7 @@ class TestLifecycle:
     @pytest.mark.asyncio
     async def test_lifecycle_startup_failure(self, mock_state_machine):
         """Тест failure в lifecycle."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         # Делаем startup неуспешным
         mock_state_machine.transition = AsyncMock(
@@ -496,7 +503,7 @@ class TestUptime:
     @pytest.mark.asyncio
     async def test_uptime_calculation(self, mock_state_machine):
         """Тест расчёта uptime."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         await controller.startup()
 
@@ -505,7 +512,7 @@ class TestUptime:
 
     def test_uptime_not_started(self):
         """Тест uptime когда система не запущена."""
-        controller = SystemController()
+        controller = SystemController(test_mode=True)
 
         assert controller.uptime_seconds == 0
 
@@ -521,7 +528,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_rollback_on_startup_failure(self, mock_state_machine, mock_component):
         """Тест отката при ошибке startup."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         # Добавляем компонент который запустится успешно
         controller.register_component("good", mock_component, required=False)
@@ -552,14 +559,14 @@ class TestRepresentation:
 
     def test_repr(self, mock_state_machine):
         """Тест __repr__."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         repr_str = repr(controller)
         assert "SystemController" in repr_str
 
     def test_str(self, mock_state_machine):
         """Тест __str__."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         str_repr = str(controller)
         assert "System:" in str_repr
@@ -580,6 +587,7 @@ class TestIntegration:
             state_machine=mock_state_machine,
             db_manager=mock_db_manager,
             redis_manager=mock_redis_manager,
+            test_mode=True,
         )
 
         # Startup
@@ -599,7 +607,7 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_multiple_components_lifecycle(self, mock_state_machine):
         """Тест lifecycle с несколькими компонентами."""
-        controller = SystemController(state_machine=mock_state_machine)
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         # Регистрируем несколько компонентов
         for i in range(3):

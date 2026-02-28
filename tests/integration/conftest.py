@@ -132,12 +132,15 @@ async def test_db_setup() -> None:
                 CREATE TABLE IF NOT EXISTS orders (
                     id SERIAL PRIMARY KEY,
                     order_id VARCHAR(100) UNIQUE NOT NULL,
+                    client_order_id VARCHAR(100),
+                    exchange_order_id VARCHAR(100),
                     symbol VARCHAR(50) NOT NULL,
                     side VARCHAR(10) NOT NULL,
                     order_type VARCHAR(20) NOT NULL,
                     size REAL NOT NULL,
                     price REAL,
                     status VARCHAR(20) NOT NULL,
+                    state VARCHAR(50) DEFAULT 'pending',
                     filled_size REAL DEFAULT 0,
                     average_price REAL,
                     created_at TIMESTAMP DEFAULT NOW(),
@@ -147,15 +150,22 @@ async def test_db_setup() -> None:
                 -- Positions
                 CREATE TABLE IF NOT EXISTS positions (
                     id SERIAL PRIMARY KEY,
-                    symbol VARCHAR(50) UNIQUE NOT NULL,
+                    position_id VARCHAR(100) UNIQUE NOT NULL,
+                    symbol VARCHAR(50) NOT NULL,
                     side VARCHAR(10) NOT NULL,
                     size REAL NOT NULL,
                     entry_price REAL NOT NULL,
                     current_price REAL,
-                    unrealized_pnl REAL,
+                    leverage REAL DEFAULT 1.0,
+                    unrealized_pnl REAL DEFAULT 0,
                     realized_pnl REAL DEFAULT 0,
+                    margin_used REAL DEFAULT 0,
+                    liquidation_price REAL,
+                    status VARCHAR(20) DEFAULT 'open',
                     opened_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW()
+                    updated_at TIMESTAMP DEFAULT NOW(),
+                    closed_at TIMESTAMP,
+                    metadata JSONB DEFAULT '{}'::jsonb
                 );
 
                 -- Risk Events

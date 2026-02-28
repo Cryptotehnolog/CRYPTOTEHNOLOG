@@ -140,6 +140,11 @@ class DatabaseHealthCheck(HealthCheck):
         """Проверить здоровье PostgreSQL."""
         start_time = time.time()
 
+        # Проверяем отмену перед началом
+        current_task = asyncio.current_task()
+        if current_task and current_task.cancelled():
+            raise asyncio.CancelledError()
+
         if self._db_manager is None:
             return ComponentHealth(
                 component=self.name,
@@ -153,6 +158,10 @@ class DatabaseHealthCheck(HealthCheck):
                 self._db_manager.health_check(),
                 timeout=self.timeout,
             )
+
+            # Проверяем отмену после await
+            if current_task and current_task.cancelled():
+                raise asyncio.CancelledError()
 
             latency_ms = (time.time() - start_time) * 1000
 
@@ -177,6 +186,9 @@ class DatabaseHealthCheck(HealthCheck):
                     latency_ms=latency_ms,
                 )
 
+        except asyncio.CancelledError:
+            # Пробрасываем отмену дальше
+            raise
         except TimeoutError:
             latency_ms = (time.time() - start_time) * 1000
             logger.error("Таймаут проверки PostgreSQL", component=self.name)
@@ -220,6 +232,11 @@ class RedisHealthCheck(HealthCheck):
         """Проверить здоровье Redis."""
         start_time = time.time()
 
+        # Проверяем отмену перед началом
+        current_task = asyncio.current_task()
+        if current_task and current_task.cancelled():
+            raise asyncio.CancelledError()
+
         if self._redis_manager is None:
             return ComponentHealth(
                 component=self.name,
@@ -233,6 +250,10 @@ class RedisHealthCheck(HealthCheck):
                 self._redis_manager.health_check(),
                 timeout=self.timeout,
             )
+
+            # Проверяем отмену после await
+            if current_task and current_task.cancelled():
+                raise asyncio.CancelledError()
 
             latency_ms = (time.time() - start_time) * 1000
 
@@ -256,6 +277,8 @@ class RedisHealthCheck(HealthCheck):
                     latency_ms=latency_ms,
                 )
 
+        except asyncio.CancelledError:
+            raise
         except TimeoutError:
             latency_ms = (time.time() - start_time) * 1000
             logger.error("Таймаут проверки Redis", component=self.name)
@@ -299,6 +322,11 @@ class EventBusHealthCheck(HealthCheck):
         """Проверить здоровье Event Bus."""
         start_time = time.time()
 
+        # Проверяем отмену перед началом
+        current_task = asyncio.current_task()
+        if current_task and current_task.cancelled():
+            raise asyncio.CancelledError()
+
         if self._event_bus is None:
             return ComponentHealth(
                 component=self.name,
@@ -315,6 +343,10 @@ class EventBusHealthCheck(HealthCheck):
                     timeout=self.timeout,
                 )
 
+                # Проверяем отмену после await
+                if current_task and current_task.cancelled():
+                    raise asyncio.CancelledError()
+
                 latency_ms = (time.time() - start_time) * 1000
 
                 return ComponentHealth(
@@ -327,6 +359,10 @@ class EventBusHealthCheck(HealthCheck):
 
             # Если метод get_metrics не существует, проверяем через publish
             if hasattr(self._event_bus, "publish"):
+                # Проверяем отмену перед возвратом
+                if current_task and current_task.cancelled():
+                    raise asyncio.CancelledError()
+                    
                 latency_ms = (time.time() - start_time) * 1000
                 return ComponentHealth(
                     component=self.name,
@@ -342,6 +378,8 @@ class EventBusHealthCheck(HealthCheck):
                 latency_ms=(time.time() - start_time) * 1000,
             )
 
+        except asyncio.CancelledError:
+            raise
         except TimeoutError:
             latency_ms = (time.time() - start_time) * 1000
             logger.error("Таймаут проверки Event Bus", component=self.name)
@@ -385,6 +423,11 @@ class MetricsHealthCheck(HealthCheck):
         """Проверить здоровье системы метрик."""
         start_time = time.time()
 
+        # Проверяем отмену перед началом
+        current_task = asyncio.current_task()
+        if current_task and current_task.cancelled():
+            raise asyncio.CancelledError()
+
         if self._metrics_collector is None:
             return ComponentHealth(
                 component=self.name,
@@ -397,6 +440,10 @@ class MetricsHealthCheck(HealthCheck):
             # Проверяем что метрики включены и работают
             enabled = self._metrics_collector.enabled
             metric_names = self._metrics_collector.get_metric_names()
+
+            # Проверяем отмену после операций
+            if current_task and current_task.cancelled():
+                raise asyncio.CancelledError()
 
             latency_ms = (time.time() - start_time) * 1000
 
@@ -420,6 +467,8 @@ class MetricsHealthCheck(HealthCheck):
                     latency_ms=latency_ms,
                 )
 
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             latency_ms = (time.time() - start_time) * 1000
             logger.error("Ошибка проверки метрик", error=str(e))
@@ -583,11 +632,25 @@ class HealthChecker:
         Returns:
             Общее состояние системы
         """
+        # Проверяем отмену перед началом проверки
+        current_task = asyncio.current_task()
+        if current_task and current_task.cancelled():
+            raise asyncio.CancelledError()
+
         logger.debug("Начало проверки системы", total_checks=len(self._checks))
 
         # Параллельно выполняем все проверки
         tasks = [check.check() for check in self._checks.values()]
+        
+        # Проверяем отмену перед gather
+        if current_task and current_task.cancelled():
+            raise asyncio.CancelledError()
+        
         results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Проверяем отмену после gather
+        if current_task and current_task.cancelled():
+            raise asyncio.CancelledError()
 
         # Собираем результаты
         components: dict[str, ComponentHealth] = {}

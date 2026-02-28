@@ -166,6 +166,7 @@ class SystemController:
         state_machine: StateMachine | None = None,
         health_checker: HealthChecker | None = None,
         metrics_collector: MetricsCollector | None = None,
+        test_mode: bool = False,
     ) -> None:
         """
         Инициализировать System Controller.
@@ -176,12 +177,14 @@ class SystemController:
             state_machine: State Machine (опционально, будет создана если не передана)
             health_checker: Health Checker (опционально)
             metrics_collector: Коллектор метрик (опционально)
+            test_mode: Если True - не запускает background tasks (health monitor)
         """
         # Внешние зависимости
         self._db = db_manager
         self._redis = redis_manager
         self._health_checker = health_checker
         self._metrics = metrics_collector
+        self._test_mode = test_mode
 
         # State Machine - создаём или используем переданную
         self._state_machine = state_machine or StateMachine(
@@ -223,8 +226,6 @@ class SystemController:
         logger.info("System Controller инициализирован")
 
     # ==================== Свойства ====================
-
-    @property
     def state_machine(self) -> StateMachine:
         """Получить State Machine."""
         return self._state_machine
@@ -488,8 +489,9 @@ class SystemController:
                 duration_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
                 self._startup_duration_ms = duration_ms
 
-                # Запускаем мониторинг health
-                self._start_health_monitor()
+                # Запускаем мониторинг health (только не в test_mode)
+                if not self._test_mode:
+                    self._start_health_monitor()
 
                 logger.info("=" * 60)
                 logger.info(f"STARTUP ЗАВЕРШЁН УСПЕШНО за {duration_ms}ms")
@@ -898,7 +900,7 @@ class SystemController:
     async def _close_connections(self) -> None:
         """Закрыть внешние соединения."""
         # Останавливаем health monitor
-        self._stop_health_monitor()
+        await self._stop_health_monitor()
 
         # Закрываем Redis
         if self._redis and hasattr(self._redis, "close"):
@@ -929,37 +931,56 @@ class SystemController:
             return
 
         async def monitor() -> None:
-            while self._is_running and not self._is_shutting_down:
-                try:
-                    await asyncio.sleep(30)  # Проверка каждые 30 секунд
-
-                    if not self._is_running:
+            """Health monitor с гарантированной обработкой отмены."""
+            check_interval = 5  # Проверяем каждые 5 секунд
+            try:
+                while self._is_running and not self._is_shutting_down:
+                    # Защита #1: отмена во время sleep
+                    try:
+                        await asyncio.sleep(check_interval)
+                    except asyncio.CancelledError:
                         break
 
-                    # Выполняем health check
-                    if self._health_checker:
-                        system_health = await self._health_checker.check_system()
+                    # Проверка флагов после сна (могли измениться во время сна)
+                    if not (self._is_running and not self._is_shutting_down):
+                        break
 
-                        # Проверяем есть ли проблемы
-                        unhealthy = system_health.get_unhealthy_components()
-                        if unhealthy:
-                            logger.warning(
-                                "Обнаружены нездоровые компоненты",
-                                components=unhealthy,
-                            )
+                    # Защита #2: отмена во время health check
+                    try:
+                        if self._health_checker:
+                            system_health = await self._health_checker.check_system()
 
-                except asyncio.CancelledError:
-                    break
-                except Exception as e:
-                    logger.error("Ошибка в health monitor", error=str(e))
+                            # Проверяем есть ли проблемы
+                            unhealthy = system_health.get_unhealthy_components()
+                            if unhealthy:
+                                logger.warning(
+                                    "Обнаружены нездоровые компоненты",
+                                    components=unhealthy,
+                                )
+                    except asyncio.CancelledError:
+                        break
+                    except Exception as e:
+                        logger.error("Ошибка в health monitor", error=str(e))
+
+            except asyncio.CancelledError:
+                # Защита #3: отмена на уровне всего цикла
+                pass
+            finally:
+                logger.debug("Health monitor task завершена")
 
         self._health_monitor_task = asyncio.create_task(monitor())
         logger.info("Health monitor запущен")
 
-    def _stop_health_monitor(self) -> None:
+    async def _stop_health_monitor(self) -> None:
         """Остановить health monitor."""
         if self._health_monitor_task:
             self._health_monitor_task.cancel()
+            try:
+                await asyncio.wait_for(self._health_monitor_task, timeout=5.0)
+            except asyncio.CancelledError:
+                pass
+            except asyncio.TimeoutError:
+                logger.warning("Health monitor не завершился за 5 секунд, принудительная остановка")
             self._health_monitor_task = None
             logger.info("Health monitor остановлен")
 

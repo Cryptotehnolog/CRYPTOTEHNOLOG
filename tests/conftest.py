@@ -120,12 +120,15 @@ async def test_db_setup() -> None:
             CREATE TABLE IF NOT EXISTS orders (
                 id SERIAL PRIMARY KEY,
                 order_id VARCHAR(100) UNIQUE NOT NULL,
+                client_order_id VARCHAR(100),
+                exchange_order_id VARCHAR(100),
                 symbol VARCHAR(50) NOT NULL,
                 side VARCHAR(10) NOT NULL,
                 order_type VARCHAR(20) NOT NULL,
                 size REAL NOT NULL,
                 price REAL,
                 status VARCHAR(20) NOT NULL,
+                state VARCHAR(50) DEFAULT 'pending',
                 filled_size REAL DEFAULT 0,
                 average_price REAL,
                 created_at TIMESTAMP DEFAULT NOW(),
@@ -135,15 +138,22 @@ async def test_db_setup() -> None:
             -- Positions
             CREATE TABLE IF NOT EXISTS positions (
                 id SERIAL PRIMARY KEY,
-                symbol VARCHAR(50) UNIQUE NOT NULL,
+                position_id VARCHAR(100) UNIQUE NOT NULL,
+                symbol VARCHAR(50) NOT NULL,
                 side VARCHAR(10) NOT NULL,
                 size REAL NOT NULL,
                 entry_price REAL NOT NULL,
                 current_price REAL,
-                unrealized_pnl REAL,
+                leverage REAL DEFAULT 1.0,
+                unrealized_pnl REAL DEFAULT 0,
                 realized_pnl REAL DEFAULT 0,
+                margin_used REAL DEFAULT 0,
+                liquidation_price REAL,
+                status VARCHAR(20) DEFAULT 'open',
                 opened_at TIMESTAMP DEFAULT NOW(),
-                updated_at TIMESTAMP DEFAULT NOW()
+                updated_at TIMESTAMP DEFAULT NOW(),
+                closed_at TIMESTAMP,
+                metadata JSONB DEFAULT '{}'::jsonb
             );
 
             -- Risk Events
@@ -311,29 +321,40 @@ async def redis_clean_state() -> None:
 def redis_client_factory():
     """Factory for creating Redis client inside test.
 
-    Creates client in same event loop where test runs.
+    Creates async client in same event loop where test runs.
     Ensures no event loop conflicts.
     """
+    from redis.asyncio import Redis as AsyncRedis
+    import logging
+    logger = logging.getLogger(__name__)
 
     class RedisClientFactory:
         """Redis client factory."""
 
         @staticmethod
-        async def create() -> redis.Redis:
-            """Create new Redis client."""
-            settings = Settings()
+        async def create() -> AsyncRedis:
+            """Create new async Redis client."""
+            try:
+                settings = Settings()
+                logger.debug(f"Creating Redis client for URL: {settings.redis_url}")
 
-            client = redis.from_url(
-                settings.redis_url,
-                max_connections=settings.redis_pool_max_connections,
-                socket_timeout=settings.redis_pool_socket_timeout,
-                socket_connect_timeout=10,
-                decode_responses=True,
-            )
+                client = AsyncRedis.from_url(
+                    settings.redis_url,
+                    max_connections=settings.redis_pool_max_connections,
+                    socket_timeout=settings.redis_pool_socket_timeout,
+                    socket_connect_timeout=10,
+                    decode_responses=True,
+                )
 
-            # Verify connection
-            await asyncio.wait_for(client.ping(), timeout=10.0)
+                # Verify connection
+                await client.ping()
+                logger.debug("Redis client created and connected")
 
-            return client
+                return client
+            except Exception as e:
+                logger.error(f"Failed to create Redis client: {e}")
+                raise
 
     return RedisClientFactory
+
+
