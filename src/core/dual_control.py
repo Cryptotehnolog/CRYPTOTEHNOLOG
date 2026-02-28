@@ -51,7 +51,7 @@ class Operator:
 
     id: uuid.UUID
     name: str
-    role: str
+    role: OperatorRole
     token: str
     is_active: bool = True
 

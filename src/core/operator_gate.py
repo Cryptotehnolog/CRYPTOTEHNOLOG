@@ -108,7 +108,7 @@ class TokenAuthenticator:
         """Получить оператора по токену."""
         return self.authenticate(token)
 
-    def validate_operator_role(self, operator: Operator, required_role: str) -> bool:
+    def validate_operator_role(self, operator: Operator, required_role: OperatorRole) -> bool:
         """
         Проверить роль оператора.
 
@@ -119,7 +119,7 @@ class TokenAuthenticator:
         Возвращает:
             True если роль достаточна
         """
-        role_hierarchy = {
+        role_hierarchy: dict[OperatorRole, int] = {
             OperatorRole.ADMIN: 3,
             OperatorRole.RISK_MANAGER: 2,
             OperatorRole.TRADER: 1,
@@ -129,7 +129,7 @@ class TokenAuthenticator:
         operator_level = role_hierarchy.get(operator.role, 0)
         required_level = role_hierarchy.get(required_role, 0)
 
-        return operator_level >= required_level
+        return bool(operator_level >= required_level)
 
 
 # ==================== Operator Gate ====================

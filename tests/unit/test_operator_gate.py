@@ -6,7 +6,7 @@ Unit Tests for Operator Gate.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 
 from hypothesis import given
@@ -192,7 +192,7 @@ class TestDualControlRequest:
         assert request.is_pending() is True
 
         # Имитируем истечение - устанавливаем в прошлом
-        request.expires_at = datetime.now(datetime.UTC) - timedelta(seconds=10)
+        request.expires_at = datetime.now(timezone.utc) - timedelta(seconds=10)
 
         assert request.is_expired() is True
         # Note: is_pending() returns False when expired, so expire() won't change status
