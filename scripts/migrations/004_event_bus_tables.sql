@@ -132,9 +132,9 @@ CREATE INDEX IF NOT EXISTS idx_event_subscriptions_enabled ON event_subscription
 CREATE INDEX IF NOT EXISTS idx_event_subscriptions_priority ON event_subscriptions(priority DESC);
 
 -- Published Events indexes
-CREATE INDEX IF NOT idx_published_events_status ON published_events(status) WHERE status = 'pending';
-CREATE INDEX IF NOT idx_published_events_topic ON published_events(topic);
-CREATE INDEX IF NOT idx_published_events_created ON published_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_published_events_status ON published_events(status) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_published_events_topic ON published_events(topic);
+CREATE INDEX IF NOT EXISTS idx_published_events_created ON published_events(created_at DESC);
 
 -- Dead Letter Events indexes
 CREATE INDEX IF NOT EXISTS idx_dead_letter_resolved ON dead_letter_events(resolved) WHERE resolved = FALSE;
