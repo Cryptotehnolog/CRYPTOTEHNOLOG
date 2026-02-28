@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS event_subscriptions (
 );
 
 -- Published Events (outbox pattern for reliable delivery)
+-- Only create if table doesn't exist - avoid overwriting with incompatible schema
 CREATE TABLE IF NOT EXISTS published_events (
     id BIGSERIAL PRIMARY KEY,
     event_id BIGINT NOT NULL,
@@ -71,6 +72,19 @@ CREATE TABLE IF NOT EXISTS published_events (
     error_message TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add missing columns if they don't exist (for idempotency)
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'published_events' AND column_name = 'status') THEN
+        ALTER TABLE published_events ADD COLUMN status VARCHAR(20) DEFAULT 'pending';
+    END IF;
+END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'published_events' AND column_name = 'delivered_at') THEN
+        ALTER TABLE published_events ADD COLUMN delivered_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+END $$;
 
 -- Dead Letter Events (failed events for manual inspection)
 CREATE TABLE IF NOT EXISTS dead_letter_events (
@@ -87,6 +101,13 @@ CREATE TABLE IF NOT EXISTS dead_letter_events (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     resolved_at TIMESTAMP WITH TIME ZONE
 );
+
+-- Add missing columns if they don't exist
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'dead_letter_events' AND column_name = 'resolved') THEN
+        ALTER TABLE dead_letter_events ADD COLUMN resolved BOOLEAN DEFAULT FALSE;
+    END IF;
+END $$;
 
 -- Indexes for Event Bus tables
 CREATE INDEX IF NOT EXISTS idx_event_store_aggregate ON event_store(aggregate_id, version DESC);
