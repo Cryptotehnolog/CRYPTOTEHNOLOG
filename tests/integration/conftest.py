@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import asyncpg
 import pytest
+import pytest_asyncio
 import redis.asyncio as redis
 
 from cryptotechnolog.config.settings import Settings
@@ -259,6 +260,26 @@ def db_connection_factory():
             return conn
 
     return DBConnectionFactory
+
+
+# ==================== Pool Fixture for Integration Tests ====================
+
+
+@pytest_asyncio.fixture(scope="function")
+async def db_pool():
+    """
+    Function-scoped database pool for integration tests.
+    
+    Использует существующий DatabaseManager из проекта.
+    """
+    from src.core.database import get_database, close_database
+    
+    db = get_database()
+    await db.connect()
+    
+    yield db.pool
+    
+    await close_database()
 
 
 # ==================== Settings Fixtures ====================

@@ -571,47 +571,6 @@ SELECT EXISTS (
 _db_manager: DatabaseManager | None = None
 
 
-async def get_db_pool() -> asyncpg.Pool:
-    """
-    Получить пул соединений с БД (для совместимости).
-
-    Returns:
-        Пул соединений asyncpg
-
-    Raises:
-        RuntimeError: Если не удалось подключиться к БД
-    """
-    db = get_database()
-    if db.pool is None:
-        await db.connect()
-    if db.pool is None:
-        raise RuntimeError("Не удалось получить пул соединений с БД")
-    return db.pool
-
-
-async def init_db_pool() -> asyncpg.Pool:
-    """
-    Инициализировать пул соединений (для совместимости).
-
-    Returns:
-        Пул соединений asyncpg
-
-    Raises:
-        RuntimeError: Если не удалось подключиться к БД
-    """
-    db = get_database()
-    if not db.is_connected:
-        await db.connect()
-    if db.pool is None:
-        raise RuntimeError("Не удалось инициализировать пул соединений")
-    return db.pool
-
-
-async def close_db_pool() -> None:
-    """Закрыть пул соединений (для совместимости)."""
-    await close_database()
-
-
 def get_database() -> DatabaseManager:
     """
     Получить глобальный экземпляр DatabaseManager.
