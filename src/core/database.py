@@ -492,7 +492,9 @@ SELECT EXISTS (
             >>> # Кэшировать результат на 5 минут
             >>> rows = await db.fetch_cached("SELECT * FROM symbols", ttl=300)
             >>> # С кастомным ключом
-            >>> rows = await db.fetch_cached("SELECT * FROM symbols", ttl=60, cache_key="all_symbols")
+            >>> rows = await db.fetch_cached(
+            ...     "SELECT * FROM symbols", ttl=60, cache_key="all_symbols"
+            ... )
         """
         if self._redis is None:
             # Без Redis — просто выполняем запрос

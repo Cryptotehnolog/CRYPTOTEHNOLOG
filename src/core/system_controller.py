@@ -1070,4 +1070,5 @@ class SystemController:
 
     def __str__(self) -> str:
         """Строковое представление для пользователя."""
-        return f"System: {self._state_machine.current_state.value} | Components: {len(self._components)}"
+        state = self._state_machine.current_state.value
+        return f"System: {state} | Components: {len(self._components)}"

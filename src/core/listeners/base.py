@@ -151,13 +151,14 @@ class BaseListener(ABC):
 
                 if attempt < self.config.max_retries - 1:
                     logger.warning(
-                        f"[{self.name}] Attempt {attempt + 1}/{self.config.max_retries} failed: {e}. "
-                        f"Retrying in {self.config.retry_delay}s..."
+                        f"[{self.name}] Attempt {attempt + 1}/{self.config.max_retries} "
+                        f"failed: {e}. Retrying in {self.config.retry_delay}s..."
                     )
                     await asyncio.sleep(self.config.retry_delay * (attempt + 1))
                 else:
                     logger.error(
-                        f"[{self.name}] All {self.config.max_retries} attempts failed for event {event.event_type}: {e}"
+                        f"[{self.name}] All {self.config.max_retries} attempts failed "
+                        f"for event {event.event_type}: {e}"
                     )
 
         # Log failed event for recovery

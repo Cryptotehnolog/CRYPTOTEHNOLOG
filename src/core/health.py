@@ -362,7 +362,7 @@ class EventBusHealthCheck(HealthCheck):
                 # Проверяем отмену перед возвратом
                 if current_task and current_task.cancelled():
                     raise asyncio.CancelledError()
-                    
+
                 latency_ms = (time.time() - start_time) * 1000
                 return ComponentHealth(
                     component=self.name,
@@ -641,11 +641,11 @@ class HealthChecker:
 
         # Параллельно выполняем все проверки
         tasks = [check.check() for check in self._checks.values()]
-        
+
         # Проверяем отмену перед gather
         if current_task and current_task.cancelled():
             raise asyncio.CancelledError()
-        
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Проверяем отмену после gather
