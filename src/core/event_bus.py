@@ -445,7 +445,9 @@ class EventBus:
         try:
             loop = asyncio.get_running_loop()
             task = loop.create_task(coro)
-            task.add_done_callback(lambda t: self._pending_tasks.remove(t) if t in self._pending_tasks else None)
+            task.add_done_callback(
+                lambda t: self._pending_tasks.remove(t) if t in self._pending_tasks else None
+            )
             self._pending_tasks.append(task)
         except RuntimeError:
             # Нет running loop - выполняем синхронно через run_until_complete
@@ -490,7 +492,7 @@ class EventBus:
         """
         self._handlers[event_type].append(handler)
         # Получаем имя обработчика безопасно
-        handler_name = getattr(handler, '__name__', str(handler))
+        handler_name = getattr(handler, "__name__", str(handler))
         logger.debug(
             "Обработчик зарегистрирован",
             event_type=event_type,

@@ -27,7 +27,7 @@ def mock_database():
     mock_pool.acquire = AsyncMock()
     mock_pool.close = AsyncMock()
 
-    with patch('src.core.database.get_database') as mock_db:
+    with patch("src.core.database.get_database") as mock_db:
         mock_db_instance = MagicMock()
         mock_db_instance.pool = mock_pool
         mock_db_instance.is_connected = True
@@ -36,10 +36,10 @@ def mock_database():
         mock_db.return_value = mock_db_instance
 
         with (
-            patch('src.core.listeners.state_machine.get_db_pool', return_value=mock_pool),
-            patch('src.core.listeners.risk.get_db_pool', return_value=mock_pool),
-            patch('src.core.listeners.audit.get_db_pool', return_value=mock_pool),
-            patch('src.core.listeners.metrics.get_db_pool', return_value=mock_pool),
+            patch("src.core.listeners.state_machine.get_db_pool", return_value=mock_pool),
+            patch("src.core.listeners.risk.get_db_pool", return_value=mock_pool),
+            patch("src.core.listeners.audit.get_db_pool", return_value=mock_pool),
+            patch("src.core.listeners.metrics.get_db_pool", return_value=mock_pool),
         ):
             yield mock_pool
 
@@ -173,7 +173,9 @@ async def test_audit_listener_receives_all_events(test_event_bus, setup_listener
     events = [
         Event.new(SystemEventType.SYSTEM_BOOT, SystemEventSource.SYSTEM_CONTROLLER, {}),
         Event.new(SystemEventType.SYSTEM_READY, SystemEventSource.SYSTEM_CONTROLLER, {}),
-        Event.new(SystemEventType.ORDER_FILLED, SystemEventSource.EXECUTION_CORE, {"order_id": "123"}),
+        Event.new(
+            SystemEventType.ORDER_FILLED, SystemEventSource.EXECUTION_CORE, {"order_id": "123"}
+        ),
     ]
 
     for event in events:

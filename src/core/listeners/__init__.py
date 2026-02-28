@@ -40,9 +40,9 @@ def register_all_listeners() -> ListenerRegistry:
     # Регистрация listeners (порядок важен - приоритет)
     listeners = [
         StateMachineListener(),  # priority=100
-        RiskListener(),          # priority=90
-        AuditListener(),         # priority=50
-        MetricsListener(),       # priority=10
+        RiskListener(),  # priority=90
+        AuditListener(),  # priority=50
+        MetricsListener(),  # priority=10
     ]
 
     for listener in listeners:

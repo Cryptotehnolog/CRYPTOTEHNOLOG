@@ -87,7 +87,9 @@ class StateMachineListener(BaseListener):
         duration_ms = payload.get("duration_ms")
         operator = payload.get("operator", "system")
 
-        logger.info(f"[{self.name}] State transition: {from_state} -> {to_state} (trigger: {trigger})")
+        logger.info(
+            f"[{self.name}] State transition: {from_state} -> {to_state} (trigger: {trigger})"
+        )
 
         # Запись в БД
         await self._record_transition(

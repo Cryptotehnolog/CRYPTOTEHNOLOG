@@ -40,10 +40,10 @@ def setup_listeners(test_event_bus, db_pool):
     """Register all listeners on the test EventBus with real DB pool."""
     # Мокаем get_db_pool чтобы возвращал реальный пул из фикстуры
     with (
-        patch('src.core.listeners.state_machine.get_db_pool', return_value=db_pool),
-        patch('src.core.listeners.risk.get_db_pool', return_value=db_pool),
-        patch('src.core.listeners.audit.get_db_pool', return_value=db_pool),
-        patch('src.core.listeners.metrics.get_db_pool', return_value=db_pool),
+        patch("src.core.listeners.state_machine.get_db_pool", return_value=db_pool),
+        patch("src.core.listeners.risk.get_db_pool", return_value=db_pool),
+        patch("src.core.listeners.audit.get_db_pool", return_value=db_pool),
+        patch("src.core.listeners.metrics.get_db_pool", return_value=db_pool),
     ):
         registry = register_all_listeners()
         test_event_bus.enable_listeners()
@@ -136,9 +136,7 @@ async def test_system_events_persisted(db_pool, test_event_bus, setup_listeners)
 
     # Verify state machine was updated
     async with db_pool.acquire() as conn:
-        state = await conn.fetchrow(
-            "SELECT current_state FROM state_machine_states WHERE id = 1"
-        )
+        state = await conn.fetchrow("SELECT current_state FROM state_machine_states WHERE id = 1")
 
     assert state["current_state"] == "ready"
 
@@ -152,10 +150,14 @@ async def test_audit_events_persisted(db_pool, test_event_bus, setup_listeners):
     # Publish various events
     events = [
         Event.new(SystemEventType.SYSTEM_BOOT, SystemEventSource.SYSTEM_CONTROLLER, {}),
-        Event.new(SystemEventType.STATE_TRANSITION, SystemEventSource.STATE_MACHINE,
-                  {"from_state": "boot", "to_state": "ready"}),
-        Event.new(SystemEventType.WATCHDOG_ALERT, SystemEventSource.WATCHDOG,
-                  {"reason": "test alert"}),
+        Event.new(
+            SystemEventType.STATE_TRANSITION,
+            SystemEventSource.STATE_MACHINE,
+            {"from_state": "boot", "to_state": "ready"},
+        ),
+        Event.new(
+            SystemEventType.WATCHDOG_ALERT, SystemEventSource.WATCHDOG, {"reason": "test alert"}
+        ),
     ]
 
     for event in events:

@@ -58,8 +58,14 @@ def generate_order_side(draw) -> str:
 def generate_symbol(draw) -> str:
     """Generate valid trading symbols."""
     symbols = [
-        "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT",
-        "ADAUSDT", "XRPUSDT", "DOGEUSDT", "DOTUSDT"
+        "BTCUSDT",
+        "ETHUSDT",
+        "BNBUSDT",
+        "SOLUSDT",
+        "ADAUSDT",
+        "XRPUSDT",
+        "DOGEUSDT",
+        "DOTUSDT",
     ]
     return draw(hypothesis.strategies.sampled_from(symbols))
 
@@ -197,7 +203,7 @@ class TestEventBusInvariants:
 
     @given(
         event_type=hypothesis.strategies.text(min_size=1, max_size=100),
-        payload=generate_event_payload("STATE_TRANSITION")
+        payload=generate_event_payload("STATE_TRANSITION"),
     )
     @settings(max_examples=30)
     def test_event_creation_invariants(self, event_type, payload):
@@ -221,14 +227,16 @@ class TestListenerInvariants:
     """Property-based tests for Listener invariants."""
 
     @given(
-        event_type=hypothesis.strategies.sampled_from([
-            "STATE_TRANSITION",
-            "SYSTEM_BOOT",
-            "ORDER_SUBMITTED",
-            "ORDER_FILLED",
-            "RISK_VIOLATION",
-            "WATCHDOG_ALERT",
-        ])
+        event_type=hypothesis.strategies.sampled_from(
+            [
+                "STATE_TRANSITION",
+                "SYSTEM_BOOT",
+                "ORDER_SUBMITTED",
+                "ORDER_FILLED",
+                "RISK_VIOLATION",
+                "WATCHDOG_ALERT",
+            ]
+        )
     )
     @settings(max_examples=30)
     def test_listener_handles_events(self, event_type):
@@ -251,9 +259,7 @@ class TestListenerInvariants:
         bus.disable_listeners()
         bus.clear()
 
-    @given(
-        count=hypothesis.strategies.integers(min_value=1, max_value=100)
-    )
+    @given(count=hypothesis.strategies.integers(min_value=1, max_value=100))
     @settings(max_examples=20)
     def test_multiple_events_published(self, count):
         """Test that publishing multiple events maintains consistency."""
@@ -263,11 +269,7 @@ class TestListenerInvariants:
         initial_count = bus.publish_count
 
         for i in range(count):
-            event = Event.new(
-                "TEST_EVENT",
-                "test_source",
-                {"index": i}
-            )
+            event = Event.new("TEST_EVENT", "test_source", {"index": i})
             bus.publish(event)
 
         assert bus.publish_count == initial_count + count
@@ -276,9 +278,7 @@ class TestListenerInvariants:
 
     @given(
         events=hypothesis.strategies.lists(
-            generate_event_payload("STATE_TRANSITION"),
-            min_size=1,
-            max_size=20
+            generate_event_payload("STATE_TRANSITION"), min_size=1, max_size=20
         )
     )
     @settings(max_examples=15)
@@ -293,9 +293,7 @@ class TestListenerInvariants:
                 payload["to_state"] = SystemState.HALT.value
 
             event = Event.new(
-                SystemEventType.STATE_TRANSITION,
-                SystemEventSource.STATE_MACHINE,
-                payload
+                SystemEventType.STATE_TRANSITION, SystemEventSource.STATE_MACHINE, payload
             )
             bus.publish(event)
 
@@ -312,7 +310,7 @@ class TestDatabaseInvariants:
 
     @given(
         version=hypothesis.strategies.integers(min_value=1, max_value=1000),
-        description=hypothesis.strategies.text(min_size=1, max_size=200)
+        description=hypothesis.strategies.text(min_size=1, max_size=200),
     )
     @settings(max_examples=20)
     def test_migration_version_unique(self, version, description):
@@ -324,7 +322,7 @@ class TestDatabaseInvariants:
 
     @given(
         state=hypothesis.strategies.text(min_size=1, max_size=50),
-        version=hypothesis.strategies.integers(min_value=0, max_value=10000)
+        version=hypothesis.strategies.integers(min_value=0, max_value=10000),
     )
     @settings(max_examples=20)
     def test_state_machine_state_structure(self, state, version):
@@ -336,8 +334,10 @@ class TestDatabaseInvariants:
         assert isinstance(state, str)
 
     @given(
-        severity=hypothesis.strategies.sampled_from(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
-        event_type=hypothesis.strategies.text(min_size=1, max_size=100)
+        severity=hypothesis.strategies.sampled_from(
+            ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        ),
+        event_type=hypothesis.strategies.text(min_size=1, max_size=100),
     )
     @settings(max_examples=20)
     def test_audit_severity_levels(self, severity, event_type):
@@ -355,7 +355,7 @@ class TestRiskInvariants:
 
     @given(
         current=hypothesis.strategies.floats(min_value=0, max_value=1000000),
-        max_limit=hypothesis.strategies.floats(min_value=0, max_value=1000000)
+        max_limit=hypothesis.strategies.floats(min_value=0, max_value=1000000),
     )
     @settings(max_examples=30)
     def test_risk_limit_comparison(self, current, max_limit):
@@ -384,18 +384,14 @@ class TestRiskInvariants:
         # Risk amount should be reasonable
         assert risk_amount < size * price * 1.01  # Allow small float error
 
-    @given(
-        leverage=hypothesis.strategies.floats(min_value=1.0, max_value=125.0)
-    )
+    @given(leverage=hypothesis.strategies.floats(min_value=1.0, max_value=125.0))
     @settings(max_examples=20)
     def test_leverage_bounds(self, leverage):
         """Test that leverage is within valid bounds."""
         assert leverage >= 1.0
         assert leverage <= 125.0
 
-    @given(
-        pnl=hypothesis.strategies.floats(min_value=-100000, max_value=100000)
-    )
+    @given(pnl=hypothesis.strategies.floats(min_value=-100000, max_value=100000))
     @settings(max_examples=20)
     def test_pnl_bounds(self, pnl):
         """Test that P&L is within expected bounds."""
@@ -426,7 +422,7 @@ class TestEdgeCases:
 
     @given(
         key=hypothesis.strategies.text(min_size=1, max_size=50),
-        value=hypothesis.strategies.text(max_size=100)
+        value=hypothesis.strategies.text(max_size=100),
     )
     @settings(max_examples=20)
     def test_metadata_handling(self, key, value):
@@ -437,9 +433,7 @@ class TestEdgeCases:
         assert key in event.metadata
         assert event.metadata[key] == value
 
-    @given(
-        correlation_id=hypothesis.strategies.uuids()
-    )
+    @given(correlation_id=hypothesis.strategies.uuids())
     @settings(max_examples=20)
     def test_correlation_id_handling(self, correlation_id):
         """Test that correlation IDs are handled correctly."""
@@ -458,14 +452,16 @@ class TestIntegrationInvariants:
 
     @given(
         events=hypothesis.strategies.lists(
-            hypothesis.strategies.sampled_from([
-                SystemEventType.SYSTEM_BOOT,
-                SystemEventType.SYSTEM_READY,
-                SystemEventType.SYSTEM_HALT,
-                SystemEventType.SYSTEM_SHUTDOWN,
-            ]),
+            hypothesis.strategies.sampled_from(
+                [
+                    SystemEventType.SYSTEM_BOOT,
+                    SystemEventType.SYSTEM_READY,
+                    SystemEventType.SYSTEM_HALT,
+                    SystemEventType.SYSTEM_SHUTDOWN,
+                ]
+            ),
             min_size=1,
-            max_size=10
+            max_size=10,
         )
     )
     @settings(max_examples=15)
@@ -495,7 +491,7 @@ class TestIntegrationInvariants:
 
     @given(
         order_count=hypothesis.strategies.integers(min_value=1, max_value=50),
-        symbol=generate_symbol()
+        symbol=generate_symbol(),
     )
     @settings(max_examples=15)
     async def test_order_sequence(self, order_count, symbol):
@@ -515,7 +511,7 @@ class TestIntegrationInvariants:
                     "size": 0.1 * (i + 1),
                     "price": 50000 + i * 100,
                     "order_id": f"order-{i}",
-                }
+                },
             )
             bus.publish(event)
 
@@ -534,9 +530,7 @@ class TestIntegrationInvariants:
 class TestPerformanceInvariants:
     """Property-based tests for performance-related invariants."""
 
-    @given(
-        event_count=hypothesis.strategies.integers(min_value=1, max_value=1000)
-    )
+    @given(event_count=hypothesis.strategies.integers(min_value=1, max_value=1000))
     @settings(max_examples=10)
     def test_event_bus_capacity(self, event_count):
         """Test that event bus handles capacity correctly."""
@@ -555,9 +549,7 @@ class TestPerformanceInvariants:
 
         bus.clear()
 
-    @given(
-        handler_count=hypothesis.strategies.integers(min_value=1, max_value=50)
-    )
+    @given(handler_count=hypothesis.strategies.integers(min_value=1, max_value=50))
     @settings(max_examples=10)
     def test_multiple_handlers(self, handler_count):
         """Test that multiple handlers work correctly."""
@@ -569,6 +561,7 @@ class TestPerformanceInvariants:
             def handler(event):
                 nonlocal call_count
                 call_count += 1
+
             return handler
 
         # Register multiple handlers

@@ -107,9 +107,7 @@ class RiskListener(BaseListener):
         size = payload.get("filled_size", 0)
         price = payload.get("price", 0)
 
-        logger.info(
-            f"[{self.name}] Order filled: {symbol} {side} {size} @ {price}"
-        )
+        logger.info(f"[{self.name}] Order filled: {symbol} {side} {size} @ {price}")
 
         # Обновление daily summary
         await self._update_daily_summary(
@@ -168,9 +166,7 @@ class RiskListener(BaseListener):
         position_id = payload.get("position_id")
         realized_pnl = payload.get("realized_pnl", 0)
 
-        logger.info(
-            f"[{self.name}] Position closed: {position_id} {symbol} PnL: ${realized_pnl}"
-        )
+        logger.info(f"[{self.name}] Position closed: {position_id} {symbol} PnL: ${realized_pnl}")
 
         # Обновление daily summary
         await self._update_daily_summary(
@@ -190,8 +186,7 @@ class RiskListener(BaseListener):
         reason = payload.get("reason", "Risk limit exceeded")
 
         logger.warning(
-            f"[{self.name}] Risk violation: {event_type} - {symbol} "
-            f"({current_value} > {max_value})"
+            f"[{self.name}] Risk violation: {event_type} - {symbol} ({current_value} > {max_value})"
         )
 
         # Запись risk event

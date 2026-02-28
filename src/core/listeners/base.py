@@ -189,8 +189,7 @@ class BaseListener(ABC):
             error: Исключение, которое произошло
         """
         logger.error(
-            f"[{self.name}] Failed to process event {event.event_type} "
-            f"(id={event.id}): {error}"
+            f"[{self.name}] Failed to process event {event.event_type} (id={event.id}): {error}"
         )
 
     def enable(self) -> None:
