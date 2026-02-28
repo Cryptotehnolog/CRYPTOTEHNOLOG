@@ -22,28 +22,36 @@ from src.core.listeners import (
 
 class MockConnection:
     """Mock asyncpg connection for tests."""
+
     async def execute(self, *args, **kwargs):
         return None
+
     async def fetch(self, *args, **kwargs):
         return []
+
     async def fetchrow(self, *args, **kwargs):
         return None
+
     async def fetchval(self, *args, **kwargs):
         return None
+
     async def close(self):
         pass
 
 
 class PoolAcquireContext:
     """Mock for async with pool.acquire() as conn."""
+
     async def __aenter__(self):
         return MockConnection()
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         return None
 
 
 class MockPool:
     """Mock database pool that properly implements async context manager."""
+
     def acquire(self):
         return PoolAcquireContext()
 

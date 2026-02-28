@@ -356,5 +356,3 @@ def redis_client_factory():
                 raise
 
     return RedisClientFactory
-
-

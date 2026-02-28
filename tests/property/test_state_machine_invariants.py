@@ -141,8 +141,7 @@ class TestStateMachineInvariants:
                 states_with_incoming[to_state].add(_from_state)
 
         states_without_incoming = [
-            state for state, incoming in states_with_incoming.items()
-            if len(incoming) == 0
+            state for state, incoming in states_with_incoming.items() if len(incoming) == 0
         ]
 
         # BOOT может не иметь входящих переходов (начальное состояние)
@@ -150,9 +149,7 @@ class TestStateMachineInvariants:
         # Но все остальные должны иметь входящие
         unexpected = [s for s in states_without_incoming if s not in {SystemState.BOOT}]
 
-        assert len(unexpected) == 0, (
-            f"Состояния без входящих переходов (кроме BOOT): {unexpected}"
-        )
+        assert len(unexpected) == 0, f"Состояния без входящих переходов (кроме BOOT): {unexpected}"
 
     # ==================== Инвариант 6: Транзитивность ====================
 
@@ -214,12 +211,8 @@ class TestStateMachineInvariants:
         """
         for _from_state, to_states in ALLOWED_TRANSITIONS.items():
             for to_state in to_states:
-                assert isinstance(to_state, SystemState), (
-                    f"Неверный тип состояния: {to_state}"
-                )
-                assert to_state in self.all_states, (
-                    f"Неизвестное состояние: {to_state}"
-                )
+                assert isinstance(to_state, SystemState), f"Неверный тип состояния: {to_state}"
+                assert to_state in self.all_states, f"Неизвестное состояние: {to_state}"
 
     # ==================== Инвариант 9: Workflow paths ====================
 
@@ -248,4 +241,3 @@ class TestStateMachineInvariants:
         """
         assert is_transition_allowed(SystemState.ERROR, SystemState.RECOVERY)
         assert is_transition_allowed(SystemState.RECOVERY, SystemState.READY)
-

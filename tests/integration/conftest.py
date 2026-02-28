@@ -74,7 +74,10 @@ async def apply_migrations(conn: asyncpg.Connection) -> None:
 
     # Apply control_plane_additions.sql last
     control_plane = (
-        Path(__file__).parent.parent.parent / "scripts" / "migrations" / "control_plane_additions.sql"
+        Path(__file__).parent.parent.parent
+        / "scripts"
+        / "migrations"
+        / "control_plane_additions.sql"
     )
     if control_plane.exists():
         sql = control_plane.read_text(encoding="utf-8")
@@ -164,9 +167,7 @@ async def clean_tables_between_tests() -> AsyncGenerator[None, None]:
 
         if tables:
             table_names = [t["tablename"] for t in tables]
-            await conn.execute(
-                f"TRUNCATE TABLE {', '.join(table_names)} RESTART IDENTITY CASCADE"
-            )
+            await conn.execute(f"TRUNCATE TABLE {', '.join(table_names)} RESTART IDENTITY CASCADE")
 
         # Re-insert initial state for state_machine_states
         await conn.execute("""
