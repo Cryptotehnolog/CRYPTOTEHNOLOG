@@ -57,9 +57,7 @@ class TestSLODefinition:
         import asyncio
 
         for _ in range(20):
-            asyncio.get_event_loop().run_until_complete(
-                histogram.observe(0.05)
-            )
+            asyncio.get_event_loop().run_until_complete(histogram.observe(0.05))
 
         result = slo.check(histogram)
 
@@ -138,9 +136,7 @@ class TestSLORegistry:
         )
         import asyncio
 
-        asyncio.get_event_loop().run_until_complete(
-            histogram.observe(0.05)
-        )
+        asyncio.get_event_loop().run_until_complete(histogram.observe(0.05))
 
         violations = registry.check_slo_violations(metrics)
 
