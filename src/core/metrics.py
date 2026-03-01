@@ -354,6 +354,9 @@ class Histogram:
         if bucket_idx < len(self._bucket_counts):
             self._bucket_counts[bucket_idx] += 1
 
+    # Минимальное количество наблюдений для использования bucket-based расчёта
+    _MIN_SAMPLES_FOR_BUCKETS = 10
+
     def get_quantile(self, quantile: float) -> float:
         """
         Получить значение для заданного квантиля.
@@ -368,7 +371,7 @@ class Histogram:
             return 0.0
 
         # Для маленького количества наблюдений используем sum/count
-        if self._count <= 10:
+        if self._count <= self._MIN_SAMPLES_FOR_BUCKETS:
             return self._sum / self._count
 
         target_count = int(self._count * quantile)
