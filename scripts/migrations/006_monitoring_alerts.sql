@@ -181,7 +181,7 @@ CREATE INDEX IF NOT EXISTS idx_performance_metrics_timestamp ON performance_metr
 
 -- API Request Logs indexes
 CREATE INDEX IF NOT EXISTS idx_api_request_logs_endpoint ON api_request_logs(endpoint, timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_api_request_logs_status ON api_request_logs(status) WHERE status >= 400;
+CREATE INDEX IF NOT EXISTS idx_api_request_logs_status_code ON api_request_logs(status_code) WHERE status_code >= 400;
 CREATE INDEX IF NOT EXISTS idx_api_request_logs_timestamp ON api_request_logs(timestamp DESC);
 
 -- Alert Rules indexes
