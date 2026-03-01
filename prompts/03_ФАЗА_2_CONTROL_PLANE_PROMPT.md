@@ -1799,47 +1799,47 @@ async def test_full_boot_sequence():
 ## ACCEPTANCE CRITERIA
 
 ### State Machine
-- [ ] 9 states defined
-- [ ] ALLOWED_TRANSITIONS complete
-- [ ] transition() validates transitions
-- [ ] Invalid transitions raise ValueError
-- [ ] on_enter/on_exit callbacks work
-- [ ] force_halt() works from any state
-- [ ] Transitions persist to database
-- [ ] can_trade() returns correct value
-- [ ] is_operational() returns correct value
+- [x] 9 states defined
+- [x] ALLOWED_TRANSITIONS complete
+- [x] transition() validates transitions
+- [x] Invalid transitions raise ValueError
+- [x] on_enter/on_exit callbacks work
+- [x] force_halt() works from any state
+- [x] Transitions persist to database
+- [x] can_trade() returns correct value
+- [x] is_operational() returns correct value
 
 ### System Controller
-- [ ] boot() connects infrastructure
-- [ ] initialize() starts components
-- [ ] start_trading() transitions to TRADING
-- [ ] degrade() transitions to DEGRADED
-- [ ] survival_mode() transitions to SURVIVAL
-- [ ] halt() stops system
-- [ ] shutdown() gracefully disconnects
+- [x] boot() connects infrastructure
+- [x] initialize() starts components
+- [x] start_trading() transitions to TRADING
+- [x] degrade() transitions to DEGRADED
+- [x] survival_mode() transitions to SURVIVAL
+- [x] halt() stops system
+- [x] shutdown() gracefully disconnects
 
 ### Watchdog
-- [ ] Monitoring loop starts/stops
-- [ ] Health checks run periodically
-- [ ] Failure counts tracked
-- [ ] Auto-recovery attempted
-- [ ] Restart cooldown enforced
-- [ ] Max restart attempts enforced
-- [ ] Metrics updated
+- [x] Monitoring loop starts/stops
+- [x] Health checks run periodically
+- [x] Failure counts tracked
+- [x] Auto-recovery attempted
+- [x] Restart cooldown enforced
+- [x] Max restart attempts enforced
+- [x] Metrics updated
 
 ### Operator Gate
-- [ ] request_approval() creates request
-- [ ] approve() adds approval
-- [ ] Dual control enforced (2 approvals)
-- [ ] Self-approval blocked
-- [ ] Duplicate approval blocked
-- [ ] Expiration checked
-- [ ] Requests/approvals persist
+- [x] request_approval() creates request
+- [x] approve() adds approval
+- [x] Dual control enforced (2 approvals)
+- [x] Self-approval blocked
+- [x] Duplicate approval blocked
+- [x] Expiration checked
+- [x] Requests/approvals persist
 
 ### Tests
-- [ ] Unit tests coverage >= 95%
-- [ ] Integration test passes
-- [ ] All edge cases tested
+- [x] Unit tests coverage >= 95%
+- [x] Integration test passes
+- [x] All edge cases tested
 
 ---
 
@@ -2382,3 +2382,21 @@ CREATE INDEX idx_state_trans_trigger ON state_transitions(trigger);
 **Version:** CRYPTOTEHNOLOG v4.4 (Фаза 2 — полная редакция)
 **Dependencies:** Phase 1 (SLO monitoring)
 **Next:** Phase 3 - Event Bus (Rust) с persistence
+
+---
+
+## 📝 СДЕЛАНО ДОПОЛНИТЕЛЬНО (не было в чек-листе)
+
+- Event Bus с publish/subscribe паттерном
+- Event Bus listeners (audit, metrics, risk, state_machine)
+- SQL миграции (10 файлов в scripts/migrations/)
+- Graceful Shutdown с drain() и checkpoint()
+- State Machine checkpoint/restore в Redis/PostgreSQL
+- Property-based тесты для инвариантов State Machine
+- Интеграционные тесты Control Plane
+- Rust bridge с graceful degradation
+- Circuit Breaker паттерн
+- System Controller event_bus интеграция для shutdown notification
+- Исправлены антипаттерны (generator.send(), event loop creation)
+- Ruff форматирование
+- MyPy проверка типов
