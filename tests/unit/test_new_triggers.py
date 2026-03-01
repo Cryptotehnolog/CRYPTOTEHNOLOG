@@ -10,9 +10,8 @@
 - STATE_TIMEOUT_EXCEEDED
 """
 
+
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, MagicMock
 
 from src.core.state_machine import StateMachine
 from src.core.state_machine_enums import (

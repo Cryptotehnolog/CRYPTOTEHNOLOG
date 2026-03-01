@@ -14,10 +14,11 @@
 """
 
 import pytest
+
 from src.core.state_machine_enums import (
-    SystemState,
     MAX_STATE_TIMES,
     STATE_POLICIES,
+    SystemState,
     get_state_policy,
 )
 

@@ -10,14 +10,13 @@
 - get_dashboard_data()
 """
 
-import pytest
-from datetime import UTC, datetime
+import asyncio
 
 from src.core.metrics import (
-    SLODefinition,
-    SLORegistry,
     Histogram,
     MetricsCollector,
+    SLODefinition,
+    SLORegistry,
     get_slo_registry,
 )
 
@@ -54,8 +53,6 @@ class TestSLODefinition:
         histogram = Histogram("test_metric", "Test")
 
         # Добавим много наблюдений для корректного p95
-        import asyncio
-
         for _ in range(20):
             asyncio.get_event_loop().run_until_complete(histogram.observe(0.05))
 
@@ -75,8 +72,6 @@ class TestSLODefinition:
         )
 
         histogram = Histogram("test_metric", "Test")
-
-        import asyncio
 
         # Добавим наблюдения где p95 будет > 50ms
         for _ in range(20):
@@ -134,8 +129,6 @@ class TestSLORegistry:
             "risk_engine_latency_seconds",
             "Test latency",
         )
-        import asyncio
-
         asyncio.get_event_loop().run_until_complete(histogram.observe(0.05))
 
         violations = registry.check_slo_violations(metrics)
@@ -151,7 +144,7 @@ class TestSLORegistry:
         statuses = registry.get_all_slo_statuses(metrics)
 
         assert len(statuses) == 4
-        for name, status in statuses.items():
+        for _name, status in statuses.items():
             assert "name" in status
             assert "status" in status
             assert "has_data" in status
@@ -196,7 +189,6 @@ class TestSLOIntegration:
 
     def test_slo_triggers_violation_logging(self):
         """Проверить что при нарушении SLO логируется warning."""
-        import logging
 
         registry = SLORegistry()
         metrics = MetricsCollector()
@@ -206,8 +198,6 @@ class TestSLOIntegration:
             "risk_engine_latency_seconds",
             "Test",
         )
-
-        import asyncio
 
         asyncio.get_event_loop().run_until_complete(
             histogram.observe(10.0)  # 10000ms >> 100ms
