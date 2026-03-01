@@ -25,9 +25,7 @@ import json
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from cryptotechnolog.config import get_logger, get_settings
-from datetime import datetime, timezone
-
-UTC = timezone.utc
+from datetime import UTC, datetime
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -1072,9 +1070,7 @@ class SLORegistry:
                 }
             )
             # Ограничить историю последними 100 нарушениями
-            self._violation_history[slo.name] = self._violation_history[
-                slo.name
-            ][-100:]
+            self._violation_history[slo.name] = self._violation_history[slo.name][-100:]
 
             logger.warning(
                 "SLO нарушен",
@@ -1085,9 +1081,7 @@ class SLORegistry:
 
         return result
 
-    def check_slo_violations(
-        self, metrics_collector: MetricsCollector
-    ) -> list[dict[str, Any]]:
+    def check_slo_violations(self, metrics_collector: MetricsCollector) -> list[dict[str, Any]]:
         """
         Проверить все SLO на нарушения.
 
