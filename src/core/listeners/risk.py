@@ -12,10 +12,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 import json
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 from src.core.database import get_db_pool
 from src.core.listeners.base import BaseListener, ListenerConfig
+from src.core.metrics import get_metrics_collector
 
 if TYPE_CHECKING:
     from src.core.event import Event
@@ -81,23 +83,39 @@ class RiskListener(BaseListener):
 
     async def _handle_order_submitted(self, event: Event) -> None:
         """Обработать событие ORDER_SUBMITTED - записать в ledger."""
-        payload = event.payload
-        symbol = payload.get("symbol")
-        side = payload.get("side")
-        size = payload.get("size", 0)
-        price = payload.get("price", 0)
-        risk_amount = size * price if price else 0
+        start_time = time.perf_counter()
 
-        logger.info(
-            f"[{self.name}] Order submitted: {symbol} {side} {size} @ {price} "
-            f"(risk: ${risk_amount})"
-        )
+        try:
+            payload = event.payload
+            symbol = payload.get("symbol")
+            side = payload.get("side")
+            size = payload.get("size", 0)
+            price = payload.get("price", 0)
+            risk_amount = size * price if price else 0
 
-        # Обновление risk ledger
-        await self._update_risk_ledger(
-            limit_type="ORDER_SIZE",
-            value=risk_amount,
-        )
+            logger.info(
+                f"[{self.name}] Order submitted: {symbol} {side} {size} @ {price} "
+                f"(risk: ${risk_amount})"
+            )
+
+            # Обновление risk ledger
+            await self._update_risk_ledger(
+                limit_type="ORDER_SIZE",
+                value=risk_amount,
+            )
+
+        finally:
+            # SLO: записать время обработки
+            duration = time.perf_counter() - start_time
+            try:
+                metrics = get_metrics_collector()
+                await metrics.record_latency(
+                    "risk_engine_latency_seconds",
+                    duration,
+                    {"listener": "risk_check"},
+                )
+            except Exception:
+                pass  # MetricsCollector может быть недоступен
 
     async def _handle_order_filled(self, event: Event) -> None:
         """Обработать событие ORDER_FILLED - обновить позиции и P&L."""
