@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -217,8 +218,6 @@ MAX_STATE_TIMES: dict[SystemState, int] = {
 
 # ==================== STATE_POLICIES ====================
 # Политики для каждого состояния
-
-from dataclasses import dataclass
 
 
 @dataclass(frozen=True)

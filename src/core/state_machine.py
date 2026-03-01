@@ -22,7 +22,6 @@ from src.core.event import Event, SystemEventSource, SystemEventType
 from src.core.state_machine_enums import (
     ALLOWED_TRANSITIONS,
     MAX_STATE_TIMES,
-    STATE_POLICIES,
     SystemState,
     get_state_policy,
     is_transition_allowed,
@@ -757,6 +756,16 @@ class StateMachine:
                 logger.error("Ошибка в мониторинге таймаутов", error=str(e))
                 await asyncio.sleep(5)
 
+    # Маппинг состояний на следующее при таймауте
+    _TIMEOUT_TRANSITIONS: dict[SystemState, SystemState] = {
+        SystemState.DEGRADED: SystemState.HALT,
+        SystemState.SURVIVAL: SystemState.HALT,
+        SystemState.ERROR: SystemState.HALT,
+        SystemState.RECOVERY: SystemState.HALT,
+        SystemState.BOOT: SystemState.ERROR,
+        SystemState.INIT: SystemState.ERROR,
+    }
+
     def _get_next_state_on_timeout(self) -> SystemState | None:
         """
         Определить следующее состояние при автоматическом переходе по таймауту.
@@ -764,31 +773,7 @@ class StateMachine:
         Returns:
             Следующее состояние или None
         """
-        # DEGRADED > 1h → HALT
-        if self._current_state == SystemState.DEGRADED:
-            return SystemState.HALT
-
-        # SURVIVAL > 30min → HALT
-        if self._current_state == SystemState.SURVIVAL:
-            return SystemState.HALT
-
-        # ERROR > 5min → HALT
-        if self._current_state == SystemState.ERROR:
-            return SystemState.HALT
-
-        # RECOVERY > 10min → HALT
-        if self._current_state == SystemState.RECOVERY:
-            return SystemState.HALT
-
-        # BOOT > 1min → ERROR
-        if self._current_state == SystemState.BOOT:
-            return SystemState.ERROR
-
-        # INIT > 2min → ERROR
-        if self._current_state == SystemState.INIT:
-            return SystemState.ERROR
-
-        return None
+        return self._TIMEOUT_TRANSITIONS.get(self._current_state)
 
     # ==================== Checkpoint ====================
 
