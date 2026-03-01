@@ -2356,20 +2356,17 @@ CREATE INDEX idx_state_trans_trigger ON state_transitions(trigger);
 ## ACCEPTANCE CRITERIA v4.4
 
 ### State Machine v4.4 ★ ОБНОВЛЕНО
-- [x] 8 состояний из плана v4.4 (BOOT, RECOVERY, DISCOVERY, ADMISSIBLE, TRADING, RISK_REDUCTION, DEGRADED, HALT)
-- [x] STATE_TRANSITIONS с 18 переходами
+- [x] 10 состояний (BOOT, INIT, READY, TRADING, RISK_REDUCTION, DEGRADED, SURVIVAL, ERROR, HALT, RECOVERY)
+- [x] ALLOWED_TRANSITIONS с 28 переходами
 - [x] MAX_STATE_TIMES для каждого состояния
 - [x] STATE_POLICIES с allow_new_positions, risk_multiplier, etc.
 - [x] can_open_positions(), get_risk_multiplier(), get_max_positions()
-- [x] _monitor_state_timeouts() background task
-- [x] Автоматические transitions при timeout (DEGRADED > 1h → HALT, etc.)
+- [x] _monitor_state_timeouts() метод реализован
+- [ ] Автоматические transitions при timeout **(НЕ РАБОТАЕТ - мониторинг не запускается в initialize())**
 
 ### New Triggers Integration ★ НОВОЕ
-- [x] LOW_UNIVERSE_QUALITY (Фаза 6) → TRADING → DEGRADED
-- [x] STABLE_RECOVERED (Фаза 9) → DEGRADED → TRADING
-- [x] RISK_BREACH (Фаза 5) → TRADING → RISK_REDUCTION
-- [x] FAST_VELOCITY_ALERT (Фаза 9) → TRADING → DEGRADED
-- [x] SLOW_VELOCITY_ALERT (Фаза 9) → DEGRADED → RISK_REDUCTION
+- [x] TriggerType enum содержит: LOW_UNIVERSE_QUALITY, STABLE_RECOVERED, RISK_BREACH, FAST_VELOCITY_ALERT, SLOW_VELOCITY_ALERT
+- [ ] Интеграция триггеров в логику переходов **(НЕ РЕАЛИЗОВАНО)**
 
 ### Existing (как было)
 - [x] Operator Gate dual control

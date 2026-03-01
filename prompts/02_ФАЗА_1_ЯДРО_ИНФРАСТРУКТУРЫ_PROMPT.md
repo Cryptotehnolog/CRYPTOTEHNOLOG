@@ -1408,27 +1408,27 @@ class HealthChecker:
 ## ACCEPTANCE CRITERIA
 
 ### Rust Components
-- [x] Cargo.toml настроен корректно (добавить pyo3 зависимости)
-- [x] Event struct создан с Priority enum
+- [x] Cargo.toml настроен корректно (pyo3 в crates/ffi, eventbus - чистый Rust)
+- [ ] Event struct создан с Priority enum **(ОТСУТСТВУЕТ)**
 - [x] EventBus реализован с subscribe/publish
-- [x] Python bindings для EventBus ⏳ **РЕАЛИЗОВАТЬ В PHASE 1**
+- [x] Python bindings для EventBus (crates/ffi)
 - [x] **Все комментарии на русском** ✅
 - [x] `cargo build --release` успешен
-- [x] `cargo test` все тесты проходят
-- [x] `maturin build` создает wheel
+- [x] `cargo test` все тесты проходят (18 тестов в eventbus)
+- [ ] `maturin build` создает wheel **(ОШИБКА парсинга Cargo.toml workspace)**
 
 ### Python Components
-- [x] Structured Logging настроен (JSON в файл)
-- [x] PostgreSQL Manager подключается и работает
-- [x] Redis Manager работает (set/get/delete + **Pub/Sub + Streams**) ⏳ **ДОБАВИТЬ В PHASE 1**
-- [x] Metrics Collector собирает метрики
-- [x] Health Check проверяет компоненты
+- [x] Structured Logging настроен (JSON в консоль + файл)
+- [x] PostgreSQL Manager подключается и работает (DatabaseManager)
+- [x] Redis Manager работает (set/get/delete + Pub/Sub + Streams)
+- [x] Metrics Collector собирает метрики (Counter, Gauge, Histogram, SLORegistry)
+- [x] Health Check проверяет компоненты (SystemController интеграция)
 - [x] **Все docstrings на русском** ✅
 - [x] **Все логи на русском** ✅
 
 ### Testing
-- [x] Unit tests coverage >= 85%
-- [x] Integration test проходит
+- [ ] Unit tests coverage >= 85% **(НЕ ПРОВЕРЕНО)**
+- [x] Integration test проходит (747 тестов собрано)
 - [x] Все компоненты работают вместе
 
 ---
@@ -2057,7 +2057,7 @@ class Watchdog:
 - [x] SLORegistry с 4 определениями из плана v4.4
 - [x] Histogram класс для percentile calculation
 - [x] MetricsCollector.record_latency() для всех критических операций
-- [x] MetricsCollector.check_slo_violations() → State Machine DEGRADED
+- [x] SLORegistry.check_slo_violations() → State Machine DEGRADED
 - [x] get_dashboard_data() для UI (Фаза 18)
 - [x] _get_slo_status() с compliance %
 
@@ -2066,7 +2066,7 @@ class Watchdog:
 - [x] Execution: record_latency("execution_response")
 - [x] UniverseEngine: record_latency("universe_update")
 - [x] Market Data: record_latency("data_freshness")
-- [x] Watchdog: periodic check_slo_violations() каждые 60 сек
+- [ ] Watchdog: periodic check_slo_violations() каждые 60 сек **(НЕ РЕАЛИЗОВАНО)**
 
 ### Existing Infrastructure (как было)
 - [x] Event Bus (Rust) с priority queues
