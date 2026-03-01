@@ -20,12 +20,12 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import Enum
 import json
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from cryptotechnolog.config import get_logger, get_settings
-from datetime import UTC, datetime
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
