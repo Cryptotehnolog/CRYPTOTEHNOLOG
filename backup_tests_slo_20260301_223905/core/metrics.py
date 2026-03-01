@@ -367,10 +367,6 @@ class Histogram:
         if self._count == 0:
             return 0.0
 
-        # Для маленького количества наблюдений используем sum/count
-        if self._count <= 10:
-            return self._sum / self._count
-
         target_count = int(self._count * quantile)
 
         # Если target_count = 0, возвращаем минимальное значение
