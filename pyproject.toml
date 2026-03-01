@@ -106,6 +106,7 @@ Issues = "https://github.com/your-org/cryptotechnolog/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["cryptotechnolog*"]
 
 [tool.black]
 line-length = 100
