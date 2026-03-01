@@ -259,8 +259,8 @@ class RiskListener(BaseListener):
                 await conn.execute(
                     """
                     INSERT INTO risk_ledger (limit_type, limit_value, current_value, updated_at)
-                    VALUES ($1,
-                        (SELECT max_value FROM risk_limits WHERE limit_type = $1 LIMIT 1),
+                    VALUES ($1::VARCHAR,
+                        (SELECT max_value FROM risk_limits WHERE limit_type = $1::VARCHAR LIMIT 1),
                         $2,
                         NOW())
                     ON CONFLICT (limit_type) DO UPDATE SET
