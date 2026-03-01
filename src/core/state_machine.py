@@ -15,7 +15,7 @@ import asyncio
 from collections.abc import Callable
 from datetime import UTC, datetime
 import json
-from typing import Any
+from typing import Any, ClassVar
 
 from cryptotechnolog.config import get_logger
 from src.core.event import Event, SystemEventSource, SystemEventType
@@ -757,7 +757,7 @@ class StateMachine:
                 await asyncio.sleep(5)
 
     # Маппинг состояний на следующее при таймауте
-    _TIMEOUT_TRANSITIONS: dict[SystemState, SystemState] = {
+    _TIMEOUT_TRANSITIONS: ClassVar[dict[SystemState, SystemState]] = {
         SystemState.DEGRADED: SystemState.HALT,
         SystemState.SURVIVAL: SystemState.HALT,
         SystemState.ERROR: SystemState.HALT,
