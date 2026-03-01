@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 from .circuit_breaker import CircuitBreaker, CircuitBreakerError, CircuitState
 from .event import Event, SystemEventSource, SystemEventType
 from .event_bus import EventBus, get_event_bus
+from .metrics import get_metrics_collector, get_slo_registry
 
 logger = get_logger(__name__)
 
@@ -491,11 +492,9 @@ class Watchdog:
         """Основной цикл мониторинга."""
         logger.info("Watchdog мониторинг запущен")
 
-        # Import metrics collector for SLO checks
+        # Get metrics collector for SLO checks
         metrics_collector = None
         try:
-            from .metrics import get_metrics_collector
-
             metrics_collector = get_metrics_collector()
         except Exception:
             logger.debug("MetricsCollector не доступен для SLO мониторинга")
@@ -729,8 +728,6 @@ class Watchdog:
             Список нарушений SLO
         """
         try:
-            from .metrics import get_slo_registry
-
             registry = get_slo_registry()
             violations = registry.check_slo_violations(metrics_collector)
 
