@@ -2385,6 +2385,27 @@ CREATE INDEX idx_state_trans_trigger ON state_transitions(trigger);
 
 ---
 
+## ⚠️ TODO: SLO Integration (добавить при реализации компонентов)
+
+При реализации следующих компонентов **ОБЯЗАТЕЛЬНО** добавить `record_latency()`:
+
+1. **Execution Layer (Фаза 10)** → добавить в listeners/execution.py:
+   ```python
+   await metrics.record_latency("execution_response_seconds", duration)
+   ```
+
+2. **UniverseEngine (Фаза 7)** → добавить в listeners/universe.py:
+   ```python
+   await metrics.record_latency("universe_update_seconds", duration)
+   ```
+
+3. **Market Data (Фаза 6)** → добавить в listeners/market_data.py:
+   ```python
+   await metrics.record_latency("market_data_freshness_seconds", duration)
+   ```
+
+---
+
 ## 📝 СДЕЛАНО ДОПОЛНИТЕЛЬНО (не было в чек-листе)
 
 - Event Bus с publish/subscribe паттерном
@@ -2398,5 +2419,8 @@ CREATE INDEX idx_state_trans_trigger ON state_transitions(trigger);
 - Circuit Breaker паттерн
 - System Controller event_bus интеграция для shutdown notification
 - Исправлены антипаттерны (generator.send(), event loop creation)
+- Ruff форматирование
+- MyPy проверка типов
+
 - Ruff форматирование
 - MyPy проверка типов
