@@ -304,8 +304,6 @@ class TestListenerInvariants:
 
 # ==================== Database Invariants ====================
 
-import pytest
-
 
 class TestDatabaseInvariants:
     """Property-based tests for database invariants."""
