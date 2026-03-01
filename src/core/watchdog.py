@@ -507,10 +507,9 @@ class Watchdog:
                         await self._check_component(checker)
 
                 # SLO violations check (every 60 seconds)
-                if metrics_collector:
-                    # Делаем SLO check реже чем component check
-                    if self._total_checks % 2 == 0:  # Каждый 2-й цикл
-                        await self.check_slo_violations(metrics_collector)
+                # Делаем SLO check реже чем component check
+                if metrics_collector and self._total_checks % 2 == 0:
+                    await self.check_slo_violations(metrics_collector)
 
                 # Publish system health event
                 self._publish_system_health()
