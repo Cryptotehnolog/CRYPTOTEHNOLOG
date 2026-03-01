@@ -762,6 +762,7 @@ class StateMachine:
         SystemState.SURVIVAL: SystemState.HALT,
         SystemState.ERROR: SystemState.HALT,
         SystemState.RECOVERY: SystemState.HALT,
+        SystemState.RISK_REDUCTION: SystemState.HALT,
         SystemState.BOOT: SystemState.ERROR,
         SystemState.INIT: SystemState.ERROR,
     }

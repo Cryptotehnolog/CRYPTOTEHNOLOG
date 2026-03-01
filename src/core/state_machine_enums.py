@@ -37,6 +37,7 @@ class SystemState(StrEnum):
     INIT = "init"
     READY = "ready"
     TRADING = "trading"
+    RISK_REDUCTION = "risk_reduction"  # Фаза 5 - снижение риска
     DEGRADED = "degraded"
     SURVIVAL = "survival"
     ERROR = "error"
@@ -107,6 +108,14 @@ class TriggerType(StrEnum):
     WATCHDOG_ALERT = "watchdog_alert"
     CIRCUIT_BREAKER_OPEN = "circuit_breaker_open"
 
+    # Новые триггеры v4.4
+    LOW_UNIVERSE_QUALITY = "low_universe_quality"  # Фаза 6
+    STABLE_RECOVERED = "stable_recovered"  # Фаза 9
+    RISK_BREACH = "risk_breach"  # Фаза 5
+    FAST_VELOCITY_ALERT = "fast_velocity_alert"  # Фаза 9
+    SLOW_VELOCITY_ALERT = "slow_velocity_alert"  # Фаза 9
+    STATE_TIMEOUT_EXCEEDED = "state_timeout_exceeded"  # Автоматический переход
+
     # Ручные триггеры
     OPERATOR_REQUEST = "operator_request"
     DUAL_CONTROL_APPROVED = "dual_control_approved"
@@ -138,14 +147,24 @@ ALLOWED_TRANSITIONS: dict[SystemState, Set[SystemState]] = {
     },
     # Нормальная торговля
     SystemState.TRADING: {
-        SystemState.DEGRADED,
+        SystemState.RISK_REDUCTION,  # RISK_BREACH → RISK_REDUCTION
+        SystemState.DEGRADED,  # LOW_UNIVERSE_QUALITY, FAST_VELOCITY_ALERT → DEGRADED
         SystemState.SURVIVAL,
+        SystemState.HALT,
+        SystemState.ERROR,
+    },
+    # Снижение риска (Фаза 5)
+    SystemState.RISK_REDUCTION: {
+        SystemState.TRADING,  # Восстановление после стабилизации
+        SystemState.DEGRADED,  # Ухудшение
+        SystemState.SURVIVAL,  # Критическое ухудшение
         SystemState.HALT,
         SystemState.ERROR,
     },
     # Деградированный режим
     SystemState.DEGRADED: {
-        SystemState.TRADING,  # Восстановление
+        SystemState.TRADING,  # STABLE_RECOVERED → TRADING
+        SystemState.RISK_REDUCTION,  # SLOW_VELOCITY_ALERT → RISK_REDUCTION
         SystemState.SURVIVAL,
         SystemState.HALT,
         SystemState.ERROR,
@@ -208,6 +227,7 @@ MAX_STATE_TIMES: dict[SystemState, int] = {
     SystemState.INIT: 120,  # 2 минуты на инициализацию
     SystemState.READY: 3600,  # 1 час ожидания (можно долго ждать сигнала)
     SystemState.TRADING: -1,  # Без ограничений
+    SystemState.RISK_REDUCTION: 1800,  # 30 минут - потом HALT
     SystemState.DEGRADED: 3600,  # 1 час - потом HALT
     SystemState.SURVIVAL: 1800,  # 30 минут - потом HALT
     SystemState.ERROR: 300,  # 5 минут на ручное вмешательство
@@ -290,6 +310,17 @@ STATE_POLICIES: dict[SystemState, StatePolicy] = {
         allow_short_selling=False,
         require_manual_approval=True,
         description="Деградированный режим, ограниченная торговля",
+    ),
+    SystemState.RISK_REDUCTION: StatePolicy(
+        allow_new_positions=False,
+        allow_increase_size=False,
+        allow_new_orders=True,  # Только закрытие позиций
+        risk_multiplier=0.25,  # Минимальный риск
+        max_positions=20,
+        max_order_size=0.02,  # 2% от портфеля
+        allow_short_selling=False,
+        require_manual_approval=True,
+        description="Режим снижения риска, минимальная торговля",
     ),
     SystemState.SURVIVAL: StatePolicy(
         allow_new_positions=False,
