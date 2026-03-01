@@ -209,7 +209,7 @@ async def db_pool():
     Использует существующий DatabaseManager из проекта.
     Применяет все миграции перед тестами (если ещё не применены).
     """
-    from src.core.database import close_database, get_database  # noqa: PLC0415
+    from src.core.database import get_database  # noqa: PLC0415
 
     db = get_database()
 
