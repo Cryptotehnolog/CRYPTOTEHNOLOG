@@ -106,7 +106,7 @@ jobs:
                   database='trading_test'
               )
 
-              # Apply migrations one by one, split by semicolon
+              # Apply migrations as whole files (not split by semicolon!)
               migrations_dir = Path('scripts/migrations')
               migration_files = [
                   '001_initial_schema.sql',
@@ -117,22 +117,23 @@ jobs:
                   '006_monitoring_alerts.sql',
                   '007_add_status_columns.sql',
                   'control_plane_additions.sql',
+                  '008_fix_risk_event_types.sql',
+                  '009_add_indexes.sql',
               ]
 
               for filename in migration_files:
                   filepath = migrations_dir / filename
+                  if not filepath.exists():
+                      print(f'Skipping {filename} (not found)')
+                      continue
                   print(f'Applying {filename}...')
                   sql = filepath.read_text(encoding='utf-8')
-                  
-                  # Split by semicolon and execute each statement
-                  statements = [s.strip() for s in sql.split(';') if s.strip() and not s.strip().startswith('--')]
-                  for stmt in statements:
-                      try:
-                          await conn.execute(stmt)
-                      except Exception as e:
-                          # Ignore some expected errors for idempotency
-                          if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
-                              print(f'Warning: {e}')
+                  try:
+                      await conn.execute(sql)
+                  except Exception as e:
+                      # Ignore some expected errors for idempotency
+                      if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                          print(f'Warning: {e}')
                   print(f'Completed {filename}')
 
               print('Applied all migrations to trading_test')

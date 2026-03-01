@@ -109,16 +109,6 @@ DO $$ BEGIN
     END IF;
 END $$;
 
--- Indexes for Event Bus tables
-CREATE INDEX IF NOT EXISTS idx_event_store_aggregate ON event_store(aggregate_id, version DESC);
-CREATE INDEX IF NOT EXISTS idx_event_store_aggregate_type ON event_store(aggregate_type);
-CREATE INDEX IF NOT EXISTS idx_event_store_event_type ON event_store(event_type);
-CREATE INDEX IF NOT EXISTS idx_event_store_timestamp ON event_store(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_event_store_correlation ON event_store(correlation_id) WHERE correlation_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_event_consumers_name ON event_consumers(consumer_name);
-CREATE INDEX IF NOT EXISTS idx_published_events_status ON published_events(status) WHERE status = 'pending';
-CREATE INDEX IF NOT EXISTS idx_dead_letter_resolved ON dead_letter_events(resolved) WHERE resolved = FALSE;
-
 -- Default Subscriptions
 INSERT INTO event_subscriptions (subscription_name, event_types, handler_module, handler_function, priority) VALUES
     ('state_machine_listener', ARRAY['OrderCreated', 'OrderFilled', 'OrderCancelled', 'PositionOpened', 'PositionClosed'], 'src.core.listeners', 'handle_state_event', 100),
@@ -240,15 +230,6 @@ CREATE TABLE IF NOT EXISTS symbol_performance (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- Indexes for Monitoring tables
-CREATE INDEX IF NOT EXISTS idx_performance_metrics_category ON performance_metrics(metric_category, timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_performance_metrics_timestamp ON performance_metrics(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_api_request_logs_endpoint ON api_request_logs(endpoint, timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_api_request_logs_timestamp ON api_request_logs(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_alert_events_fired ON alert_events(fired_at DESC);
-CREATE INDEX IF NOT EXISTS idx_trade_analytics_date ON trade_analytics(trade_date DESC);
-CREATE INDEX IF NOT EXISTS idx_symbol_performance_symbol ON symbol_performance(symbol);
 
 -- Default Alert Rules
 INSERT INTO alert_rules (rule_name, alert_type, condition_expr, severity, cooldown_seconds) VALUES
