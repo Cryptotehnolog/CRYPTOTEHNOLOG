@@ -21,7 +21,10 @@ from cryptotechnolog.config import get_logger
 from src.core.event import Event, SystemEventSource, SystemEventType
 from src.core.state_machine_enums import (
     ALLOWED_TRANSITIONS,
+    MAX_STATE_TIMES,
+    STATE_POLICIES,
     SystemState,
+    get_state_policy,
     is_transition_allowed,
 )
 from src.core.state_transition import (
@@ -566,6 +569,226 @@ class StateMachine:
             Время в секундах
         """
         return int((datetime.now(UTC) - self._state_entered_at).total_seconds())
+
+    # ==================== State Policies ====================
+
+    def can_open_positions(self) -> bool:
+        """
+        Проверить разрешено ли открытие новых позиций.
+
+        Возвращает:
+            True если разрешено
+        """
+        policy = get_state_policy(self._current_state)
+        return policy.allow_new_positions
+
+    def can_increase_size(self) -> bool:
+        """
+        Проверить разрешено ли увеличение существующих позиций.
+
+        Возвращает:
+            True если разрешено
+        """
+        policy = get_state_policy(self._current_state)
+        return policy.allow_increase_size
+
+    def can_place_orders(self) -> bool:
+        """
+        Проверить разрешена ли отправка новых ордеров.
+
+        Возвращает:
+            True если разрешено
+        """
+        policy = get_state_policy(self._current_state)
+        return policy.allow_new_orders
+
+    def get_risk_multiplier(self) -> float:
+        """
+        Получить множитель риска для текущего состояния.
+
+        Возвращает:
+            Множитель (1.0 = нормальный риск, 0.5 = половинный, 0 = запрещено)
+        """
+        policy = get_state_policy(self._current_state)
+        return policy.risk_multiplier
+
+    def get_max_positions(self) -> int:
+        """
+        Получить максимальное количество позиций для текущего состояния.
+
+        Возвращает:
+            Максимальное количество позиций
+        """
+        policy = get_state_policy(self._current_state)
+        return policy.max_positions
+
+    def get_max_order_size(self) -> float:
+        """
+        Получить максимальный размер ордера (% от портфеля).
+
+        Returns:
+            Максимальный размер (0.1 = 10%)
+        """
+        policy = get_state_policy(self._current_state)
+        return policy.max_order_size
+
+    def is_short_selling_allowed(self) -> bool:
+        """
+        Проверить разрешен ли short selling.
+
+        Returns:
+            True если разрешён
+        """
+        policy = get_state_policy(self._current_state)
+        return policy.allow_short_selling
+
+    def requires_manual_approval(self) -> bool:
+        """
+        Проверить требуется ли ручное одобрение для операций.
+
+        Returns:
+            True если требуется
+        """
+        policy = get_state_policy(self._current_state)
+        return policy.require_manual_approval
+
+    def get_state_policy_description(self) -> str:
+        """
+        Получить описание политики текущего состояния.
+
+        Returns:
+            Описание
+        """
+        policy = get_state_policy(self._current_state)
+        return policy.description
+
+    # ==================== State Timeout Monitoring ====================
+
+    def get_state_timeout(self) -> int | None:
+        """
+        Получить таймаут для текущего состояния.
+
+        Returns:
+            Таймаут в секундах или None если без ограничений
+        """
+        timeout = MAX_STATE_TIMES.get(self._current_state)
+        return timeout if timeout != -1 else None
+
+    def is_state_timeout_exceeded(self) -> bool:
+        """
+        Проверить превышен ли таймаут состояния.
+
+        Returns:
+            True если превышен
+        """
+        timeout = self.get_state_timeout()
+        if timeout is None:
+            return False
+
+        time_in_state = self.get_time_in_current_state()
+        return time_in_state >= timeout
+
+    async def _monitor_state_timeouts(
+        self,
+        check_interval: int = 30,
+    ) -> None:
+        """
+        Мониторить таймауты состояний и выполнять автоматические переходы.
+
+        Запускается как background task. При превышении MAX_STATE_TIMES
+        выполняет автоматический переход в следующее состояние.
+
+        Аргументы:
+            check_interval: Интервал проверки в секундах
+        """
+        logger.info("Запущен мониторинг таймаутов состояний", interval=check_interval)
+
+        while True:
+            try:
+                await asyncio.sleep(check_interval)
+
+                timeout = self.get_state_timeout()
+                if timeout is None:
+                    continue  # Без ограничений
+
+                if self.is_state_timeout_exceeded():
+                    time_in_state = self.get_time_in_current_state()
+                    logger.warning(
+                        "Превышен таймаут состояния",
+                        state=self._current_state.value,
+                        time_in_state=time_in_state,
+                        timeout=timeout,
+                    )
+
+                    # Определить следующее состояние при таймауте
+                    next_state = self._get_next_state_on_timeout()
+
+                    if next_state:
+                        logger.info(
+                            "Автоматический переход по таймауту",
+                            from_state=self._current_state.value,
+                            to_state=next_state.value,
+                        )
+
+                        result = await self.transition(
+                            next_state,
+                            trigger="state_timeout_exceeded",
+                            metadata={
+                                "time_in_state": time_in_state,
+                                "timeout": timeout,
+                            },
+                        )
+
+                        if not result.success:
+                            logger.error(
+                                "Не удалось выполнить автоматический переход",
+                                error=result.error,
+                            )
+                    else:
+                        logger.warning(
+                            "Нет доступного состояния для перехода по таймауту",
+                            state=self._current_state.value,
+                        )
+
+            except asyncio.CancelledError:
+                logger.info("Мониторинг таймаутов остановлен")
+                break
+            except Exception as e:
+                logger.error("Ошибка в мониторинге таймаутов", error=str(e))
+                await asyncio.sleep(5)
+
+    def _get_next_state_on_timeout(self) -> SystemState | None:
+        """
+        Определить следующее состояние при автоматическом переходе по таймауту.
+
+        Returns:
+            Следующее состояние или None
+        """
+        # DEGRADED > 1h → HALT
+        if self._current_state == SystemState.DEGRADED:
+            return SystemState.HALT
+
+        # SURVIVAL > 30min → HALT
+        if self._current_state == SystemState.SURVIVAL:
+            return SystemState.HALT
+
+        # ERROR > 5min → HALT
+        if self._current_state == SystemState.ERROR:
+            return SystemState.HALT
+
+        # RECOVERY > 10min → HALT
+        if self._current_state == SystemState.RECOVERY:
+            return SystemState.HALT
+
+        # BOOT > 1min → ERROR
+        if self._current_state == SystemState.BOOT:
+            return SystemState.ERROR
+
+        # INIT > 2min → ERROR
+        if self._current_state == SystemState.INIT:
+            return SystemState.ERROR
+
+        return None
 
     # ==================== Checkpoint ====================
 

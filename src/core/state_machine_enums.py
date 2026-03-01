@@ -196,3 +196,149 @@ def get_allowed_transitions(from_state: SystemState) -> Set[SystemState]:
         Множество допустимых целевых состояний
     """
     return ALLOWED_TRANSITIONS.get(from_state, set())
+
+
+# ==================== MAX_STATE_TIMES ====================
+# Максимальное время нахождения в каждом состоянии (секунды)
+# Если время превышено - автоматический переход в следующее состояние
+
+MAX_STATE_TIMES: dict[SystemState, int] = {
+    SystemState.BOOT: 60,  # 1 минута на загрузку
+    SystemState.INIT: 120,  # 2 минуты на инициализацию
+    SystemState.READY: 3600,  # 1 час ожидания (можно долго ждать сигнала)
+    SystemState.TRADING: -1,  # Без ограничений
+    SystemState.DEGRADED: 3600,  # 1 час - потом HALT
+    SystemState.SURVIVAL: 1800,  # 30 минут - потом HALT
+    SystemState.ERROR: 300,  # 5 минут на ручное вмешательство
+    SystemState.HALT: -1,  # Без ограничений (ждёт восстановления)
+    SystemState.RECOVERY: 600,  # 10 минут на восстановление
+}
+
+
+# ==================== STATE_POLICIES ====================
+# Политики для каждого состояния
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class StatePolicy:
+    """Политика состояния системы."""
+
+    allow_new_positions: bool  # Разрешены ли новые позиции
+    allow_increase_size: bool  # Разрешено ли увеличение позиций
+    allow_new_orders: bool  # Разрешены ли новые ордера
+    risk_multiplier: float  # Множитель риска (1.0 = норма, 0.5 = половинный)
+    max_positions: int  # Максимальное количество позиций
+    max_order_size: float  # Максимальный размер ордера (% от портфеля)
+    allow_short_selling: bool  # Разрешен ли шорт
+    require_manual_approval: bool  # Требуется ли ручное одобрение
+    description: str  # Описание политики
+
+
+STATE_POLICIES: dict[SystemState, StatePolicy] = {
+    SystemState.BOOT: StatePolicy(
+        allow_new_positions=False,
+        allow_increase_size=False,
+        allow_new_orders=False,
+        risk_multiplier=0.0,
+        max_positions=0,
+        max_order_size=0.0,
+        allow_short_selling=False,
+        require_manual_approval=True,
+        description="Система загружается, торговля запрещена",
+    ),
+    SystemState.INIT: StatePolicy(
+        allow_new_positions=False,
+        allow_increase_size=False,
+        allow_new_orders=False,
+        risk_multiplier=0.0,
+        max_positions=0,
+        max_order_size=0.0,
+        allow_short_selling=False,
+        require_manual_approval=True,
+        description="Инициализация компонентов, торговля запрещена",
+    ),
+    SystemState.READY: StatePolicy(
+        allow_new_positions=False,
+        allow_increase_size=False,
+        allow_new_orders=False,
+        risk_multiplier=0.0,
+        max_positions=0,
+        max_order_size=0.0,
+        allow_short_selling=False,
+        require_manual_approval=True,
+        description="Готова к торговле, ожидает сигнала оператора",
+    ),
+    SystemState.TRADING: StatePolicy(
+        allow_new_positions=True,
+        allow_increase_size=True,
+        allow_new_orders=True,
+        risk_multiplier=1.0,
+        max_positions=100,
+        max_order_size=0.1,  # 10% от портфеля
+        allow_short_selling=True,
+        require_manual_approval=False,
+        description="Нормальная торговля, полная функциональность",
+    ),
+    SystemState.DEGRADED: StatePolicy(
+        allow_new_positions=False,
+        allow_increase_size=False,
+        allow_new_orders=True,  # Только закрытие
+        risk_multiplier=0.5,
+        max_positions=50,
+        max_order_size=0.05,  # 5% от портфеля
+        allow_short_selling=False,
+        require_manual_approval=True,
+        description="Деградированный режим, ограниченная торговля",
+    ),
+    SystemState.SURVIVAL: StatePolicy(
+        allow_new_positions=False,
+        allow_increase_size=False,
+        allow_new_orders=True,  # Только закрытие позиций
+        risk_multiplier=0.1,
+        max_positions=0,
+        max_order_size=0.01,  # 1% от портфеля
+        allow_short_selling=False,
+        require_manual_approval=True,
+        description="Режим выживания, только закрытие позиций",
+    ),
+    SystemState.ERROR: StatePolicy(
+        allow_new_positions=False,
+        allow_increase_size=False,
+        allow_new_orders=False,
+        risk_multiplier=0.0,
+        max_positions=0,
+        max_order_size=0.0,
+        allow_short_selling=False,
+        require_manual_approval=True,
+        description="Критическая ошибка, торговля остановлена",
+    ),
+    SystemState.HALT: StatePolicy(
+        allow_new_positions=False,
+        allow_increase_size=False,
+        allow_new_orders=False,
+        risk_multiplier=0.0,
+        max_positions=0,
+        max_order_size=0.0,
+        allow_short_selling=False,
+        require_manual_approval=True,
+        description="Полная остановка, требуется ручное восстановление",
+    ),
+    SystemState.RECOVERY: StatePolicy(
+        allow_new_positions=False,
+        allow_increase_size=False,
+        allow_new_orders=False,
+        risk_multiplier=0.0,
+        max_positions=0,
+        max_order_size=0.0,
+        allow_short_selling=False,
+        require_manual_approval=True,
+        description="Восстановление, торговля запрещена",
+    ),
+}
+
+
+def get_state_policy(state: SystemState) -> StatePolicy:
+    """Получить политику для состояния."""
+    return STATE_POLICIES.get(state, STATE_POLICIES[SystemState.HALT])
