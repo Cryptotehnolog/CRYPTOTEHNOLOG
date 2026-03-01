@@ -22,7 +22,7 @@ import asyncio
 from dataclasses import dataclass, field
 from enum import Enum
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from cryptotechnolog.config import get_logger, get_settings
 from datetime import datetime, timezone
@@ -976,7 +976,7 @@ class SLORegistry:
     """
 
     # Стандартные SLO для trading system
-    DEFAULT_SLOS = [
+    DEFAULT_SLOS: ClassVar[list[SLODefinition]] = [
         SLODefinition(
             name="risk_engine_latency",
             metric_name="risk_engine_latency_seconds",
