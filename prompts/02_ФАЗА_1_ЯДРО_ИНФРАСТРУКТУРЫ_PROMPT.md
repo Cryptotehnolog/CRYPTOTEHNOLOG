@@ -1408,28 +1408,28 @@ class HealthChecker:
 ## ACCEPTANCE CRITERIA
 
 ### Rust Components
-- [ ] Cargo.toml настроен корректно (добавить pyo3 зависимости)
-- [ ] Event struct создан с Priority enum
-- [ ] EventBus реализован с subscribe/publish
+- [x] Cargo.toml настроен корректно (добавить pyo3 зависимости)
+- [x] Event struct создан с Priority enum
+- [x] EventBus реализован с subscribe/publish
 - [x] Python bindings для EventBus ⏳ **РЕАЛИЗОВАТЬ В PHASE 1**
-- [ ] **Все комментарии на русском** ✅
-- [ ] `cargo build --release` успешен
-- [ ] `cargo test` все тесты проходят
-- [ ] `maturin build` создает wheel
+- [x] **Все комментарии на русском** ✅
+- [x] `cargo build --release` успешен
+- [x] `cargo test` все тесты проходят
+- [x] `maturin build` создает wheel
 
 ### Python Components
-- [ ] Structured Logging настроен (JSON в файл)
-- [ ] PostgreSQL Manager подключается и работает
+- [x] Structured Logging настроен (JSON в файл)
+- [x] PostgreSQL Manager подключается и работает
 - [x] Redis Manager работает (set/get/delete + **Pub/Sub + Streams**) ⏳ **ДОБАВИТЬ В PHASE 1**
-- [ ] Metrics Collector собирает метрики
-- [ ] Health Check проверяет компоненты
-- [ ] **Все docstrings на русском** ✅
-- [ ] **Все логи на русском** ✅
+- [x] Metrics Collector собирает метрики
+- [x] Health Check проверяет компоненты
+- [x] **Все docstrings на русском** ✅
+- [x] **Все логи на русском** ✅
 
 ### Testing
-- [ ] Unit tests coverage >= 85%
-- [ ] Integration test проходит
-- [ ] Все компоненты работают вместе
+- [x] Unit tests coverage >= 85%
+- [x] Integration test проходит
+- [x] Все компоненты работают вместе
 
 ---
 
@@ -2054,19 +2054,19 @@ class Watchdog:
 ## ACCEPTANCE CRITERIA v4.4
 
 ### SLO Definitions ★ НОВОЕ
-- [ ] SLORegistry с 4 определениями из плана v4.4
-- [ ] Histogram класс для percentile calculation
-- [ ] MetricsCollector.record_latency() для всех критических операций
-- [ ] MetricsCollector.check_slo_violations() → State Machine DEGRADED
-- [ ] get_dashboard_data() для UI (Фаза 18)
-- [ ] _get_slo_status() с compliance %
+- [x] SLORegistry с 4 определениями из плана v4.4
+- [x] Histogram класс для percentile calculation
+- [x] MetricsCollector.record_latency() для всех критических операций
+- [x] MetricsCollector.check_slo_violations() → State Machine DEGRADED
+- [x] get_dashboard_data() для UI (Фаза 18)
+- [x] _get_slo_status() с compliance %
 
 ### SLO Integration Points ★ НОВОЕ
-- [ ] Risk Engine: record_latency("risk_engine_latency")
-- [ ] Execution: record_latency("execution_response")
-- [ ] UniverseEngine: record_latency("universe_update")
-- [ ] Market Data: record_latency("data_freshness")
-- [ ] Watchdog: periodic check_slo_violations() каждые 60 сек
+- [x] Risk Engine: record_latency("risk_engine_latency")
+- [x] Execution: record_latency("execution_response")
+- [x] UniverseEngine: record_latency("universe_update")
+- [x] Market Data: record_latency("data_freshness")
+- [x] Watchdog: periodic check_slo_violations() каждые 60 сек
 
 ### Existing Infrastructure (как было)
 - [x] Event Bus (Rust) с priority queues

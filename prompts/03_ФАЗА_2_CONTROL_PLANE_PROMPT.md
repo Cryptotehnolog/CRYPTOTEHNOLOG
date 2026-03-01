@@ -2356,26 +2356,26 @@ CREATE INDEX idx_state_trans_trigger ON state_transitions(trigger);
 ## ACCEPTANCE CRITERIA v4.4
 
 ### State Machine v4.4 ★ ОБНОВЛЕНО
-- [ ] 8 состояний из плана v4.4 (BOOT, RECOVERY, DISCOVERY, ADMISSIBLE, TRADING, RISK_REDUCTION, DEGRADED, HALT)
-- [ ] STATE_TRANSITIONS с 18 переходами
-- [ ] MAX_STATE_TIMES для каждого состояния
-- [ ] STATE_POLICIES с allow_new_positions, risk_multiplier, etc.
-- [ ] can_open_positions(), get_risk_multiplier(), get_max_positions()
-- [ ] _monitor_state_timeouts() background task
-- [ ] Автоматические transitions при timeout (DEGRADED > 1h → HALT, etc.)
+- [x] 8 состояний из плана v4.4 (BOOT, RECOVERY, DISCOVERY, ADMISSIBLE, TRADING, RISK_REDUCTION, DEGRADED, HALT)
+- [x] STATE_TRANSITIONS с 18 переходами
+- [x] MAX_STATE_TIMES для каждого состояния
+- [x] STATE_POLICIES с allow_new_positions, risk_multiplier, etc.
+- [x] can_open_positions(), get_risk_multiplier(), get_max_positions()
+- [x] _monitor_state_timeouts() background task
+- [x] Автоматические transitions при timeout (DEGRADED > 1h → HALT, etc.)
 
 ### New Triggers Integration ★ НОВОЕ
-- [ ] LOW_UNIVERSE_QUALITY (Фаза 6) → TRADING → DEGRADED
-- [ ] STABLE_RECOVERED (Фаза 9) → DEGRADED → TRADING
-- [ ] RISK_BREACH (Фаза 5) → TRADING → RISK_REDUCTION
-- [ ] FAST_VELOCITY_ALERT (Фаза 9) → TRADING → DEGRADED
-- [ ] SLOW_VELOCITY_ALERT (Фаза 9) → DEGRADED → RISK_REDUCTION
+- [x] LOW_UNIVERSE_QUALITY (Фаза 6) → TRADING → DEGRADED
+- [x] STABLE_RECOVERED (Фаза 9) → DEGRADED → TRADING
+- [x] RISK_BREACH (Фаза 5) → TRADING → RISK_REDUCTION
+- [x] FAST_VELOCITY_ALERT (Фаза 9) → TRADING → DEGRADED
+- [x] SLOW_VELOCITY_ALERT (Фаза 9) → DEGRADED → RISK_REDUCTION
 
 ### Existing (как было)
-- [ ] Operator Gate dual control
-- [ ] Watchdog auto-recovery
-- [ ] System Controller lifecycle
-- [ ] Audit trail в PostgreSQL
+- [x] Operator Gate dual control
+- [x] Watchdog auto-recovery
+- [x] System Controller lifecycle
+- [x] Audit trail в PostgreSQL
 
 ---
 
@@ -2422,5 +2422,18 @@ CREATE INDEX idx_state_trans_trigger ON state_transitions(trigger);
 - Ruff форматирование
 - MyPy проверка типов
 
-- Ruff форматирование
-- MyPy проверка типов
+### Database Integration (Control Plane)
+- Event Subscriptions система (таблица event_subscriptions)
+- Dead Letter Events обработка (таблица dead_letter_events)
+- Maintenance Tasks планировщик (таблица maintenance_tasks)
+- Alert Rules engine (таблица alert_rules)
+- Component Heartbeats мониторинг (таблица component_heartbeats)
+- API Request Logs (таблица api_request_logs)
+- Published Events логирование (таблица published_events)
+- Event Consumers registry (таблица event_consumers)
+
+### Event Bus Listeners
+- StateMachineListener - слушает события State Machine
+- AuditListener - записывает аудит события
+- MetricsListener - собирает метрики
+- RiskListener - мониторинг рисков
