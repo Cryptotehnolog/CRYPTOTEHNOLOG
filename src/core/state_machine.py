@@ -18,6 +18,7 @@ import json
 from typing import Any
 
 from cryptotechnolog.config import get_logger
+from src.core.event import Event, SystemEventSource, SystemEventType
 from src.core.state_machine_enums import (
     ALLOWED_TRANSITIONS,
     SystemState,
@@ -793,14 +794,13 @@ class StateMachine:
         if not self._event_bus:
             return
 
-        await self._event_bus.publish(
-            event={
-                "event_type": "STATE_TRANSITION",
-                "source": "state_machine",
-                "payload": transition.to_dict(),
-                "priority": "high",
-            }
+        event = Event.new(
+            event_type=SystemEventType.STATE_TRANSITION,
+            source=SystemEventSource.STATE_MACHINE,
+            payload=transition.to_dict(),
         )
+
+        await self._event_bus.publish(event)
 
     def _record_transition_metrics(
         self,

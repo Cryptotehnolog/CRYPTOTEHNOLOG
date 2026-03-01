@@ -402,23 +402,24 @@ class EventBus:
     def _listener_wrapper(self, listener: BaseListener, event: Event) -> None:
         """Обертка для вызова listener в синхронном контексте."""
         try:
-            # Вызываем синхронно для гарантии выполнения
+            # Вызываем listener - он сам определяет async или sync
             result = listener.handle(event)
-            # Если вернулся coroutine, пытаемся запустить
+
+            # Если вернулся coroutine, пробуем запустить в текущем loop
             if asyncio.iscoroutine(result):
                 try:
                     loop = asyncio.get_running_loop()
                     task = loop.create_task(result)
-                    # Сохраняем ссылку на задачу
+                    # Сохраняем ссылку на задачу для отслеживания
                     self._pending_tasks.append(task)
                 except RuntimeError:
-                    # Нет running loop - пробуем запустить
-                    try:
-                        result.send(None)
-                    except StopIteration:
-                        pass
-                    except Exception:
-                        pass
+                    # Нет running loop - не можем запустить async listener
+                    # из синхронного контекста без event loop
+                    logger.warning(
+                        "Нет running event loop для async listener",
+                        listener=listener.name,
+                        event_type=event.event_type,
+                    )
         except Exception as e:
             logger.error(
                 "Ошибка запуска listener",
@@ -451,13 +452,11 @@ class EventBus:
             )
             self._pending_tasks.append(task)
         except RuntimeError:
-            # Нет running loop - выполняем синхронно через run_until_complete
-            try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(coro)
-            finally:
-                loop.close()
+            # Нет running loop - логируем предупреждение
+            # Async обработчики требуют running event loop
+            logger.warning(
+                "Нет running event loop для async обработчика",
+            )
 
     async def _dispatch_to_listeners(self, event: Event) -> None:
         """Диспетчеризировать событие зарегистрированным listeners."""
