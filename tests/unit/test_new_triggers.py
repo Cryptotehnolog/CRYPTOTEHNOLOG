@@ -10,7 +10,6 @@
 - STATE_TIMEOUT_EXCEEDED
 """
 
-
 import pytest
 
 from src.core.state_machine import StateMachine
