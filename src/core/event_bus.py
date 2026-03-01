@@ -467,7 +467,10 @@ class EventBus:
             if current_pending == 0:
                 # Все события обработаны
                 await self.flush()  # Дожидаемся async задач
-                logger.info("Event bus drain завершён", total_time=asyncio.get_event_loop().time() - start_time)
+                logger.info(
+                    "Event bus drain завершён",
+                    total_time=asyncio.get_event_loop().time() - start_time,
+                )
                 return True
 
             # Проверяем прогресс - если ничего не меняется, выходим

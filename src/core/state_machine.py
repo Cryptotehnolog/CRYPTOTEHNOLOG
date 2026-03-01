@@ -665,9 +665,7 @@ class StateMachine:
                     self._current_state = SystemState(checkpoint["current_state"])
                     self._version = checkpoint["version"]
                     self._transition_counter = checkpoint["transition_counter"]
-                    self._state_entered_at = datetime.fromisoformat(
-                        checkpoint["state_entered_at"]
-                    )
+                    self._state_entered_at = datetime.fromisoformat(checkpoint["state_entered_at"])
 
                     logger.info(
                         "Состояние восстановлено из Redis",
