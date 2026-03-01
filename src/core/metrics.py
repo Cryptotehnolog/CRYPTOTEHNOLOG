@@ -25,6 +25,9 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from cryptotechnolog.config import get_logger, get_settings
+from datetime import datetime, timezone
+
+UTC = timezone.utc
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -692,6 +695,36 @@ class MetricsCollector:
         )
         await histogram.observe(duration_seconds)
 
+    async def record_latency(
+        self,
+        metric_name: str,
+        duration_seconds: float,
+        labels: dict[str, str] | None = None,
+    ) -> None:
+        """
+        Записать задержку для SLO мониторинга.
+
+        Используется для всех критических операций:
+        - risk_engine_latency_seconds
+        - execution_response_seconds
+        - universe_update_seconds
+        - market_data_freshness_seconds
+
+        Аргументы:
+            metric_name: Имя метрики (например, "risk_engine_latency_seconds")
+            duration_seconds: Длительность в секундах
+            labels: Дополнительные labels
+        """
+        if not self._enabled:
+            return
+
+        histogram = self.get_histogram(
+            metric_name,
+            f"Задержка {metric_name}",
+            labels or {},
+        )
+        await histogram.observe(duration_seconds)
+
     async def record_connection_count(
         self,
         database: str,
@@ -881,3 +914,262 @@ def init_metrics(redis_client: Any | None = None) -> MetricsCollector:
     global _metrics_collector  # noqa: PLW0603
     _metrics_collector = MetricsCollector(redis_client)
     return _metrics_collector
+
+
+# ==================== SLO Definitions ====================
+
+
+@dataclass
+class SLODefinition:
+    """Определение Service Level Objective."""
+
+    name: str
+    metric_name: str
+    target_percentile: float  # p50, p95, p99 и т.д.
+    threshold_ms: float  # Пороговое значение в миллисекундах
+    window_seconds: int  # Окно для проверки (например, 60 сек)
+    description: str = ""
+
+    def check(self, histogram: Histogram) -> dict[str, Any]:
+        """
+        Проверить SLO для гистограммы.
+
+        Аргументы:
+            histogram: Гистограмма для проверки
+
+        Returns:
+            Словарь с результатами проверки
+        """
+        percentile_value = histogram.get_percentile(self.target_percentile)
+        percentile_seconds = percentile_value
+        percentile_ms = percentile_seconds * 1000
+
+        is_violated = percentile_ms > self.threshold_ms
+
+        return {
+            "slo_name": self.name,
+            "metric": self.metric_name,
+            "target_percentile": self.target_percentile,
+            "threshold_ms": self.threshold_ms,
+            "actual_ms": round(percentile_ms, 3),
+            "is_violated": is_violated,
+            "compliance_percent": round(
+                (1 - (percentile_ms / self.threshold_ms)) * 100
+                if percentile_ms <= self.threshold_ms
+                else 0,
+                2,
+            ),
+        }
+
+
+class SLORegistry:
+    """
+    Реестр Service Level Objectives.
+
+    Управляет определениями SLO и обеспечивает мониторинг
+    критических метрик производительности.
+
+    Пример:
+        >>> registry = SLORegistry()
+        >>> slo = registry.get_slo("risk_engine_latency")
+        >>> result = registry.check_slo(slo, histogram)
+    """
+
+    # Стандартные SLO для trading system
+    DEFAULT_SLOS = [
+        SLODefinition(
+            name="risk_engine_latency",
+            metric_name="risk_engine_latency_seconds",
+            target_percentile=95,
+            threshold_ms=100.0,  # p95 должен быть < 100ms
+            window_seconds=60,
+            description="Время отправки риск-оценки",
+        ),
+        SLODefinition(
+            name="execution_response",
+            metric_name="execution_response_seconds",
+            target_percentile=95,
+            threshold_ms=500.0,  # p95 должен быть < 500ms
+            window_seconds=60,
+            description="Время отклика execution engine",
+        ),
+        SLODefinition(
+            name="universe_update",
+            metric_name="universe_update_seconds",
+            target_percentile=95,
+            threshold_ms=1000.0,  # p95 должен быть < 1 сек
+            window_seconds=60,
+            description="Время обновления universe",
+        ),
+        SLODefinition(
+            name="data_freshness",
+            metric_name="market_data_freshness_seconds",
+            target_percentile=99,
+            threshold_ms=5000.0,  # p99 должен быть < 5 сек
+            window_seconds=60,
+            description="Свежесть рыночных данных",
+        ),
+    ]
+
+    def __init__(self) -> None:
+        """Инициализировать реестр SLO."""
+        self._slos: dict[str, SLODefinition] = {}
+        self._violation_history: dict[str, list[dict[str, Any]]] = {}
+
+        # Загрузить стандартные SLO
+        for slo in self.DEFAULT_SLOS:
+            self.register_slo(slo)
+
+        logger.info("SLORegistry инициализирован", slo_count=len(self._slos))
+
+    def register_slo(self, slo: SLODefinition) -> None:
+        """
+        Зарегистрировать SLO.
+
+        Аргументы:
+            slo: Определение SLO
+        """
+        self._slos[slo.name] = slo
+        self._violation_history[slo.name] = []
+        logger.debug("SLO зарегистрирован", name=slo.name, threshold=slo.threshold_ms)
+
+    def get_slo(self, name: str) -> SLODefinition | None:
+        """
+        Получить SLO по имени.
+
+        Аргументы:
+            name: Имя SLO
+
+        Returns:
+            Определение SLO или None
+        """
+        return self._slos.get(name)
+
+    def get_all_slos(self) -> list[SLODefinition]:
+        """Получить все зарегистрированные SLO."""
+        return list(self._slos.values())
+
+    def check_slo(self, slo: SLODefinition, histogram: Histogram) -> dict[str, Any]:
+        """
+        Проверить SLO для гистограммы.
+
+        Аргументы:
+            slo: Определение SLO
+            histogram: Гистограмма для проверки
+
+        Returns:
+            Результат проверки
+        """
+        result = slo.check(histogram)
+
+        # Записать в историю если есть нарушение
+        if result["is_violated"]:
+            self._violation_history[slo.name].append(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "actual_ms": result["actual_ms"],
+                    "threshold_ms": result["threshold_ms"],
+                }
+            )
+            # Ограничить историю последними 100 нарушениями
+            self._violation_history[slo.name] = self._violation_history[
+                slo.name
+            ][-100:]
+
+            logger.warning(
+                "SLO нарушен",
+                slo=slo.name,
+                actual_ms=result["actual_ms"],
+                threshold_ms=result["threshold_ms"],
+            )
+
+        return result
+
+    def check_slo_violations(
+        self, metrics_collector: MetricsCollector
+    ) -> list[dict[str, Any]]:
+        """
+        Проверить все SLO на нарушения.
+
+        Вызывается периодически Watchdog для мониторинга.
+
+        Аргументы:
+            metrics_collector: Коллектор метрик
+
+        Returns:
+            Список нарушений SLO
+        """
+        violations = []
+
+        for slo in self._slos.values():
+            # Попробовать найти гистограмму
+            histogram_key = self._make_key(slo.metric_name, {})
+            histogram = metrics_collector._histograms.get(histogram_key)
+
+            if histogram is None:
+                # Гистограмма ещё не создана - пропускаем
+                continue
+
+            result = self.check_slo(slo, histogram)
+
+            if result["is_violated"]:
+                violations.append(result)
+
+        if violations:
+            logger.warning("Обнаружены нарушения SLO", count=len(violations))
+
+        return violations
+
+    def _make_key(self, name: str, labels: dict[str, str]) -> str:
+        """Создать ключ для метрики."""
+        if not labels:
+            return name
+        label_str = ",".join(f"{k}={v}" for k, v in sorted(labels.items()))
+        return f"{name}{{{label_str}}}"
+
+    def get_dashboard_data(self) -> dict[str, Any]:
+        """
+        Получить данные для SLO dashboard.
+
+        Returns:
+            Данные для UI dashboard
+        """
+        slo_data = []
+
+        for slo in self._slos.values():
+            violations = self._violation_history.get(slo.name, [])
+            recent_violations = violations[-10:]  # Последние 10
+
+            slo_data.append(
+                {
+                    "name": slo.name,
+                    "description": slo.description,
+                    "target_percentile": slo.target_percentile,
+                    "threshold_ms": slo.threshold_ms,
+                    "recent_violations": len(recent_violations),
+                    "violation_history": recent_violations,
+                }
+            )
+
+        return {
+            "slos": slo_data,
+            "total_slos": len(self._slos),
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+
+# Глобальный экземпляр
+_slo_registry: SLORegistry | None = None
+
+
+def get_slo_registry() -> SLORegistry:
+    """
+    Получить глобальный экземпляр SLORegistry.
+
+    Returns:
+        Экземпляр реестра SLO
+    """
+    global _slo_registry  # noqa: PLW0603
+    if _slo_registry is None:
+        _slo_registry = SLORegistry()
+    return _slo_registry

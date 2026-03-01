@@ -491,12 +491,27 @@ class Watchdog:
         """Основной цикл мониторинга."""
         logger.info("Watchdog мониторинг запущен")
 
+        # Import metrics collector for SLO checks
+        metrics_collector = None
+        try:
+            from .metrics import get_metrics_collector
+
+            metrics_collector = get_metrics_collector()
+        except Exception:
+            logger.debug("MetricsCollector не доступен для SLO мониторинга")
+
         while self._running:
             try:
                 async with self._lock:
                     # Check all components
                     for checker in self._components.values():
                         await self._check_component(checker)
+
+                # SLO violations check (every 60 seconds)
+                if metrics_collector:
+                    # Делаем SLO check реже чем component check
+                    if self._total_checks % 2 == 0:  # Каждый 2-й цикл
+                        await self.check_slo_violations(metrics_collector)
 
                 # Publish system health event
                 self._publish_system_health()
@@ -699,6 +714,52 @@ class Watchdog:
             "check_interval": self._check_interval,
             "failure_threshold": self._failure_threshold,
         }
+
+    async def check_slo_violations(self, metrics_collector: Any) -> list[dict[str, Any]]:
+        """
+        Проверить SLO на нарушения.
+
+        Вызывается периодически для мониторинга производительности.
+        При обнаружении нарушений - публикует alert.
+
+        Аргументы:
+            metrics_collector: Экземпляр MetricsCollector
+
+        Returns:
+            Список нарушений SLO
+        """
+        try:
+            from .metrics import get_slo_registry
+
+            registry = get_slo_registry()
+            violations = registry.check_slo_violations(metrics_collector)
+
+            if violations:
+                logger.warning(
+                    "Обнаружены нарушения SLO",
+                    count=len(violations),
+                    violations=[v["slo_name"] for v in violations],
+                )
+
+                # Публикуем alert для каждого нарушения
+                for violation in violations:
+                    self._publish_alert(
+                        WatchdogAlertLevel.WARNING,
+                        "SLO",
+                        f"SLO нарушен: {violation['slo_name']}",
+                        {
+                            "slo_name": violation["slo_name"],
+                            "actual_ms": violation["actual_ms"],
+                            "threshold_ms": violation["threshold_ms"],
+                            "compliance_percent": violation["compliance_percent"],
+                        },
+                    )
+
+            return violations
+
+        except Exception as e:
+            logger.error("Ошибка проверки SLO", error=str(e))
+            return []
 
     def __repr__(self) -> str:
         return (
