@@ -1088,9 +1088,11 @@ class SLORegistry:
         percentile_ms = percentile_value * 1000
 
         # Вычисляем compliance
+        COMPLIANCE_OK_THRESHOLD = 95.0
+
         if percentile_ms <= slo.threshold_ms:
             compliance_percent = round((1 - (percentile_ms / slo.threshold_ms)) * 100, 2)
-            status = "ok" if compliance_percent > 95 else "warning"
+            status = "ok" if compliance_percent > COMPLIANCE_OK_THRESHOLD else "warning"
         else:
             compliance_percent = 0.0
             status = "critical"
