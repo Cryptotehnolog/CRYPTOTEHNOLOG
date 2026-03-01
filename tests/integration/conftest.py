@@ -207,15 +207,25 @@ async def db_pool():
     Function-scoped database pool for integration tests.
 
     Использует существующий DatabaseManager из проекта.
+    Применяет все миграции перед тестами (если ещё не применены).
     """
     from src.core.database import close_database, get_database  # noqa: PLC0415
 
     db = get_database()
-    await db.connect()
+
+    # Подключаемся только если ещё не подключено
+    if not db.is_connected:
+        await db.connect()
+
+    # Применяем миграции только если таблицы не существуют
+    tables = await db.get_table_names()
+    if "schema_migrations" not in tables:
+        async with db.pool.acquire() as conn:
+            await apply_migrations(conn)
 
     yield db.pool
 
-    await close_database()
+    # Не закрываем подключение - оно может использоваться другими тестами
 
 
 # ==================== Settings Fixtures ====================
