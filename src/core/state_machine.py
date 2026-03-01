@@ -567,6 +567,145 @@ class StateMachine:
         """
         return int((datetime.now(UTC) - self._state_entered_at).total_seconds())
 
+    # ==================== Checkpoint ====================
+
+    async def checkpoint(self, redis_client: Any | None = None) -> bool:
+        """
+        Создать checkpoint состояния в Redis.
+
+        Сохраняет текущее состояние в Redis для быстрого восстановления
+        при перезапуске. Используется при graceful shutdown.
+
+        Аргументы:
+            redis_client: Redis клиент для сохранения (опционально)
+
+        Returns:
+            True если checkpoint создан успешно
+        """
+        checkpoint_data = {
+            "current_state": self._current_state.value,
+            "version": self._version,
+            "transition_counter": self._transition_counter,
+            "state_entered_at": self._state_entered_at.isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+        # Пробуем сохранить в Redis
+        if redis_client:
+            try:
+                key = "cryptotechnolog:state_machine:checkpoint"
+                await redis_client.set(
+                    key,
+                    json.dumps(checkpoint_data),
+                    ex=86400 * 7,  # 7 дней TTL
+                )
+                logger.info(
+                    "Checkpoint создан в Redis",
+                    state=self._current_state.value,
+                    version=self._version,
+                )
+                return True
+            except Exception as e:
+                logger.error("Ошибка создания checkpoint в Redis", error=str(e))
+
+        # Fallback - сохраняем в БД
+        if self._db:
+            try:
+                await self._db.execute(
+                    """
+                    INSERT INTO state_machine_checkpoints
+                    (current_state, version, transition_counter, metadata, created_at)
+                    VALUES ($1, $2, $3, $4, NOW())
+                    ON CONFLICT (id) DO UPDATE SET
+                    current_state = EXCLUDED.current_state,
+                    version = EXCLUDED.version,
+                    transition_counter = EXCLUDED.transition_counter,
+                    metadata = EXCLUDED.metadata,
+                    created_at = NOW()
+                    """,
+                    self._current_state.value,
+                    self._version,
+                    self._transition_counter,
+                    json.dumps(checkpoint_data),
+                )
+                await self._db.execute("COMMIT")
+
+                logger.info(
+                    "Checkpoint создан в БД",
+                    state=self._current_state.value,
+                    version=self._version,
+                )
+                return True
+            except Exception as e:
+                logger.error("Ошибка создания checkpoint в БД", error=str(e))
+
+        logger.warning("Checkpoint не сохранён - нет доступных хранилищ")
+        return False
+
+    async def restore_from_checkpoint(
+        self,
+        redis_client: Any | None = None,
+    ) -> bool:
+        """
+        Восстановить состояние из checkpoint.
+
+        Аргументы:
+            redis_client: Redis клиент для восстановления
+
+        Returns:
+            True если восстановление успешно
+        """
+        # Пробуем восстановить из Redis
+        if redis_client:
+            try:
+                key = "cryptotechnolog:state_machine:checkpoint"
+                data = await redis_client.get(key)
+                if data:
+                    checkpoint = json.loads(data)
+                    self._current_state = SystemState(checkpoint["current_state"])
+                    self._version = checkpoint["version"]
+                    self._transition_counter = checkpoint["transition_counter"]
+                    self._state_entered_at = datetime.fromisoformat(
+                        checkpoint["state_entered_at"]
+                    )
+
+                    logger.info(
+                        "Состояние восстановлено из Redis",
+                        state=self._current_state.value,
+                        version=self._version,
+                    )
+                    return True
+            except Exception as e:
+                logger.error("Ошибка восстановления из Redis", error=str(e))
+
+        # Fallback - пробуем из БД
+        if self._db:
+            try:
+                row = await self._db.fetchrow(
+                    """
+                    SELECT current_state, version, transition_counter, metadata
+                    FROM state_machine_checkpoints
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    """
+                )
+                if row:
+                    self._current_state = SystemState(row["current_state"])
+                    self._version = row["version"]
+                    self._transition_counter = row["transition_counter"]
+
+                    logger.info(
+                        "Состояние восстановлено из БД",
+                        state=self._current_state.value,
+                        version=self._version,
+                    )
+                    return True
+            except Exception as e:
+                logger.error("Ошибка восстановления из БД", error=str(e))
+
+        logger.warning("Checkpoint не найден")
+        return False
+
     # ==================== Приватные методы ====================
 
     async def _execute_enter_callbacks(

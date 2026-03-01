@@ -433,6 +433,70 @@ class EventBus:
         self._wildcard_listeners = []
         logger.info("Listeners disabled")
 
+    @property
+    def pending_count(self) -> int:
+        """Получить количество ожидающих обработки событий."""
+        with self._subscriber_lock:
+            total = 0
+            for receiver in self._subscribers.values():
+                total += receiver._queue.qsize()
+        return total
+
+    async def drain(self, timeout: float = 30.0) -> bool:
+        """
+        Drain - дождаться обработки всех ожидающих событий.
+
+        Ждёт пока все очереди подписчиков опустеют.
+        Важно для graceful shutdown - гарантирует что все
+        сообщения будут обработаны перед выключением.
+
+        Аргументы:
+            timeout: Максимальное время ожидания в секундах
+
+        Returns:
+            True если все события обработаны, False при таймауте
+        """
+        logger.info("Начало drain event bus", timeout=timeout, pending=self.pending_count)
+
+        start_time = asyncio.get_event_loop().time()
+        last_pending = -1
+
+        while True:
+            current_pending = self.pending_count
+
+            if current_pending == 0:
+                # Все события обработаны
+                await self.flush()  # Дожидаемся async задач
+                logger.info("Event bus drain завершён", total_time=asyncio.get_event_loop().time() - start_time)
+                return True
+
+            # Проверяем прогресс - если ничего не меняется, выходим
+            if current_pending == last_pending:
+                # Нет прогресса - возможно зависший listener
+                logger.warning(
+                    "Event bus drain - нет прогресса",
+                    pending=current_pending,
+                    elapsed=asyncio.get_event_loop().time() - start_time,
+                )
+                break
+
+            last_pending = current_pending
+
+            # Проверяем таймаут
+            elapsed = asyncio.get_event_loop().time() - start_time
+            if elapsed >= timeout:
+                logger.warning(
+                    "Event bus drain - таймаут",
+                    pending=current_pending,
+                    elapsed=elapsed,
+                )
+                return False
+
+            # Ждём перед следующей проверкой
+            await asyncio.sleep(0.5)
+
+        return False
+
     async def flush(self) -> None:
         """Дождаться завершения всех асинхронных задач обработки."""
         if self._pending_tasks:

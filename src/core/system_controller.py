@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from cryptotechnolog.config import get_logger
 from src.core.circuit_breaker import CircuitBreaker, CircuitState
+from src.core.event import Event, SystemEventSource, SystemEventType
 from src.core.health import ComponentHealth, HealthCheck, HealthChecker, HealthStatus
 from src.core.state_machine import StateMachine
 from src.core.state_machine_enums import SystemState, TriggerType
@@ -166,6 +167,7 @@ class SystemController:
         state_machine: StateMachine | None = None,
         health_checker: HealthChecker | None = None,
         metrics_collector: MetricsCollector | None = None,
+        event_bus: Any | None = None,
         test_mode: bool = False,
     ) -> None:
         """
@@ -177,6 +179,7 @@ class SystemController:
             state_machine: State Machine (опционально, будет создана если не передана)
             health_checker: Health Checker (опционально)
             metrics_collector: Коллектор метрик (опционально)
+            event_bus: Event Bus для shutdown notification (опционально)
             test_mode: Если True - не запускает background tasks (health monitor)
         """
         # Внешние зависимости
@@ -184,6 +187,7 @@ class SystemController:
         self._redis = redis_manager
         self._health_checker = health_checker
         self._metrics = metrics_collector
+        self._event_bus = event_bus
         self._test_mode = test_mode
 
         # State Machine - создаём или используем переданную
@@ -919,8 +923,36 @@ class SystemController:
                 logger.warning("Ошибка закрытия БД", error=str(e))
 
     async def _save_state(self) -> None:
-        """Сохранить состояние системы."""
-        # State Machine сама сохраняет состояние
+        """Сохранить состояние системы с checkpoint."""
+        # 1. Создаём checkpoint State Machine
+        try:
+            # Получаем Redis клиент если есть
+            redis_client = None
+            if self._redis and hasattr(self._redis, "_pool"):
+                # Пробуем получить async клиент
+                redis_client = self._redis
+
+            await self._state_machine.checkpoint(redis_client)
+            logger.info("State machine checkpoint создан")
+        except Exception as e:
+            logger.error("Ошибка создания checkpoint", error=str(e))
+
+        # 2. Отправляем событие SHUTDOWN всем компонентам
+        if self._event_bus:
+            try:
+                shutdown_event = Event.new(
+                    event_type=SystemEventType.SYSTEM_SHUTDOWN,
+                    source=SystemEventSource.SYSTEM_CONTROLLER,
+                    payload={
+                        "reason": "graceful_shutdown",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    },
+                )
+                self._event_bus.publish(shutdown_event)
+                logger.info("Shutdown event опубликован")
+            except Exception as e:
+                logger.warning("Не удалось опубликовать shutdown event", error=str(e))
+
         logger.info("Состояние сохранено")
 
     # ==================== Health Monitor ====================
