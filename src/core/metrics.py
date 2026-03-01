@@ -1047,6 +1047,82 @@ class SLORegistry:
         """Получить все зарегистрированные SLO."""
         return list(self._slos.values())
 
+    def _get_slo_status(
+        self,
+        slo: SLODefinition,
+        metrics_collector: MetricsCollector,
+    ) -> dict[str, Any]:
+        """
+        Получить статус SLO для конкретной метрики.
+
+        Возвращает текущий статус SLO с процентом compliance.
+
+        Аргументы:
+            slo: Определение SLO
+            metrics_collector: Коллектор метрик
+
+        Returns:
+            Словарь со статусом SLO:
+            - name: имя SLO
+            - status: "ok" | "warning" | "critical"
+            - compliance_percent: процент compliance
+            - actual_ms: фактическое значение в ms
+            - threshold_ms: пороговое значение
+            - has_data: есть ли данные для проверки
+        """
+        histogram_key = self._make_key(slo.metric_name, {})
+        histogram = metrics_collector._histograms.get(histogram_key)
+
+        if histogram is None or histogram.count == 0:
+            return {
+                "name": slo.name,
+                "status": "unknown",
+                "compliance_percent": None,
+                "actual_ms": None,
+                "threshold_ms": slo.threshold_ms,
+                "has_data": False,
+            }
+
+        # Вычисляем текущий percentile
+        percentile_value = histogram.get_percentile(slo.target_percentile)
+        percentile_ms = percentile_value * 1000
+
+        # Вычисляем compliance
+        if percentile_ms <= slo.threshold_ms:
+            compliance_percent = round((1 - (percentile_ms / slo.threshold_ms)) * 100, 2)
+            status = "ok" if compliance_percent > 95 else "warning"
+        else:
+            compliance_percent = 0.0
+            status = "critical"
+
+        return {
+            "name": slo.name,
+            "status": status,
+            "compliance_percent": compliance_percent,
+            "actual_ms": round(percentile_ms, 3),
+            "threshold_ms": slo.threshold_ms,
+            "has_data": True,
+        }
+
+    def get_all_slo_statuses(
+        self,
+        metrics_collector: MetricsCollector,
+    ) -> dict[str, dict[str, Any]]:
+        """
+        Получить статусы всех SLO.
+
+        Аргументы:
+            metrics_collector: Коллектор метрик
+
+        Returns:
+            Словарь статусов всех SLO
+        """
+        statuses = {}
+        for slo in self._slos.values():
+            statuses[slo.name] = self._get_slo_status(slo, metrics_collector)
+
+        return statuses
+
     def check_slo(self, slo: SLODefinition, histogram: Histogram) -> dict[str, Any]:
         """
         Проверить SLO для гистограммы.
