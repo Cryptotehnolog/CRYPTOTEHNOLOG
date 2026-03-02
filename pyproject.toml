@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cryptotechnolog"
-version = "1.1.0"
+version = "1.2.0"
 description = "Institutional-Grade Crypto Trading Platform"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
@@ -75,6 +75,7 @@ dev = [
     "pytest-cov>=4.1.0,<6.0.0",
     "pytest-mock>=3.12.0,<4.0.0",
     "pytest-xdist>=3.5.0,<4.0.0",
+    "pytest-rerunfailures>=14.0,<15.0",
     "hypothesis>=6.100.0,<7.0.0",
     "black>=23.12.0,<27.0.0",
     "mypy>=1.7.0,<2.0.0",
@@ -90,9 +91,10 @@ docs = [
     "mkdocstrings[python]>=0.26.2",
 ]
 
-rust = [
-    "cryptotechnolog-rust @ file:///${PROJECT_ROOT}/rust_components",
-]
+# rust = [
+#     "cryptotechnolog-rust @ file:///${PROJECT_ROOT}/rust_components",
+# ]
+# TODO: Раскомментировать после создания rust_components (Фаза 3)
 
 [project.urls]
 Homepage = "https://github.com/your-org/cryptotechnolog"
@@ -104,6 +106,10 @@ Issues = "https://github.com/your-org/cryptotechnolog/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["cryptotechnolog*"]
+
+[tool.setuptools.package-data]
+cryptotechnolog = ["py.typed", "**/*.pyi"]
 
 [tool.black]
 line-length = 100
@@ -215,7 +221,8 @@ warn_unused_ignores = true
 warn_no_return = true
 follow_imports = "normal"
 strict_optional = true
-exclude = ["tests/", "test_", "tests"]
+explicit_package_bases = true
+exclude = ["tests/", "src/", "src"]
 
 [[tool.mypy.overrides]]
 module = [
@@ -223,6 +230,15 @@ module = [
     "hvac.*",
     "timescaledb.*",
     "redis.*",
+    "pandas.*",
+    "pandas._libs.tslibs.timedeltas",
+    "pandas._libs.tslibs.nattype",
+    "pandas._libs.tslibs.np_datetime",
+    "asyncpg.*",
+    "numpy.*",
+    "polars.*",
+    "scipy.*",
+    "cryptotechnolog_rust.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"
@@ -236,10 +252,11 @@ check_untyped_defs = false
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["."]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+asyncio_mode = "auto"
 addopts = [
     "-v",
     "--strict-markers",
@@ -291,3 +308,4 @@ directory = "htmlcov"
 [tool.bandit]
 exclude_dirs = ["tests", "venv", "env"]
 skips = ["B101", "B601"]
+

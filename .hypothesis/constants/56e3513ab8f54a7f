@@ -1,4 +1,0 @@
-# file: d:\CRYPTOTEHNOLOG\src\cryptotechnolog\config\settings.py
-# hypothesis_version: 6.151.9
-
-[0.001, 0.01, 1.0, 5.0, 10.0, 10000.0, 100, 300, 1000, 5432, 5555, 5556, 6379, 8000, 9090, '.env', '1.0.0', '127.0.0.1', '=', 'CRITICAL', 'CRYPTOTEHNOLOG', 'DEBUG', 'ERROR', 'INFO', 'JSON', 'REDIS', 'TEXT', 'WARNING', 'ZEROMQ', '__main__', 'bot_password_dev', 'bot_user', 'config', 'config_dir', 'data', 'data_dir', 'dev-only-token', 'development', 'event_bus_type', 'ignore', 'localhost', 'log_format', 'log_level', 'logs', 'logs_dir', 'trading_dev', 'utf-8']

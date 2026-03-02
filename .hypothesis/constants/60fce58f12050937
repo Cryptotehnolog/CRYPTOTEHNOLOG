@@ -1,4 +1,0 @@
-# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\config\logging.py
-# hypothesis_version: 6.151.9
-
-[500, '%(message)s', 'Exception occurred', 'JSON', 'Message with context', 'Performance metric', 'Test error message', 'Test exception', 'Test info message', 'Test warning message', '__main__', '_logger', 'cryptotechnolog', 'iso', 'log_context', 'production', 'test', 'test-123', 'user-456', 'value']

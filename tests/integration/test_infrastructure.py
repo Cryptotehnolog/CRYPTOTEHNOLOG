@@ -9,7 +9,7 @@ from asyncpg import connect as asyncpg_connect
 import pytest
 import redis.asyncio as redis
 
-from src.core.stubs import (
+from cryptotechnolog.core.stubs import (
     ExecutionLayerStub,
     Order,
     PortfolioGovernorStub,
@@ -109,8 +109,8 @@ class TestPostgreSQLConnection:
 
     @pytest.fixture
     async def pg_connection(self, test_settings):
-        """Create PostgreSQL connection for testing."""
-        conn = await asyncpg_connect(test_settings.postgres_async_url)
+        """Create PostgreSQL connection for testing (uses TEST database)."""
+        conn = await asyncpg_connect(test_settings.postgres_test_async_url)  # trading_test ✅
         yield conn
         await conn.close()
 
@@ -236,8 +236,8 @@ class TestInfrastructureIntegration:
             decode_responses=True,
         )
 
-        # Create PostgreSQL connection
-        pg_conn = await asyncpg_connect(test_settings.postgres_async_url)
+        # Create PostgreSQL connection (TEST database)
+        pg_conn = await asyncpg_connect(test_settings.postgres_test_async_url)
 
         try:
             # Use unique key to avoid conflicts in parallel tests
@@ -347,8 +347,8 @@ class TestStubsIntegration:
     @pytest.mark.asyncio
     async def test_execution_layer_with_database(self, test_settings):
         """Test ExecutionLayer integration with database."""
-        # Create PostgreSQL connection
-        pg_conn = await asyncpg_connect(test_settings.postgres_async_url)
+        # Create PostgreSQL connection (TEST database)
+        pg_conn = await asyncpg_connect(test_settings.postgres_test_async_url)
 
         try:
             # Create execution layer
@@ -428,7 +428,8 @@ class TestStubsIntegration:
     @pytest.mark.asyncio
     async def test_portfolio_governor_with_database(self, test_settings):
         """Test PortfolioGovernor integration with database."""
-        pg_conn = await asyncpg_connect(test_settings.postgres_async_url)
+        # Create PostgreSQL connection (TEST database)
+        pg_conn = await asyncpg_connect(test_settings.postgres_test_async_url)
 
         try:
             # Create portfolio governor
@@ -538,7 +539,8 @@ class TestEventBusIntegration:
     @pytest.mark.asyncio
     async def test_event_bus_with_postgresql(self, test_settings):
         """Test Event Bus with PostgreSQL event log."""
-        pg_conn = await asyncpg_connect(test_settings.postgres_async_url)
+        # Create PostgreSQL connection (TEST database)
+        pg_conn = await asyncpg_connect(test_settings.postgres_test_async_url)
 
         try:
             # Create event log table

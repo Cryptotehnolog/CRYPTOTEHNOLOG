@@ -13,7 +13,7 @@ import asyncio
 
 import pytest
 
-from src.core.metrics import (
+from cryptotechnolog.core.metrics import (
     Counter,
     Gauge,
     Histogram,

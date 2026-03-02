@@ -11,7 +11,7 @@ import uuid
 
 import pytest
 
-from src.core.redis_manager import RedisManager, TypedRedisClient, get_redis
+from cryptotechnolog.core.redis_manager import RedisManager, TypedRedisClient, get_redis
 
 
 class TestRedisManagerInit:

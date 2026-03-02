@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\core\listeners\audit.py
+# hypothesis_version: 6.151.9
+
+['*', 'CRITICAL', 'DAILY_LOSS_LIMIT', 'DRAWDOWN_EXCEEDED', 'EMERGENCY_STOP', 'ERROR', 'EXECUTION_ERROR', 'HEALTH_CHECK_FAILED', 'INFO', 'ORDER_CANCELLED', 'ORDER_FILLED', 'ORDER_REJECTED', 'ORDER_SUBMITTED', 'POSITION_CLOSED', 'POSITION_OPENED', 'RISK_VIOLATION', 'STATE_TRANSITION', 'SYSTEM_BOOT', 'SYSTEM_HALT', 'SYSTEM_READY', 'SYSTEM_SHUTDOWN', 'WARNING', 'WATCHDOG_ALERT', 'audit_listener', 'circuit_breaker', 'correlation_id', 'entity_id', 'entity_type', 'health', 'id', 'new_state', 'old_state', 'operator', 'order', 'order_id', 'payload_keys', 'position', 'position_id', 'risk', 'source', 'state_machine', 'system', 'unknown', 'watchdog']

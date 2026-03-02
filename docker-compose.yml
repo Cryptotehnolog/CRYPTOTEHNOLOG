@@ -16,16 +16,17 @@ services:
       --save 900 1
       --save 300 10
       --save 60 10000
+      --tcp-keepalive 60
     ports:
       - "6379:6379"
     volumes:
       - ./docker-volumes/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
+      interval: 10s
+      timeout: 10s
       retries: 5
-      start_period: 10s
+      start_period: 15s
     restart: unless-stopped
     networks:
       - crypto_network
@@ -33,10 +34,10 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 1G
         reservations:
           cpus: "0.25"
-          memory: 128M
+          memory: 256M
 
   # ==================== PostgreSQL + TimescaleDB ====================
   # For audit trail, positions, metrics, time-series data

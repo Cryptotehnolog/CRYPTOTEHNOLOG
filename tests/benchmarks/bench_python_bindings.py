@@ -23,14 +23,14 @@ import uuid
 
 import pytest
 
-from src.core.health import (
+from cryptotechnolog.core.health import (
     ComponentHealth,
     DatabaseHealthCheck,
     HealthChecker,
     HealthStatus,
 )
-from src.core.metrics import MetricsCollector
-from src.core.stubs import (
+from cryptotechnolog.core.metrics import MetricsCollector
+from cryptotechnolog.core.stubs import (
     ExecutionLayerStub,
     Order,
     PortfolioGovernorStub,

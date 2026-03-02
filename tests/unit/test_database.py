@@ -8,7 +8,7 @@
 
 import pytest
 
-from src.core.database import DatabaseManager, get_database
+from cryptotechnolog.core.database import DatabaseManager, get_database
 
 
 class TestDatabaseManagerInit:
