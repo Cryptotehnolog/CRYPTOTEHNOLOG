@@ -73,7 +73,9 @@ def mock_database():
         mock_db.return_value = mock_db_instance
 
         with (
-            patch("cryptotechnolog.core.listeners.state_machine.get_db_pool", return_value=mock_pool),
+            patch(
+                "cryptotechnolog.core.listeners.state_machine.get_db_pool", return_value=mock_pool
+            ),
             patch("cryptotechnolog.core.listeners.risk.get_db_pool", return_value=mock_pool),
             patch("cryptotechnolog.core.listeners.audit.get_db_pool", return_value=mock_pool),
             patch("cryptotechnolog.core.listeners.metrics.get_db_pool", return_value=mock_pool),
