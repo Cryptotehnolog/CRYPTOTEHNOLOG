@@ -14,10 +14,10 @@ import uuid
 import hypothesis
 from hypothesis import given, settings
 
-from src.core.event import Event, SystemEventSource, SystemEventType
-from src.core.event_bus import EventBus, set_event_bus
-from src.core.listeners import register_all_listeners
-from src.core.state_machine_enums import SystemState
+from cryptotechnolog.core.event import Event, SystemEventSource, SystemEventType
+from cryptotechnolog.core.event_bus import EventBus, set_event_bus
+from cryptotechnolog.core.listeners import register_all_listeners
+from cryptotechnolog.core.state_machine_enums import SystemState
 
 # ==================== Hypothesis Settings ====================
 

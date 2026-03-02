@@ -108,6 +108,9 @@ Issues = "https://github.com/your-org/cryptotechnolog/issues"
 where = ["src"]
 include = ["cryptotechnolog*"]
 
+[tool.setuptools.package-data]
+cryptotechnolog = ["py.typed", "**/*.pyi"]
+
 [tool.black]
 line-length = 100
 target-version = ["py312"]
@@ -218,7 +221,8 @@ warn_unused_ignores = true
 warn_no_return = true
 follow_imports = "normal"
 strict_optional = true
-exclude = ["tests/", "test_", "tests"]
+explicit_package_bases = true
+exclude = ["tests/", "src/", "src"]
 
 [[tool.mypy.overrides]]
 module = [
@@ -226,6 +230,15 @@ module = [
     "hvac.*",
     "timescaledb.*",
     "redis.*",
+    "pandas.*",
+    "pandas._libs.tslibs.timedeltas",
+    "pandas._libs.tslibs.nattype",
+    "pandas._libs.tslibs.np_datetime",
+    "asyncpg.*",
+    "numpy.*",
+    "polars.*",
+    "scipy.*",
+    "cryptotechnolog_rust.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"
@@ -295,3 +308,4 @@ directory = "htmlcov"
 [tool.bandit]
 exclude_dirs = ["tests", "venv", "env"]
 skips = ["B101", "B601"]
+

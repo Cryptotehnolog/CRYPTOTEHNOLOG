@@ -15,7 +15,7 @@ import asyncio
 
 import pytest
 
-from src.core.health import (
+from cryptotechnolog.core.health import (
     ComponentHealth,
     DatabaseHealthCheck,
     EventBusHealthCheck,

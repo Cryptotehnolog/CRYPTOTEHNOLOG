@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, cast
 import redis.asyncio as redis
 
 from cryptotechnolog.config import get_logger, get_settings
-from src.core.circuit_breaker import CircuitBreaker
+from cryptotechnolog.core.circuit_breaker import CircuitBreaker
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator

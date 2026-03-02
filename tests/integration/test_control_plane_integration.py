@@ -15,12 +15,12 @@ import uuid
 
 import pytest
 
-from src.core.event import Event, SystemEventSource, SystemEventType
-from src.core.event_bus import EventBus, set_event_bus
-from src.core.listeners import (
+from cryptotechnolog.core.event import Event, SystemEventSource, SystemEventType
+from cryptotechnolog.core.event_bus import EventBus, set_event_bus
+from cryptotechnolog.core.listeners import (
     register_all_listeners,
 )
-from src.core.state_machine_enums import SystemState
+from cryptotechnolog.core.state_machine_enums import SystemState
 
 # ==================== Fixtures ====================
 
@@ -40,10 +40,10 @@ def setup_listeners(test_event_bus, db_pool):
     """Register all listeners on the test EventBus with real DB pool."""
     # Мокаем get_db_pool чтобы возвращал реальный пул из фикстуры
     with (
-        patch("src.core.listeners.state_machine.get_db_pool", return_value=db_pool),
-        patch("src.core.listeners.risk.get_db_pool", return_value=db_pool),
-        patch("src.core.listeners.audit.get_db_pool", return_value=db_pool),
-        patch("src.core.listeners.metrics.get_db_pool", return_value=db_pool),
+        patch("cryptotechnolog.core.listeners.state_machine.get_db_pool", return_value=db_pool),
+        patch("cryptotechnolog.core.listeners.risk.get_db_pool", return_value=db_pool),
+        patch("cryptotechnolog.core.listeners.audit.get_db_pool", return_value=db_pool),
+        patch("cryptotechnolog.core.listeners.metrics.get_db_pool", return_value=db_pool),
     ):
         registry = register_all_listeners()
         test_event_bus.enable_listeners()

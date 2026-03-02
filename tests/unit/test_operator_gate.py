@@ -13,14 +13,14 @@ from hypothesis import given
 from hypothesis import strategies as st
 import pytest
 
-from src.core.dual_control import (
+from cryptotechnolog.core.dual_control import (
     DualControlRequest,
     OperationType,
     Operator,
     OperatorRole,
     RequestStatus,
 )
-from src.core.operator_gate import OperatorGate, TokenAuthenticator
+from cryptotechnolog.core.operator_gate import OperatorGate, TokenAuthenticator
 
 
 class TestTokenAuthenticator:

@@ -22,16 +22,17 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from cryptotechnolog.config import get_logger
-from src.core.circuit_breaker import CircuitBreaker, CircuitState
-from src.core.event import Event, SystemEventSource, SystemEventType
-from src.core.health import ComponentHealth, HealthCheck, HealthChecker, HealthStatus
-from src.core.state_machine import StateMachine
-from src.core.state_machine_enums import SystemState, TriggerType
+
+from .circuit_breaker import CircuitBreaker, CircuitState
+from .event import Event, SystemEventSource, SystemEventType
+from .health import ComponentHealth, HealthCheck, HealthChecker, HealthStatus
+from .state_machine import StateMachine
+from .state_machine_enums import SystemState, TriggerType
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from src.core.metrics import MetricsCollector
+    from .metrics import MetricsCollector
 
 logger = get_logger(__name__)
 

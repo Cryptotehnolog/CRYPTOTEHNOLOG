@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\core\listeners\base.py
+# hypothesis_version: 6.151.9
+
+[1.0, '*', 'enabled_listeners', 'events_failed', 'events_processed', 'last_event_time', 'listeners', 'name', 'total_listeners']

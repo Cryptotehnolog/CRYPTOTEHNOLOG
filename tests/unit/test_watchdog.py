@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.core.watchdog import (
+from cryptotechnolog.core.watchdog import (
     ComponentChecker,
     ComponentStatus,
     RecoveryStrategy,

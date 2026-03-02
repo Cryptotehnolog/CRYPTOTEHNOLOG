@@ -14,10 +14,10 @@ import time
 
 import pytest
 
-from src.core.state_machine import (
+from cryptotechnolog.core.state_machine import (
     StateMachine,
 )
-from src.core.state_machine_enums import (
+from cryptotechnolog.core.state_machine_enums import (
     SystemState,
     TriggerType,
     is_transition_allowed,

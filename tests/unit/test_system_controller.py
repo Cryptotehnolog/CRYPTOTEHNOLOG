@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.core.system_controller import (
+from cryptotechnolog.core.system_controller import (
     ShutdownPhase,
     StartupError,
     StartupPhase,

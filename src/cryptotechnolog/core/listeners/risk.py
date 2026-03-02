@@ -15,12 +15,12 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
-from src.core.database import get_db_pool
-from src.core.listeners.base import BaseListener, ListenerConfig
-from src.core.metrics import get_metrics_collector
+from ..database import get_db_pool
+from ..metrics import get_metrics_collector
+from .base import BaseListener, ListenerConfig
 
 if TYPE_CHECKING:
-    from src.core.event import Event
+    from ..event import Event
 
 logger = logging.getLogger(__name__)
 

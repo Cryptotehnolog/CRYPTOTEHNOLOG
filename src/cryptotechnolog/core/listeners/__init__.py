@@ -4,16 +4,16 @@ Event Bus Listeners for CRYPTOTEHNOLOG.
 Экспортирует все listeners и функции для регистрации.
 """
 
-from src.core.listeners.audit import AuditListener
-from src.core.listeners.base import (
+from .audit import AuditListener
+from .base import (
     BaseListener,
     ListenerConfig,
     ListenerRegistry,
     get_listener_registry,
 )
-from src.core.listeners.metrics import MetricsListener
-from src.core.listeners.risk import RiskListener
-from src.core.listeners.state_machine import StateMachineListener
+from .metrics import MetricsListener
+from .risk import RiskListener
+from .state_machine import StateMachineListener
 
 __all__ = [
     "AuditListener",

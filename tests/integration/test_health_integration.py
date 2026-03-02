@@ -13,8 +13,8 @@ import uuid
 import pytest
 
 from cryptotechnolog.config import get_logger
-from src.core.database import DatabaseManager
-from src.core.health import (
+from cryptotechnolog.core.database import DatabaseManager
+from cryptotechnolog.core.health import (
     DatabaseHealthCheck,
     HealthChecker,
     HealthStatus,
@@ -22,8 +22,8 @@ from src.core.health import (
     RedisHealthCheck,
     init_health_checker,
 )
-from src.core.metrics import MetricsCollector
-from src.core.redis_manager import RedisManager
+from cryptotechnolog.core.metrics import MetricsCollector
+from cryptotechnolog.core.redis_manager import RedisManager
 
 logger = get_logger(__name__)
 

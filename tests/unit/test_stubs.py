@@ -12,7 +12,7 @@
 
 import pytest
 
-from src.core.stubs import (
+from cryptotechnolog.core.stubs import (
     ExecutionLayer,
     ExecutionLayerStub,
     Order,

@@ -6,8 +6,8 @@ import json
 from asyncpg import connect as asyncpg_connect
 import pytest
 
-from src.core.state_machine import StateMachine
-from src.core.state_machine_enums import SystemState
+from cryptotechnolog.core.state_machine import StateMachine
+from cryptotechnolog.core.state_machine_enums import SystemState
 
 
 @pytest.mark.integration

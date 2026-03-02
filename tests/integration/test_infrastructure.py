@@ -9,7 +9,7 @@ from asyncpg import connect as asyncpg_connect
 import pytest
 import redis.asyncio as redis
 
-from src.core.stubs import (
+from cryptotechnolog.core.stubs import (
     ExecutionLayerStub,
     Order,
     PortfolioGovernorStub,

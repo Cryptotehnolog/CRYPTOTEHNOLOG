@@ -13,7 +13,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from cryptotechnolog.config import get_logger
-from src.core.state_machine_enums import SystemState
+
+from .state_machine_enums import SystemState
 
 logger = get_logger(__name__)
 

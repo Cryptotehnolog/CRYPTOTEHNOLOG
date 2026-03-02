@@ -21,7 +21,7 @@ from typing import Any, cast
 import asyncpg
 
 from cryptotechnolog.config import get_logger, get_settings
-from src.core.circuit_breaker import CircuitBreaker, CircuitBreakerError
+from cryptotechnolog.core.circuit_breaker import CircuitBreaker, CircuitBreakerError
 
 logger = get_logger(__name__)
 

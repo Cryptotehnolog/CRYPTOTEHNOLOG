@@ -17,7 +17,7 @@ from hypothesis import Verbosity, given, settings
 import hypothesis.strategies as st
 import pytest
 
-from src.core.state_machine_enums import (
+from cryptotechnolog.core.state_machine_enums import (
     ALLOWED_TRANSITIONS,
     SystemState,
     get_allowed_transitions,

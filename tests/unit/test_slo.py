@@ -12,7 +12,7 @@
 
 import asyncio
 
-from src.core.metrics import (
+from cryptotechnolog.core.metrics import (
     Histogram,
     MetricsCollector,
     SLODefinition,

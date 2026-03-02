@@ -10,9 +10,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.core.event import Event, SystemEventSource, SystemEventType
-from src.core.event_bus import EventBus, set_event_bus
-from src.core.listeners import (
+from cryptotechnolog.core.event import Event, SystemEventSource, SystemEventType
+from cryptotechnolog.core.event_bus import EventBus, set_event_bus
+from cryptotechnolog.core.listeners import (
     get_listener_registry,
     register_all_listeners,
 )
@@ -64,7 +64,7 @@ def mock_database():
     """Mock database to avoid real connections in tests."""
     mock_pool = MockPool()
 
-    with patch("src.core.database.get_database") as mock_db:
+    with patch("cryptotechnolog.core.database.get_database") as mock_db:
         mock_db_instance = MagicMock()
         mock_db_instance.pool = mock_pool
         mock_db_instance.is_connected = True
@@ -73,10 +73,10 @@ def mock_database():
         mock_db.return_value = mock_db_instance
 
         with (
-            patch("src.core.listeners.state_machine.get_db_pool", return_value=mock_pool),
-            patch("src.core.listeners.risk.get_db_pool", return_value=mock_pool),
-            patch("src.core.listeners.audit.get_db_pool", return_value=mock_pool),
-            patch("src.core.listeners.metrics.get_db_pool", return_value=mock_pool),
+            patch("cryptotechnolog.core.listeners.state_machine.get_db_pool", return_value=mock_pool),
+            patch("cryptotechnolog.core.listeners.risk.get_db_pool", return_value=mock_pool),
+            patch("cryptotechnolog.core.listeners.audit.get_db_pool", return_value=mock_pool),
+            patch("cryptotechnolog.core.listeners.metrics.get_db_pool", return_value=mock_pool),
         ):
             yield mock_pool
 

@@ -18,15 +18,16 @@ import json
 from typing import Any, ClassVar
 
 from cryptotechnolog.config import get_logger
-from src.core.event import Event, SystemEventSource, SystemEventType
-from src.core.state_machine_enums import (
+
+from .event import Event, SystemEventSource, SystemEventType
+from .state_machine_enums import (
     ALLOWED_TRANSITIONS,
     MAX_STATE_TIMES,
     SystemState,
     get_state_policy,
     is_transition_allowed,
 )
-from src.core.state_transition import (
+from .state_transition import (
     StateHistory,
     StateTransition,
     TransitionResult,

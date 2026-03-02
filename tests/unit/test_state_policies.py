@@ -15,7 +15,7 @@
 
 import pytest
 
-from src.core.state_machine_enums import (
+from cryptotechnolog.core.state_machine_enums import (
     MAX_STATE_TIMES,
     STATE_POLICIES,
     SystemState,

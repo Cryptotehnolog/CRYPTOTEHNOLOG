@@ -12,11 +12,11 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any
 
-from src.core.database import get_db_pool
-from src.core.listeners.base import BaseListener, ListenerConfig
+from ..database import get_db_pool
+from .base import BaseListener, ListenerConfig
 
 if TYPE_CHECKING:
-    from src.core.event import Event
+    from ..event import Event
 
 logger = logging.getLogger(__name__)
 

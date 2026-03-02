@@ -54,7 +54,7 @@ class RiskEngineStub:
     реальных проверок риска.
 
     Пример использования:
-        >>> from src.core.stubs import RiskEngineStub
+        >>> from cryptotechnolog.core.stubs import RiskEngineStub
         >>> engine = RiskEngineStub()
         >>> result = await engine.check_trade("BTC/USDT", 1000.0, "buy")
         >>> print(result.allowed)  # True
@@ -287,7 +287,7 @@ class ExecutionLayerStub:
     имитирует успешное исполнение.
 
     Пример использования:
-        >>> from src.core.stubs import ExecutionLayerStub, Order
+        >>> from cryptotechnolog.core.stubs import ExecutionLayerStub, Order
         >>> executor = ExecutionLayerStub()
         >>> order = Order("test_001", "BTC/USDT", "buy", "market", 0.1)
         >>> result = await executor.execute_order(order)
@@ -507,7 +507,7 @@ class StrategyManagerStub:
     Заглушка не управляет реальными стратегиями.
 
     Пример использования:
-        >>> from src.core.stubs import StrategyManagerStub
+        >>> from cryptotechnolog.core.stubs import StrategyManagerStub
         >>> manager = StrategyManagerStub()
         >>> result = await manager.disable_all_strategies()
         >>> print(result)  # 0

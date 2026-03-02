@@ -157,7 +157,19 @@ jobs:
           .venv/bin/ruff format --check src/ tests/
 
       - name: Run type checker (mypy)
-        run: .venv/bin/mypy src/ --ignore-missing-imports
+        run: |
+          .venv/bin/mypy -m cryptotechnolog \
+            -m cryptotechnolog.core \
+            -m cryptotechnolog.backtest \
+            -m cryptotechnolog.data \
+            -m cryptotechnolog.config \
+            -m cryptotechnolog.risk \
+            -m cryptotechnolog.analysis \
+            -m cryptotechnolog.execution \
+            -m cryptotechnolog.intelligence \
+            -m cryptotechnolog.models \
+            -m cryptotechnolog.observability \
+            -m cryptotechnolog.strategy
         continue-on-error: true
 
       - name: Run unit tests (without DB - parallel with retry)

@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
 
-    from src.core.event import Event
+    from ..event import Event
 
 logger = logging.getLogger(__name__)
 

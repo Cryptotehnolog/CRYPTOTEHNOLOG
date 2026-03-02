@@ -31,9 +31,9 @@ from .event import Event, SystemEventSource, SystemEventType
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
 
-    from src.core.listeners.base import BaseListener, ListenerRegistry
+    from .listeners.base import BaseListener, ListenerRegistry
 
-from src.core.listeners import get_listener_registry
+from .listeners import get_listener_registry
 
 logger = get_logger(__name__)
 
