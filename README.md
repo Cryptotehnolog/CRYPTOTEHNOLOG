@@ -1,4 +1,4 @@
-# CRYPTOTEHNOLOG v1.1.0
+# CRYPTOTEHNOLOG v1.2.0
 
 ## Institutional-Grade Crypto Trading Platform
 
@@ -77,7 +77,7 @@ CRYPTOTEHNOLOG Platform
 |-------|------|--------|---------|
 | 0 | Environment Setup | ✅ Done | v1.0.0 |
 | 1 | Infrastructure Core | ✅ Done | v1.1.0 |
-| 2 | Control Plane | ⏳ Planned | v1.2.0 |
+| 2 | Control Plane | ✅ Done | v1.2.0 |
 | 3 | Event Bus | ⏳ Planned | v1.3.0 |
 | 4 | Config Manager | ⏳ Planned | v1.4.0 |
 | 5 | Risk Engine | ⏳ Planned | v1.5.0 |
@@ -275,5 +275,5 @@ For issues and questions, see [docs/runbooks/](docs/runbooks/) or create an issu
 
 ---
 
-**Version**: 1.1.0
-**Last Updated**: 2026-02-19
+**Version**: 1.2.0
+**Last Updated**: 2026-02-22
