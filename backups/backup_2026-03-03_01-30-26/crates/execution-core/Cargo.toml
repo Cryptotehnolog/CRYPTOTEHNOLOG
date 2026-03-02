@@ -1,0 +1,29 @@
+# ==================== CRYPTOTEHNOLOG Execution Core Crate ====================
+# High-performance order execution engine
+
+[package]
+name = "cryptotechnolog-execution-core"
+version = "0.1.0"
+edition = "2021"
+rust-version.workspace = true
+authors = ["CRYPTOTEHNOLOG Team"]
+license = "Proprietary - All Rights Reserved"
+description = "Order execution engine for CRYPTOTEHNOLOG"
+repository = "https://github.com/your-org/cryptotechnolog"
+
+[dependencies]
+# Use workspace dependencies
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+# Local dependencies
+cryptotechnolog-common = { path = "../common" }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+criterion = { workspace = true }
+proptest = "1.5"

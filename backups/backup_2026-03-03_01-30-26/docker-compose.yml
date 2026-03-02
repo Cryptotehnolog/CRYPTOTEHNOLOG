@@ -1,0 +1,210 @@
+# ==================== CRYPTOTEHNOLOG Docker Compose Configuration ====================
+# Development environment with all infrastructure services
+# Production: Use Kubernetes (Phase 19)
+
+services:
+  # ==================== Redis ====================
+  # For state machine, caching, pub/sub
+  redis:
+    image: redis:7-alpine
+    container_name: crypto_redis
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory-policy noeviction
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --tcp-keepalive 60
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./docker-volumes/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - crypto_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  # ==================== PostgreSQL + TimescaleDB ====================
+  # For audit trail, positions, metrics, time-series data
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: crypto_timescale
+    environment:
+      POSTGRES_USER: bot_user
+      POSTGRES_PASSWORD: bot_password_dev
+      POSTGRES_DB: trading_dev
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+      # TimescaleDB settings
+      TIMESCALEDB_TELEMETRY: "off"
+    ports:
+      - "5432:5432"
+    volumes:
+      # Use named volume instead of bind mount for Windows compatibility
+      # Named volumes handle permissions correctly on Windows
+      - postgres_data:/var/lib/postgresql/data
+      # Initialization script for database setup
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bot_user -d trading_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - crypto_network
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  # ==================== Grafana ====================
+  # For metrics visualization and dashboards
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: crypto_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin_dev
+      GF_INSTALL_PLUGINS: ""
+      GF_SERVER_ROOT_URL: http://localhost:3000
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./docker-volumes/grafana:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - crypto_network
+    profiles:
+      - observability
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  # ==================== Prometheus ====================
+  # For metrics collection and storage
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: crypto_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./docker-volumes/prometheus:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - crypto_network
+    profiles:
+      - observability
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  # ==================== Redis Commander (Optional) ====================
+  # Web UI for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: crypto_redis_commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - crypto_network
+    profiles:
+      - tools
+    restart: unless-stopped
+
+  # ==================== pgAdmin (Optional) ====================
+  # Web UI for PostgreSQL management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: crypto_pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@cryptotechnolog.dev
+      - PGADMIN_DEFAULT_PASSWORD=admin_dev
+    ports:
+      - "5050:80"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    networks:
+      - crypto_network
+    profiles:
+      - tools
+    restart: unless-stopped
+    volumes:
+      - ./docker-volumes/pgadmin:/var/lib/pgadmin
+
+networks:
+  crypto_network:
+    driver: bridge
+    name: crypto_network
+
+volumes:
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  grafana_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  pgadmin_data:
+    driver: local

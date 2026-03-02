@@ -1,0 +1,33 @@
+# ==================== CRYPTOTEHNOLOG Audit Chain Crate ====================
+# Immutable audit chain for regulatory compliance
+
+[package]
+name = "cryptotechnolog-audit-chain"
+version = "0.1.0"
+edition = "2021"
+rust-version.workspace = true
+authors = ["CRYPTOTEHNOLOG Team"]
+license = "Proprietary - All Rights Reserved"
+description = "Immutable audit chain for CRYPTOTEHNOLOG"
+repository = "https://github.com/your-org/cryptotechnolog"
+
+[dependencies]
+# Use workspace dependencies
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+
+[lib]
+name = "cryptotechnolog_audit_chain"
+path = "src/lib.rs"
+crate-type = ["lib", "cdylib"]
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+criterion = { workspace = true }

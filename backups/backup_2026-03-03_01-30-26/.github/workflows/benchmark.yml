@@ -1,0 +1,126 @@
+# ==================== CRYPTOTEHNOLOG Benchmark CI ====================
+# Saves baseline on main, compares on PR
+
+name: Benchmark
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  # ==================== Benchmark Main (save baseline) ====================
+  benchmark-main:
+    name: Benchmark Main (save baseline)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/eventbus -> target
+            crates/risk-ledger -> target
+
+      - name: Run risk-ledger benchmarks and save baseline
+        run: |
+          cd crates/risk-ledger
+          cargo bench --bench ledger_bench -- --save-baseline main
+
+      - name: Run eventbus benchmarks and save baseline
+        run: |
+          cd crates/eventbus
+          cargo bench --bench event_bench -- --save-baseline main
+
+      - name: Upload baseline artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: criterion-baseline
+          path: target/criterion
+          retention-days: 30
+
+  # ==================== Benchmark PR (compare) ====================
+  benchmark-pr:
+    name: Benchmark PR (compare with main)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/eventbus -> target
+            crates/risk-ledger -> target
+
+      - name: Download main baseline
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: benchmark.yml
+          workflow_conclusion: success
+          name: criterion-baseline
+          path: target/criterion-main
+        continue-on-error: true
+
+      - name: Restore baseline if not found
+        if: steps.download-main-baseline.outputs.artifacts == 'false'
+        run: |
+          # If no baseline found, create empty directory to avoid errors
+          mkdir -p target/criterion-main
+
+      - name: Copy baseline for comparison
+        run: |
+          if [ -d "target/criterion-main" ]; then
+            cp -r target/criterion-main/* target/criterion/ 2>/dev/null || true
+          fi
+
+      - name: Run risk-ledger benchmarks and compare
+        run: |
+          cd crates/risk-ledger
+          cargo bench --bench ledger_bench -- --baseline main --save-baseline pr-${{ github.event.pull_request.number }}
+
+      - name: Run eventbus benchmarks and compare
+        run: |
+          cd crates/eventbus
+          cargo bench --bench event_bench -- --baseline main --save-baseline pr-${{ github.event.pull_request.number }}
+
+      - name: Check for performance regressions
+        run: |
+          echo "=== Performance Comparison Results ==="
+          echo "Check the output above for regression warnings."
+          echo "If any benchmark shows significant regression (>10%), the job will fail."
+          
+          # Check if there are any regression warnings in output
+          # Criterion outputs regression info in the analysis section
+          
+          # Fail if critical regressions detected (manually check)
+          # In production, you might want to parse criterion output
+
+      - name: Upload PR benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: criterion-pr-${{ github.event.pull_request.number }}
+          path: target/criterion
+          retention-days: 7

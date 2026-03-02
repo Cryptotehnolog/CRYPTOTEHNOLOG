@@ -1,0 +1,82 @@
+# ==================== CRYPTOTEHNOLOG Root Workspace ====================
+# Root workspace configuration for the entire project
+# This ensures all Rust crates are visible from the repository root
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/common",
+    "crates/eventbus",
+    "crates/risk-ledger",
+    "crates/audit-chain",
+    "crates/execution-core",
+    "crates/ffi",
+]
+
+# Workspace package metadata
+[workspace.package]
+rust-version = "1.83"
+edition = "2021"
+
+# Workspace-level dependencies (shared across all crates)
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# Random number generation (limit version for compatibility with older Cargo)
+getrandom = { version = "0.2", default-features = false }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Cryptography
+sha2 = "0.10"
+hex = { version = "0.4", features = ["serde"] }
+
+# Redis (for event bus)
+# Using 0.24.0 for compatibility with Rust 1.83 (backon 1.6.0+ requires edition2024)
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# ZeroMQ (alternative event bus)
+# Using 0.10.0 (latest on crates.io) - requires system library
+# For CI: install libzmq3-dev (already configured in .github/workflows/ci.yml)
+# For Windows: install via vcpkg or use prebuilt binaries
+zmq = "0.10"
+
+# UUID (limit version to avoid getrandom 0.4.x which requires edition2024)
+uuid = { version = "=1.6", features = ["v4", "serde"] }
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Metrics
+prometheus = "0.13"
+
+# Python bindings (PyO3) - Python 3.14 support
+pyo3 = { version = "0.28", features = ["extension-module"] }
+pyo3-async-runtimes = { version = "0.28.0", features = ["tokio-runtime"] }
+
+# Testing
+tokio-test = "0.4"
+criterion = { version = "0.5", features = ["html_reports"] }
+mockall = "0.12"
+
+# Profiling
+pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
+jemallocator = { version = "0.5", features = ["unprefixed_malloc_on_supported_platforms"] }
+
+# Lock-free data structures
+crossbeam = "0.8"
+arrayvec = "0.7"
+
+# NOTE: Local workspace members are defined in [workspace].members
+# Cargo automatically resolves paths from members, no need for explicit workspace.dependencies
