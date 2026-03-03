@@ -157,25 +157,36 @@ impl Priority {
         }
     }
 
-    /// Создать Priority из строки
-    ///
-    /// # Аргументы
-    ///
-    /// * `s` - строковое значение ("critical", "high", "normal", "low")
-    ///
-    /// # Возвращаемое значение
-    ///
-    /// Option<Priority> - Some(Priority) если строка валидна, None иначе
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Option<Priority> {
-        match s.to_lowercase().as_str() {
-            "critical" | "0" => Some(Priority::Critical),
-            "high" | "1" => Some(Priority::High),
-            "normal" | "2" => Some(Priority::Normal),
-            "low" | "3" => Some(Priority::Low),
-            _ => None,
-        }
-    }
+ /// Создать Priority из строки
+ ///
+ /// # Аргументы
+ ///
+ /// * `s` - строковое значение ("critical", "high", "normal", "low")
+ ///
+ /// # Возвращаемое значение
+ ///
+ /// Option<Priority> - Some(Priority) если строка валидна, None иначе
+ pub fn parse(s: &str) -> Option<Priority> {
+ if s.eq_ignore_ascii_case("critical") || s == "0" {
+ Some(Priority::Critical)
+ } else if s.eq_ignore_ascii_case("high") || s == "1" {
+ Some(Priority::High)
+ } else if s.eq_ignore_ascii_case("normal") || s == "2" {
+ Some(Priority::Normal)
+ } else if s.eq_ignore_ascii_case("low") || s == "3" {
+ Some(Priority::Low)
+ } else {
+ None
+ }
+ }
+}
+
+impl std::str::FromStr for Priority {
+ type Err = &'static str;
+
+ fn from_str(s: &str) -> Result<Self, Self::Err> {
+ Self::parse(s).ok_or("Неверное значение приоритета")
+ }
 }
 
 impl std::fmt::Display for Priority {
@@ -299,17 +310,25 @@ mod tests {
         assert_eq!(Priority::Low.as_str(), "low");
     }
 
-    #[test]
-    fn test_from_str() {
-        assert_eq!(Priority::from_str("critical"), Some(Priority::Critical));
-        assert_eq!(Priority::from_str("CRITICAL"), Some(Priority::Critical));
-        assert_eq!(Priority::from_str("high"), Some(Priority::High));
-        assert_eq!(Priority::from_str("normal"), Some(Priority::Normal));
-        assert_eq!(Priority::from_str("low"), Some(Priority::Low));
-        assert_eq!(Priority::from_str("invalid"), None);
-        assert_eq!(Priority::from_str("0"), Some(Priority::Critical));
-        assert_eq!(Priority::from_str("1"), Some(Priority::High));
-    }
+ #[test]
+ fn test_parse() {
+ assert_eq!(Priority::parse("critical"), Some(Priority::Critical));
+ assert_eq!(Priority::parse("CRITICAL"), Some(Priority::Critical));
+ assert_eq!(Priority::parse("high"), Some(Priority::High));
+ assert_eq!(Priority::parse("normal"), Some(Priority::Normal));
+ assert_eq!(Priority::parse("low"), Some(Priority::Low));
+ assert_eq!(Priority::parse("invalid"), None);
+ assert_eq!(Priority::parse("0"), Some(Priority::Critical));
+ assert_eq!(Priority::parse("1"), Some(Priority::High));
+ }
+
+ #[test]
+ fn test_from_str_trait() {
+ use std::str::FromStr;
+
+ assert_eq!(Priority::from_str("critical"), Ok(Priority::Critical));
+ assert!(Priority::from_str("invalid").is_err());
+ }
 
     #[test]
     fn test_display() {
