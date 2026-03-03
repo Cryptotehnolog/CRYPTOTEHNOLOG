@@ -78,7 +78,7 @@ impl Default for PersistenceConfig {
             ttl_critical: 30 * 24 * 60 * 60,  // 30 дней
             ttl_high: 7 * 24 * 60 * 60,       // 7 дней
             ttl_normal: 3 * 24 * 60 * 60,     // 3 дня
-            ttl_low: 1 * 24 * 60 * 60,        // 1 день
+            ttl_low: 24 * 60 * 60,            // 1 день
         }
     }
 }
