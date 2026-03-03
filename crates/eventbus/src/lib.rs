@@ -95,6 +95,8 @@ pub mod event;
 pub mod priority;
 pub mod priority_queue;
 pub mod backpressure;
+pub mod persistence;
+pub mod rate_limiter;
 
 #[cfg(feature = "lock-free")]
 pub mod ring_buffer;
@@ -107,6 +109,14 @@ pub use priority::Priority;
 pub use priority_queue::{PriorityQueue, PushResult, QueueCapacity};
 pub use backpressure::{
     BackpressureHandler, BackpressureStrategy, HandleResult, DroppedStats, BackpressureMetrics,
+};
+pub use persistence::{
+    PersistenceLayer, PersistenceConfig, PersistenceError, PersistenceMetrics, PersistResult,
+    SyncPersistenceLayer,
+};
+pub use rate_limiter::{
+    RateLimiter, RateLimiterConfig, RateLimitError, RateLimitResult, RateLimiterMetrics,
+    SlidingWindow, SyncRateLimiter,
 };
 
 #[cfg(feature = "lock-free")]
