@@ -407,6 +407,7 @@ dependencies = [
  "crossbeam",
  "crossbeam-channel",
  "cryptotechnolog-common",
+ "parking_lot",
  "redis",
  "serde",
  "serde_json",

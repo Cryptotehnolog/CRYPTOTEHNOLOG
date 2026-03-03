@@ -5,6 +5,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::priority::Priority;
+
 /// Core event type for the event bus
 ///
 /// Events are the primary communication mechanism between components
@@ -14,6 +16,7 @@ use uuid::Uuid;
 ///
 /// ```rust,ignore
 /// use cryptotechnolog_eventbus::Event;
+/// use cryptotechnolog_eventbus::priority::Priority;
 /// use serde_json::json;
 ///
 /// let event = Event::new(
@@ -21,10 +24,17 @@ use uuid::Uuid;
 ///     "RISK_ENGINE",
 ///     json!({"symbol": "BTCUSDT", "quantity": 0.1}),
 /// );
+///
+/// // Событие с высоким приоритетом
+/// let critical_event = Event::new(
+///     "KILL_SWITCH_TRIGGERED",
+///     "SYSTEM",
+///     json!({"reason": "manual_trigger"}),
+/// ).with_priority(Priority::Critical);
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Event {
-    /// Unique event ID
+    /// Unique event ID (UUID v4)
     pub id: Uuid,
 
     /// Event type (e.g., "ORDER_SUBMITTED", "POSITION_OPENED")
@@ -35,6 +45,10 @@ pub struct Event {
 
     /// Event timestamp (UTC)
     pub timestamp: DateTime<Utc>,
+
+    /// Event priority (Critical/High/Normal/Low)
+    /// По умолчанию Normal
+    pub priority: Priority,
 
     /// Event payload (JSON data)
     pub payload: serde_json::Value,
@@ -48,6 +62,8 @@ pub struct Event {
 
 impl Event {
     /// Create a new event
+    ///
+    /// По умолчанию событие создается с приоритетом Normal
     ///
     /// # Arguments
     ///
@@ -68,6 +84,7 @@ impl Event {
             event_type: event_type.into(),
             source: source.into(),
             timestamp: Utc::now(),
+            priority: Priority::default(), // Normal
             payload,
             correlation_id: None,
             metadata: serde_json::json!({}),
@@ -94,6 +111,22 @@ impl Event {
         let mut event = Self::new(event_type, source, payload);
         event.correlation_id = Some(correlation_id);
         event
+    }
+
+    /// Set priority for the event
+    ///
+    /// Позволяет создать копию события с указанным приоритетом
+    ///
+    /// # Arguments
+    ///
+    /// * `priority` - Приоритет события (Critical/High/Normal/Low)
+    ///
+    /// # Returns
+    ///
+    /// Self для цепочки вызовов
+    pub fn with_priority(mut self, priority: Priority) -> Self {
+        self.priority = priority;
+        self
     }
 
     /// Add metadata to the event
@@ -135,6 +168,24 @@ impl Event {
     pub fn age_seconds(&self) -> i64 {
         (Utc::now() - self.timestamp).num_seconds()
     }
+
+    /// Check if this event requires persistence
+    ///
+    /// # Returns
+    ///
+    /// true если событие должно быть сохранено в persistence layer
+    pub fn requires_persistence(&self) -> bool {
+        self.priority.requires_persistence()
+    }
+
+    /// Check if this event can be dropped
+    ///
+    /// # Returns
+    ///
+    /// true если событие может быть отброшено при backpressure
+    pub fn is_droppable(&self) -> bool {
+        self.priority.is_droppable()
+    }
 }
 
 #[cfg(test)]
@@ -153,6 +204,19 @@ mod tests {
         assert_eq!(event.source, "TEST_SOURCE");
         assert_eq!(event.payload["key"], "value");
         assert!(event.correlation_id.is_none());
+        assert_eq!(event.priority, Priority::Normal); // По умолчанию Normal
+    }
+
+    #[test]
+    fn test_event_with_priority() {
+        let event = Event::new("TEST", "SOURCE", serde_json::json!({}))
+            .with_priority(Priority::Critical);
+        
+        assert_eq!(event.priority, Priority::Critical);
+        
+        let high_event = Event::new("TEST", "SOURCE", serde_json::json!({}))
+            .with_priority(Priority::High);
+        assert_eq!(high_event.priority, Priority::High);
     }
 
     #[test]
@@ -195,5 +259,30 @@ mod tests {
         let age = event.age_seconds();
         assert!(age >= 0);
         assert!(age < 1); // Should be very recent
+    }
+
+    #[test]
+    fn test_event_requires_persistence() {
+        let critical_event = Event::new("TEST", "SOURCE", serde_json::json!({}))
+            .with_priority(Priority::Critical);
+        assert!(critical_event.requires_persistence());
+
+        let high_event = Event::new("TEST", "SOURCE", serde_json::json!({}))
+            .with_priority(Priority::High);
+        assert!(high_event.requires_persistence());
+
+        let normal_event = Event::new("TEST", "SOURCE", serde_json::json!({}));
+        assert!(!normal_event.requires_persistence());
+    }
+
+    #[test]
+    fn test_event_is_droppable() {
+        let critical_event = Event::new("TEST", "SOURCE", serde_json::json!({}))
+            .with_priority(Priority::Critical);
+        assert!(!critical_event.is_droppable());
+
+        let low_event = Event::new("TEST", "SOURCE", serde_json::json!({}))
+            .with_priority(Priority::Low);
+        assert!(low_event.is_droppable());
     }
 }

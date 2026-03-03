@@ -33,6 +33,9 @@ crossbeam-channel = "0.5"
 crossbeam = { workspace = true, optional = true }
 arrayvec = { workspace = true, optional = true }
 
+# Parking lot for faster mutex (production use)
+parking_lot = "0.12"
+
 # Local dependencies
 cryptotechnolog-common = { path = "../common" }
 

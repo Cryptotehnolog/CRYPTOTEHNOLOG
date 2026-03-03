@@ -92,6 +92,9 @@
 // ```
 
 pub mod event;
+pub mod priority;
+pub mod priority_queue;
+pub mod backpressure;
 
 #[cfg(feature = "lock-free")]
 pub mod ring_buffer;
@@ -100,6 +103,11 @@ pub mod bus;
 
 // ==================== Re-exports ====================
 pub use event::Event;
+pub use priority::Priority;
+pub use priority_queue::{PriorityQueue, PushResult, QueueCapacity};
+pub use backpressure::{
+    BackpressureHandler, BackpressureStrategy, HandleResult, DroppedStats, BackpressureMetrics,
+};
 
 #[cfg(feature = "lock-free")]
 pub use ring_buffer::LockFreeRingBuffer;
