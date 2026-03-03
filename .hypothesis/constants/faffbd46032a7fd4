@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\core\dual_control.py
+# hypothesis_version: 6.151.9
+
+['admin', 'approved', 'approved_at', 'approved_by', 'cancelled', 'config_change', 'emergency_stop', 'expired', 'expires_at', 'id', 'metadata', 'operation_type', 'pending', 'rejected', 'rejected_by', 'rejection_reason', 'requested_at', 'requested_by', 'risk_limit_override', 'risk_manager', 'state_transition', 'status', 'system_halt', 'system_resume', 'target_state', 'trader', 'viewer']

@@ -17,9 +17,10 @@ use crate::priority::Priority;
 use crate::priority_queue::{new_sync_queue_with_capacity, PushResult, QueueCapacity, SyncPriorityQueue};
 
 /// Стратегия backpressure при переполнении очереди
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum BackpressureStrategy {
     /// Дропать low priority события при переполнении
+    #[default]
     DropLow,
     
     /// Дропать normal + low priority события при переполнении
@@ -32,11 +33,7 @@ pub enum BackpressureStrategy {
     BlockCritical,
 }
 
-impl Default for BackpressureStrategy {
-    fn default() -> Self {
-        BackpressureStrategy::DropLow
-    }
-}
+
 
 impl BackpressureStrategy {
     /// Получить строковое представление стратегии
@@ -50,6 +47,7 @@ impl BackpressureStrategy {
     }
     
     /// Создать стратегию из строки
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "drop_low" => Some(BackpressureStrategy::DropLow),
