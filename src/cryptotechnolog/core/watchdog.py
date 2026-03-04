@@ -24,12 +24,15 @@ from typing import TYPE_CHECKING, Any
 
 from cryptotechnolog.config import get_logger
 
+# Верхнеуровневый импорт EnhancedEventBus
+from .enhanced_event_bus import EnhancedEventBus
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 from .circuit_breaker import CircuitBreaker, CircuitBreakerError, CircuitState
 from .event import Event, SystemEventSource, SystemEventType
-from .event_bus import EventBus, get_event_bus
+from .enhanced_event_bus import EnhancedEventBus
 from .metrics import get_metrics_collector, get_slo_registry
 
 logger = get_logger(__name__)
@@ -308,12 +311,15 @@ class Watchdog:
 
     def __init__(
         self,
-        event_bus: EventBus | None = None,
+        event_bus: EnhancedEventBus | None = None,
         check_interval: float = 30.0,
         failure_threshold: int = 3,
         max_recovery_attempts: int = 3,
     ) -> None:
+        # Получить глобальный экземпляр Event Bus
+        from . import get_event_bus
         self._event_bus = event_bus or get_event_bus()
+        # asyncio уже импортирован на уровне модуля
         self._check_interval = check_interval
         self._failure_threshold = failure_threshold
         self._max_recovery_attempts = max_recovery_attempts
@@ -419,11 +425,14 @@ class Watchdog:
 
         def callback(old_state: CircuitState, new_state: CircuitState) -> None:
             if new_state == CircuitState.OPEN:
-                self._publish_alert(
-                    WatchdogAlertLevel.ERROR,
-                    component_name,
-                    f"Circuit breaker OPEN для {component_name}",
-                    {"old_state": old_state.value, "new_state": new_state.value},
+                # Используем fire-and-forget для синхронного callback
+                asyncio.create_task(
+                    self._publish_alert(
+                        WatchdogAlertLevel.ERROR,
+                        component_name,
+                        f"Circuit breaker OPEN для {component_name}",
+                        {"old_state": old_state.value, "new_state": new_state.value},
+                    )
                 )
             elif new_state == CircuitState.CLOSED:
                 logger.info(
@@ -441,7 +450,7 @@ class Watchdog:
         if health.status == ComponentStatus.UNHEALTHY:
             self._total_failures += 1
 
-            self._publish_alert(
+            await self._publish_alert(
                 WatchdogAlertLevel.WARNING,
                 health.name,
                 f"Компонент {health.name} нездоров: {health.error_message}",
@@ -457,7 +466,7 @@ class Watchdog:
                 success = await checker.recover()
                 if success:
                     self._total_recoveries += 1
-                    self._publish_alert(
+                    await self._publish_alert(
                         WatchdogAlertLevel.INFO,
                         health.name,
                         f"Компонент {health.name} восстановлен",
@@ -470,7 +479,7 @@ class Watchdog:
                             logger.error("Ошибка в callback восстановления", error=str(e))
 
         elif health.status == ComponentStatus.FAILED:
-            self._publish_alert(
+            await self._publish_alert(
                 WatchdogAlertLevel.CRITICAL,
                 health.name,
                 f"Компонент {health.name} в состоянии FAILURE: {health.error_message}",
@@ -512,7 +521,7 @@ class Watchdog:
                     await self.check_slo_violations(metrics_collector)
 
                 # Publish system health event
-                self._publish_system_health()
+                await self._publish_system_health()
 
                 # Wait for next check
                 await asyncio.sleep(self._check_interval)
@@ -526,7 +535,7 @@ class Watchdog:
 
         logger.info("Watchdog мониторинг завершён")
 
-    def _publish_system_health(self) -> None:
+    async def _publish_system_health(self) -> None:
         """Опубликовать событие системного здоровья."""
         components_data: dict[str, dict[str, Any]] = {}
 
@@ -552,9 +561,9 @@ class Watchdog:
             health_data,
         )
 
-        self._event_bus.publish(event)
+        await self._event_bus.publish(event)
 
-    def _publish_alert(
+    async def _publish_alert(
         self,
         level: WatchdogAlertLevel,
         component: str,
@@ -588,7 +597,7 @@ class Watchdog:
             },
         )
 
-        self._event_bus.publish(event)
+        await self._event_bus.publish(event)
 
     async def check_all(self) -> dict[str, ComponentHealth]:
         """
@@ -673,7 +682,7 @@ class Watchdog:
             SystemEventSource.WATCHDOG,
             {"component_count": self.component_count},
         )
-        self._event_bus.publish(event)
+        await self._event_bus.publish(event)
 
     async def stop(self) -> None:
         """Остановить Watchdog."""
@@ -699,7 +708,7 @@ class Watchdog:
                 "total_failures": self._total_failures,
             },
         )
-        self._event_bus.publish(event)
+        await self._event_bus.publish(event)
 
     def get_stats(self) -> dict[str, Any]:
         """Получить статистику Watchdog."""
@@ -739,7 +748,7 @@ class Watchdog:
 
                 # Публикуем alert для каждого нарушения
                 for violation in violations:
-                    self._publish_alert(
+                    await self._publish_alert(
                         WatchdogAlertLevel.WARNING,
                         "SLO",
                         f"SLO нарушен: {violation['slo_name']}",

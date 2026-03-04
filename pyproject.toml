@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cryptotechnolog"
-version = "1.2.0"
+version = "1.3.0"
 description = "Institutional-Grade Crypto Trading Platform"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"

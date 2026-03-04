@@ -6,10 +6,60 @@ Event Types for Event Bus.
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from enum import Enum
 from typing import Any
 import uuid
+
+
+class Priority(str, Enum):
+    """Приоритеты событий."""
+    
+    CRITICAL = "critical"      # Убийственные переключатели, системные сбои
+    HIGH = "high"              # Нарушения рисков, критические ошибки исполнения
+    NORMAL = "normal"          # Торговые сигналы, обычные операции
+    LOW = "low"                # Метрики, информационные логи
+    
+    def to_rust_priority(self) -> str:
+        """Конвертировать в строку для Rust биндингов."""
+        return self.value
+    
+    @classmethod
+    def from_string(cls, value: str) -> Priority:
+        """Создать Priority из строки."""
+        try:
+            return cls(value.lower())
+        except ValueError:
+            # По умолчанию NORMAL
+            return cls.NORMAL
+    
+    def queue_capacity(self) -> int:
+        """Получить ёмкость очереди для приоритета."""
+        return {
+            Priority.CRITICAL: 100,    # Маленькая, быстрая
+            Priority.HIGH: 500,        # Средняя
+            Priority.NORMAL: 10000,    # Большая
+            Priority.LOW: 50000,       # Очень большая
+        }[self]
+    
+    def requires_persistence(self) -> bool:
+        """Требуется ли персистентность для этого приоритета."""
+        return self in (Priority.CRITICAL, Priority.HIGH)
+    
+    def is_droppable(self) -> bool:
+        """Можно ли отбрасывать события этого приоритета."""
+        return self == Priority.LOW
+    
+    def as_u8(self) -> int:
+        """Конвертировать в числовое значение (для Rust)."""
+        return {
+            Priority.CRITICAL: 0,
+            Priority.HIGH: 1,
+            Priority.NORMAL: 2,
+            Priority.LOW: 3,
+        }[self]
 
 
 @dataclass
@@ -28,6 +78,7 @@ class Event:
         payload: Данные события (JSON-совместимый dict)
         correlation_id: Опциональный ID для отслеживания связанных событий
         metadata: Дополнительные метаданные события
+        priority: Приоритет события (CRITICAL/HIGH/NORMAL/LOW)
     """
 
     event_type: str
@@ -37,6 +88,7 @@ class Event:
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     correlation_id: uuid.UUID | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    priority: Priority = Priority.NORMAL
 
     @classmethod
     def new(
@@ -103,6 +155,20 @@ class Event:
         self.metadata[key] = value
         return self
 
+    def with_priority(self, priority: Priority) -> Event:
+        """
+        Создать копию события с указанным приоритетом.
+
+        Аргументы:
+            priority: Новый приоритет события
+
+        Возвращает:
+            Новая копия события с обновлённым приоритетом
+        """
+        new_event = copy.deepcopy(self)
+        new_event.priority = priority
+        return new_event
+
     def is_correlated_with(self, other: Event) -> bool:
         """
         Проверить, коррелировано ли это событие с другим.
@@ -140,6 +206,7 @@ class Event:
             "payload": self.payload,
             "correlation_id": str(self.correlation_id) if self.correlation_id else None,
             "metadata": self.metadata,
+            "priority": self.priority.value,
         }
 
     @classmethod
@@ -163,6 +230,7 @@ class Event:
             if data.get("correlation_id")
             else None,
             metadata=data.get("metadata", {}),
+            priority=Priority.from_string(data.get("priority", "normal")),
         )
 
 
