@@ -30,8 +30,7 @@ class _GlobalEventBusInstance:
         """Get global EnhancedEventBus instance."""
         # Import here to avoid circular dependency
         EnhancedEventBus = __import__(
-            "cryptotechnolog.core.enhanced_event_bus",
-            fromlist=["EnhancedEventBus"]
+            "cryptotechnolog.core.enhanced_event_bus", fromlist=["EnhancedEventBus"]
         ).EnhancedEventBus
 
         with cls._lock:

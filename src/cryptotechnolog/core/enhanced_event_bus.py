@@ -44,10 +44,10 @@ logger = get_logger(__name__)
 class BackpressureStrategy(StrEnum):
     """Стратегии backpressure при переполнении."""
 
-    DROP_LOW = "drop_low"             # Отбрасывать LOW события
+    DROP_LOW = "drop_low"  # Отбрасывать LOW события
     OVERFLOW_NORMAL = "overflow_normal"  # Переполнение в NORMAL очередь
-    DROP_NORMAL = "drop_normal"       # Отбрасывать NORMAL + LOW
-    BLOCK_CRITICAL = "block_critical" # Блокировать только CRITICAL
+    DROP_NORMAL = "drop_normal"  # Отбрасывать NORMAL + LOW
+    BLOCK_CRITICAL = "block_critical"  # Блокировать только CRITICAL
 
 
 # Threshold constants for backpressure fill ratios
@@ -58,21 +58,25 @@ _FILL_RATIO_HIGH = 0.9
 
 class RateLimitError(Exception):
     """Ошибка превышения rate limit."""
+
     pass
 
 
 class PersistenceError(Exception):
     """Ошибка сохранения в Redis."""
+
     pass
 
 
 class BackpressureError(Exception):
     """Ошибка backpressure."""
+
     pass
 
 
 class PublishError(Exception):
     """Ошибка публикации события."""
+
     pass
 
 
@@ -302,8 +306,9 @@ class RateLimiter:
             # Проверить лимит источника
             if source in self.source_limits:
                 source_limit = self.source_limits[source]
-                self.counts[source] = [t for t in self.counts.get(source, [])
-                                      if current_time - t < 1.0]
+                self.counts[source] = [
+                    t for t in self.counts.get(source, []) if current_time - t < 1.0
+                ]
                 if len(self.counts[source]) >= source_limit:
                     return False
 
@@ -381,27 +386,20 @@ class PersistenceLayer:
 
             # Добавить в stream с ограничением длины
             stream_id = await self.redis.xadd(
-                stream_key,
-                {"event": event_json},
-                maxlen=self.max_stream_len,
-                approximate=True
+                stream_key, {"event": event_json}, maxlen=self.max_stream_len, approximate=True
             )
 
             logger.debug(
                 "Событие сохранено в Redis",
                 event_id=event.id,
                 stream_id=stream_id,
-                priority=event.priority.value
+                priority=event.priority.value,
             )
 
             return stream_id
 
         except Exception as e:
-            logger.error(
-                "Ошибка сохранения события в Redis",
-                event_id=event.id,
-                error=str(e)
-            )
+            logger.error("Ошибка сохранения события в Redis", event_id=event.id, error=str(e))
             raise PersistenceError(f"Ошибка сохранения события: {e}") from e
 
     async def save_batch(self, events: list[Event]) -> list[str | None]:
@@ -428,10 +426,7 @@ class PersistenceLayer:
         return results
 
     async def replay(
-        self,
-        priority: Priority,
-        from_id: str | None = None,
-        limit: int = 100
+        self, priority: Priority, from_id: str | None = None, limit: int = 100
     ) -> list[Event]:
         """
         Воспроизвести события из Redis Stream.
@@ -454,12 +449,7 @@ class PersistenceLayer:
             start = from_id if from_id else "0-0"
 
             # Чтение из stream
-            stream_data = await self.redis.xrange(
-                stream_key,
-                min=start,
-                max="+",
-                count=limit
-            )
+            stream_data = await self.redis.xrange(stream_key, min=start, max="+", count=limit)
 
             events = []
             for _stream_id, data in stream_data:
@@ -472,16 +462,14 @@ class PersistenceLayer:
                 "Воспроизведены события из Redis",
                 count=len(events),
                 priority=priority.value,
-                from_id=from_id
+                from_id=from_id,
             )
 
             return events
 
         except Exception as e:
             logger.error(
-                "Ошибка воспроизведения событий из Redis",
-                error=str(e),
-                priority=priority.value
+                "Ошибка воспроизведения событий из Redis", error=str(e), priority=priority.value
             )
             raise PersistenceError(f"Ошибка воспроизведения: {e}") from e
 
@@ -699,16 +687,32 @@ class EnhancedEventBus:
         fill_ratio = queue_size / queue_capacity if queue_capacity > 0 else 0.0
 
         # Применить стратегию backpressure
-        if self.backpressure_strategy == BackpressureStrategy.DROP_LOW and event.priority == Priority.LOW and fill_ratio > _FILL_RATIO_LOW:
+        if (
+            self.backpressure_strategy == BackpressureStrategy.DROP_LOW
+            and event.priority == Priority.LOW
+            and fill_ratio > _FILL_RATIO_LOW
+        ):
             return BackpressureStrategy.DROP_LOW
 
-        elif self.backpressure_strategy == BackpressureStrategy.OVERFLOW_NORMAL and event.priority == Priority.NORMAL and fill_ratio > _FILL_RATIO_NORMAL:
+        elif (
+            self.backpressure_strategy == BackpressureStrategy.OVERFLOW_NORMAL
+            and event.priority == Priority.NORMAL
+            and fill_ratio > _FILL_RATIO_NORMAL
+        ):
             return BackpressureStrategy.OVERFLOW_NORMAL
 
-        elif self.backpressure_strategy == BackpressureStrategy.DROP_NORMAL and event.priority in (Priority.NORMAL, Priority.LOW) and fill_ratio > _FILL_RATIO_HIGH:
+        elif (
+            self.backpressure_strategy == BackpressureStrategy.DROP_NORMAL
+            and event.priority in (Priority.NORMAL, Priority.LOW)
+            and fill_ratio > _FILL_RATIO_HIGH
+        ):
             return BackpressureStrategy.DROP_NORMAL
 
-        elif self.backpressure_strategy == BackpressureStrategy.BLOCK_CRITICAL and event.priority == Priority.CRITICAL and fill_ratio > _FILL_RATIO_HIGH:
+        elif (
+            self.backpressure_strategy == BackpressureStrategy.BLOCK_CRITICAL
+            and event.priority == Priority.CRITICAL
+            and fill_ratio > _FILL_RATIO_HIGH
+        ):
             return BackpressureStrategy.BLOCK_CRITICAL
 
         # По умолчанию - принять событие
@@ -795,9 +799,8 @@ class EnhancedEventBus:
         # 3. Обработать событие в соответствии со стратегией
         if backpressure_action == BackpressureStrategy.DROP_LOW and event.priority == Priority.LOW:
             # Проверить заполненность очереди LOW
-            fill_ratio = (
-                self.priority_queue.size(Priority.LOW) /
-                self.priority_queue.capacity(Priority.LOW)
+            fill_ratio = self.priority_queue.size(Priority.LOW) / self.priority_queue.capacity(
+                Priority.LOW
             )
             if fill_ratio > _FILL_RATIO_LOW:
                 self.metrics["dropped"] += 1
@@ -807,7 +810,10 @@ class EnhancedEventBus:
                     source=event.source,
                 )
                 return False
-        elif backpressure_action == BackpressureStrategy.DROP_NORMAL and event.priority in (Priority.NORMAL, Priority.LOW):
+        elif backpressure_action == BackpressureStrategy.DROP_NORMAL and event.priority in (
+            Priority.NORMAL,
+            Priority.LOW,
+        ):
             self.metrics["dropped"] += 1
             logger.warning(
                 f"{event.priority.value} событие отброшено (backpressure)",

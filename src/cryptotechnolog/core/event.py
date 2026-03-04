@@ -17,10 +17,10 @@ import uuid
 class Priority(StrEnum):
     """Приоритеты событий."""
 
-    CRITICAL = "critical"      # Убийственные переключатели, системные сбои
-    HIGH = "high"              # Нарушения рисков, критические ошибки исполнения
-    NORMAL = "normal"          # Торговые сигналы, обычные операции
-    LOW = "low"                # Метрики, информационные логи
+    CRITICAL = "critical"  # Убийственные переключатели, системные сбои
+    HIGH = "high"  # Нарушения рисков, критические ошибки исполнения
+    NORMAL = "normal"  # Торговые сигналы, обычные операции
+    LOW = "low"  # Метрики, информационные логи
 
     def to_rust_priority(self) -> str:
         """Конвертировать в строку для Rust биндингов."""
@@ -38,10 +38,10 @@ class Priority(StrEnum):
     def queue_capacity(self) -> int:
         """Получить ёмкость очереди для приоритета."""
         return {
-            Priority.CRITICAL: 100,    # Маленькая, быстрая
-            Priority.HIGH: 500,        # Средняя
-            Priority.NORMAL: 10000,    # Большая
-            Priority.LOW: 50000,       # Очень большая
+            Priority.CRITICAL: 100,  # Маленькая, быстрая
+            Priority.HIGH: 500,  # Средняя
+            Priority.NORMAL: 10000,  # Большая
+            Priority.LOW: 50000,  # Очень большая
         }[self]
 
     def requires_persistence(self) -> bool:

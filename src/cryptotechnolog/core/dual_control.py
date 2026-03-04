@@ -218,6 +218,7 @@ DUAL_CONTROL_OPERATIONS = CRITICAL_OPERATIONS | HIGH_RISK_OPERATIONS | LOW_RISK_
 
 # ==================== Dual Control Manager (заглушка для совместимости) ====================
 
+
 class DualControlManager:
     """
     Менеджер dual control (двойного контроля).
