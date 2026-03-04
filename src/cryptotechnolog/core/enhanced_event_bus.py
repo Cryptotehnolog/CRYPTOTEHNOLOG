@@ -776,6 +776,34 @@ class EnhancedEventBus:
 
         return delivered
 
+    async def _call_handlers(self, event: Event) -> None:
+        """
+        Вызвать зарегистрированные обработчики для события.
+
+        Аргументы:
+            event: Событие для обработки
+        """
+        # Получить обработчики для конкретного типа события
+        handlers = self.handlers.get(event.event_type, [])
+        wildcard_handlers = self.handlers.get("*", [])
+
+        all_handlers = handlers + wildcard_handlers
+
+        for handler in all_handlers:
+            try:
+                # Проверить является ли обработчик async
+                if asyncio.iscoroutinefunction(handler):
+                    await handler(event)
+                else:
+                    handler(event)
+            except Exception as e:
+                logger.error(
+                    "Ошибка в обработчике события",
+                    event_type=event.event_type,
+                    handler=str(handler),
+                    error=str(e),
+                )
+
     async def publish(self, event: Event) -> bool:
         """
         Опубликовать событие с учётом приоритета, rate limit и backpressure.
@@ -845,6 +873,9 @@ class EnhancedEventBus:
         # 7. Доставить подписчикам (синхронно)
         delivered = self._deliver_to_subscribers(event)
         self.metrics["delivered"] += delivered
+
+        # 8. Вызвать зарегистрированные обработчики
+        await self._call_handlers(event)
 
         logger.debug(
             "Событие опубликовано",
