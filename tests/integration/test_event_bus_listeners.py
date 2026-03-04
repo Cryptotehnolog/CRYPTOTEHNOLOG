@@ -292,11 +292,12 @@ class TestEventBusWithAllListeners:
         event_bus.enable_listeners()
 
         # Мокаем БД для всех listeners
-        with patch("cryptotechnolog.core.listeners.state_machine.get_db_pool") as mock_sm, \
-             patch("cryptotechnolog.core.listeners.audit.get_db_pool") as mock_audit, \
-             patch("cryptotechnolog.core.listeners.metrics.get_db_pool") as mock_metrics, \
-             patch("cryptotechnolog.core.listeners.risk.get_db_pool") as mock_risk:
-
+        with (
+            patch("cryptotechnolog.core.listeners.state_machine.get_db_pool") as mock_sm,
+            patch("cryptotechnolog.core.listeners.audit.get_db_pool") as mock_audit,
+            patch("cryptotechnolog.core.listeners.metrics.get_db_pool") as mock_metrics,
+            patch("cryptotechnolog.core.listeners.risk.get_db_pool") as mock_risk,
+        ):
             # Настраиваем моки
             for mock in [mock_sm, mock_audit, mock_metrics, mock_risk]:
                 mock_pool = AsyncMock()
@@ -307,24 +308,36 @@ class TestEventBusWithAllListeners:
 
             # Публикуем несколько событий разных типов
             events = [
-                Event.new("STATE_TRANSITION", "STATE_MACHINE", {
-                    "from_state": "BOOT",
-                    "to_state": "READY",
-                    "trigger": "init",
-                }),
-                Event.new("ORDER_SUBMITTED", "STRATEGY", {
-                    "order_id": "order_1",
-                    "symbol": "BTCUSDT",
-                    "side": "BUY",
-                    "size": 1.0,
-                    "price": 50000,
-                }),
-                Event.new("ORDER_FILLED", "EXECUTION", {
-                    "order_id": "order_1",
-                    "symbol": "BTCUSDT",
-                    "filled_size": 1.0,
-                    "price": 50000,
-                }),
+                Event.new(
+                    "STATE_TRANSITION",
+                    "STATE_MACHINE",
+                    {
+                        "from_state": "BOOT",
+                        "to_state": "READY",
+                        "trigger": "init",
+                    },
+                ),
+                Event.new(
+                    "ORDER_SUBMITTED",
+                    "STRATEGY",
+                    {
+                        "order_id": "order_1",
+                        "symbol": "BTCUSDT",
+                        "side": "BUY",
+                        "size": 1.0,
+                        "price": 50000,
+                    },
+                ),
+                Event.new(
+                    "ORDER_FILLED",
+                    "EXECUTION",
+                    {
+                        "order_id": "order_1",
+                        "symbol": "BTCUSDT",
+                        "filled_size": 1.0,
+                        "price": 50000,
+                    },
+                ),
             ]
 
             for evt in events:
