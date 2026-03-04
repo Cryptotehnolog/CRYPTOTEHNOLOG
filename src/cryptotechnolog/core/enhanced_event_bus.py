@@ -961,8 +961,6 @@ class EnhancedEventBus:
 
     def enable_listeners(self) -> None:
         """Включить listeners для Event Bus."""
-        from .listeners import get_listener_registry
-        
         registry = get_listener_registry()
         self.listener_registry = registry
 

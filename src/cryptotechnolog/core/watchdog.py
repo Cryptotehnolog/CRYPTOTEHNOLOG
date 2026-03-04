@@ -32,9 +32,13 @@ if TYPE_CHECKING:
 
 from .circuit_breaker import CircuitBreaker, CircuitBreakerError, CircuitState
 from .event import Event, Priority, SystemEventSource, SystemEventType
-from .enhanced_event_bus import EnhancedEventBus
 from .event_publisher import publish_event
+from .global_instances import get_event_bus
 from .metrics import get_metrics_collector, get_slo_registry
+
+# Type alias for EventBus
+if TYPE_CHECKING:
+    from .enhanced_event_bus import EnhancedEventBus
 
 logger = get_logger(__name__)
 
@@ -312,15 +316,12 @@ class Watchdog:
 
     def __init__(
         self,
-        event_bus: EnhancedEventBus | None = None,
+        event_bus: "EnhancedEventBus | None" = None,
         check_interval: float = 30.0,
         failure_threshold: int = 3,
         max_recovery_attempts: int = 3,
     ) -> None:
-        # Получить глобальный экземпляр Event Bus
-        from . import get_event_bus
         self._event_bus = event_bus or get_event_bus()
-        # asyncio уже импортирован на уровне модуля
         self._check_interval = check_interval
         self._failure_threshold = failure_threshold
         self._max_recovery_attempts = max_recovery_attempts

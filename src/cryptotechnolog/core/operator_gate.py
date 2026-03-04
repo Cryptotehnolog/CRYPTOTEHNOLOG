@@ -22,9 +22,6 @@ import uuid
 
 from cryptotechnolog.config import get_logger
 
-# Верхнеуровневый импорт EnhancedEventBus
-from .enhanced_event_bus import EnhancedEventBus
-
 from .dual_control import (
     CRITICAL_OPERATIONS,
     DEFAULT_REQUEST_TIMEOUT_MINUTES,
@@ -35,11 +32,12 @@ from .dual_control import (
     OperatorRole,
 )
 from .event import Event, Priority, SystemEventSource, SystemEventType
-from .enhanced_event_bus import EnhancedEventBus
 from .event_publisher import publish_event
+from .global_instances import get_event_bus
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from .enhanced_event_bus import EnhancedEventBus
 
 logger = get_logger(__name__)
 
@@ -171,8 +169,6 @@ class OperatorGate:
         authenticator: TokenAuthenticator | None = None,
         request_timeout: int = DEFAULT_REQUEST_TIMEOUT_MINUTES,
     ) -> None:
-        # Верхнеуровневый импорт get_event_bus для избежания циклических зависимостей
-        from . import get_event_bus
         self._event_bus = event_bus or get_event_bus()
         self._authenticator = authenticator or TokenAuthenticator()
         self._request_timeout = request_timeout

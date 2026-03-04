@@ -6,18 +6,23 @@ Event Publisher - Utilities for publishing events.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .event import Event, Priority, SystemEventSource, SystemEventType
+from .global_instances import get_event_bus as _get_global_bus
 from ..config import get_logger
 
-
-def get_event_bus():
-    """Получить глобальный Event Bus."""
+if TYPE_CHECKING:
     from .enhanced_event_bus import EnhancedEventBus
-    from . import _GlobalEventBusInstance
-    return _GlobalEventBusInstance.get_instance()
+
+logger = get_logger(__name__)
+
+
+def get_event_bus() -> "EnhancedEventBus":
+    """Получить глобальный Event Bus."""
+    return _get_global_bus()
 
 
 def publish_event(
@@ -48,10 +53,6 @@ def publish_event(
     Возвращает:
         True если событие успешно поставлено в очередь, False в случае ошибки или таймаута
     """
-    import asyncio
-    
-    logger = get_logger(__name__)
-    
     # Создать событие
     event = Event.new(event_type, source, payload)
     event.priority = priority
