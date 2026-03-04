@@ -468,6 +468,12 @@ impl BackpressureHandler {
         queue.is_empty()
     }
     
+    /// Получить размер очереди по приоритету
+    pub fn size(&self, priority: Priority) -> usize {
+        let queue = self.queue.read();
+        queue.size(priority)
+    }
+    
     /// Получить статистику отброшенных событий
     pub fn get_dropped_stats(&self) -> DroppedStats {
         DroppedStats {

@@ -102,6 +102,7 @@ pub mod rate_limiter;
 pub mod ring_buffer;
 
 pub mod bus;
+pub mod enhanced_bus;
 
 // ==================== Re-exports ====================
 pub use event::Event;
@@ -123,6 +124,12 @@ pub use rate_limiter::{
 pub use ring_buffer::LockFreeRingBuffer;
 
 pub use bus::{EventBus, EventBusBackend};
+
+// Re-exports for Enhanced Event Bus (исправленная версия)
+pub use enhanced_bus::{
+ EnhancedEventBus, BusMetrics, PublishResult, SyncEnhancedEventBus,
+ new_enhanced_event_bus, new_enhanced_event_bus_with_capacity,
+};
 
 // ==================== Tests ====================
 #[cfg(test)]
