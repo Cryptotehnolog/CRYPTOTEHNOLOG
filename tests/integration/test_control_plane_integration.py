@@ -29,7 +29,10 @@ from cryptotechnolog.core.state_machine_enums import SystemState
 @pytest.fixture
 def test_event_bus():
     """Create fresh EnhancedEventBus for tests."""
-    bus = EnhancedEventBus(rate_limit=100)
+    bus = EnhancedEventBus(
+        capacities={"critical": 100, "high": 500, "normal": 10000, "low": 50000},
+        rate_limit=100,
+    )
     set_enhanced_event_bus(bus)
     yield bus
     set_enhanced_event_bus(None)

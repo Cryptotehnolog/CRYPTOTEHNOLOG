@@ -804,6 +804,35 @@ class EnhancedEventBus:
                     error=str(e),
                 )
 
+    async def _call_listeners(self, event: Event) -> None:
+        """
+        Вызвать зарегистрированные listeners для события.
+
+        Аргументы:
+            event: Событие для обработки
+        """
+        if not self.listener_registry:
+            return
+
+        try:
+            listeners = self.listener_registry.get_listeners_for_event(event)
+            for listener in listeners:
+                try:
+                    await listener.handle(event)
+                except Exception as e:
+                    logger.error(
+                        "Ошибка в listener",
+                        event_type=event.event_type,
+                        listener=listener.name,
+                        error=str(e),
+                    )
+        except Exception as e:
+            logger.error(
+                "Ошибка при вызове listeners",
+                event_type=event.event_type,
+                error=str(e),
+            )
+
     async def publish(self, event: Event) -> bool:
         """
         Опубликовать событие с учётом приоритета, rate limit и backpressure.
@@ -876,6 +905,9 @@ class EnhancedEventBus:
 
         # 8. Вызвать зарегистрированные обработчики
         await self._call_handlers(event)
+
+        # 9. Вызвать listeners если они включены
+        await self._call_listeners(event)
 
         logger.debug(
             "Событие опубликовано",
