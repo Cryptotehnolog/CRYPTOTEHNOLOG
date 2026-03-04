@@ -1032,13 +1032,47 @@ class EnhancedEventBus:
             except ValueError:
                 pass
 
+    def register_listener(self, listener: BaseListener) -> None:
+        """
+        Зарегистрировать listener в Event Bus.
+
+        Аргументы:
+            listener: Listener для регистрации
+        """
+        if self.listener_registry is None:
+            self.listener_registry = get_listener_registry()
+
+        self.listener_registry.register(listener)
+        logger.info(
+            "Listener зарегистрирован в EnhancedEventBus",
+            listener_name=listener.name,
+            event_types=listener.event_types,
+            total_listeners=len(self.listener_registry.all_listeners),
+        )
+
+    def unregister_listener(self, name: str) -> bool:
+        """
+        Удалить listener из Event Bus.
+
+        Аргументы:
+            name: Имя listener для удаления
+
+        Возвращает:
+            True если listener был удалён
+        """
+        if self.listener_registry is None:
+            return False
+
+        result = self.listener_registry.unregister(name)
+        if result:
+            logger.info("Listener удалён из EnhancedEventBus", listener_name=name)
+        return result
+
     def enable_listeners(self) -> None:
         """Включить listeners для Event Bus."""
         registry = get_listener_registry()
         self.listener_registry = registry
 
-        # TODO: Реализовать интеграцию с listeners
-        # (использовать существующий подход из EventBus)
         logger.info(
             "Listeners enabled для EnhancedEventBus",
             listener_count=len(registry.all_listeners),
