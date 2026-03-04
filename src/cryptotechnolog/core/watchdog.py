@@ -422,18 +422,26 @@ class Watchdog:
 
     def _create_circuit_callback(self, component_name: str) -> Callable:
         """Создать callback для circuit breaker."""
+        from . import publish_event  # noqa: PLC0415
+        from .event import Priority  # noqa: PLC0415
 
         def callback(old_state: CircuitState, new_state: CircuitState) -> None:
             if new_state == CircuitState.OPEN:
-                # Используем fire-and-forget для синхронного callback
-                asyncio.create_task(
-                    self._publish_alert(
-                        WatchdogAlertLevel.ERROR,
-                        component_name,
-                        f"Circuit breaker OPEN для {component_name}",
-                        {"old_state": old_state.value, "new_state": new_state.value},
+                # Используем publish_event для безопасного fire-and-forget
+                try:
+                    publish_event(
+                        event_type="WATCHDOG_ALERT",
+                        source="WATCHDOG",
+                        payload={
+                            "level": "error",
+                            "component": component_name,
+                            "message": f"Circuit breaker OPEN для {component_name}",
+                            "details": {"old_state": old_state.value, "new_state": new_state.value},
+                        },
+                        priority=Priority.HIGH,
                     )
-                )
+                except Exception as e:
+                    logger.warning("Не удалось опубликовать событие", error=str(e))
             elif new_state == CircuitState.CLOSED:
                 logger.info(
                     "Circuit breaker CLOSED",

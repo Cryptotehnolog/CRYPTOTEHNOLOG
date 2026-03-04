@@ -832,7 +832,8 @@ class EnhancedEventBus:
 
         # 5. Сохранить событие в persistence (async, не ждём завершения)
         if self.enable_persistence:
-            asyncio.create_task(self._persist_event(event))
+            task = asyncio.create_task(self._persist_event(event))
+            self.pending_tasks.append(task)
 
         # 6. Обновить метрики
         self.metrics["published"] += 1
