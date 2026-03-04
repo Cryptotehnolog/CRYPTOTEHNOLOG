@@ -22,11 +22,11 @@ logger = get_logger(__name__)
 class _GlobalEventBusInstance:
     """Class-based singleton for global Event Bus."""
 
-    _instance: "EnhancedEventBus | None" = None
+    _instance: EnhancedEventBus | None = None
     _lock = threading.Lock()
 
     @classmethod
-    def get_instance(cls) -> "EnhancedEventBus | None":
+    def get_instance(cls) -> EnhancedEventBus | None:
         """Get global EnhancedEventBus instance."""
         # Import here to avoid circular dependency
         EnhancedEventBus = __import__(
@@ -55,10 +55,10 @@ class _GlobalEventBusInstance:
                         rate_limit=10000,
                         backpressure_strategy="drop_low",
                     )
-            return cls._instance 
+            return cls._instance
 
     @classmethod
-    def set_instance(cls, bus: "EnhancedEventBus") -> None:
+    def set_instance(cls, bus: EnhancedEventBus) -> None:
         """Set global EnhancedEventBus instance."""
         with cls._lock:
             cls._instance = bus
@@ -73,14 +73,14 @@ class _GlobalEventBusInstance:
 
 
 # Convenience functions
-def get_event_bus() -> "EnhancedEventBus":
+def get_event_bus() -> EnhancedEventBus:
     """Get global EventBus instance."""
     bus = _GlobalEventBusInstance.get_instance()
     assert bus is not None, "EventBus instance should always be initialized"
     return bus
 
 
-def set_event_bus(bus: "EnhancedEventBus") -> None:
+def set_event_bus(bus: EnhancedEventBus) -> None:
     """Set global EventBus instance."""
     _GlobalEventBusInstance.set_instance(bus)
 
@@ -91,14 +91,14 @@ def reset_event_bus() -> None:
 
 
 # Aliases for compatibility
-def get_enhanced_event_bus() -> "EnhancedEventBus":
+def get_enhanced_event_bus() -> EnhancedEventBus:
     """Get global EnhancedEventBus instance."""
     bus = _GlobalEventBusInstance.get_instance()
     assert bus is not None, "EventBus instance should always be initialized"
     return bus
 
 
-def set_enhanced_event_bus(bus: "EnhancedEventBus") -> None:
+def set_enhanced_event_bus(bus: EnhancedEventBus) -> None:
     """Set global EnhancedEventBus instance."""
     _GlobalEventBusInstance.set_instance(bus)
 

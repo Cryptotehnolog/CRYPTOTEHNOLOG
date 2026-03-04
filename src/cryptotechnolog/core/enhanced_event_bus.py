@@ -18,9 +18,8 @@ from __future__ import annotations
 import asyncio
 from asyncio import Queue
 from collections import defaultdict
-from collections.abc import Callable
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 import json
 import threading
 from typing import TYPE_CHECKING, Any
@@ -29,10 +28,11 @@ import uuid
 import redis.asyncio as redis
 
 from cryptotechnolog.config import get_logger, get_settings
-from .event import Event, Priority, SystemEventSource, SystemEventType
+
+from .event import Event, Priority
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Callable
 
     from .listeners.base import BaseListener, ListenerRegistry
 
@@ -41,13 +41,19 @@ from .listeners import get_listener_registry
 logger = get_logger(__name__)
 
 
-class BackpressureStrategy(str, Enum):
+class BackpressureStrategy(StrEnum):
     """Стратегии backpressure при переполнении."""
 
     DROP_LOW = "drop_low"             # Отбрасывать LOW события
     OVERFLOW_NORMAL = "overflow_normal"  # Переполнение в NORMAL очередь
     DROP_NORMAL = "drop_normal"       # Отбрасывать NORMAL + LOW
     BLOCK_CRITICAL = "block_critical" # Блокировать только CRITICAL
+
+
+# Threshold constants for backpressure fill ratios
+_FILL_RATIO_LOW = 0.7
+_FILL_RATIO_NORMAL = 0.8
+_FILL_RATIO_HIGH = 0.9
 
 
 class RateLimitError(Exception):
@@ -122,7 +128,7 @@ class AsyncEventReceiver:
             return None
         try:
             return await asyncio.wait_for(self._queue.get(), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return None
 
     def __aiter__(self) -> AsyncIterator[Event]:
@@ -163,7 +169,7 @@ class PriorityQueue:
         self.lock = threading.Lock()
         self._total_pushed = 0
         self._total_popped = 0
-        self._dropped_count = {p: 0 for p in Priority}
+        self._dropped_count = dict.fromkeys(Priority, 0)
 
     async def push(self, event: Event) -> bool:
         """
@@ -176,7 +182,7 @@ class PriorityQueue:
             True если событие добавлено, False если очередь полная
         """
         queue = self.queues[event.priority]
-        
+
         try:
             queue.put_nowait(event)
             with self.lock:
@@ -199,13 +205,13 @@ class PriorityQueue:
             True если событие добавлено, False при таймауте
         """
         queue = self.queues[event.priority]
-        
+
         try:
             await asyncio.wait_for(queue.put(event), timeout=timeout)
             with self.lock:
                 self._total_pushed += 1
             return True
-        except asyncio.TimeoutError:
+        except TimeoutError:
             with self.lock:
                 self._dropped_count[event.priority] += 1
             return False
@@ -270,7 +276,7 @@ class RateLimiter:
         self.counts: dict[str, list[float]] = defaultdict(list)
         self.global_counts: list[float] = []
         self.lock = threading.Lock()
-        
+
     def set_source_limit(self, source: str, limit: int) -> None:
         """Установить лимит для конкретного источника."""
         self.source_limits[source] = limit
@@ -286,7 +292,7 @@ class RateLimiter:
             True если можно принять событие, False если превышен лимит
         """
         current_time = datetime.now(UTC).timestamp()
-        
+
         with self.lock:
             # Проверить глобальный лимит
             self.global_counts = [t for t in self.global_counts if current_time - t < 1.0]
@@ -296,7 +302,7 @@ class RateLimiter:
             # Проверить лимит источника
             if source in self.source_limits:
                 source_limit = self.source_limits[source]
-                self.counts[source] = [t for t in self.counts.get(source, []) 
+                self.counts[source] = [t for t in self.counts.get(source, [])
                                       if current_time - t < 1.0]
                 if len(self.counts[source]) >= source_limit:
                     return False
@@ -305,7 +311,7 @@ class RateLimiter:
             self.global_counts.append(current_time)
             if source in self.source_limits:
                 self.counts[source].append(current_time)
-            
+
             return True
 
     def get_metrics(self) -> dict[str, Any]:
@@ -333,7 +339,7 @@ class PersistenceLayer:
         self.redis: redis.Redis | None = None
         self.stream_prefix = "events"
         self.max_stream_len = 100000  # Максимальная длина stream
-        
+
     async def connect(self) -> None:
         """Установить соединение с Redis."""
         if self.redis is None:
@@ -343,7 +349,7 @@ class PersistenceLayer:
                 logger.info("Соединение с Redis для persistence установлено", url=self.redis_url)
             except Exception as e:
                 logger.error("Ошибка подключения к Redis", error=str(e), url=self.redis_url)
-                raise PersistenceError(f"Не удалось подключиться к Redis: {e}")
+                raise PersistenceError(f"Не удалось подключиться к Redis: {e}") from e
 
     async def disconnect(self) -> None:
         """Разорвать соединение с Redis."""
@@ -364,15 +370,15 @@ class PersistenceLayer:
         """
         if self.redis is None:
             await self.connect()
-            
+
         try:
             # Создать stream key на основе приоритета
             stream_key = f"{self.stream_prefix}:{event.priority.value}"
-            
+
             # Сериализовать событие
             event_dict = event.to_dict()
             event_json = json.dumps(event_dict, ensure_ascii=False)
-            
+
             # Добавить в stream с ограничением длины
             stream_id = await self.redis.xadd(
                 stream_key,
@@ -380,23 +386,23 @@ class PersistenceLayer:
                 maxlen=self.max_stream_len,
                 approximate=True
             )
-            
+
             logger.debug(
                 "Событие сохранено в Redis",
                 event_id=event.id,
                 stream_id=stream_id,
                 priority=event.priority.value
             )
-            
+
             return stream_id
-            
+
         except Exception as e:
             logger.error(
                 "Ошибка сохранения события в Redis",
                 event_id=event.id,
                 error=str(e)
             )
-            raise PersistenceError(f"Ошибка сохранения события: {e}")
+            raise PersistenceError(f"Ошибка сохранения события: {e}") from e
 
     async def save_batch(self, events: list[Event]) -> list[str | None]:
         """
@@ -410,7 +416,7 @@ class PersistenceLayer:
         """
         if not events:
             return []
-            
+
         results = []
         for event in events:
             try:
@@ -418,7 +424,7 @@ class PersistenceLayer:
                 results.append(stream_id)
             except PersistenceError:
                 results.append(None)
-                
+
         return results
 
     async def replay(
@@ -440,13 +446,13 @@ class PersistenceLayer:
         """
         if self.redis is None:
             await self.connect()
-            
+
         try:
             stream_key = f"{self.stream_prefix}:{priority.value}"
-            
+
             # Использовать '0-0' для начала если from_id не указан
             start = from_id if from_id else "0-0"
-            
+
             # Чтение из stream
             stream_data = await self.redis.xrange(
                 stream_key,
@@ -454,36 +460,36 @@ class PersistenceLayer:
                 max="+",
                 count=limit
             )
-            
+
             events = []
-            for stream_id, data in stream_data:
+            for _stream_id, data in stream_data:
                 event_json = data["event"]
                 event_dict = json.loads(event_json)
                 event = Event.from_dict(event_dict)
                 events.append(event)
-                
+
             logger.debug(
                 "Воспроизведены события из Redis",
                 count=len(events),
                 priority=priority.value,
                 from_id=from_id
             )
-            
+
             return events
-            
+
         except Exception as e:
             logger.error(
                 "Ошибка воспроизведения событий из Redis",
                 error=str(e),
                 priority=priority.value
             )
-            raise PersistenceError(f"Ошибка воспроизведения: {e}")
+            raise PersistenceError(f"Ошибка воспроизведения: {e}") from e
 
     async def get_stream_length(self, priority: Priority) -> int:
         """Получить длину stream для заданного приоритета."""
         if self.redis is None:
             await self.connect()
-            
+
         stream_key = f"{self.stream_prefix}:{priority.value}"
         return await self.redis.xlen(stream_key)
 
@@ -518,7 +524,7 @@ class EnhancedEventBus:
         """
         # Настройки из параметров или defaults
         settings = get_settings()
-        
+
         # Ёмкости очередей
         default_capacities = {
             Priority.CRITICAL: settings.event_bus_capacity_critical,
@@ -526,24 +532,24 @@ class EnhancedEventBus:
             Priority.NORMAL: settings.event_bus_capacity_normal,
             Priority.LOW: settings.event_bus_capacity_low,
         }
-        
+
         if capacities:
             for priority_str, capacity in capacities.items():
                 priority = Priority.from_string(priority_str)
                 default_capacities[priority] = capacity
-        
+
         # Rate limit
         self.rate_limit = rate_limit or settings.event_bus_rate_limit
-        
+
         # Backpressure strategy
         self.backpressure_strategy = BackpressureStrategy(
             backpressure_strategy or settings.event_bus_backpressure_strategy
         )
-        
+
         # Инициализация компонентов
         self.priority_queue = PriorityQueue(default_capacities)
         self.rate_limiter = RateLimiter(global_limit=self.rate_limit)
-        
+
         # Persistence
         self.enable_persistence = enable_persistence
         if enable_persistence and redis_url:
@@ -551,20 +557,20 @@ class EnhancedEventBus:
             self.persistence = PersistenceLayer(redis_url)
         else:
             self.persistence = None
-            
+
         # Subscribers management
         self.subscribers: dict[int, AsyncEventReceiver] = {}
         self._subscriber_lock = threading.Lock()
         self.next_subscriber_id = 0
-        
+
         # Event handlers by type
         self.handlers: dict[str, list[Callable[[Event], Any]]] = defaultdict(list)
-        
+
         # Listener registry integration
         self.listener_registry: ListenerRegistry | None = None
         self.wildcard_listeners: list[BaseListener] = []
         self.pending_tasks: list[asyncio.Task] = []
-        
+
         # Statistics
         self.metrics = {
             "published": 0,
@@ -573,7 +579,7 @@ class EnhancedEventBus:
             "persisted": 0,
             "rate_limited": 0,
         }
-        
+
         logger.info(
             "EnhancedEventBus инициализирован",
             enable_persistence=enable_persistence,
@@ -591,7 +597,7 @@ class EnhancedEventBus:
             except Exception as e:
                 logger.error("Не удалось запустить persistence layer", error=str(e))
                 self.enable_persistence = False
-        
+
         logger.info("EnhancedEventBus запущен")
 
     async def shutdown(self) -> None:
@@ -607,7 +613,7 @@ class EnhancedEventBus:
         # Отключаем persistence
         if self.persistence:
             await self.persistence.disconnect()
-            
+
         logger.info("EnhancedEventBus завершен")
 
     def subscribe(self) -> AsyncEventReceiver:
@@ -693,21 +699,17 @@ class EnhancedEventBus:
         fill_ratio = queue_size / queue_capacity if queue_capacity > 0 else 0.0
 
         # Применить стратегию backpressure
-        if self.backpressure_strategy == BackpressureStrategy.DROP_LOW:
-            if event.priority == Priority.LOW and fill_ratio > 0.7:
-                return BackpressureStrategy.DROP_LOW
-                
-        elif self.backpressure_strategy == BackpressureStrategy.OVERFLOW_NORMAL:
-            if event.priority == Priority.NORMAL and fill_ratio > 0.8:
-                return BackpressureStrategy.OVERFLOW_NORMAL
-                
-        elif self.backpressure_strategy == BackpressureStrategy.DROP_NORMAL:
-            if event.priority in (Priority.NORMAL, Priority.LOW) and fill_ratio > 0.9:
-                return BackpressureStrategy.DROP_NORMAL
-                
-        elif self.backpressure_strategy == BackpressureStrategy.BLOCK_CRITICAL:
-            if event.priority == Priority.CRITICAL and fill_ratio > 0.9:
-                return BackpressureStrategy.BLOCK_CRITICAL
+        if self.backpressure_strategy == BackpressureStrategy.DROP_LOW and event.priority == Priority.LOW and fill_ratio > _FILL_RATIO_LOW:
+            return BackpressureStrategy.DROP_LOW
+
+        elif self.backpressure_strategy == BackpressureStrategy.OVERFLOW_NORMAL and event.priority == Priority.NORMAL and fill_ratio > _FILL_RATIO_NORMAL:
+            return BackpressureStrategy.OVERFLOW_NORMAL
+
+        elif self.backpressure_strategy == BackpressureStrategy.DROP_NORMAL and event.priority in (Priority.NORMAL, Priority.LOW) and fill_ratio > _FILL_RATIO_HIGH:
+            return BackpressureStrategy.DROP_NORMAL
+
+        elif self.backpressure_strategy == BackpressureStrategy.BLOCK_CRITICAL and event.priority == Priority.CRITICAL and fill_ratio > _FILL_RATIO_HIGH:
+            return BackpressureStrategy.BLOCK_CRITICAL
 
         # По умолчанию - принять событие
         return None
@@ -724,10 +726,10 @@ class EnhancedEventBus:
         """
         if not self.enable_persistence or not self.persistence:
             return True
-            
+
         if not event.priority.requires_persistence():
             return True
-            
+
         try:
             await self.persistence.save_event(event)
             self.metrics["persisted"] += 1
@@ -736,7 +738,7 @@ class EnhancedEventBus:
             logger.error("Ошибка сохранения события", event_id=event.id, error=str(e))
             # Для CRITICAL событий это критическая ошибка
             if event.priority == Priority.CRITICAL:
-                raise BackpressureError(f"Критическая ошибка сохранения: {e}")
+                raise BackpressureError(f"Критическая ошибка сохранения: {e}") from e
             return False
 
     def _deliver_to_subscribers(self, event: Event) -> int:
@@ -789,34 +791,30 @@ class EnhancedEventBus:
 
         # 2. Определить действие backpressure
         backpressure_action = self._determine_backpressure_action(event)
-        
+
         # 3. Обработать событие в соответствии со стратегией
-        if backpressure_action == BackpressureStrategy.DROP_LOW:
-            # Проверить, является ли событие LOW (и отбросить при необходимости)
-            if event.priority == Priority.LOW:
-                # Проверить заполненность очереди LOW
-                fill_ratio = (
-                    self.priority_queue.size(Priority.LOW) / 
-                    self.priority_queue.capacity(Priority.LOW)
-                )
-                if fill_ratio > 0.7:
-                    self.metrics["dropped"] += 1
-                    logger.warning(
-                        "LOW событие отброшено (backpressure)",
-                        event_type=event.event_type,
-                        source=event.source,
-                    )
-                    return False
-        elif backpressure_action == BackpressureStrategy.DROP_NORMAL:
-            # Отбросить NORMAL/LOW события
-            if event.priority in (Priority.NORMAL, Priority.LOW):
+        if backpressure_action == BackpressureStrategy.DROP_LOW and event.priority == Priority.LOW:
+            # Проверить заполненность очереди LOW
+            fill_ratio = (
+                self.priority_queue.size(Priority.LOW) /
+                self.priority_queue.capacity(Priority.LOW)
+            )
+            if fill_ratio > _FILL_RATIO_LOW:
                 self.metrics["dropped"] += 1
                 logger.warning(
-                    f"{event.priority.value} событие отброшено (backpressure)",
+                    "LOW событие отброшено (backpressure)",
                     event_type=event.event_type,
                     source=event.source,
                 )
                 return False
+        elif backpressure_action == BackpressureStrategy.DROP_NORMAL and event.priority in (Priority.NORMAL, Priority.LOW):
+            self.metrics["dropped"] += 1
+            logger.warning(
+                f"{event.priority.value} событие отброшено (backpressure)",
+                event_type=event.event_type,
+                source=event.source,
+            )
+            return False
 
         # 4. Добавить событие в очередь
         if backpressure_action == BackpressureStrategy.BLOCK_CRITICAL:
@@ -875,10 +873,10 @@ class EnhancedEventBus:
         """
         event = Event.new(event_type, source, payload)
         event.priority = priority
-        
+
         if correlation_id:
             event.correlation_id = uuid.UUID(correlation_id)
-            
+
         return await self.publish(event)
 
     def set_backpressure_strategy(self, strategy: str) -> None:
@@ -886,8 +884,8 @@ class EnhancedEventBus:
         try:
             self.backpressure_strategy = BackpressureStrategy(strategy)
             logger.info("Стратегия backpressure обновлена", strategy=strategy)
-        except ValueError:
-            raise ValueError(f"Неизвестная стратегия backpressure: {strategy}")
+        except ValueError as e:
+            raise ValueError(f"Неизвестная стратегия backpressure: {strategy}") from e
 
     def set_rate_limit(self, limit: int) -> None:
         """Установить глобальный rate limit."""
@@ -914,7 +912,7 @@ class EnhancedEventBus:
         """
         if not self.enable_persistence or not self.persistence:
             raise PersistenceError("Persistence не включен")
-            
+
         return await self.persistence.replay(priority, from_id, limit)
 
     def get_metrics(self) -> dict[str, Any]:
@@ -926,7 +924,7 @@ class EnhancedEventBus:
         """
         queue_metrics = self.priority_queue.get_metrics()
         rate_limiter_metrics = self.rate_limiter.get_metrics()
-        
+
         return {
             "bus_metrics": self.metrics.copy(),
             "queue_metrics": queue_metrics,
@@ -990,19 +988,19 @@ class EnhancedEventBus:
         logger.info("Начало drain EnhancedEventBus", timeout=timeout)
 
         start_time = asyncio.get_event_loop().time()
-        
+
         while True:
             # Проверить общее количество событий в очередях
             total_pending = self.priority_queue.total_size()
-            
+
             # Проверить события у подписчиков
             with self._subscriber_lock:
                 subscriber_pending = sum(
                     receiver._queue.qsize() for receiver in self.subscribers.values()
                 )
-            
+
             total_pending += subscriber_pending
-            
+
             if total_pending == 0:
                 logger.info("EnhancedEventBus drain завершён")
                 return True

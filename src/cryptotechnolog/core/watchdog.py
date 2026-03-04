@@ -316,7 +316,7 @@ class Watchdog:
 
     def __init__(
         self,
-        event_bus: "EnhancedEventBus | None" = None,
+        event_bus: EnhancedEventBus | None = None,
         check_interval: float = 30.0,
         failure_threshold: int = 3,
         max_recovery_attempts: int = 3,

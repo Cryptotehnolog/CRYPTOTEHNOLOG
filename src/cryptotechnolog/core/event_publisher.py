@@ -7,12 +7,12 @@ Event Publisher - Utilities for publishing events.
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 import uuid
-from typing import TYPE_CHECKING, Any
 
+from ..config import get_logger
 from .event import Event, Priority, SystemEventSource, SystemEventType
 from .global_instances import get_event_bus as _get_global_bus
-from ..config import get_logger
 
 if TYPE_CHECKING:
     from .enhanced_event_bus import EnhancedEventBus
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-def get_event_bus() -> "EnhancedEventBus":
+def get_event_bus() -> EnhancedEventBus:
     """Получить глобальный Event Bus."""
     return _get_global_bus()
 
@@ -56,20 +56,20 @@ def publish_event(
     # Создать событие
     event = Event.new(event_type, source, payload)
     event.priority = priority
-    
+
     if correlation_id:
         event.correlation_id = uuid.UUID(correlation_id)
 
     # Получить глобальный Event Bus
     bus = get_event_bus()
-    
+
     try:
         # Попробовать найти running loop
         loop = asyncio.get_running_loop()
-        
+
         # Создать Future для публикации
         future = loop.create_task(bus.publish(event))
-        
+
         # Ждать с таймаутом
         try:
             loop.call_later(timeout, future.cancel)
@@ -77,7 +77,7 @@ def publish_event(
                 future,
                 loop
             ).result(timeout=timeout)
-            
+
             if success:
                 logger.debug(
                     "Событие опубликовано успешно",
@@ -92,10 +92,10 @@ def publish_event(
                     priority=priority.value,
                     source=source,
                 )
-            
+
             return success
-            
-        except asyncio.TimeoutError:
+
+        except TimeoutError:
             logger.error(
                 "Таймаут публикации события",
                 event_type=event_type,
@@ -112,7 +112,7 @@ def publish_event(
                 error=str(e),
             )
             return False
-            
+
     except RuntimeError:
         # Нет running loop - это критическая ошибка для production
         # Для CRITICAL/HIGH событий нужно как-то сохранить
@@ -122,7 +122,7 @@ def publish_event(
             priority=priority.value,
             source=source,
         )
-        
+
         # Для CRITICAL событий можно попробовать синхронную публикацию
         if priority in (Priority.CRITICAL, Priority.HIGH):
             # Пытаемся создать новый event loop
@@ -133,7 +133,7 @@ def publish_event(
                     asyncio.wait_for(bus.publish(event), timeout=timeout)
                 )
                 loop.close()
-                
+
                 if success:
                     logger.info(
                         "CRITICAL/HIGH событие опубликовано в emergency loop",
@@ -146,7 +146,7 @@ def publish_event(
                         event_type=event_type,
                         priority=priority.value,
                     )
-                
+
                 return success
             except Exception as e:
                 logger.critical(
@@ -155,7 +155,7 @@ def publish_event(
                     priority=priority.value,
                     error=str(e),
                 )
-        
+
         return False
 
 
@@ -187,6 +187,6 @@ async def publish_alert(
         },
     )
     event.priority = priority
-    
+
     bus = get_event_bus()
     return await bus.publish(event)

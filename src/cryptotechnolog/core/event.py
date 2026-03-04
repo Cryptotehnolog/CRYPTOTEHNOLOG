@@ -9,23 +9,23 @@ from __future__ import annotations
 import copy
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 import uuid
 
 
-class Priority(str, Enum):
+class Priority(StrEnum):
     """Приоритеты событий."""
-    
+
     CRITICAL = "critical"      # Убийственные переключатели, системные сбои
     HIGH = "high"              # Нарушения рисков, критические ошибки исполнения
     NORMAL = "normal"          # Торговые сигналы, обычные операции
     LOW = "low"                # Метрики, информационные логи
-    
+
     def to_rust_priority(self) -> str:
         """Конвертировать в строку для Rust биндингов."""
         return self.value
-    
+
     @classmethod
     def from_string(cls, value: str) -> Priority:
         """Создать Priority из строки."""
@@ -34,7 +34,7 @@ class Priority(str, Enum):
         except ValueError:
             # По умолчанию NORMAL
             return cls.NORMAL
-    
+
     def queue_capacity(self) -> int:
         """Получить ёмкость очереди для приоритета."""
         return {
@@ -43,15 +43,15 @@ class Priority(str, Enum):
             Priority.NORMAL: 10000,    # Большая
             Priority.LOW: 50000,       # Очень большая
         }[self]
-    
+
     def requires_persistence(self) -> bool:
         """Требуется ли персистентность для этого приоритета."""
         return self in (Priority.CRITICAL, Priority.HIGH)
-    
+
     def is_droppable(self) -> bool:
         """Можно ли отбрасывать события этого приоритета."""
         return self == Priority.LOW
-    
+
     def as_u8(self) -> int:
         """Конвертировать в числовое значение (для Rust)."""
         return {

@@ -37,6 +37,7 @@ from .global_instances import get_event_bus
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
     from .enhanced_event_bus import EnhancedEventBus
 
 logger = get_logger(__name__)
