@@ -544,25 +544,26 @@ class TestPerformanceInvariants:
     @given(handler_count=hypothesis.strategies.integers(min_value=1, max_value=50))
     @settings(max_examples=10)
     async def test_multiple_handlers(self, handler_count):
-        """Test that multiple handlers work correctly."""
+        """Test that multiple subscribers receive events correctly."""
         bus = EnhancedEventBus(capacities={"critical": 100, "high": 100, "normal": 100, "low": 100})
 
         call_count = 0
 
-        def make_handler(i):
-            async def handler(event):
-                nonlocal call_count
-                call_count += 1
-
-            return handler
-
-        # Register multiple handlers
-        for i in range(handler_count):
-            bus.on("TEST_EVENT", make_handler(i))
+        # Create multiple subscribers
+        receivers = []
+        for _ in range(handler_count):
+            receiver = bus.subscribe()
+            receivers.append(receiver)
 
         # Publish event
         event = Event.new("TEST_EVENT", "test", {})
         await bus.publish(event)
+
+        # All subscribers should receive the event
+        for receiver in receivers:
+            received_event = await receiver.recv_timeout(1.0)
+            if received_event is not None:
+                call_count += 1
 
         # All handlers should be called
         assert call_count == handler_count
