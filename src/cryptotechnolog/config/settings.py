@@ -220,16 +220,16 @@ class Settings(BaseSettings):
     # ==================== Enhanced Event Bus Settings ====================
     # Redis URL for event persistence
     event_bus_redis_url: str = "redis://localhost:6379"
-    
+
     # Queue capacities for each priority
     event_bus_capacity_critical: int = 100
     event_bus_capacity_high: int = 500
     event_bus_capacity_normal: int = 10000
     event_bus_capacity_low: int = 50000
-    
+
     # Rate limiting (events per second)
     event_bus_rate_limit: int = 10000
-    
+
     # Backpressure strategy
     event_bus_backpressure_strategy: str = "drop_low"
 

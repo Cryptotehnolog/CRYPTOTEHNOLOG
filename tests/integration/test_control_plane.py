@@ -11,14 +11,12 @@ import pytest
 from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
 from cryptotechnolog.core.event import Event, SystemEventSource, SystemEventType
 from cryptotechnolog.core.global_instances import (
-    get_enhanced_event_bus,
     set_enhanced_event_bus,
 )
 from cryptotechnolog.core.listeners import (
     get_listener_registry,
     register_all_listeners,
 )
-
 
 # ==================== Test Configuration ====================
 
@@ -183,7 +181,7 @@ async def test_event_published_without_listeners(test_event_bus):
     event = Event.new(SystemEventType.SYSTEM_BOOT, SystemEventSource.SYSTEM_CONTROLLER, {})
 
     # Should publish without error (но возвращает False т.к. нет подписчиков)
-    result = await test_event_bus.publish(event)
+    await test_event_bus.publish(event)
     assert test_event_bus.metrics["published"] == 1
 
 
