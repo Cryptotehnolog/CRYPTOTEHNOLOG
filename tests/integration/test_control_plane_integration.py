@@ -15,8 +15,9 @@ import uuid
 
 import pytest
 
+from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
 from cryptotechnolog.core.event import Event, SystemEventSource, SystemEventType
-from cryptotechnolog.core.event_bus import EventBus, set_event_bus
+from cryptotechnolog.core.global_instances import set_enhanced_event_bus
 from cryptotechnolog.core.listeners import (
     register_all_listeners,
 )
@@ -27,17 +28,16 @@ from cryptotechnolog.core.state_machine_enums import SystemState
 
 @pytest.fixture
 def test_event_bus():
-    """Create fresh EventBus for tests."""
-    bus = EventBus(capacity=100)
-    set_event_bus(bus)
+    """Create fresh EnhancedEventBus for tests."""
+    bus = EnhancedEventBus(global_limit=100)
+    set_enhanced_event_bus(bus)
     yield bus
-    bus.clear()
-    set_event_bus(None)
+    set_enhanced_event_bus(None)
 
 
 @pytest.fixture
 def setup_listeners(test_event_bus, db_pool):
-    """Register all listeners on the test EventBus with real DB pool."""
+    """Register all listeners on the test EnhancedEventBus with real DB pool."""
     # Мокаем get_db_pool чтобы возвращал реальный пул из фикстуры
     with (
         patch("cryptotechnolog.core.listeners.state_machine.get_db_pool", return_value=db_pool),
@@ -70,10 +70,10 @@ async def test_state_transition_persisted(db_pool, test_event_bus, setup_listene
         },
     )
 
-    test_event_bus.publish(event)
+    await test_event_bus.publish(event)
 
     # Wait for async processing
-    await test_event_bus.flush()
+    await test_event_bus.drain()
 
     # Verify transition was recorded
     async with db_pool.acquire() as conn:
@@ -107,8 +107,8 @@ async def test_current_state_updated(db_pool, test_event_bus, setup_listeners):
         },
     )
 
-    test_event_bus.publish(event)
-    await test_event_bus.flush()
+    await test_event_bus.publish(event)
+    await test_event_bus.drain()
 
     # Verify current state
     async with db_pool.acquire() as conn:
@@ -131,8 +131,8 @@ async def test_system_events_persisted(db_pool, test_event_bus, setup_listeners)
         {"timestamp": datetime.now(UTC).isoformat()},
     )
 
-    test_event_bus.publish(event)
-    await test_event_bus.flush()
+    await test_event_bus.publish(event)
+    await test_event_bus.drain()
 
     # Verify state machine was updated
     async with db_pool.acquire() as conn:
@@ -161,9 +161,9 @@ async def test_audit_events_persisted(db_pool, test_event_bus, setup_listeners):
     ]
 
     for event in events:
-        test_event_bus.publish(event)
+        await test_event_bus.publish(event)
 
-    await test_event_bus.flush()
+    await test_event_bus.drain()
 
     # Verify audit events - ищем запись с правильной severity
     async with db_pool.acquire() as conn:
@@ -190,8 +190,8 @@ async def test_audit_event_structure(db_pool, test_event_bus, setup_listeners):
     event.correlation_id = uuid.uuid4()
     event.metadata = {"source": "test"}
 
-    test_event_bus.publish(event)
-    await test_event_bus.flush()
+    await test_event_bus.publish(event)
+    await test_event_bus.drain()
 
     # Verify audit event structure
     async with db_pool.acquire() as conn:
@@ -231,8 +231,8 @@ async def test_risk_events_persisted(db_pool, test_event_bus, setup_listeners):
         },
     )
 
-    test_event_bus.publish(event)
-    await test_event_bus.flush()
+    await test_event_bus.publish(event)
+    await test_event_bus.drain()
 
     # Verify risk event
     async with db_pool.acquire() as conn:
@@ -267,8 +267,8 @@ async def test_order_rejected_persisted(db_pool, test_event_bus, setup_listeners
         },
     )
 
-    test_event_bus.publish(event)
-    await test_event_bus.flush()
+    await test_event_bus.publish(event)
+    await test_event_bus.drain()
 
     # Verify order rejection
     async with db_pool.acquire() as conn:
@@ -305,8 +305,8 @@ async def test_performance_metrics_persisted(db_pool, test_event_bus, setup_list
         },
     )
 
-    test_event_bus.publish(event)
-    await test_event_bus.flush()
+    await test_event_bus.publish(event)
+    await test_event_bus.drain()
 
     # Verify metrics
     async with db_pool.acquire() as conn:
