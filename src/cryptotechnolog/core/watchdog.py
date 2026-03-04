@@ -31,8 +31,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 from .circuit_breaker import CircuitBreaker, CircuitBreakerError, CircuitState
-from .event import Event, SystemEventSource, SystemEventType
+from .event import Event, Priority, SystemEventSource, SystemEventType
 from .enhanced_event_bus import EnhancedEventBus
+from .event_publisher import publish_event
 from .metrics import get_metrics_collector, get_slo_registry
 
 logger = get_logger(__name__)
@@ -422,26 +423,21 @@ class Watchdog:
 
     def _create_circuit_callback(self, component_name: str) -> Callable:
         """Создать callback для circuit breaker."""
-        from . import publish_event  # noqa: PLC0415
-        from .event import Priority  # noqa: PLC0415
 
         def callback(old_state: CircuitState, new_state: CircuitState) -> None:
             if new_state == CircuitState.OPEN:
                 # Используем publish_event для безопасного fire-and-forget
-                try:
-                    publish_event(
-                        event_type="WATCHDOG_ALERT",
-                        source="WATCHDOG",
-                        payload={
-                            "level": "error",
-                            "component": component_name,
-                            "message": f"Circuit breaker OPEN для {component_name}",
-                            "details": {"old_state": old_state.value, "new_state": new_state.value},
-                        },
-                        priority=Priority.HIGH,
-                    )
-                except Exception as e:
-                    logger.warning("Не удалось опубликовать событие", error=str(e))
+                publish_event(
+                    event_type="WATCHDOG_ALERT",
+                    source="WATCHDOG",
+                    payload={
+                        "level": "error",
+                        "component": component_name,
+                        "message": f"Circuit breaker OPEN для {component_name}",
+                        "details": {"old_state": old_state.value, "new_state": new_state.value},
+                    },
+                    priority=Priority.HIGH,
+                )
             elif new_state == CircuitState.CLOSED:
                 logger.info(
                     "Circuit breaker CLOSED",

@@ -36,6 +36,7 @@ from .dual_control import (
 )
 from .event import Event, Priority, SystemEventSource, SystemEventType
 from .enhanced_event_bus import EnhancedEventBus
+from .event_publisher import publish_event
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -283,20 +284,16 @@ class OperatorGate:
             expires_at=request.expires_at.isoformat(),
         )
 
-        # Publish event через глобальную функцию (безопасна для синхронного контекста)
-        from . import publish_event
-        try:
-            publish_event(
-                event_type="DUAL_CONTROL_REQUEST",
-                source="OPERATOR_GATE",
-                payload={
-                    "subtype": "request_created",
-                    "request": request.to_dict(),
-                },
-                priority=Priority.NORMAL,
-            )
-        except Exception as e:
-            logger.warning("Не удалось опубликовать событие", error=str(e))
+        # Publish event
+        publish_event(
+            event_type="DUAL_CONTROL_REQUEST",
+            source="OPERATOR_GATE",
+            payload={
+                "subtype": "request_created",
+                "request": request.to_dict(),
+            },
+            priority=Priority.NORMAL,
+        )
 
         # Callbacks
         for callback in self._on_request_created:
@@ -369,20 +366,16 @@ class OperatorGate:
             approved_by=approver.name,
         )
 
-        # Publish event через глобальную функцию (безопасна для синхронного контекста)
-        from . import publish_event
-        try:
-            publish_event(
-                event_type="DUAL_CONTROL_REQUEST",
-                source="OPERATOR_GATE",
-                payload={
-                    "subtype": "request_approved",
-                    "request": request.to_dict(),
-                },
-                priority=Priority.NORMAL,
-            )
-        except Exception as e:
-            logger.warning("Не удалось опубликовать событие", error=str(e))
+        # Publish event
+        publish_event(
+            event_type="DUAL_CONTROL_REQUEST",
+            source="OPERATOR_GATE",
+            payload={
+                "subtype": "request_approved",
+                "request": request.to_dict(),
+            },
+            priority=Priority.NORMAL,
+        )
 
         # Callbacks
         for callback in self._on_request_approved:
@@ -432,20 +425,16 @@ class OperatorGate:
             reason=reason,
         )
 
-        # Publish event через глобальную функцию (безопасна для синхронного контекста)
-        from . import publish_event
-        try:
-            publish_event(
-                event_type="DUAL_CONTROL_REQUEST",
-                source="OPERATOR_GATE",
-                payload={
-                    "subtype": "request_rejected",
-                    "request": request.to_dict(),
-                },
-                priority=Priority.NORMAL,
-            )
-        except Exception as e:
-            logger.warning("Не удалось опубликовать событие", error=str(e))
+        # Publish event
+        publish_event(
+            event_type="DUAL_CONTROL_REQUEST",
+            source="OPERATOR_GATE",
+            payload={
+                "subtype": "request_rejected",
+                "request": request.to_dict(),
+            },
+            priority=Priority.NORMAL,
+        )
 
         for callback in self._on_request_rejected:
             try:
@@ -498,20 +487,16 @@ class OperatorGate:
             cancelled_by=operator.name,
         )
 
-        # Publish event через глобальную функцию (безопасна для синхронного контекста)
-        from . import publish_event
-        try:
-            publish_event(
-                event_type="DUAL_CONTROL_REQUEST",
-                source="OPERATOR_GATE",
-                payload={
-                    "subtype": "request_cancelled",
-                    "request": request.to_dict(),
-                },
-                priority=Priority.NORMAL,
-            )
-        except Exception as e:
-            logger.warning("Не удалось опубликовать событие", error=str(e))
+        # Publish event
+        publish_event(
+            event_type="DUAL_CONTROL_REQUEST",
+            source="OPERATOR_GATE",
+            payload={
+                "subtype": "request_cancelled",
+                "request": request.to_dict(),
+            },
+            priority=Priority.NORMAL,
+        )
         return True
 
     def get_request(self, request_id: uuid.UUID) -> DualControlRequest | None:
@@ -548,20 +533,16 @@ class OperatorGate:
                 operation=request.operation_type.value,
             )
 
-            # Publish event через глобальную функцию (безопасна для синхронного контекста)
-            from . import publish_event
-            try:
-                publish_event(
-                    event_type="DUAL_CONTROL_REQUEST",
-                    source="OPERATOR_GATE",
-                    payload={
-                        "subtype": "request_expired",
-                        "request": request.to_dict(),
-                    },
-                    priority=Priority.NORMAL,
-                )
-            except Exception as e:
-                logger.warning("Не удалось опубликовать событие", error=str(e))
+            # Publish event
+            publish_event(
+                event_type="DUAL_CONTROL_REQUEST",
+                source="OPERATOR_GATE",
+                payload={
+                    "subtype": "request_expired",
+                    "request": request.to_dict(),
+                },
+                priority=Priority.NORMAL,
+            )
 
             for callback in self._on_request_expired:
                 try:
