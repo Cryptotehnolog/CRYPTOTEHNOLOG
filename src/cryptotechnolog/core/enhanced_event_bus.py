@@ -616,7 +616,7 @@ class EnhancedEventBus:
         queue: Queue[Event | None] = Queue(maxsize=1024)  # Default capacity
         receiver = AsyncEventReceiver(queue, self)
 
-        with self.subscriber_lock:
+        with self._subscriber_lock:
             subscriber_id = self.next_subscriber_id
             self.subscribers[subscriber_id] = receiver
             self.next_subscriber_id += 1
@@ -631,7 +631,7 @@ class EnhancedEventBus:
 
     def _remove_subscriber(self, receiver: AsyncEventReceiver) -> None:
         """Удалить подписчика (внутренний метод)."""
-        with self.subscriber_lock:
+        with self._subscriber_lock:
             for sid, sub in list(self.subscribers.items()):
                 if sub is receiver:
                     del self.subscribers[sid]
