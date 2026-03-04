@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 import json
 import threading
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 import uuid
 
 import redis.asyncio as redis
@@ -162,7 +162,7 @@ class PriorityQueue:
     4 отдельные очереди с разной ёмкостью для каждого приоритета.
     """
 
-    DEFAULT_CAPACITIES = {
+    DEFAULT_CAPACITIES: ClassVar[dict[Priority, int]] = {
         Priority.CRITICAL: 100,
         Priority.HIGH: 500,
         Priority.NORMAL: 10000,
