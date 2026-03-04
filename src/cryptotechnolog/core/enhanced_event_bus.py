@@ -162,15 +162,21 @@ class PriorityQueue:
     4 отдельные очереди с разной ёмкостью для каждого приоритета.
     """
 
-    def __init__(self, capacities: dict[Priority, int]) -> None:
+    DEFAULT_CAPACITIES = {
+        Priority.CRITICAL: 100,
+        Priority.HIGH: 500,
+        Priority.NORMAL: 10000,
+        Priority.LOW: 50000,
+    }
+
+    def __init__(self, capacities: dict[Priority, int] | None = None) -> None:
         """Инициализировать очередь с приоритетами."""
+        caps = capacities if capacities is not None else self.DEFAULT_CAPACITIES
         self.queues = {
-            Priority.CRITICAL: Queue[Event](maxsize=capacities.get(Priority.CRITICAL, 100)),
-            Priority.HIGH: Queue[Event](maxsize=capacities.get(Priority.HIGH, 500)),
-            Priority.NORMAL: Queue[Event](maxsize=capacities.get(Priority.NORMAL, 10000)),
-            Priority.LOW: Queue[Event](maxsize=capacities.get(Priority.LOW, 50000)),
+            priority: Queue[Event](maxsize=caps.get(priority, self.DEFAULT_CAPACITIES[priority]))
+            for priority in Priority
         }
-        self.lock = threading.Lock()
+        self._lock = asyncio.Lock()
         self._total_pushed = 0
         self._total_popped = 0
         self._dropped_count = dict.fromkeys(Priority, 0)
@@ -189,12 +195,10 @@ class PriorityQueue:
 
         try:
             queue.put_nowait(event)
-            with self.lock:
-                self._total_pushed += 1
+            self._total_pushed += 1
             return True
         except asyncio.QueueFull:
-            with self.lock:
-                self._dropped_count[event.priority] += 1
+            self._dropped_count[event.priority] += 1
             return False
 
     async def push_wait(self, event: Event, timeout: float = 5.0) -> bool:
@@ -212,12 +216,10 @@ class PriorityQueue:
 
         try:
             await asyncio.wait_for(queue.put(event), timeout=timeout)
-            with self.lock:
-                self._total_pushed += 1
+            self._total_pushed += 1
             return True
         except TimeoutError:
-            with self.lock:
-                self._dropped_count[event.priority] += 1
+            self._dropped_count[event.priority] += 1
             return False
 
     async def pop(self) -> Event | None:
@@ -232,8 +234,7 @@ class PriorityQueue:
             queue = self.queues[priority]
             try:
                 event = queue.get_nowait()
-                with self.lock:
-                    self._total_popped += 1
+                self._total_popped += 1
                 return event
             except asyncio.QueueEmpty:
                 continue
@@ -253,14 +254,13 @@ class PriorityQueue:
 
     def get_metrics(self) -> dict[str, Any]:
         """Получить метрики очереди."""
-        with self.lock:
-            return {
-                "total_pushed": self._total_pushed,
-                "total_popped": self._total_popped,
-                "dropped_by_priority": {p.value: count for p, count in self._dropped_count.items()},
-                "queue_sizes": {p.value: self.size(p) for p in Priority},
-                "queue_capacities": {p.value: self.capacity(p) for p in Priority},
-            }
+        return {
+            "total_pushed": self._total_pushed,
+            "total_popped": self._total_popped,
+            "dropped_by_priority": {p.value: count for p, count in self._dropped_count.items()},
+            "queue_sizes": {p.value: self.size(p) for p in Priority},
+            "queue_capacities": {p.value: self.capacity(p) for p in Priority},
+        }
 
 
 # ==================== Rate Limiter ====================
@@ -279,7 +279,7 @@ class RateLimiter:
         self.source_limits: dict[str, int] = {}
         self.counts: dict[str, list[float]] = defaultdict(list)
         self.global_counts: list[float] = []
-        self.lock = threading.Lock()
+        self._lock = threading.Lock()
 
     def set_source_limit(self, source: str, limit: int) -> None:
         """Установить лимит для конкретного источника."""
@@ -297,7 +297,7 @@ class RateLimiter:
         """
         current_time = datetime.now(UTC).timestamp()
 
-        with self.lock:
+        with self._lock:
             # Проверить глобальный лимит
             self.global_counts = [t for t in self.global_counts if current_time - t < 1.0]
             if len(self.global_counts) >= self.global_limit:
@@ -321,7 +321,7 @@ class RateLimiter:
 
     def get_metrics(self) -> dict[str, Any]:
         """Получить метрики rate limiter."""
-        with self.lock:
+        with self._lock:
             return {
                 "global_limit": self.global_limit,
                 "global_rate": len(self.global_counts),
@@ -492,6 +492,8 @@ class EnhancedEventBus:
     Реализует расширенную функциональность поверх базового EventBus.
     """
 
+    DEFAULT_SUBSCRIBER_CAPACITY = 1024
+
     def __init__(
         self,
         enable_persistence: bool = False,
@@ -499,6 +501,7 @@ class EnhancedEventBus:
         capacities: dict[str, int] | None = None,
         rate_limit: int = 10000,
         backpressure_strategy: str = "drop_low",
+        subscriber_capacity: int | None = None,
     ) -> None:
         """
         Инициализировать Enhanced Event Bus.
@@ -509,7 +512,10 @@ class EnhancedEventBus:
             capacities: Ёмкости очередей для каждого приоритета
             rate_limit: Глобальный rate limit (событий в секунду)
             backpressure_strategy: Стратегия backpressure
+            subscriber_capacity: Ёмкость очереди подписчика
         """
+        # Конфигурация subscriber queue
+        self.subscriber_capacity = subscriber_capacity or self.DEFAULT_SUBSCRIBER_CAPACITY
         # Настройки из параметров или defaults
         settings = get_settings()
 
@@ -613,7 +619,7 @@ class EnhancedEventBus:
         Возвращает:
             AsyncEventReceiver для получения событий
         """
-        queue: Queue[Event | None] = Queue(maxsize=1024)  # Default capacity
+        queue: Queue[Event | None] = Queue(maxsize=self.subscriber_capacity)
         receiver = AsyncEventReceiver(queue, self)
 
         with self._subscriber_lock:
