@@ -243,7 +243,7 @@ class TestListenerInvariants:
     def test_listener_handles_events(self, event_type):
         """Test that appropriate listeners handle each event type."""
         # Create fresh EnhancedEventBus and register listeners
-        bus = EnhancedEventBus(global_limit=100)
+        bus = EnhancedEventBus(rate_limit=100)
         set_enhanced_event_bus(bus)
 
         registry = register_all_listeners()
@@ -263,7 +263,7 @@ class TestListenerInvariants:
     @settings(max_examples=20)
     async def test_multiple_events_published(self, count):
         """Test that publishing multiple events maintains consistency."""
-        bus = EnhancedEventBus(capacity=1000)
+        bus = EnhancedEventBus(capacities={"critical": 100, "high": 100, "normal": 1000, "low": 1000})
         set_enhanced_event_bus(bus)
 
         initial_count = bus.metrics["published"]
@@ -282,7 +282,7 @@ class TestListenerInvariants:
     @settings(max_examples=15)
     async def test_sequence_of_transitions(self, events):
         """Test that sequence of state transitions is handled correctly."""
-        bus = EnhancedEventBus(capacity=100)
+        bus = EnhancedEventBus(capacities={"critical": 100, "high": 100, "normal": 100, "low": 100})
         set_enhanced_event_bus(bus)
 
         for i, payload in enumerate(events):  # noqa: B007
@@ -463,7 +463,7 @@ class TestIntegrationInvariants:
     @settings(max_examples=15)
     async def test_system_lifecycle_events(self, events):
         """Test that system lifecycle events maintain proper order."""
-        bus = EnhancedEventBus(capacity=100)
+        bus = EnhancedEventBus(capacities={"critical": 100, "high": 100, "normal": 100, "low": 100})
         set_enhanced_event_bus(bus)
         registry = register_all_listeners()
         bus.enable_listeners()
@@ -491,7 +491,7 @@ class TestIntegrationInvariants:
     @settings(max_examples=15)
     async def test_order_sequence(self, order_count, symbol):
         """Test that sequence of orders maintains consistency."""
-        bus = EnhancedEventBus(capacity=1000)
+        bus = EnhancedEventBus(capacities={"critical": 100, "high": 100, "normal": 1000, "low": 1000})
         set_enhanced_event_bus(bus)
         register_all_listeners()
         bus.enable_listeners()
@@ -529,7 +529,7 @@ class TestPerformanceInvariants:
     async def test_event_bus_capacity(self, event_count):
         """Test that event bus handles capacity correctly."""
         capacity = 100
-        bus = EnhancedEventBus(capacity=capacity)
+        bus = EnhancedEventBus(capacities={"critical": 100, "high": 100, "normal": capacity, "low": capacity})
         set_enhanced_event_bus(bus)
 
         # Publish more events than capacity
@@ -545,7 +545,7 @@ class TestPerformanceInvariants:
     @settings(max_examples=10)
     async def test_multiple_handlers(self, handler_count):
         """Test that multiple handlers work correctly."""
-        bus = EnhancedEventBus(capacity=100)
+        bus = EnhancedEventBus(capacities={"critical": 100, "high": 100, "normal": 100, "low": 100})
 
         call_count = 0
 
