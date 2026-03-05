@@ -274,6 +274,7 @@ markers = [
     "e2e: End-to-end tests",
     "slow: Slow running tests",
     "slowest: Very slow running tests",
+    "benchmark: Performance benchmarks",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",
