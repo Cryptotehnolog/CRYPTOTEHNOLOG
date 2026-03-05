@@ -11,6 +11,7 @@ Integration тесты для Enhanced Event Bus.
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 
 import pytest
 
@@ -162,10 +163,8 @@ class TestBackpressureIntegration:
         for i in range(100):
             event = Event.new("TEST", "SOURCE", {"i": i})
             event.priority = Priority.LOW
-            try:
+            with suppress(PublishError):
                 await bus.publish(event)
-            except PublishError:
-                pass  # Игнорируем ошибки переполнения
 
         # Что-то должно быть отброшено
         total = bus.metrics["published"] + bus.metrics["dropped"]

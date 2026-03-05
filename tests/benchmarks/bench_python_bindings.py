@@ -23,7 +23,11 @@ import uuid
 
 import pytest
 
-from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
+from cryptotechnolog.core.enhanced_event_bus import (
+    EnhancedEventBus,
+    PriorityQueue,
+    RateLimiter,
+)
 from cryptotechnolog.core.event import Event, Priority
 from cryptotechnolog.core.health import (
     ComponentHealth,
@@ -741,8 +745,6 @@ class TestEnhancedEventBusBenchmarks:
     @pytest.mark.asyncio
     async def test_priority_queue_push_pop(self) -> None:
         """Бенчмарк PriorityQueue push/pop."""
-        from cryptotechnolog.core.enhanced_event_bus import PriorityQueue
-
         pq = PriorityQueue()
         iterations = 50000
 
@@ -764,8 +766,6 @@ class TestEnhancedEventBusBenchmarks:
     @pytest.mark.asyncio
     async def test_rate_limiter_check(self) -> None:
         """Бенчмарк RateLimiter check."""
-        from cryptotechnolog.core.enhanced_event_bus import RateLimiter
-
         limiter = RateLimiter(global_limit=100000)
         iterations = 100000
 
