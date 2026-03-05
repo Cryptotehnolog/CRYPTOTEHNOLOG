@@ -43,6 +43,7 @@ jobs:
         run: |
           cd crates/eventbus
           cargo bench --bench event_bench -- --save-baseline main
+          cargo bench --bench enhanced_eventbus_bench -- --save-baseline main
 
       - name: Upload baseline artifacts
         uses: actions/upload-artifact@v4
@@ -104,6 +105,7 @@ jobs:
         run: |
           cd crates/eventbus
           cargo bench --bench event_bench -- --baseline main --save-baseline pr-${{ github.event.pull_request.number }}
+          cargo bench --bench enhanced_eventbus_bench -- --baseline main --save-baseline pr-${{ github.event.pull_request.number }}
 
       - name: Check for performance regressions
         run: |
