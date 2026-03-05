@@ -1,4 +1,4 @@
-﻿# ==================== CRYPTOTEHNOLOG FFI Crate ====================
+# ==================== CRYPTOTEHNOLOG FFI Crate ====================
 # Python bindings using PyO3 for high-performance interop
 
 [package]
