@@ -108,9 +108,7 @@ class TestEventFlow:
         ]
 
         for i, priority in enumerate(priorities):
-            event = Event.new(
-                f"TEST_{i}", "SOURCE", {"priority": priority.value}
-            )
+            event = Event.new(f"TEST_{i}", "SOURCE", {"priority": priority.value})
             event.priority = priority
             await event_bus.publish(event)
 
