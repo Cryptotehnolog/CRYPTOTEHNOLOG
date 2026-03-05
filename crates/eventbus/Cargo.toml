@@ -56,3 +56,7 @@ required-features = ["lock-free"]
 name = "eventbus_backend_bench"
 harness = false
 required-features = ["lock-free"]
+
+[[bench]]
+name = "enhanced_eventbus_bench"
+harness = false
