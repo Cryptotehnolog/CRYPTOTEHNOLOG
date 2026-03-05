@@ -14,7 +14,7 @@ import asyncio
 
 import pytest
 
-from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus, PersistenceError
+from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus, PersistenceError, PublishError
 from cryptotechnolog.core.event import Event, Priority
 
 
@@ -151,15 +151,14 @@ class TestBackpressureIntegration:
             },
         )
 
-        # Пытаемся переполнить
-        dropped = 0
+        # Пытаемся переполнить - PublishError может выбрасываться при переполнении
         for i in range(100):
             event = Event.new("TEST", "SOURCE", {"i": i})
             event.priority = Priority.LOW
             try:
                 await bus.publish(event)
-            except Exception:
-                dropped += 1
+            except PublishError:
+                pass  # Игнорируем ошибки переполнения
 
         # Что-то должно быть отброшено
         total = bus.metrics["published"] + bus.metrics["dropped"]
@@ -181,10 +180,10 @@ class TestErrorHandling:
         event1 = Event.new("TEST", "SOURCE", {"i": 1})
         await bus.publish(event1)
 
-        # Второе должно вызвать ошибку
+        # Второе должно вызвать PublishError
         event2 = Event.new("TEST", "SOURCE", {"i": 2})
 
-        with pytest.raises(Exception):
+        with pytest.raises(PublishError):
             await bus.publish(event2)
 
 

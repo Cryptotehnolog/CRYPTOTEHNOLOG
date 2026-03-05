@@ -22,6 +22,7 @@ from cryptotechnolog.core.enhanced_event_bus import (
     BackpressureStrategy,
     EnhancedEventBus,
     PriorityQueue,
+    PublishError,
     RateLimiter,
 )
 from cryptotechnolog.core.event import Event, Priority
@@ -344,7 +345,7 @@ class TestEnhancedEventBusPublish:
 
         event2 = Event.new("TEST", "SOURCE", {"i": 2})
 
-        with pytest.raises(Exception):
+        with pytest.raises(PublishError):
             await bus.publish(event2)
 
         assert bus.metrics["rate_limited"] >= 1
