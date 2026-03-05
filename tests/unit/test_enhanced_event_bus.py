@@ -12,9 +12,7 @@ Unit тесты для Enhanced Event Bus.
 from __future__ import annotations
 
 import asyncio
-import time
 import uuid
-from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -111,7 +109,12 @@ class TestPriorityQueue:
     async def test_queue_full_returns_false(self) -> None:
         """Тест возврата False при полной очереди."""
         # Маленькая ёмкость для теста
-        caps = {Priority.CRITICAL: 2, Priority.HIGH: 2, Priority.NORMAL: 2, Priority.LOW: 2}
+        caps = {
+            Priority.CRITICAL: 2,
+            Priority.HIGH: 2,
+            Priority.NORMAL: 2,
+            Priority.LOW: 2,
+        }
         pq = PriorityQueue(caps)
 
         # Заполняем очередь CRITICAL
@@ -130,7 +133,12 @@ class TestPriorityQueue:
     @pytest.mark.asyncio
     async def test_push_wait_with_timeout(self) -> None:
         """Тест push_wait с таймаутом."""
-        caps = {Priority.CRITICAL: 1, Priority.HIGH: 1, Priority.NORMAL: 1, Priority.LOW: 1}
+        caps = {
+            Priority.CRITICAL: 1,
+            Priority.HIGH: 1,
+            Priority.NORMAL: 1,
+            Priority.LOW: 1,
+        }
         pq = PriorityQueue(caps)
 
         # Заполняем

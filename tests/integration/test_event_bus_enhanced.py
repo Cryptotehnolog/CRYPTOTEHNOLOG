@@ -14,7 +14,11 @@ import asyncio
 
 import pytest
 
-from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus, PersistenceError, PublishError
+from cryptotechnolog.core.enhanced_event_bus import (
+    EnhancedEventBus,
+    PersistenceError,
+    PublishError,
+)
 from cryptotechnolog.core.event import Event, Priority
 
 
@@ -87,7 +91,7 @@ class TestEventFlow:
             event.priority = Priority.NORMAL
             tasks.append(event_bus.publish(event))
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
         # Все должны пройти
         assert event_bus.metrics["published"] == 100
@@ -103,7 +107,9 @@ class TestEventFlow:
         ]
 
         for i, priority in enumerate(priorities):
-            event = Event.new(f"TEST_{i}", "SOURCE", {"priority": priority.value})
+            event = Event.new(
+                f"TEST_{i}", "SOURCE", {"priority": priority.value}
+            )
             event.priority = priority
             await event_bus.publish(event)
 
@@ -151,7 +157,8 @@ class TestBackpressureIntegration:
             },
         )
 
-        # Пытаемся переполнить - PublishError может выбрасываться при переполнении
+        # Пытаемся переполнить - PublishError может
+        # выбрасываться при переполнении
         for i in range(100):
             event = Event.new("TEST", "SOURCE", {"i": i})
             event.priority = Priority.LOW
