@@ -17,9 +17,7 @@ class TestMain:
     @pytest.fixture
     def mock_settings(self):
         """Mock settings for testing."""
-        with patch(
-            "cryptotechnolog.main.get_settings"
-        ) as mock:
+        with patch("cryptotechnolog.main.get_settings") as mock:
             mock_settings = Mock()
             mock_settings.environment = "test"
             mock_settings.log_level = "INFO"
