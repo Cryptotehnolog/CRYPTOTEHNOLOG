@@ -854,7 +854,7 @@ class EnhancedEventBus:
         """
         # 1. Проверить rate limit
         if not await self._check_rate_limit(event.source):
-            raise PublishError(f"Rate limit превышен для источника: {event.source}")
+            raise PublishError(f"Rate limit превышен для источника: {event.source}") from None
 
         # 2. Определить действие backpressure
         backpressure_action = self._determine_backpressure_action(event)
@@ -890,12 +890,12 @@ class EnhancedEventBus:
             # Для CRITICAL - ждать с таймаутом
             success = await self.priority_queue.push_wait(event, timeout=5.0)
             if not success:
-                raise PublishError("Таймаут добавления CRITICAL события в очередь")
+                raise PublishError("Таймаут добавления CRITICAL события в очередь") from None
         else:
             success = await self.priority_queue.push(event)
             if not success:
                 self.metrics["dropped"] += 1
-                raise PublishError(f"Очередь {event.priority.value} переполнена")
+                raise PublishError(f"Очередь {event.priority.value} переполнена") from None
 
         # 5. Сохранить событие в persistence (async, не ждём завершения)
         if self.enable_persistence:
@@ -986,7 +986,7 @@ class EnhancedEventBus:
             Список событий
         """
         if not self.enable_persistence or not self.persistence:
-            raise PersistenceError("Persistence не включен")
+            raise PersistenceError("Persistence не включен") from None
 
         return await self.persistence.replay(priority, from_id, limit)
 
