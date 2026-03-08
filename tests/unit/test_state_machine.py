@@ -374,3 +374,130 @@ class TestStateMachineRepr:
 
 # Mark all tests as unit tests
 pytest.mark.unit(__name__)
+
+
+class TestStateMachineUncoveredMethods:
+    """Тесты для непокрытых методов State Machine."""
+
+    @pytest.mark.asyncio
+    async def test_is_state_timeout_exceeded(self) -> None:
+        """Тест проверки таймаута состояния."""
+        sm = StateMachine()
+        
+        # По умолчанию таймаут не превышен
+        assert sm.is_state_timeout_exceeded() is False
+    
+    @pytest.mark.asyncio
+    async def test_get_next_state_on_timeout(self) -> None:
+        """Тест получения следующего состояния при таймауте."""
+        sm = StateMachine()
+        
+        # Переходим в состояние с таймаутом
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        
+        # Получаем следующее состояние при таймауте
+        next_state = sm._get_next_state_on_timeout()
+        
+        # Для INIT таймаут ведёт в ERROR
+        assert next_state == SystemState.ERROR
+    
+    @pytest.mark.asyncio
+    async def test_get_state_policy_description(self) -> None:
+        """Тест получения описания политики состояния."""
+        sm = StateMachine()
+        
+        # Переходим в состояние TRADING
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+        
+        desc = sm.get_state_policy_description()
+        # Описание на русском языке
+        assert len(desc) > 0
+    
+    @pytest.mark.asyncio
+    async def test_get_state_timeout(self) -> None:
+        """Тест получения таймаута текущего состояния."""
+        sm = StateMachine()
+        
+        # Для BOOT таймаут 60 секунд
+        timeout = sm.get_state_timeout()
+        assert timeout == 60
+    
+    @pytest.mark.asyncio
+    async def test_get_state_timeout_trading(self) -> None:
+        """Тест таймаута для состояния TRADING (нет таймаута)."""
+        sm = StateMachine()
+        
+        # Переходим в TRADING
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+        
+        # TRADING не имеет таймаута
+        timeout = sm.get_state_timeout()
+        assert timeout is None
+    
+    @pytest.mark.asyncio
+    async def test_can_trade_method(self) -> None:
+        """Тест метода can_trade."""
+        sm = StateMachine()
+        
+        # BOOT не разрешает торговлю
+        assert sm.can_trade() is False
+    
+    @pytest.mark.asyncio
+    async def test_is_transitioning(self) -> None:
+        """Тест метода is_transitioning."""
+        sm = StateMachine()
+        
+        # По умолчанию не в процессе перехода
+        assert sm.is_transitioning() is False
+    
+    @pytest.mark.asyncio
+    async def test_is_trade_allowed(self) -> None:
+        """Тест метода is_trade_allowed."""
+        sm = StateMachine()
+        
+        # По умолчанию торговля не разрешена
+        assert sm.is_trade_allowed() is False
+    
+    @pytest.mark.asyncio
+    async def test_get_allowed_transitions(self) -> None:
+        """Тест получения списка допустимых переходов."""
+        sm = StateMachine()
+        
+        allowed = sm.get_allowed_transitions()
+        
+        # Из BOOT можно перейти только в INIT
+        assert SystemState.INIT in allowed
+    
+    @pytest.mark.asyncio
+    async def test_can_transition_to(self) -> None:
+        """Тест проверки возможности перехода."""
+        sm = StateMachine()
+        
+        # Из BOOT можно перейти в INIT
+        assert sm.can_transition_to(SystemState.INIT) is True
+        
+        # Из BOOT нельзя перейти напрямую в TRADING
+        assert sm.can_transition_to(SystemState.TRADING) is False
+    
+    @pytest.mark.asyncio
+    async def test_get_transition_count(self) -> None:
+        """Тест получения количества переходов."""
+        sm = StateMachine()
+        
+        assert sm.get_transition_count() == 0
+        
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        
+        assert sm.get_transition_count() == 1
+    
+    @pytest.mark.asyncio
+    async def test_get_time_in_current_state(self) -> None:
+        """Тест получения времени в текущем состоянии."""
+        sm = StateMachine()
+        
+        time_in_state = sm.get_time_in_current_state()
+        assert time_in_state >= 0
