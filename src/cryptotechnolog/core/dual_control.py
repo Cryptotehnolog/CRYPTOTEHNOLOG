@@ -214,3 +214,81 @@ LOW_RISK_OPERATIONS = {
 
 # All operations that require dual control
 DUAL_CONTROL_OPERATIONS = CRITICAL_OPERATIONS | HIGH_RISK_OPERATIONS | LOW_RISK_OPERATIONS
+
+
+# ==================== Dual Control Manager (заглушка для совместимости) ====================
+
+
+class DualControlManager:
+    """
+    Менеджер dual control (двойного контроля).
+
+    Заглушечная реализация для совместимости.
+    Полная реализация будет в будущих фазах.
+    """
+
+    def __init__(self) -> None:
+        """Инициализировать менеджер."""
+        self.requests: dict[uuid.UUID, DualControlRequest] = {}
+
+    def create_request(
+        self,
+        operation_type: OperationType,
+        requested_by: Operator,
+        target_state: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> DualControlRequest:
+        """
+        Создать запрос на dual control.
+
+        Аргументы:
+            operation_type: Тип операции
+            requested_by: Оператор, запросивший операцию
+            target_state: Целевое состояние (для state transition)
+            metadata: Дополнительные метаданные
+
+        Возвращает:
+            Созданный запрос
+        """
+        request = DualControlRequest(
+            operation_type=operation_type,
+            requested_by=requested_by,
+            target_state=target_state,
+            metadata=metadata or {},
+        )
+        self.requests[request.id] = request
+        return request
+
+    def get_request(self, request_id: uuid.UUID) -> DualControlRequest | None:
+        """Получить запрос по ID."""
+        return self.requests.get(request_id)
+
+    def approve_request(self, request_id: uuid.UUID, operator: Operator) -> bool:
+        """Подтвердить запрос."""
+        request = self.requests.get(request_id)
+        if not request:
+            return False
+        return request.approve(operator)
+
+    def reject_request(self, request_id: uuid.UUID, operator: Operator, reason: str) -> bool:
+        """Отклонить запрос."""
+        request = self.requests.get(request_id)
+        if not request:
+            return False
+        return request.reject(operator, reason)
+
+    def cancel_request(self, request_id: uuid.UUID) -> bool:
+        """Отменить запрос."""
+        request = self.requests.get(request_id)
+        if not request:
+            return False
+        return request.cancel()
+
+    def cleanup_expired(self) -> list[DualControlRequest]:
+        """Очистить истёкшие запросы и вернуть список очищенных."""
+        expired = []
+        for request in list(self.requests.values()):
+            if request.is_expired():
+                request.expire()
+                expired.append(request)
+        return expired

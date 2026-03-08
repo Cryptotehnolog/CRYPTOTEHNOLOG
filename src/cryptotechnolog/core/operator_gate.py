@@ -31,11 +31,14 @@ from .dual_control import (
     Operator,
     OperatorRole,
 )
-from .event import Event, SystemEventSource, SystemEventType
-from .event_bus import EventBus, get_event_bus
+from .event import Event, Priority, SystemEventSource, SystemEventType
+from .event_publisher import publish_event
+from .global_instances import get_event_bus
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from .enhanced_event_bus import EnhancedEventBus
 
 logger = get_logger(__name__)
 
@@ -163,7 +166,7 @@ class OperatorGate:
 
     def __init__(
         self,
-        event_bus: EventBus | None = None,
+        event_bus: EnhancedEventBus | None = None,
         authenticator: TokenAuthenticator | None = None,
         request_timeout: int = DEFAULT_REQUEST_TIMEOUT_MINUTES,
     ) -> None:
@@ -279,7 +282,15 @@ class OperatorGate:
         )
 
         # Publish event
-        self._publish_request_event(request, "request_created")
+        publish_event(
+            event_type="DUAL_CONTROL_REQUEST",
+            source="OPERATOR_GATE",
+            payload={
+                "subtype": "request_created",
+                "request": request.to_dict(),
+            },
+            priority=Priority.NORMAL,
+        )
 
         # Callbacks
         for callback in self._on_request_created:
@@ -353,7 +364,15 @@ class OperatorGate:
         )
 
         # Publish event
-        self._publish_request_event(request, "request_approved")
+        publish_event(
+            event_type="DUAL_CONTROL_REQUEST",
+            source="OPERATOR_GATE",
+            payload={
+                "subtype": "request_approved",
+                "request": request.to_dict(),
+            },
+            priority=Priority.NORMAL,
+        )
 
         # Callbacks
         for callback in self._on_request_approved:
@@ -403,7 +422,16 @@ class OperatorGate:
             reason=reason,
         )
 
-        self._publish_request_event(request, "request_rejected")
+        # Publish event
+        publish_event(
+            event_type="DUAL_CONTROL_REQUEST",
+            source="OPERATOR_GATE",
+            payload={
+                "subtype": "request_rejected",
+                "request": request.to_dict(),
+            },
+            priority=Priority.NORMAL,
+        )
 
         for callback in self._on_request_rejected:
             try:
@@ -456,7 +484,16 @@ class OperatorGate:
             cancelled_by=operator.name,
         )
 
-        self._publish_request_event(request, "request_cancelled")
+        # Publish event
+        publish_event(
+            event_type="DUAL_CONTROL_REQUEST",
+            source="OPERATOR_GATE",
+            payload={
+                "subtype": "request_cancelled",
+                "request": request.to_dict(),
+            },
+            priority=Priority.NORMAL,
+        )
         return True
 
     def get_request(self, request_id: uuid.UUID) -> DualControlRequest | None:
@@ -493,7 +530,16 @@ class OperatorGate:
                 operation=request.operation_type.value,
             )
 
-            self._publish_request_event(request, "request_expired")
+            # Publish event
+            publish_event(
+                event_type="DUAL_CONTROL_REQUEST",
+                source="OPERATOR_GATE",
+                payload={
+                    "subtype": "request_expired",
+                    "request": request.to_dict(),
+                },
+                priority=Priority.NORMAL,
+            )
 
             for callback in self._on_request_expired:
                 try:
@@ -512,7 +558,7 @@ class OperatorGate:
             except Exception as e:
                 logger.error("Ошибка в expiration loop", error=str(e))
 
-    def _publish_request_event(self, request: DualControlRequest, event_subtype: str) -> None:
+    async def _publish_request_event(self, request: DualControlRequest, event_subtype: str) -> None:
         """Опубликовать событие о запросе."""
         event = Event.new(
             SystemEventType.WATCHDOG_ALERT,  # Переиспользуем тип
@@ -522,7 +568,7 @@ class OperatorGate:
                 "request": request.to_dict(),
             },
         )
-        self._event_bus.publish(event)
+        await self._event_bus.publish(event)
 
     def on_request_created(self, callback: Callable[[DualControlRequest], Any]) -> None:
         """Зарегистрировать callback при создании запроса."""

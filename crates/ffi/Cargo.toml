@@ -13,7 +13,7 @@ repository = "https://github.com/your-org/cryptotechnolog"
 
 [lib]
 name = "cryptotechnolog_rust"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["jemalloc"]
@@ -28,14 +28,21 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 
-# Memory allocator (jemalloc for Linux/Mac, system allocator for Windows)
-[target.'cfg(not(windows))'.dependencies]
-jemallocator = { version = "0.5", features = ["unprefixed_malloc_on_supported_platforms"], optional = true }
-
 # Local dependencies
 cryptotechnolog-common = { path = "../common" }
 cryptotechnolog-risk-ledger = { path = "../risk-ledger" }
 cryptotechnolog-execution-core = { path = "../execution-core" }
+cryptotechnolog-eventbus = { path = "../eventbus" }
+
+# Channel for receiver
+crossbeam-channel = "0.5"
+
+# UUID for correlation IDs
+uuid = { workspace = true }
+
+# Memory allocator (jemalloc for Linux/Mac, system allocator for Windows)
+[target.'cfg(not(windows))'.dependencies]
+jemallocator = { version = "0.5", features = ["unprefixed_malloc_on_supported_platforms"], optional = true }
 
 [dev-dependencies]
 tokio-test = { workspace = true }

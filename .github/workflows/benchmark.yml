@@ -5,7 +5,7 @@ name: Benchmark
 
 on:
   push:
-    branches: [master, main]
+    branches: [master, main, '3-enhanced-event-bus']
   pull_request:
     branches: [master, main]
   workflow_dispatch:
@@ -15,7 +15,7 @@ jobs:
   benchmark-main:
     name: Benchmark Main (save baseline)
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/3-enhanced-event-bus')
     timeout-minutes: 60
 
     steps:
@@ -43,6 +43,11 @@ jobs:
         run: |
           cd crates/eventbus
           cargo bench --bench event_bench -- --save-baseline main
+
+      - name: Run enhanced eventbus benchmarks (no baseline)
+        run: |
+          cd crates/eventbus
+          cargo bench --bench enhanced_eventbus_bench
 
       - name: Upload baseline artifacts
         uses: actions/upload-artifact@v4
@@ -104,6 +109,11 @@ jobs:
         run: |
           cd crates/eventbus
           cargo bench --bench event_bench -- --baseline main --save-baseline pr-${{ github.event.pull_request.number }}
+
+      - name: Run enhanced eventbus benchmarks
+        run: |
+          cd crates/eventbus
+          cargo bench --bench enhanced_eventbus_bench
 
       - name: Check for performance regressions
         run: |

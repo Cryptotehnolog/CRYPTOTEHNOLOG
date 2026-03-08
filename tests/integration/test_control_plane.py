@@ -1,17 +1,18 @@
 """
-Unit Tests for Control Plane (Event Bus + Listeners).
+Integration tests for control plane with listeners.
 
-Простые тесты Event Bus и Listeners без зависимости от БД.
+Тестирует интеграцию EventBus с listeners (State, Audit, Metrics, Risk).
 """
-
-from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
 from cryptotechnolog.core.event import Event, SystemEventSource, SystemEventType
-from cryptotechnolog.core.event_bus import EventBus, set_event_bus
+from cryptotechnolog.core.global_instances import (
+    set_enhanced_event_bus,
+)
 from cryptotechnolog.core.listeners import (
     get_listener_registry,
     register_all_listeners,
@@ -85,12 +86,18 @@ def mock_database():
 
 @pytest.fixture
 def test_event_bus():
-    """Create fresh EventBus for tests."""
-    bus = EventBus(capacity=100)
-    set_event_bus(bus)
+    """Create fresh EnhancedEventBus for tests."""
+    bus = EnhancedEventBus(
+        capacities={
+            "critical": 100,
+            "high": 100,
+            "normal": 100,
+            "low": 100,
+        }
+    )
+    set_enhanced_event_bus(bus)
     yield bus
-    bus.clear()
-    set_event_bus(None)
+    set_enhanced_event_bus(None)
 
 
 @pytest.fixture
@@ -146,7 +153,7 @@ async def test_listener_handles_correct_events(test_event_bus, setup_listeners):
 async def test_listener_metrics(test_event_bus, setup_listeners):
     """Test that listener metrics are tracked."""
     # Получаем тот же registry, который был зарегистрирован в event_bus
-    registry = test_event_bus._listener_registry
+    registry = test_event_bus.listener_registry
     assert registry is not None
 
     audit_listener = registry.get_listener("audit_listener")
@@ -155,10 +162,10 @@ async def test_listener_metrics(test_event_bus, setup_listeners):
     # Publish some events
     for _ in range(3):
         event = Event.new(SystemEventType.SYSTEM_BOOT, SystemEventSource.SYSTEM_CONTROLLER, {})
-        test_event_bus.publish(event)
+        await test_event_bus.publish(event)
 
     # Wait for async processing - даем время задачам выполниться
-    await test_event_bus.flush()
+    await test_event_bus.drain(timeout=5.0)
 
     # Check metrics
     metrics = registry.metrics
@@ -174,8 +181,8 @@ async def test_event_published_without_listeners(test_event_bus):
     event = Event.new(SystemEventType.SYSTEM_BOOT, SystemEventSource.SYSTEM_CONTROLLER, {})
 
     # Should publish without error (но возвращает False т.к. нет подписчиков)
-    test_event_bus.publish(event)
-    assert test_event_bus.publish_count == 1
+    await test_event_bus.publish(event)
+    assert test_event_bus.metrics["published"] == 1
 
 
 @pytest.mark.asyncio
@@ -193,18 +200,18 @@ async def test_listener_error_does_not_crash_bus(test_event_bus, setup_listeners
 
     # Multiple events should all be published
     for _ in range(10):
-        test_event_bus.publish(event)
+        await test_event_bus.publish(event)
 
-    await test_event_bus.flush()
+    await test_event_bus.drain(timeout=5.0)
 
     # Bus should still be functional
-    assert test_event_bus.publish_count >= 10
+    assert test_event_bus.metrics["published"] >= 10
 
 
 @pytest.mark.asyncio
 async def test_audit_listener_receives_all_events(test_event_bus, setup_listeners):
     """Test that audit listener receives all events via wildcard."""
-    registry = test_event_bus._listener_registry
+    registry = test_event_bus.listener_registry
     audit_listener = registry.get_listener("audit_listener")
     assert audit_listener is not None
 
@@ -218,9 +225,9 @@ async def test_audit_listener_receives_all_events(test_event_bus, setup_listener
     ]
 
     for event in events:
-        test_event_bus.publish(event)
+        await test_event_bus.publish(event)
 
-    await test_event_bus.flush()
+    await test_event_bus.drain(timeout=5.0)
 
     # Audit listener должен получить все события
     assert audit_listener.metrics["events_processed"] >= 3
@@ -229,7 +236,7 @@ async def test_audit_listener_receives_all_events(test_event_bus, setup_listener
 @pytest.mark.asyncio
 async def test_state_machine_listener_persists_transition(test_event_bus, setup_listeners):
     """Test that state machine listener processes transitions."""
-    registry = test_event_bus._listener_registry
+    registry = test_event_bus.listener_registry
     sm_listener = registry.get_listener("state_machine_listener")
     assert sm_listener is not None
 
@@ -244,8 +251,8 @@ async def test_state_machine_listener_persists_transition(test_event_bus, setup_
         },
     )
 
-    test_event_bus.publish(event)
-    await test_event_bus.flush()
+    await test_event_bus.publish(event)
+    await test_event_bus.drain(timeout=5.0)
 
     assert sm_listener.metrics["events_processed"] >= 1
 
@@ -253,7 +260,7 @@ async def test_state_machine_listener_persists_transition(test_event_bus, setup_
 @pytest.mark.asyncio
 async def test_risk_listener_persists_violation(test_event_bus, setup_listeners):
     """Test that risk listener processes violations."""
-    registry = test_event_bus._listener_registry
+    registry = test_event_bus.listener_registry
     risk_listener = registry.get_listener("risk_check_listener")
     assert risk_listener is not None
 
@@ -268,8 +275,8 @@ async def test_risk_listener_persists_violation(test_event_bus, setup_listeners)
         },
     )
 
-    test_event_bus.publish(event)
-    await test_event_bus.flush()
+    await test_event_bus.publish(event)
+    await test_event_bus.drain(timeout=5.0)
 
     assert risk_listener.metrics["events_processed"] >= 1
 
@@ -277,7 +284,7 @@ async def test_risk_listener_persists_violation(test_event_bus, setup_listeners)
 @pytest.mark.asyncio
 async def test_multiple_events_same_type(test_event_bus, setup_listeners):
     """Test processing multiple events of the same type."""
-    registry = test_event_bus._listener_registry
+    registry = test_event_bus.listener_registry
     sm_listener = registry.get_listener("state_machine_listener")
 
     # Publish 5 state transitions
@@ -287,29 +294,29 @@ async def test_multiple_events_same_type(test_event_bus, setup_listeners):
             SystemEventSource.STATE_MACHINE,
             {"from_state": "boot", "to_state": "ready", "trigger": f"test_{i}"},
         )
-        test_event_bus.publish(event)
+        await test_event_bus.publish(event)
 
-    await test_event_bus.flush()
+    await test_event_bus.drain(timeout=5.0)
 
     assert sm_listener.metrics["events_processed"] >= 5
 
 
 @pytest.mark.asyncio
-async def test_event_bus_flush_clears_pending_tasks(test_event_bus):
-    """Test that flush properly clears pending tasks."""
+async def test_event_bus_drain_clears_pending_tasks(test_event_bus):
+    """Test that drain properly clears pending tasks."""
     register_all_listeners()
     test_event_bus.enable_listeners()
 
     # Publish events
     for _ in range(3):
         event = Event.new(SystemEventType.SYSTEM_BOOT, SystemEventSource.SYSTEM_CONTROLLER, {})
-        test_event_bus.publish(event)
+        await test_event_bus.publish(event)
 
-    # Flush should wait for tasks
-    await test_event_bus.flush()
+    # Drain should wait for tasks
+    await test_event_bus.drain(timeout=5.0)
 
-    # After flush, pending tasks should be cleared
-    assert len(test_event_bus._pending_tasks) == 0
+    # After drain, pending tasks should be cleared
+    assert len(test_event_bus.pending_tasks) == 0
 
 
 @pytest.mark.asyncio
@@ -318,7 +325,7 @@ async def test_listeners_can_be_disabled(test_event_bus):
     register_all_listeners()
     test_event_bus.enable_listeners()
 
-    registry = test_event_bus._listener_registry
+    registry = test_event_bus.listener_registry
     assert registry is not None
 
     # Disable listeners
@@ -326,9 +333,9 @@ async def test_listeners_can_be_disabled(test_event_bus):
 
     # Publish event
     event = Event.new(SystemEventType.SYSTEM_BOOT, SystemEventSource.SYSTEM_CONTROLLER, {})
-    test_event_bus.publish(event)
+    await test_event_bus.publish(event)
 
-    await test_event_bus.flush()
+    await test_event_bus.drain(timeout=5.0)
 
     # Metrics should not change after disable
     audit_listener = registry.get_listener("audit_listener")

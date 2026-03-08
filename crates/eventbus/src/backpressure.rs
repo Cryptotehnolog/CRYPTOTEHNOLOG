@@ -17,9 +17,10 @@ use crate::priority::Priority;
 use crate::priority_queue::{new_sync_queue_with_capacity, PushResult, QueueCapacity, SyncPriorityQueue};
 
 /// Стратегия backpressure при переполнении очереди
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum BackpressureStrategy {
     /// Дропать low priority события при переполнении
+    #[default]
     DropLow,
     
     /// Дропать normal + low priority события при переполнении
@@ -32,11 +33,7 @@ pub enum BackpressureStrategy {
     BlockCritical,
 }
 
-impl Default for BackpressureStrategy {
-    fn default() -> Self {
-        BackpressureStrategy::DropLow
-    }
-}
+
 
 impl BackpressureStrategy {
     /// Получить строковое представление стратегии
@@ -49,16 +46,28 @@ impl BackpressureStrategy {
         }
     }
     
-    /// Создать стратегию из строки
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "drop_low" => Some(BackpressureStrategy::DropLow),
-            "drop_normal" => Some(BackpressureStrategy::DropNormal),
-            "overflow" => Some(BackpressureStrategy::Overflow),
-            "block_critical" => Some(BackpressureStrategy::BlockCritical),
-            _ => None,
-        }
-    }
+ /// Создать стратегию из строки
+ pub fn parse(s: &str) -> Option<Self> {
+ if s.eq_ignore_ascii_case("drop_low") {
+ Some(BackpressureStrategy::DropLow)
+ } else if s.eq_ignore_ascii_case("drop_normal") {
+ Some(BackpressureStrategy::DropNormal)
+ } else if s.eq_ignore_ascii_case("overflow") {
+ Some(BackpressureStrategy::Overflow)
+ } else if s.eq_ignore_ascii_case("block_critical") {
+ Some(BackpressureStrategy::BlockCritical)
+ } else {
+ None
+ }
+ }
+}
+
+impl std::str::FromStr for BackpressureStrategy {
+ type Err = &'static str;
+
+ fn from_str(s: &str) -> Result<Self, Self::Err> {
+ Self::parse(s).ok_or("Неверная стратегия backpressure")
+ }
 }
 
 /// Результат обработки backpressure
@@ -459,6 +468,12 @@ impl BackpressureHandler {
         queue.is_empty()
     }
     
+    /// Получить размер очереди по приоритету
+    pub fn size(&self, priority: Priority) -> usize {
+        let queue = self.queue.read();
+        queue.size(priority)
+    }
+    
     /// Получить статистику отброшенных событий
     pub fn get_dropped_stats(&self) -> DroppedStats {
         DroppedStats {
@@ -672,12 +687,12 @@ mod tests {
 
     #[test]
     fn test_strategy_from_str() {
-        assert_eq!(BackpressureStrategy::from_str("drop_low"), Some(BackpressureStrategy::DropLow));
-        assert_eq!(BackpressureStrategy::from_str("DROP_LOW"), Some(BackpressureStrategy::DropLow));
-        assert_eq!(BackpressureStrategy::from_str("drop_normal"), Some(BackpressureStrategy::DropNormal));
-        assert_eq!(BackpressureStrategy::from_str("overflow"), Some(BackpressureStrategy::Overflow));
-        assert_eq!(BackpressureStrategy::from_str("block_critical"), Some(BackpressureStrategy::BlockCritical));
-        assert_eq!(BackpressureStrategy::from_str("invalid"), None);
+        assert_eq!(BackpressureStrategy::parse("drop_low"), Some(BackpressureStrategy::DropLow));
+        assert_eq!(BackpressureStrategy::parse("DROP_LOW"), Some(BackpressureStrategy::DropLow));
+        assert_eq!(BackpressureStrategy::parse("drop_normal"), Some(BackpressureStrategy::DropNormal));
+        assert_eq!(BackpressureStrategy::parse("overflow"), Some(BackpressureStrategy::Overflow));
+        assert_eq!(BackpressureStrategy::parse("block_critical"), Some(BackpressureStrategy::BlockCritical));
+        assert_eq!(BackpressureStrategy::parse("invalid"), None);
     }
 
     #[test]

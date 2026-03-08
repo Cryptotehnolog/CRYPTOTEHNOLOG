@@ -95,11 +95,14 @@ pub mod event;
 pub mod priority;
 pub mod priority_queue;
 pub mod backpressure;
+pub mod persistence;
+pub mod rate_limiter;
 
 #[cfg(feature = "lock-free")]
 pub mod ring_buffer;
 
 pub mod bus;
+pub mod enhanced_bus;
 
 // ==================== Re-exports ====================
 pub use event::Event;
@@ -108,11 +111,25 @@ pub use priority_queue::{PriorityQueue, PushResult, QueueCapacity};
 pub use backpressure::{
     BackpressureHandler, BackpressureStrategy, HandleResult, DroppedStats, BackpressureMetrics,
 };
+pub use persistence::{
+    PersistenceLayer, PersistenceConfig, PersistenceError, PersistenceMetrics, PersistResult,
+    SyncPersistenceLayer,
+};
+pub use rate_limiter::{
+    RateLimiter, RateLimiterConfig, RateLimitError, RateLimitResult, RateLimiterMetrics,
+    SlidingWindow, SyncRateLimiter,
+};
 
 #[cfg(feature = "lock-free")]
 pub use ring_buffer::LockFreeRingBuffer;
 
 pub use bus::{EventBus, EventBusBackend};
+
+// Re-exports for Enhanced Event Bus (исправленная версия)
+pub use enhanced_bus::{
+ EnhancedEventBus, BusMetrics, PublishResult, SyncEnhancedEventBus,
+ new_enhanced_event_bus, new_enhanced_event_bus_with_capacity,
+};
 
 // ==================== Tests ====================
 #[cfg(test)]

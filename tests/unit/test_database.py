@@ -278,3 +278,133 @@ class TestDatabaseManagerTableInfo:
 
 
 pytest.mark.unit(__name__)
+
+
+class TestDatabaseManagerRedisAndCache:
+    """Тесты для Redis кэша и методов без подключения к БД."""
+
+    def test_set_redis(self) -> None:
+        """Тест установки Redis клиента."""
+        db = DatabaseManager()
+
+        # Redis не установлен
+        assert db.has_redis() is False
+
+        # Устанавливаем мок Redis
+        mock_redis = object()
+        db.set_redis(mock_redis)
+
+        # Теперь Redis установлен
+        assert db.has_redis() is True
+
+    @pytest.mark.asyncio
+    async def test_is_healthy_without_connection(self) -> None:
+        """Тест is_healthy без подключения."""
+        db = DatabaseManager()
+
+        # Без подключения - нездоров
+        assert db.is_healthy() is False
+
+    def test_is_healthy_with_connected_redis(self) -> None:
+        """Тест is_healthy с подключённым Redis."""
+        db = DatabaseManager()
+
+        # Устанавливаем мок Redis
+        mock_redis = object()
+        db.set_redis(mock_redis)
+
+        # Без подключения к БД всё ещё нездоров
+        assert db.is_healthy() is False
+
+    @pytest.mark.asyncio
+    async def test_cache_operations(self) -> None:
+        """Тест кэш операций без реального Redis."""
+        db = DatabaseManager()
+
+        # Кэш не работает без Redis - должен выбросить исключение
+        with pytest.raises(RuntimeError, match="Redis"):
+            await db.cache_get("test_key")
+
+    def test_pool_property_not_connected(self) -> None:
+        """Тест свойства pool без подключения."""
+        db = DatabaseManager()
+
+        # Пул не доступен без подключения
+        assert db.pool is None
+
+    def test_circuit_breaker_property(self) -> None:
+        """Тест свойства circuit_breaker."""
+        db = DatabaseManager()
+
+        # Circuit breaker должен быть доступен
+        cb = db.circuit_breaker
+        assert cb is not None
+        assert cb.name == "postgresql"
+
+
+class TestDatabaseManagerCache:
+    """Тесты для методов кэширования."""
+
+    @pytest.mark.asyncio
+    async def test_cache_set_and_get(self) -> None:
+        """Тест установки и получения из кэша."""
+        db = DatabaseManager()
+
+        # Мок Redis с простым хранилищем
+        class MockRedis:
+            def __init__(self):
+                self._data = {}
+
+            async def get(self, key):
+                return self._data.get(key)
+
+            async def set(self, key, value, ttl=None):
+                self._data[key] = value
+
+            async def delete(self, key):
+                if key in self._data:
+                    del self._data[key]
+                    return 1
+                return 0
+
+        mock_redis = MockRedis()
+        db.set_redis(mock_redis)
+
+        # Устанавливаем значение
+        await db.cache_set("test_key", "test_value")
+
+        # Получаем значение
+        result = await db.cache_get("test_key")
+        assert result == "test_value"
+
+    @pytest.mark.asyncio
+    async def test_cache_delete(self) -> None:
+        """Тест удаления из кэша."""
+        db = DatabaseManager()
+
+        # Мок Redis
+        class MockRedis:
+            def __init__(self):
+                self._data = {"key1": "value1"}
+
+            async def get(self, key):
+                return self._data.get(key)
+
+            async def set(self, key, value, ex=None):
+                self._data[key] = value
+
+            async def delete(self, key):
+                if key in self._data:
+                    del self._data[key]
+                    return 1
+                return 0
+
+        mock_redis = MockRedis()
+        db.set_redis(mock_redis)
+
+        # Удаляем значение
+        result = await db.cache_delete("key1")
+        assert result == 1
+
+        # Значение удалено
+        assert await db.cache_get("key1") is None

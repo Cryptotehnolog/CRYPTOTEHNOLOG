@@ -23,6 +23,12 @@ import uuid
 
 import pytest
 
+from cryptotechnolog.core.enhanced_event_bus import (
+    EnhancedEventBus,
+    PriorityQueue,
+    RateLimiter,
+)
+from cryptotechnolog.core.event import Event, Priority
 from cryptotechnolog.core.health import (
     ComponentHealth,
     DatabaseHealthCheck,
@@ -630,6 +636,194 @@ class TestCombinedScenariosBenchmarks:
         ops_per_sec = iterations / duration
 
         print(f"\nConcurrent event processing: {ops_per_sec:,.0f} events/sec")
+
+
+# ============================================================================
+# Enhanced Event Bus Benchmarks
+# ============================================================================
+
+
+@pytest.mark.benchmark
+class TestEnhancedEventBusBenchmarks:
+    """Бенчмарки EnhancedEventBus."""
+
+    @pytest.mark.asyncio
+    async def test_event_bus_creation(self) -> None:
+        """Бенчмарк создания EnhancedEventBus."""
+        iterations = 10000
+
+        start = time.perf_counter()
+        for _ in range(iterations):
+            _ = EnhancedEventBus(enable_persistence=False)
+        end = time.perf_counter()
+
+        duration = end - start
+        ops_per_sec = iterations / duration
+        ns_per_op = (duration / iterations) * 1_000_000_000
+
+        print(f"\nEnhancedEventBus creation: {ops_per_sec:,.0f} ops/sec ({ns_per_op:,.0f} ns/op)")
+
+    @pytest.mark.asyncio
+    async def test_event_creation(self) -> None:
+        """Бенчмарк создания события."""
+        iterations = 100000
+
+        start = time.perf_counter()
+        for i in range(iterations):
+            _ = Event.new("TEST", "SOURCE", {"i": i})
+        end = time.perf_counter()
+
+        duration = end - start
+        ops_per_sec = iterations / duration
+        ns_per_op = (duration / iterations) * 1_000_000_000
+
+        print(f"\nEvent.new: {ops_per_sec:,.0f} ops/sec ({ns_per_op:,.0f} ns/op)")
+
+    @pytest.mark.asyncio
+    async def test_event_publish_no_subscribers(self) -> None:
+        """Бенчмарк публикации без подписчиков."""
+        bus = EnhancedEventBus(
+            enable_persistence=False,
+            capacities={"critical": 100000, "high": 100000, "normal": 100000, "low": 100000},
+        )
+        iterations = 50000
+
+        start = time.perf_counter()
+        for i in range(iterations):
+            event = Event.new("TEST", "SOURCE", {"i": i})
+            await bus.publish(event)
+        end = time.perf_counter()
+
+        duration = end - start
+        ops_per_sec = iterations / duration
+
+        print(f"\nEvent publish (no subscribers): {ops_per_sec:,.0f} ops/sec")
+
+    @pytest.mark.asyncio
+    async def test_event_publish_with_subscriber(self) -> None:
+        """Бенчмарк публикации с одним подписчиком."""
+        bus = EnhancedEventBus(
+            enable_persistence=False,
+            capacities={"critical": 100000, "high": 100000, "normal": 100000, "low": 100000},
+        )
+        _ = bus.subscribe()
+        iterations = 20000
+
+        start = time.perf_counter()
+        for i in range(iterations):
+            event = Event.new("TEST", "SOURCE", {"i": i})
+            await bus.publish(event)
+        end = time.perf_counter()
+
+        duration = end - start
+        ops_per_sec = iterations / duration
+
+        print(f"\nEvent publish (1 subscriber): {ops_per_sec:,.0f} ops/sec")
+
+    @pytest.mark.asyncio
+    async def test_event_publish_multiple_subscribers(self) -> None:
+        """Бенчмарк публикации с несколькими подписчиками."""
+        bus = EnhancedEventBus(
+            enable_persistence=False,
+            capacities={"critical": 100000, "high": 100000, "normal": 100000, "low": 100000},
+        )
+        for _ in range(4):
+            bus.subscribe()
+        iterations = 10000
+
+        start = time.perf_counter()
+        for i in range(iterations):
+            event = Event.new("TEST", "SOURCE", {"i": i})
+            await bus.publish(event)
+        end = time.perf_counter()
+
+        duration = end - start
+        ops_per_sec = iterations / duration
+
+        print(f"\nEvent publish (4 subscribers): {ops_per_sec:,.0f} ops/sec")
+
+    @pytest.mark.asyncio
+    async def test_priority_queue_push_pop(self) -> None:
+        """Бенчмарк PriorityQueue push/pop."""
+        pq = PriorityQueue()
+        iterations = 50000
+
+        # Подготовка событий
+        events = [Event.new("TEST", "SOURCE", {"i": i}) for i in range(iterations)]
+
+        start = time.perf_counter()
+        for event in events:
+            await pq.push(event)
+        for _ in range(iterations):
+            await pq.pop()
+        end = time.perf_counter()
+
+        duration = end - start
+        ops_per_sec = iterations / duration
+
+        print(f"\nPriorityQueue push+pop: {ops_per_sec:,.0f} ops/sec")
+
+    @pytest.mark.asyncio
+    async def test_rate_limiter_check(self) -> None:
+        """Бенчмарк RateLimiter check."""
+        limiter = RateLimiter(global_limit=100000)
+        iterations = 100000
+
+        start = time.perf_counter()
+        for i in range(iterations):
+            limiter.check(f"SOURCE_{i % 10}")
+        end = time.perf_counter()
+
+        duration = end - start
+        ops_per_sec = iterations / duration
+        ns_per_op = (duration / iterations) * 1_000_000_000
+
+        print(f"\nRateLimiter.check: {ops_per_sec:,.0f} ops/sec ({ns_per_op:,.0f} ns/op)")
+
+    @pytest.mark.asyncio
+    async def test_concurrent_event_publishing(self) -> None:
+        """Бенчмарк конкурентной публикации событий."""
+        bus = EnhancedEventBus(enable_persistence=False)
+        _ = bus.subscribe()
+        iterations = 5000
+
+        async def publish_events(start_idx: int) -> None:
+            for i in range(start_idx, start_idx + iterations // 10):
+                event = Event.new("TEST", "SOURCE", {"i": i})
+                await bus.publish(event)
+
+        start = time.perf_counter()
+        await asyncio.gather(*[publish_events(i * 1000) for i in range(10)])
+        end = time.perf_counter()
+
+        duration = end - start
+        ops_per_sec = (iterations * 10) / duration
+
+        print(f"\nConcurrent event publishing: {ops_per_sec:,.0f} ops/sec")
+
+    @pytest.mark.asyncio
+    async def test_mixed_priority_events(self) -> None:
+        """Бенчмарк событий с разными приоритетами."""
+        bus = EnhancedEventBus(
+            enable_persistence=False,
+            capacities={"critical": 100000, "high": 100000, "normal": 100000, "low": 100000},
+        )
+        _ = bus.subscribe()
+        iterations = 20000
+
+        priorities = [Priority.CRITICAL, Priority.HIGH, Priority.NORMAL, Priority.LOW]
+
+        start = time.perf_counter()
+        for i in range(iterations):
+            event = Event.new("TEST", "SOURCE", {"i": i})
+            event.priority = priorities[i % len(priorities)]
+            await bus.publish(event)
+        end = time.perf_counter()
+
+        duration = end - start
+        ops_per_sec = iterations / duration
+
+        print(f"\nMixed priority events: {ops_per_sec:,.0f} ops/sec")
 
 
 # ============================================================================

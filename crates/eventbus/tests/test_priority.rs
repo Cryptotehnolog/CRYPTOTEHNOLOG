@@ -89,14 +89,14 @@ mod priority_tests {
 
     #[test]
     fn test_priority_from_str() {
-        assert_eq!(Priority::from_str("critical"), Some(Priority::Critical));
-        assert_eq!(Priority::from_str("CRITICAL"), Some(Priority::Critical));
-        assert_eq!(Priority::from_str("high"), Some(Priority::High));
-        assert_eq!(Priority::from_str("normal"), Some(Priority::Normal));
-        assert_eq!(Priority::from_str("low"), Some(Priority::Low));
-        assert_eq!(Priority::from_str("0"), Some(Priority::Critical));
-        assert_eq!(Priority::from_str("1"), Some(Priority::High));
-        assert_eq!(Priority::from_str("invalid"), None);
+        assert_eq!(Priority::parse("critical"), Some(Priority::Critical));
+        assert_eq!(Priority::parse("CRITICAL"), Some(Priority::Critical));
+        assert_eq!(Priority::parse("high"), Some(Priority::High));
+        assert_eq!(Priority::parse("normal"), Some(Priority::Normal));
+        assert_eq!(Priority::parse("low"), Some(Priority::Low));
+        assert_eq!(Priority::parse("0"), Some(Priority::Critical));
+        assert_eq!(Priority::parse("1"), Some(Priority::High));
+        assert_eq!(Priority::parse("invalid"), None);
     }
 
     #[test]
@@ -518,12 +518,12 @@ mod backpressure_tests {
 
     #[test]
     fn test_backpressure_strategy_from_str() {
-        assert_eq!(BackpressureStrategy::from_str("drop_low"), Some(BackpressureStrategy::DropLow));
-        assert_eq!(BackpressureStrategy::from_str("DROP_LOW"), Some(BackpressureStrategy::DropLow));
-        assert_eq!(BackpressureStrategy::from_str("drop_normal"), Some(BackpressureStrategy::DropNormal));
-        assert_eq!(BackpressureStrategy::from_str("overflow"), Some(BackpressureStrategy::Overflow));
-        assert_eq!(BackpressureStrategy::from_str("block_critical"), Some(BackpressureStrategy::BlockCritical));
-        assert_eq!(BackpressureStrategy::from_str("invalid"), None);
+        assert_eq!(BackpressureStrategy::parse("drop_low"), Some(BackpressureStrategy::DropLow));
+        assert_eq!(BackpressureStrategy::parse("DROP_LOW"), Some(BackpressureStrategy::DropLow));
+        assert_eq!(BackpressureStrategy::parse("drop_normal"), Some(BackpressureStrategy::DropNormal));
+        assert_eq!(BackpressureStrategy::parse("overflow"), Some(BackpressureStrategy::Overflow));
+        assert_eq!(BackpressureStrategy::parse("block_critical"), Some(BackpressureStrategy::BlockCritical));
+        assert_eq!(BackpressureStrategy::parse("invalid"), None);
     }
 
     #[test]

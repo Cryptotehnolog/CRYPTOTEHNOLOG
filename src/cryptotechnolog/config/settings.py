@@ -217,6 +217,31 @@ class Settings(BaseSettings):
     zeromq_pub_port: int = 5555
     zeromq_sub_port: int = 5556
 
+    # ==================== Enhanced Event Bus Settings ====================
+    # Redis URL for event persistence
+    event_bus_redis_url: str = "redis://localhost:6379"
+
+    # Queue capacities for each priority
+    event_bus_capacity_critical: int = 100
+    event_bus_capacity_high: int = 500
+    event_bus_capacity_normal: int = 10000
+    event_bus_capacity_low: int = 50000
+
+    # Rate limiting (events per second)
+    event_bus_rate_limit: int = 10000
+
+    # Backpressure strategy
+    event_bus_backpressure_strategy: str = "drop_low"
+
+    @field_validator("event_bus_backpressure_strategy")
+    @classmethod
+    def validate_backpressure_strategy(cls, v: str) -> str:
+        """Validate backpressure strategy."""
+        valid_strategies = ["drop_low", "overflow_normal", "drop_normal", "block_critical"]
+        if v.lower() not in valid_strategies:
+            raise ValueError(f"event_bus_backpressure_strategy must be one of {valid_strategies}")
+        return v.lower()
+
     # ==================== Rate Limiting ====================
     # Exchange API rate limit (requests per second)
     exchange_rate_limit: int = 10
