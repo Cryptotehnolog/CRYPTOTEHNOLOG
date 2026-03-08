@@ -174,6 +174,7 @@ class TestCircuitBreakerDecorator:
 
     def test_decorator_creates_breaker(self):
         """Test decorator creates circuit breaker."""
+
         @circuit_breaker("test", failure_threshold=3)
         async def test_func():
             return "success"
@@ -184,6 +185,7 @@ class TestCircuitBreakerDecorator:
     @pytest.mark.asyncio
     async def test_decorator_executes_function(self):
         """Test decorator executes wrapped function."""
+
         @circuit_breaker("test")
         async def test_func():
             return "success"
