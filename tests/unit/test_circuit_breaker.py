@@ -1,7 +1,7 @@
 # ==================== Tests for circuit_breaker.py ====================
 
-import asyncio
-import time
+
+from contextlib import suppress
 
 import pytest
 
@@ -77,9 +77,9 @@ class TestCircuitBreaker:
         cb = CircuitBreaker(name="test")
         cb._failure_count = 5
         cb._state = CircuitState.OPEN
-        
+
         cb.reset()
-        
+
         assert cb.state == CircuitState.CLOSED
         assert cb.failure_count == 0
 
@@ -90,9 +90,9 @@ class TestCircuitBreaker:
             failure_threshold=5,
             recovery_timeout=60,
         )
-        
+
         stats = cb.get_stats()
-        
+
         assert stats["name"] == "test"
         assert stats["state"] == "closed"
         assert stats["failure_count"] == 0
@@ -108,10 +108,10 @@ class TestCircuitBreakerStateTransitions:
     async def test_success_in_closed_state(self):
         """Test success recording in CLOSED state."""
         cb = CircuitBreaker(name="test", failure_threshold=3)
-        
+
         async with cb:
             pass
-        
+
         assert cb.failure_count == 0
         assert cb.state == CircuitState.CLOSED
 
@@ -119,14 +119,14 @@ class TestCircuitBreakerStateTransitions:
     async def test_failure_opens_circuit(self):
         """Test failures open circuit after threshold."""
         cb = CircuitBreaker(name="test", failure_threshold=3)
-        
+
         for _ in range(3):
             try:
                 async with cb:
                     raise Exception("error")
             except Exception:
                 pass
-        
+
         assert cb.state == CircuitState.OPEN
 
     @pytest.mark.asyncio
@@ -137,7 +137,7 @@ class TestCircuitBreakerStateTransitions:
             failure_threshold=2,
             excluded_exceptions=(ValueError,),
         )
-        
+
         # These shouldn't count
         for _ in range(2):
             try:
@@ -145,7 +145,7 @@ class TestCircuitBreakerStateTransitions:
                     raise ValueError("excluded")
             except ValueError:
                 pass
-        
+
         assert cb.state == CircuitState.CLOSED
         assert cb.failure_count == 0
 
@@ -153,16 +153,16 @@ class TestCircuitBreakerStateTransitions:
     async def test_open_blocks_execution(self):
         """Test OPEN state blocks execution."""
         cb = CircuitBreaker(name="test", failure_threshold=1)
-        
+
         # Open the circuit
         try:
             async with cb:
                 raise Exception("error")
         except Exception:
             pass
-        
+
         assert cb.state == CircuitState.OPEN
-        
+
         # Now should raise error
         with pytest.raises(CircuitBreakerError):
             async with cb:
@@ -177,7 +177,7 @@ class TestCircuitBreakerDecorator:
         @circuit_breaker("test", failure_threshold=3)
         async def test_func():
             return "success"
-        
+
         assert hasattr(test_func, "circuit_breaker")
         assert test_func.circuit_breaker.name == "test"
 
@@ -187,7 +187,7 @@ class TestCircuitBreakerDecorator:
         @circuit_breaker("test")
         async def test_func():
             return "success"
-        
+
         result = await test_func()
         assert result == "success"
 
@@ -195,7 +195,7 @@ class TestCircuitBreakerDecorator:
     async def test_decorator_protects_function(self):
         """Test decorator protects function after failures."""
         call_count = 0
-        
+
         @circuit_breaker("test", failure_threshold=2)
         async def test_func():
             nonlocal call_count
@@ -203,14 +203,13 @@ class TestCircuitBreakerDecorator:
             if call_count <= 2:
                 raise Exception("error")
             return "success"
-        
+
         # First two calls fail
-        for _ in range(2):
-            try:
-                await test_func()
-            except Exception:
-                pass
-        
+        with suppress(Exception):
+            await test_func()
+        with suppress(Exception):
+            await test_func()
+
         # Third call should be blocked because circuit is open
         with pytest.raises(CircuitBreakerError):
             await test_func()
@@ -227,29 +226,29 @@ class TestCircuitBreakerAsync:
             failure_threshold=1,
             success_threshold=2,
         )
-        
+
         # Open the circuit
         try:
             async with cb:
                 raise Exception("error")
         except Exception:
             pass
-        
+
         assert cb.state == CircuitState.OPEN
-        
+
         # Wait for recovery
         cb._last_failure_time = 0
-        
+
         # Should transition to HALF_OPEN
         async with cb:
             pass
-        
+
         assert cb.state == CircuitState.HALF_OPEN
-        
+
         # Two more successes should close it
         async with cb:
             pass
         async with cb:
             pass
-        
+
         assert cb.state == CircuitState.CLOSED

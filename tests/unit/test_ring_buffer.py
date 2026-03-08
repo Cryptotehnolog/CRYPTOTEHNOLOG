@@ -23,7 +23,7 @@ class TestRingBufferStats:
             pop_count=0,
             overflow_count=0,
         )
-        
+
         assert stats.capacity == 100
         assert stats.size == 50
         assert not stats.is_full
@@ -57,7 +57,7 @@ class TestRingBuffer:
         """Test initialization with invalid capacity."""
         with pytest.raises(ValueError):
             RingBuffer(capacity=0)
-        
+
         with pytest.raises(ValueError):
             RingBuffer(capacity=-1)
 
@@ -72,7 +72,7 @@ class TestRingBuffer:
         rb = RingBuffer(capacity=2)
         rb.push("item1")
         rb.push("item2")
-        
+
         # Buffer is full, should return False
         result = rb.push("item3")
         assert result is False
@@ -82,7 +82,7 @@ class TestRingBuffer:
         """Test pop returns item."""
         rb = RingBuffer(capacity=10)
         rb.push("item")
-        
+
         item = rb.pop()
         assert item == "item"
         assert rb.is_empty
@@ -90,7 +90,7 @@ class TestRingBuffer:
     def test_pop_returns_none_when_empty(self):
         """Test pop returns None when buffer is empty."""
         rb = RingBuffer(capacity=10)
-        
+
         item = rb.pop()
         assert item is None
 
@@ -99,7 +99,7 @@ class TestRingBuffer:
         rb = RingBuffer(capacity=10)
         rb.push("item1")
         rb.push("item2")
-        
+
         item = rb.peek()
         assert item == "item1"
         assert rb.size == 2
@@ -107,7 +107,7 @@ class TestRingBuffer:
     def test_peek_returns_none_when_empty(self):
         """Test peek returns None when buffer is empty."""
         rb = RingBuffer(capacity=10)
-        
+
         item = rb.peek()
         assert item is None
 
@@ -116,9 +116,9 @@ class TestRingBuffer:
         rb = RingBuffer(capacity=10)
         rb.push("item1")
         rb.push("item2")
-        
+
         rb.clear()
-        
+
         assert rb.is_empty
         assert rb.size == 0
 
@@ -128,9 +128,9 @@ class TestRingBuffer:
         rb.push("item1")
         rb.push("item2")
         rb.pop()
-        
+
         stats = rb.get_stats()
-        
+
         # Actual capacity is 20 (implementation doubles if not power of 2)
         assert stats.capacity == 20
         assert stats.size == 1
@@ -142,14 +142,14 @@ class TestRingBuffer:
         """Test __len__ returns size."""
         rb = RingBuffer(capacity=10)
         assert len(rb) == 0
-        
+
         rb.push("item")
         assert len(rb) == 1
 
     def test_repr(self):
         """Test __repr__ returns correct string."""
         rb = RingBuffer(capacity=10)
-        
+
         result = repr(rb)
         assert "RingBuffer" in result
         assert "capacity" in result
@@ -158,12 +158,12 @@ class TestRingBuffer:
         """Test overflow count increments."""
         rb = RingBuffer(capacity=1)
         rb.push("item1")
-        
+
         # This should overflow
         rb.push("item2")
-        
+
         assert rb.overflow_count == 1
-        
+
         # Another overflow
         rb.push("item3")
         assert rb.overflow_count == 2
@@ -185,7 +185,7 @@ class TestAsyncRingBuffer:
         """Test initialization with invalid capacity."""
         with pytest.raises(ValueError):
             AsyncRingBuffer(capacity=0)
-        
+
         with pytest.raises(ValueError):
             AsyncRingBuffer(capacity=-1)
 
@@ -193,9 +193,9 @@ class TestAsyncRingBuffer:
     async def test_async_push(self):
         """Test async push."""
         rb = AsyncRingBuffer(capacity=10)
-        
+
         result = await rb.push("item")
-        
+
         assert result is True
         assert rb.size == 1
 
@@ -204,9 +204,9 @@ class TestAsyncRingBuffer:
         """Test async push when buffer is full."""
         rb = AsyncRingBuffer(capacity=1)
         await rb.push("item1")
-        
+
         result = await rb.push("item2")
-        
+
         assert result is False
         assert rb.overflow_count == 1
 
@@ -215,9 +215,9 @@ class TestAsyncRingBuffer:
         """Test async pop."""
         rb = AsyncRingBuffer(capacity=10)
         await rb.push("item")
-        
+
         item = await rb.pop()
-        
+
         assert item == "item"
         assert rb.is_empty
 
@@ -225,18 +225,18 @@ class TestAsyncRingBuffer:
     async def test_async_pop_when_empty(self):
         """Test async pop when buffer is empty."""
         rb = AsyncRingBuffer(capacity=10)
-        
+
         item = await rb.pop()
-        
+
         assert item is None
 
     @pytest.mark.asyncio
     async def test_push_wait(self):
         """Test push_wait."""
         rb = AsyncRingBuffer(capacity=10)
-        
+
         result = await rb.push_wait("item", timeout=1.0)
-        
+
         assert result is True
         assert rb.size == 1
 
@@ -245,10 +245,10 @@ class TestAsyncRingBuffer:
         """Test push_wait with timeout."""
         rb = AsyncRingBuffer(capacity=1)
         await rb.push("item1")
-        
+
         # This should timeout
         result = await rb.push_wait("item2", timeout=0.1)
-        
+
         assert result is False
 
     @pytest.mark.asyncio
@@ -256,18 +256,18 @@ class TestAsyncRingBuffer:
         """Test pop_wait."""
         rb = AsyncRingBuffer(capacity=10)
         await rb.push("item")
-        
+
         item = await rb.pop_wait(timeout=1.0)
-        
+
         assert item == "item"
 
     @pytest.mark.asyncio
     async def test_pop_wait_timeout(self):
         """Test pop_wait with timeout."""
         rb = AsyncRingBuffer(capacity=10)
-        
+
         item = await rb.pop_wait(timeout=0.1)
-        
+
         assert item is None
 
     @pytest.mark.asyncio
@@ -276,9 +276,9 @@ class TestAsyncRingBuffer:
         rb = AsyncRingBuffer(capacity=10)
         await rb.push("item1")
         await rb.push("item2")
-        
+
         rb.clear()
-        
+
         assert rb.is_empty
 
     @pytest.mark.asyncio
@@ -286,9 +286,9 @@ class TestAsyncRingBuffer:
         """Test get_stats."""
         rb = AsyncRingBuffer(capacity=10)
         await rb.push("item")
-        
+
         stats = rb.get_stats()
-        
+
         assert stats.capacity == 10
         assert stats.size == 1
         assert stats.push_count == 1
@@ -297,36 +297,36 @@ class TestAsyncRingBuffer:
     async def test_len(self):
         """Test __len__."""
         rb = AsyncRingBuffer(capacity=10)
-        
+
         assert len(rb) == 0
-        
+
         await rb.push("item")
-        
+
         assert len(rb) == 1
 
     @pytest.mark.asyncio
     async def test_multiple_operations(self):
         """Test multiple push/pop operations."""
         rb = AsyncRingBuffer(capacity=5)
-        
+
         # Push 5 items
         for i in range(5):
             result = await rb.push(f"item{i}")
             assert result is True
-        
+
         # Buffer is now full
         assert rb.is_full
-        
+
         # Push one more - should fail
         result = await rb.push("overflow")
         assert result is False
-        
+
         # Pop all items
         items = []
         for _ in range(5):
             item = await rb.pop()
             if item:
                 items.append(item)
-        
+
         assert len(items) == 5
         assert rb.is_empty
