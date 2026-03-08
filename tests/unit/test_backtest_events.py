@@ -2,8 +2,6 @@
 
 from datetime import datetime
 
-import pytest
-
 from cryptotechnolog.backtest.events import (
     BalanceUpdateEvent,
     EventType,
@@ -40,7 +38,7 @@ class TestTickEvent:
             last=42005.0,
             volume=1.0,
         )
-        
+
         assert tick.symbol == "BTCUSDT"
         assert tick.bid == 42000.0
         assert tick.ask == 42010.0
@@ -55,7 +53,7 @@ class TestTickEvent:
             last=42005.0,
             volume=1.0,
         )
-        
+
         assert tick.spread == 10.0
 
     def test_tick_mid_property(self):
@@ -68,7 +66,7 @@ class TestTickEvent:
             last=42005.0,
             volume=1.0,
         )
-        
+
         assert tick.mid == 42005.0
 
     def test_tick_event_type_property(self):
@@ -81,7 +79,7 @@ class TestTickEvent:
             last=42005.0,
             volume=1.0,
         )
-        
+
         assert tick.event_type == EventType.TICK
 
     def test_tick_default_values(self):
@@ -94,7 +92,7 @@ class TestTickEvent:
             last=42005.0,
             volume=1.0,
         )
-        
+
         assert tick.bid_size == 0.0
         assert tick.ask_size == 0.0
         assert tick.exchange == "unknown"
@@ -111,7 +109,7 @@ class TestTickEvent:
             volume=1.0,
             exchange="binance",
         )
-        
+
         assert tick.exchange == "binance"
 
     def test_tick_with_metadata(self):
@@ -125,7 +123,7 @@ class TestTickEvent:
             volume=1.0,
             metadata={"source": "test"},
         )
-        
+
         assert tick.metadata["source"] == "test"
 
 
@@ -143,7 +141,7 @@ class TestOrderEvent:
             quantity=0.1,
             price=42000.0,
         )
-        
+
         assert order.order_id == "order_001"
         assert order.side == "buy"
         assert order.status == "pending"
@@ -159,7 +157,7 @@ class TestOrderEvent:
             quantity=0.1,
             price=42000.0,
         )
-        
+
         assert order.event_type == EventType.ORDER
 
     def test_order_default_values(self):
@@ -173,7 +171,7 @@ class TestOrderEvent:
             quantity=0.1,
             price=None,
         )
-        
+
         assert order.status == "pending"
         assert order.filled_quantity == 0.0
         assert order.average_fill_price is None
@@ -194,7 +192,7 @@ class TestTradeEvent:
             quantity=0.1,
             price=42000.0,
         )
-        
+
         assert trade.trade_id == "trade_001"
         assert trade.side == "buy"
         assert trade.commission == 0.0
@@ -210,7 +208,7 @@ class TestTradeEvent:
             quantity=0.1,
             price=42000.0,
         )
-        
+
         assert trade.total_value == 4200.0
 
     def test_trade_event_type(self):
@@ -224,7 +222,7 @@ class TestTradeEvent:
             quantity=0.1,
             price=42000.0,
         )
-        
+
         assert trade.event_type == EventType.TRADE
 
     def test_trade_default_commission_asset(self):
@@ -238,7 +236,7 @@ class TestTradeEvent:
             quantity=0.1,
             price=42000.0,
         )
-        
+
         assert trade.commission_asset == "USDT"
 
 
@@ -255,7 +253,7 @@ class TestPositionUpdateEvent:
             current_price=42000.0,
             unrealized_pnl=500.0,
         )
-        
+
         assert update.position_size == 0.5
         assert update.realized_pnl == 0.0
 
@@ -269,7 +267,7 @@ class TestPositionUpdateEvent:
             current_price=42000.0,
             unrealized_pnl=500.0,
         )
-        
+
         assert update.event_type == EventType.POSITION_UPDATE
 
 
@@ -285,7 +283,7 @@ class TestBalanceUpdateEvent:
             balance_after=9950.0,
             reason="trade",
         )
-        
+
         assert update.balance_before == 10000.0
         assert update.balance_after == 9950.0
 
@@ -298,7 +296,7 @@ class TestBalanceUpdateEvent:
             balance_after=9950.0,
             reason="trade",
         )
-        
+
         assert update.delta == -50.0
 
     def test_balance_update_event_type(self):
@@ -310,5 +308,5 @@ class TestBalanceUpdateEvent:
             balance_after=9950.0,
             reason="trade",
         )
-        
+
         assert update.event_type == EventType.BALANCE_UPDATE
