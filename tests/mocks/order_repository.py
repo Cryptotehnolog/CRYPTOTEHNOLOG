@@ -30,18 +30,16 @@ class InMemoryOrderRepository:
 
     async def find_by_symbol(self, symbol: str) -> list[dict[str, Any]]:
         """Найти все ордера по символу."""
-        return [
-            order.copy()
-            for order in self._orders.values()
-            if order.get("symbol") == symbol
-        ]
+        return [order.copy() for order in self._orders.values() if order.get("symbol") == symbol]
 
     async def find_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
         """Найти открытые ордера."""
         open_statuses = ("open", "pending")
         result = []
         for order in self._orders.values():
-            if order.get("status") in open_statuses and (symbol is None or order.get("symbol") == symbol):
+            if order.get("status") in open_statuses and (
+                symbol is None or order.get("symbol") == symbol
+            ):
                 result.append(order.copy())
         return result
 

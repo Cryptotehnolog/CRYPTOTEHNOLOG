@@ -49,21 +49,27 @@ class OrderRepository(Protocol):
     """
 
     async def save(self, order: dict[str, Any]) -> None: ...
+
     """Сохранить ордер в хранилище."""
 
     async def find_by_id(self, order_id: str) -> dict[str, Any] | None: ...
+
     """Найти ордер по ID."""
 
     async def find_by_symbol(self, symbol: str) -> list[dict[str, Any]]: ...
+
     """Найти все ордера по символу."""
 
     async def find_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]: ...
+
     """Найти открытые ордера (опционально по символу)."""
 
     async def update_status(self, order_id: str, status: str) -> bool: ...
+
     """Обновить статус ордера."""
 
     async def delete(self, order_id: str) -> bool: ...
+
     """Удалить ордер."""
 
 
@@ -75,21 +81,27 @@ class PositionRepository(Protocol):
     """
 
     async def save(self, position: dict[str, Any]) -> None: ...
+
     """Сохранить позицию."""
 
     async def find_by_id(self, position_id: str) -> dict[str, Any] | None: ...
+
     """Найти позицию по ID."""
 
     async def find_by_symbol(self, symbol: str) -> dict[str, Any] | None: ...
+
     """Найти позицию по символу."""
 
     async def find_all(self) -> list[dict[str, Any]]: ...
+
     """Найти все позиции."""
 
     async def update_pnl(self, position_id: str, pnl: float) -> bool: ...
+
     """Обновить PnL позиции."""
 
     async def close(self, position_id: str) -> bool: ...
+
     """Закрыть позицию."""
 
 
@@ -101,10 +113,13 @@ class RiskLimitRepository(Protocol):
     """
 
     async def get_limits(self, account_id: str) -> dict[str, Any] | None: ...
+
     """Получить лимиты для аккаунта."""
 
     async def save_limits(self, account_id: str, limits: dict[str, Any]) -> None: ...
+
     """Сохранить лимиты для аккаунта."""
 
     async def update_current_exposure(self, account_id: str, exposure: dict[str, Any]) -> None: ...
+
     """Обновить текущую экспозицию."""

@@ -20,12 +20,14 @@ class MockLogger:
 
     def _log(self, level: str, msg: str, *args: Any, **kwargs: Any) -> None:
         """Записать сообщение в список."""
-        self.messages.append({
-            "level": level,
-            "message": msg,
-            "args": args,
-            "kwargs": kwargs,
-        })
+        self.messages.append(
+            {
+                "level": level,
+                "message": msg,
+                "args": args,
+                "kwargs": kwargs,
+            }
+        )
 
     def debug(self, msg: str, *args: Any, **kwargs: Any) -> None:
         self._log("DEBUG", msg, *args, **kwargs)
