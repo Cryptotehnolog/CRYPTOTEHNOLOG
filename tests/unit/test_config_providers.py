@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from pathlib import Path
+import tempfile
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -103,15 +103,17 @@ class TestVaultConfigProvider:
 
     def test_missing_vault_addr(self) -> None:
         """Тест ошибки при отсутствии VAULT_ADDR."""
-        with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(ValueError, match="VAULT_ADDR"):
-                VaultConfigProvider()
+        with patch.dict(os.environ, {}, clear=True), pytest.raises(
+            ValueError, match="VAULT_ADDR"
+        ):
+            VaultConfigProvider()
 
     def test_missing_vault_token(self) -> None:
         """Тест ошибки при отсутствии VAULT_TOKEN."""
-        with patch.dict(os.environ, {"VAULT_ADDR": "http://localhost:8200"}, clear=True):
-            with pytest.raises(ValueError, match="VAULT_TOKEN"):
-                VaultConfigProvider()
+        with patch.dict(
+            os.environ, {"VAULT_ADDR": "http://localhost:8200"}, clear=True
+        ), pytest.raises(ValueError, match="VAULT_TOKEN"):
+            VaultConfigProvider()
 
     def test_custom_vault_params(self) -> None:
         """Тест кастомных параметров Vault."""
