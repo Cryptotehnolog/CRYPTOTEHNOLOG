@@ -103,23 +103,20 @@ class TestVaultConfigProvider:
 
     def test_missing_vault_addr(self) -> None:
         """Тест ошибки при отсутствии VAULT_ADDR."""
-        with patch.dict(os.environ, {}, clear=True), pytest.raises(
-            ValueError, match="VAULT_ADDR"
-        ):
+        with patch.dict(os.environ, {}, clear=True), pytest.raises(ValueError, match="VAULT_ADDR"):
             VaultConfigProvider()
 
     def test_missing_vault_token(self) -> None:
         """Тест ошибки при отсутствии VAULT_TOKEN."""
-        with patch.dict(
-            os.environ, {"VAULT_ADDR": "http://localhost:8200"}, clear=True
-        ), pytest.raises(ValueError, match="VAULT_TOKEN"):
+        with (
+            patch.dict(os.environ, {"VAULT_ADDR": "http://localhost:8200"}, clear=True),
+            pytest.raises(ValueError, match="VAULT_TOKEN"),
+        ):
             VaultConfigProvider()
 
     def test_custom_vault_params(self) -> None:
         """Тест кастомных параметров Vault."""
-        with patch.dict(
-            os.environ, {"VAULT_ADDR": "http://custom:8200", "VAULT_TOKEN": "test"}
-        ):
+        with patch.dict(os.environ, {"VAULT_ADDR": "http://custom:8200", "VAULT_TOKEN": "test"}):
             provider = VaultConfigProvider(
                 vault_addr="http://custom:8200", vault_token="test", mount_point="kv"
             )
