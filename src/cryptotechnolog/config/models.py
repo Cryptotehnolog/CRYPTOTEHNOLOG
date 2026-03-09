@@ -13,7 +13,7 @@ Pydantic модели для конфигурации системы CRYPTOTEHNO
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
