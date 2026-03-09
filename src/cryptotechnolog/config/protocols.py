@@ -11,9 +11,10 @@ SOLID принципы:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from cryptotechnolog.config.models import SystemConfig
