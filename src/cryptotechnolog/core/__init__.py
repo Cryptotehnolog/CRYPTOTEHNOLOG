@@ -14,6 +14,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+# ==================== ИНТЕРФЕЙСЫ И АДАПТЕРЫ ====================
+from .adapters import (
+    PostgresOrderRepository,
+    PostgresPositionRepository,
+    PostgresRiskLimitRepository,
+    StructlogAdapter,
+)
+from .interfaces import (
+    Logger,
+    OrderRepository,
+    PositionRepository,
+    RiskLimitRepository,
+)
+
 # ==================== ИМПОРТЫ КОМПОНЕНТОВ ====================
 from .circuit_breaker import CircuitBreaker
 from .database import DatabaseManager
@@ -88,8 +102,18 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "AuditListener",
+    # Interfaces
+    "Logger",
+    "OrderRepository",
+    "PositionRepository",
+    "RiskLimitRepository",
+    # Adapters
+    "StructlogAdapter",
+    "PostgresOrderRepository",
+    "PostgresPositionRepository",
+    "PostgresRiskLimitRepository",
     # Listeners
+    "AuditListener",
     "BaseListener",
     # Circuit breaker
     "CircuitBreaker",

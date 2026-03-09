@@ -14,9 +14,9 @@ Database Layer — PostgreSQL Manager с асинхронным подключе
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any, cast
 import hashlib
 import json
-from typing import Any, cast
 
 import asyncpg
 
@@ -24,7 +24,6 @@ from cryptotechnolog.config import get_logger, get_settings
 from cryptotechnolog.core.circuit_breaker import CircuitBreaker, CircuitBreakerError
 
 logger = get_logger(__name__)
-
 
 # Тип для Redis клиента
 RedisClientType = Any  # redis.asyncio.Redis
