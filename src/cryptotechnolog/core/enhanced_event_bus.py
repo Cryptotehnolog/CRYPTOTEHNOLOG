@@ -85,7 +85,20 @@ class PublishError(Exception):
 
 class AsyncEventReceiver:
     """
-    Асинхронный приёмник событий (модифицированная версия).
+    Асинхронный приёмник событий из шины событий.
+
+    Предоставляет интерфейс для получения событий из очереди подписчика.
+    Поддерживает три режима получения:
+    - Блокирующий (recv): ждёт следующее событие
+    - Неблокирующий (try_recv): возвращает None если нет события
+    - С таймаутом (recv_timeout): ждёт указанное время
+
+    Реализует протокол async iterator для использования в async for.
+
+    Пример использования:
+        >>> receiver = event_bus.subscribe()
+        >>> async for event in receiver:
+        ...     print(f"Получено событие: {event.type}")
     """
 
     def __init__(self, queue: Queue[Event | None], event_bus: EnhancedEventBus) -> None:
@@ -157,9 +170,24 @@ class AsyncEventReceiver:
 
 class PriorityQueue:
     """
-    Очередь с приоритетами для событий.
+    Очередь с приоритетами для событий Event Bus.
 
-    4 отдельные очереди с разной ёмкостью для каждого приоритета.
+    Реализует 4 раздельные очереди для каждого уровня приоритета:
+    - CRITICAL (100 событий): системные ошибки, kill switches
+    - HIGH (500 событий): нарушения рисков, критические ошибки
+    - NORMAL (10000 событий): торговые сигналы
+    - LOW (50000 событий): метрики, логи
+
+    События извлекаются в порядке приоритета: CRITICAL -> HIGH -> NORMAL -> LOW.
+
+    Атрибуты:
+        queues: Словарь очередей для каждого приоритета
+        DEFAULT_CAPACITIES: Ёмкости по умолчанию
+
+    Пример использования:
+        >>> pq = PriorityQueue()
+        >>> await pq.push(Event(type="trade", priority=Priority.HIGH))
+        >>> event = await pq.pop()  # Получим HIGH приоритет
     """
 
     DEFAULT_CAPACITIES: ClassVar[dict[Priority, int]] = {
@@ -268,9 +296,23 @@ class PriorityQueue:
 
 class RateLimiter:
     """
-    Rate limiter с sliding window.
+    Rate limiter с sliding window алгоритмом.
 
-    Ограничивает частоту событий по источнику и глобально.
+    Ограничивает частоту событий на двух уровнях:
+    1. Глобальный лимит - общее количество событий в секунду
+    2. Лимит источника - события от конкретного источника
+
+    Использует sliding window для плавного ограничения частоты.
+
+    Атрибуты:
+        global_limit: Максимум событий в секунду (по умолчанию 10000)
+        source_limits: Словарь лимитов для каждого источника
+
+    Пример использования:
+        >>> limiter = RateLimiter(global_limit=1000)
+        >>> limiter.set_source_limit("trading", 100)
+        >>> if limiter.check("trading"):
+        ...     await event_bus.publish(event)
     """
 
     def __init__(self, global_limit: int = 10000) -> None:
@@ -335,7 +377,29 @@ class RateLimiter:
 
 class PersistenceLayer:
     """
-    Слой персистентности через Redis Streams.
+    Слой персистентности событий через Redis Streams.
+
+    Обеспечивает:
+    - Сохранение всех событий в Redis Streams
+    - Возможность воспроизведения событий (replay)
+    - Отказоустойчивость при перезапуске системы
+
+    Каждый приоритет события сохраняется в отдельный stream:
+    - {prefix}:critical
+    - {prefix}:high
+    - {prefix}:normal
+    - {prefix}:low
+
+    Атрибуты:
+        redis_url: URL подключения к Redis
+        stream_prefix: Префикс имён streams
+        max_stream_len: Максимальная длина одного stream
+
+    Пример использования:
+        >>> layer = PersistenceLayer("redis://localhost:6379")
+        >>> await layer.connect()
+        >>> await layer.save_event(event)
+        >>> events = await layer.replay(priority=Priority.HIGH, from_id=last_id)
     """
 
     def __init__(self, redis_url: str) -> None:
