@@ -11,8 +11,8 @@ Integration tests for Event Bus with Listeners.
 from __future__ import annotations
 
 import asyncio
-import logging
 from contextlib import asynccontextmanager
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -127,14 +127,14 @@ class TestEventDeliveryToListeners:
     async def test_state_machine_event_delivered(self, event_bus, reset_listener_registry):
         """Тест доставки события STATE_TRANSITION до StateMachineListener."""
         mock_conn = AsyncMock()
-        
+
         @asynccontextmanager
         async def mock_acquire():
             yield mock_conn
-        
+
         mock_pool = AsyncMock()
         mock_pool.acquire = mock_acquire
-        
+
         with patch("cryptotechnolog.core.listeners.state_machine.get_db_pool", return_value=mock_pool):
 
             listener = StateMachineListener()
@@ -162,14 +162,14 @@ class TestEventDeliveryToListeners:
     async def test_audit_event_delivered(self, event_bus, reset_listener_registry):
         """Тест доставки события до AuditListener."""
         mock_conn = AsyncMock()
-        
+
         @asynccontextmanager
         async def mock_acquire():
             yield mock_conn
-        
+
         mock_pool = AsyncMock()
         mock_pool.acquire = mock_acquire
-        
+
         with patch("cryptotechnolog.core.listeners.audit.get_db_pool", return_value=mock_pool):
 
             listener = AuditListener()
@@ -188,14 +188,14 @@ class TestEventDeliveryToListeners:
     async def test_metrics_event_delivered(self, event_bus, reset_listener_registry):
         """Тест доставки события до MetricsListener."""
         mock_conn = AsyncMock()
-        
+
         @asynccontextmanager
         async def mock_acquire():
             yield mock_conn
-        
+
         mock_pool = AsyncMock()
         mock_pool.acquire = mock_acquire
-        
+
         with patch("cryptotechnolog.core.listeners.metrics.get_db_pool", return_value=mock_pool):
 
             listener = MetricsListener()
@@ -219,38 +219,39 @@ class TestEventDeliveryToListeners:
     async def test_risk_event_delivered(self, event_bus, reset_listener_registry):
         """Тест доставки события до RiskListener."""
         mock_conn = AsyncMock()
-        
+
         @asynccontextmanager
         async def mock_acquire():
             yield mock_conn
-        
+
         mock_pool = AsyncMock()
         mock_pool.acquire = mock_acquire
-        
-        with patch("cryptotechnolog.core.listeners.risk.get_db_pool", return_value=mock_pool):
 
-            with patch("cryptotechnolog.core.listeners.risk.get_metrics_collector") as mock_metrics:
-                mock_metrics_collector = MagicMock()
-                mock_metrics_collector.record_latency = AsyncMock()
-                mock_metrics.return_value = mock_metrics_collector
+        with (
+            patch("cryptotechnolog.core.listeners.risk.get_db_pool", return_value=mock_pool),
+            patch("cryptotechnolog.core.listeners.risk.get_metrics_collector") as mock_metrics,
+        ):
+            mock_metrics_collector = MagicMock()
+            mock_metrics_collector.record_latency = AsyncMock()
+            mock_metrics.return_value = mock_metrics_collector
 
-                listener = RiskListener()
-                event_bus.register_listener(listener)
+            listener = RiskListener()
+            event_bus.register_listener(listener)
 
-                event = Event.new(
-                    event_type="ORDER_SUBMITTED",
-                    source="STRATEGY",
-                    payload={
-                        "order_id": "order_123",
-                        "symbol": "BTCUSDT",
-                        "side": "BUY",
-                        "size": 1.0,
-                        "price": 50000,
-                    },
-                )
+            event = Event.new(
+                event_type="ORDER_SUBMITTED",
+                source="STRATEGY",
+                payload={
+                    "order_id": "order_123",
+                    "symbol": "BTCUSDT",
+                    "side": "BUY",
+                    "size": 1.0,
+                    "price": 50000,
+                },
+            )
 
-                await event_bus.publish(event)
-                await asyncio.sleep(0.1)
+            await event_bus.publish(event)
+            await asyncio.sleep(0.1)
 
 
 class TestPriorityEvents:
@@ -318,11 +319,11 @@ class TestEventBusWithAllListeners:
             # Настраиваем моки с правильным async context manager
             for mock in [mock_sm, mock_audit, mock_metrics, mock_risk]:
                 mock_conn = AsyncMock()
-                
+
                 @asynccontextmanager
-                async def mock_acquire():
-                    yield mock_conn
-                
+                async def mock_acquire(conn=mock_conn):
+                    yield conn
+
                 mock_pool = AsyncMock()
                 mock_pool.acquire = mock_acquire
                 mock.return_value = mock_pool
