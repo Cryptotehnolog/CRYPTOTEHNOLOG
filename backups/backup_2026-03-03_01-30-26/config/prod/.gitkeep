@@ -1,2 +1,0 @@
-# This file ensures the config/prod directory is tracked by git
-# Production configuration files should be added here (excluding secrets)

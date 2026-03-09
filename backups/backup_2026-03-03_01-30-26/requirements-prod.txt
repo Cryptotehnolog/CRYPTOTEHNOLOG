@@ -1,6 +1,0 @@
-# ==================== CRYPTOTEHNOLOG Production Dependencies ====================
-# Additional dependencies for production environment
-# Install with: pip install -r requirements.txt -r requirements-prod.txt
-
-# ==================== Additional Production Tools ====================
-gunicorn>=21.0.0,<23.0.0

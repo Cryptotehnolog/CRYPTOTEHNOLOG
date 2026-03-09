@@ -128,6 +128,8 @@ python-dotenv==1.2.1
     #   cryptotechnolog (pyproject.toml)
     #   pydantic-settings
     #   uvicorn
+python-gnupg==0.5.6
+    # via cryptotechnolog (pyproject.toml)
 pytz==2025.2
     # via
     #   cryptotechnolog (pyproject.toml)
@@ -181,6 +183,8 @@ uvicorn==0.41.0
     # via
     #   cryptotechnolog (pyproject.toml)
     #   timescaledb
+watchdog==4.0.2
+    # via cryptotechnolog (pyproject.toml)
 watchfiles==1.1.1
     # via uvicorn
 websockets==13.1
