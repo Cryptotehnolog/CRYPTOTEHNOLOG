@@ -604,17 +604,16 @@ mod tests {
         // Ждем немного чтобы фоновая задача начала работу
         thread::sleep(Duration::from_millis(50));
         
-        // Publish критическое событие ПЕРВЫМ - оно должно прийти первым
-        // Приоритетная очередь работает так: когда есть выбор - берется высший приоритет
-        bus.publish(create_test_event("critical", Priority::Critical));
-        bus.publish(create_test_event("high", Priority::High));
-        bus.publish(create_test_event("normal", Priority::Normal));
+        // Publish в обратном порядке приоритетов
         bus.publish(create_test_event("low", Priority::Low));
+        bus.publish(create_test_event("normal", Priority::Normal));
+        bus.publish(create_test_event("high", Priority::High));
+        bus.publish(create_test_event("critical", Priority::Critical));
         
         // Ждем доставки
         thread::sleep(Duration::from_millis(100));
         
-        // События должны приходить в порядке приоритета
+        // События должны приходить в порядке приоритета (фоновая задача извлекает из priority queue)
         let mut received = Vec::new();
         for _ in 0..4 {
             if let Ok(event) = receiver.recv_timeout(Duration::from_millis(200)) {
@@ -624,10 +623,8 @@ mod tests {
         
         // Проверяем что все 4 события получены
         assert_eq!(received.len(), 4);
-        
-        // Проверяем что первое событие - critical
-        assert_eq!(received[0], "critical", 
-            "Первое событие должно быть critical, получено: {:?}", received);
+        // Первым должен быть critical (наивысший приоритет)
+        assert_eq!(received[0], "critical");
     }
     
     #[test]

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -125,12 +126,16 @@ class TestEventDeliveryToListeners:
     @pytest.mark.asyncio
     async def test_state_machine_event_delivered(self, event_bus, reset_listener_registry):
         """Тест доставки события STATE_TRANSITION до StateMachineListener."""
-        with patch("cryptotechnolog.core.listeners.state_machine.get_db_pool") as mock_db:
-            mock_pool = AsyncMock()
-            mock_conn = AsyncMock()
-            mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
-            mock_pool.acquire.return_value.__aexit__ = AsyncMock()
-            mock_db.return_value = mock_pool
+        mock_conn = AsyncMock()
+        
+        @asynccontextmanager
+        async def mock_acquire():
+            yield mock_conn
+        
+        mock_pool = AsyncMock()
+        mock_pool.acquire = mock_acquire
+        
+        with patch("cryptotechnolog.core.listeners.state_machine.get_db_pool", return_value=mock_pool):
 
             listener = StateMachineListener()
             event_bus.register_listener(listener)
@@ -156,12 +161,16 @@ class TestEventDeliveryToListeners:
     @pytest.mark.asyncio
     async def test_audit_event_delivered(self, event_bus, reset_listener_registry):
         """Тест доставки события до AuditListener."""
-        with patch("cryptotechnolog.core.listeners.audit.get_db_pool") as mock_db:
-            mock_pool = AsyncMock()
-            mock_conn = AsyncMock()
-            mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
-            mock_pool.acquire.return_value.__aexit__ = AsyncMock()
-            mock_db.return_value = mock_pool
+        mock_conn = AsyncMock()
+        
+        @asynccontextmanager
+        async def mock_acquire():
+            yield mock_conn
+        
+        mock_pool = AsyncMock()
+        mock_pool.acquire = mock_acquire
+        
+        with patch("cryptotechnolog.core.listeners.audit.get_db_pool", return_value=mock_pool):
 
             listener = AuditListener()
             event_bus.register_listener(listener)
@@ -178,12 +187,16 @@ class TestEventDeliveryToListeners:
     @pytest.mark.asyncio
     async def test_metrics_event_delivered(self, event_bus, reset_listener_registry):
         """Тест доставки события до MetricsListener."""
-        with patch("cryptotechnolog.core.listeners.metrics.get_db_pool") as mock_db:
-            mock_pool = AsyncMock()
-            mock_conn = AsyncMock()
-            mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
-            mock_pool.acquire.return_value.__aexit__ = AsyncMock()
-            mock_db.return_value = mock_pool
+        mock_conn = AsyncMock()
+        
+        @asynccontextmanager
+        async def mock_acquire():
+            yield mock_conn
+        
+        mock_pool = AsyncMock()
+        mock_pool.acquire = mock_acquire
+        
+        with patch("cryptotechnolog.core.listeners.metrics.get_db_pool", return_value=mock_pool):
 
             listener = MetricsListener()
             event_bus.register_listener(listener)
@@ -205,12 +218,16 @@ class TestEventDeliveryToListeners:
     @pytest.mark.asyncio
     async def test_risk_event_delivered(self, event_bus, reset_listener_registry):
         """Тест доставки события до RiskListener."""
-        with patch("cryptotechnolog.core.listeners.risk.get_db_pool") as mock_db:
-            mock_pool = AsyncMock()
-            mock_conn = AsyncMock()
-            mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
-            mock_pool.acquire.return_value.__aexit__ = AsyncMock()
-            mock_db.return_value = mock_pool
+        mock_conn = AsyncMock()
+        
+        @asynccontextmanager
+        async def mock_acquire():
+            yield mock_conn
+        
+        mock_pool = AsyncMock()
+        mock_pool.acquire = mock_acquire
+        
+        with patch("cryptotechnolog.core.listeners.risk.get_db_pool", return_value=mock_pool):
 
             with patch("cryptotechnolog.core.listeners.risk.get_metrics_collector") as mock_metrics:
                 mock_metrics_collector = MagicMock()
@@ -298,12 +315,16 @@ class TestEventBusWithAllListeners:
             patch("cryptotechnolog.core.listeners.metrics.get_db_pool") as mock_metrics,
             patch("cryptotechnolog.core.listeners.risk.get_db_pool") as mock_risk,
         ):
-            # Настраиваем моки
+            # Настраиваем моки с правильным async context manager
             for mock in [mock_sm, mock_audit, mock_metrics, mock_risk]:
-                mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
-                mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
-                mock_pool.acquire.return_value.__aexit__ = AsyncMock()
+                
+                @asynccontextmanager
+                async def mock_acquire():
+                    yield mock_conn
+                
+                mock_pool = AsyncMock()
+                mock_pool.acquire = mock_acquire
                 mock.return_value = mock_pool
 
             # Публикуем несколько событий разных типов
@@ -390,8 +411,11 @@ class TestListenerMetrics:
         with patch("cryptotechnolog.core.listeners.state_machine.get_db_pool") as mock_db:
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
-            mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
-            mock_pool.acquire.return_value.__aexit__ = AsyncMock()
+            # Правильная настройка async context manager
+            mock_pool.acquire = AsyncMock()
+            mock_pool.acquire.return_value = mock_conn
+            mock_conn.__aenter__ = AsyncMock(return_value=mock_conn)
+            mock_conn.__aexit__ = AsyncMock()
             mock_db.return_value = mock_pool
 
             listener = StateMachineListener()
