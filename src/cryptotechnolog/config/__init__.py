@@ -1,9 +1,6 @@
 # ==================== CRYPTOTEHNOLOG Config Module ====================
 # Configuration management for the trading platform
 
-from cryptotechnolog.core.adapters import StructlogAdapter
-from cryptotechnolog.core.interfaces import Logger
-
 from .logging import (
     LogContext,
     LoggerMixin,
@@ -19,10 +16,8 @@ from .settings import Settings, get_settings, reload_settings, settings, validat
 
 __all__ = [
     "LogContext",
-    "Logger",
     "LoggerMixin",
     "Settings",
-    "StructlogAdapter",
     "bind_context",
     "clear_context",
     "configure_logging",

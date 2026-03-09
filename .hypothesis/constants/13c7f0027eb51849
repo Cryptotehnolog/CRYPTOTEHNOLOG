@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\core\adapters.py
+# hypothesis_version: 6.151.9
+
+[0.0, 'DELETE 1', 'StructlogAdapter', 'UPDATE 1', 'current_price', 'entry_price', 'id', 'max_daily_loss', 'max_leverage', 'max_position_size', 'open', 'pnl', 'price', 'quantity', 'side', 'status', 'symbol']
