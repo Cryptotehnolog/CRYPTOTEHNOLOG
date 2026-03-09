@@ -19,6 +19,7 @@ import asyncio
 from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import Enum
+import random
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -89,7 +90,7 @@ class ComponentHealth:
 
 
 class RecoveryStrategy:
-    """Стратегия восстановления компонента."""
+    """Стратегия восстановления компонента с exponential backoff и jitter."""
 
     def __init__(
         self,
@@ -97,16 +98,27 @@ class RecoveryStrategy:
         backoff_base: float = 1.0,
         backoff_multiplier: float = 2.0,
         max_backoff: float = 60.0,
+        jitter_factor: float = 0.5,
     ) -> None:
         self.max_retries = max_retries
         self.backoff_base = backoff_base
         self.backoff_multiplier = backoff_multiplier
         self.max_backoff = max_backoff
+        self.jitter_factor = jitter_factor
         self._attempt = 0
+        self._rng = random.Random()  # Для воспроизводимости в тестах
 
     def get_backoff_delay(self) -> float:
-        """Получить задержку перед следующей попыткой."""
+        """
+        Получить задержку перед следующей попыткой.
+
+        Формула: base * (multiplier ** attempt) * (1 + random * jitter)
+        Это Full Jitter подход - см. AWS Exponential Backoff.
+        """
         delay = self.backoff_base * (self.backoff_multiplier**self._attempt)
+        # Full jitter: случайное смещение в диапазоне [0, jitter_factor]
+        jitter = self._rng.uniform(0, self.jitter_factor)
+        delay = delay * (1 + jitter)
         return min(delay, self.max_backoff)
 
     def increment_attempt(self) -> None:

@@ -35,7 +35,7 @@ class TestRecoveryStrategy:
 
     def test_backoff_calculation(self):
         """Тест расчёта backoff."""
-        strategy = RecoveryStrategy(backoff_base=1.0, backoff_multiplier=2.0)
+        strategy = RecoveryStrategy(backoff_base=1.0, backoff_multiplier=2.0, jitter_factor=0.0)
 
         assert strategy.get_backoff_delay() == 1.0  # 1.0 * 2^0
 
@@ -47,7 +47,9 @@ class TestRecoveryStrategy:
 
     def test_max_backoff(self):
         """Тест максимального backoff."""
-        strategy = RecoveryStrategy(backoff_base=1.0, backoff_multiplier=10.0, max_backoff=50.0)
+        strategy = RecoveryStrategy(
+            backoff_base=1.0, backoff_multiplier=10.0, max_backoff=50.0, jitter_factor=0.0
+        )
 
         # Exponential growth should be capped
         for _ in range(10):
@@ -74,6 +76,77 @@ class TestRecoveryStrategy:
         strategy.increment_attempt()
 
         assert strategy.should_retry() is False
+
+    def test_jitter_factor_default(self):
+        """Тест значения jitter_factor по умолчанию."""
+        strategy = RecoveryStrategy()
+        assert strategy.jitter_factor == 0.5
+
+    def test_jitter_applied_to_delay(self):
+        """Тест что jitter применяется к задержке (Full Jitter)."""
+        # Используем фиксированный seed для воспроизводимости
+        strategy = RecoveryStrategy(
+            backoff_base=1.0,
+            backoff_multiplier=2.0,
+            jitter_factor=0.5,
+        )
+        strategy._rng.seed(42)
+
+        # Base delay = 1.0 * 2^0 = 1.0
+        # With jitter: 1.0 * (1 + [0, 0.5]) = [1.0, 1.5]
+        delays = [strategy.get_backoff_delay() for _ in range(100)]
+
+        # Все значения должны быть в диапазоне [1.0, 1.5]
+        assert all(1.0 <= d <= 1.5 for d in delays)
+        # Должны быть разные значения (jitter работает)
+        assert len(set(delays)) > 1
+
+    def test_jitter_with_different_attempts(self):
+        """Тест jitter на разных уровнях попыток."""
+        strategy = RecoveryStrategy(
+            backoff_base=1.0,
+            backoff_multiplier=2.0,
+            jitter_factor=0.3,
+        )
+        strategy._rng.seed(123)
+
+        # Attempt 0: base = 1.0, range = [1.0, 1.3]
+        delay_0 = strategy.get_backoff_delay()
+        assert 1.0 <= delay_0 <= 1.3
+
+        strategy.increment_attempt()
+        # Attempt 1: base = 2.0, range = [2.0, 2.6]
+        delay_1 = strategy.get_backoff_delay()
+        assert 2.0 <= delay_1 <= 2.6
+
+        strategy.increment_attempt()
+        # Attempt 2: base = 4.0, range = [4.0, 5.2]
+        delay_2 = strategy.get_backoff_delay()
+        assert 4.0 <= delay_2 <= 5.2
+
+    def test_jitter_respects_max_backoff(self):
+        """Тест что jitter не превышает max_backoff."""
+        strategy = RecoveryStrategy(
+            backoff_base=10.0,
+            backoff_multiplier=10.0,
+            max_backoff=15.0,
+            jitter_factor=1.0,  # Max jitter
+        )
+        strategy._rng.seed(999)
+
+        # Should be capped at max_backoff
+        for _ in range(10):
+            strategy.increment_attempt()
+
+        assert strategy.get_backoff_delay() <= 15.0
+
+    def test_custom_jitter_factor(self):
+        """Тест кастомного jitter_factor."""
+        strategy = RecoveryStrategy(jitter_factor=0.0)  # No jitter
+        strategy._rng.seed(42)
+
+        # Should return exact backoff without jitter
+        assert strategy.get_backoff_delay() == 1.0  # 1.0 * 2^0 = 1.0
 
 
 class TestComponentChecker:
