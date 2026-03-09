@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from cryptotechnolog.config.settings import get_settings
-from cryptotechnolog.core.interfaces import Logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable

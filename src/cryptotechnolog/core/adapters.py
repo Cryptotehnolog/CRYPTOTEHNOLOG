@@ -10,9 +10,6 @@ from typing import Any
 
 import structlog
 
-from cryptotechnolog.core.interfaces import Logger, OrderRepository, PositionRepository, RiskLimitRepository
-
-
 # ==================== Logger Adapter ====================
 
 

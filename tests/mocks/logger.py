@@ -6,8 +6,6 @@ Mock Logger — Заглушка логгера для тестирования.
 
 from typing import Any
 
-from cryptotechnolog.core.interfaces import Logger
-
 
 class MockLogger:
     """

@@ -13,8 +13,8 @@ from tests.mocks.position_repository import InMemoryPositionRepository
 from tests.mocks.risk_limit_repository import InMemoryRiskLimitRepository
 
 __all__ = [
-    "MockLogger",
     "InMemoryOrderRepository",
     "InMemoryPositionRepository",
     "InMemoryRiskLimitRepository",
+    "MockLogger",
 ]

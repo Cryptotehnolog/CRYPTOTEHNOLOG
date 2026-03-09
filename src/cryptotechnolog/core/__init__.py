@@ -21,12 +21,6 @@ from .adapters import (
     PostgresRiskLimitRepository,
     StructlogAdapter,
 )
-from .interfaces import (
-    Logger,
-    OrderRepository,
-    PositionRepository,
-    RiskLimitRepository,
-)
 
 # ==================== ИМПОРТЫ КОМПОНЕНТОВ ====================
 from .circuit_breaker import CircuitBreaker
@@ -63,6 +57,12 @@ from .health import (
     HealthStatus,
     get_health_checker,
     init_health_checker,
+)
+from .interfaces import (
+    Logger,
+    OrderRepository,
+    PositionRepository,
+    RiskLimitRepository,
 )
 from .listeners import (
     AuditListener,
@@ -102,72 +102,53 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    # Interfaces
-    "Logger",
-    "OrderRepository",
-    "PositionRepository",
-    "RiskLimitRepository",
-    # Adapters
-    "StructlogAdapter",
-    "PostgresOrderRepository",
-    "PostgresPositionRepository",
-    "PostgresRiskLimitRepository",
-    # Listeners
     "AuditListener",
     "BaseListener",
-    # Circuit breaker
     "CircuitBreaker",
-    # Database
     "DatabaseManager",
-    # Dual control
     "DualControlManager",
-    # Event buses
     "EnhancedEventBus",
-    # Event system
     "Event",
-    "EventBus",  # Legacy
-    # Stubs
+    "EventBus",
     "ExecutionLayerStub",
     "HealthCheck",
     "HealthChecker",
-    # Metrics
+    "Logger",
     "MetricsCollector",
     "MetricsListener",
-    # Operator gate
     "OperatorGate",
+    "OrderRepository",
+    "PlannedState",
     "PortfolioGovernorStub",
+    "PositionRepository",
     "Priority",
-    # Redis
     "RedisManager",
-    # Ring buffer
     "RingBuffer",
     "RiskEngineStub",
+    "RiskLimitRepository",
     "RiskListener",
     "StateHistory",
     "StateMachine",
     "StateMachineListener",
     "StateTransition",
     "StrategyManagerStub",
-    # System controller
+    "StructlogAdapter",
     "SystemController",
     "SystemEventSource",
     "SystemEventType",
-    # State machine
     "SystemState",
     "TransitionResult",
-    # Watchdog & Health
     "Watchdog",
     "get_enhanced_event_bus",
-    "get_event_bus",  # Legacy
+    "get_event_bus",
     "get_health_checker",
     "get_listener_registry",
     "get_metrics_collector",
     "init_health_checker",
     "publish_alert",
-    # Convenience functions
     "publish_event",
     "reset_enhanced_event_bus",
-    "reset_event_bus",  # Legacy
+    "reset_event_bus",
     "set_enhanced_event_bus",
-    "set_event_bus",  # Legacy
+    "set_event_bus",
 ]

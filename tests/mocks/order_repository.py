@@ -6,8 +6,6 @@ In-Memory Order Repository — Заглушка для тестирования.
 
 from typing import Any
 
-from cryptotechnolog.core.interfaces import OrderRepository
-
 
 class InMemoryOrderRepository:
     """
@@ -43,9 +41,8 @@ class InMemoryOrderRepository:
         open_statuses = ("open", "pending")
         result = []
         for order in self._orders.values():
-            if order.get("status") in open_statuses:
-                if symbol is None or order.get("symbol") == symbol:
-                    result.append(order.copy())
+            if order.get("status") in open_statuses and (symbol is None or order.get("symbol") == symbol):
+                result.append(order.copy())
         return result
 
     async def update_status(self, order_id: str, status: str) -> bool:

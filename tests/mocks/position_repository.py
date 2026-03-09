@@ -6,8 +6,6 @@ In-Memory Position Repository — Заглушка для тестировани
 
 from typing import Any
 
-from cryptotechnolog.core.interfaces import PositionRepository
-
 
 class InMemoryPositionRepository:
     """

@@ -6,8 +6,6 @@ In-Memory Risk Limit Repository — Заглушка для тестирован
 
 from typing import Any
 
-from cryptotechnolog.core.interfaces import RiskLimitRepository
-
 
 class InMemoryRiskLimitRepository:
     """
