@@ -135,8 +135,9 @@ class TestEventDeliveryToListeners:
         mock_pool = AsyncMock()
         mock_pool.acquire = mock_acquire
 
-        with patch("cryptotechnolog.core.listeners.state_machine.get_db_pool", return_value=mock_pool):
-
+        with patch(
+            "cryptotechnolog.core.listeners.state_machine.get_db_pool", return_value=mock_pool
+        ):
             listener = StateMachineListener()
             event_bus.register_listener(listener)
 
@@ -171,7 +172,6 @@ class TestEventDeliveryToListeners:
         mock_pool.acquire = mock_acquire
 
         with patch("cryptotechnolog.core.listeners.audit.get_db_pool", return_value=mock_pool):
-
             listener = AuditListener()
             event_bus.register_listener(listener)
 
@@ -197,7 +197,6 @@ class TestEventDeliveryToListeners:
         mock_pool.acquire = mock_acquire
 
         with patch("cryptotechnolog.core.listeners.metrics.get_db_pool", return_value=mock_pool):
-
             listener = MetricsListener()
             event_bus.register_listener(listener)
 
