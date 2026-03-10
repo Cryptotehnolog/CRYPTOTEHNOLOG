@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -86,7 +86,11 @@ class FileConfigProvider(IConfigLoader):
         if not hasattr(self, "_last_source"):
             raise ValueError("Источник не был установлен при первичной загрузке")
 
-        return await self.load(self._last_source)
+        source = self._last_source
+        if source is None:
+            raise ValueError("Источник не был установлен при первичной загрузке")
+
+        return await self.load(source)
 
     def _resolve_path(self, source: str) -> Path:
         """Разрешить относительный или абсолютный путь."""
@@ -162,7 +166,7 @@ class VaultConfigProvider(IConfigLoader):
             # KV v1 format
             url = f"{self._vault_addr}/v1/{self._mount_point}/{source}"
 
-        headers = {"X-Vault-Token": self._vault_token}
+        headers: dict[str, str] = {"X-Vault-Token": cast("str", self._vault_token)}
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(url, headers=headers)

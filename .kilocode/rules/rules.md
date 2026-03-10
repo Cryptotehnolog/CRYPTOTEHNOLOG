@@ -102,6 +102,12 @@
 
 ## 7. Контейнеризация и окружение
 
+*   **Virtual Environment (.venv):**
+    *   Все зависимости проекта — ТОЛЬКО в .venv
+    *   Инструменты (mypy, ruff, black) — устанавливать в .venv
+    *   Для работы: активировать `.venv/Scripts/Activate` (Windows) или `source .venv/bin/activate` (Linux/Mac)
+    *   При добавлении зависимости: добавить в `pyproject.toml`, пересобрать `.venv` через `uv venv .venv && uv pip sync`
+    *   НИКОГДА не устанавливать зависимости глобально (pip install без активированного venv)
 *   **Docker:** Для запуска сервисов (БД, Redis) используйте `docker-compose up -d`. Код приложения запускайте локально в виртуальном окружении (venv) для быстрой разработки.
 *   **Зависимости:** При добавлении новой Python-библиотеки добавляйте её в `requirements.txt` (или `requirements-prod.txt` для production). Для Rust — в соответствующий `Cargo.toml`.
 

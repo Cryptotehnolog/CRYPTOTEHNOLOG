@@ -225,7 +225,7 @@ warn_no_return = true
 follow_imports = "normal"
 strict_optional = true
 explicit_package_bases = true
-exclude = ["tests/", "src/", "src"]
+exclude = ["tests/", ".venv/", "build/", "dist/"]
 
 [[tool.mypy.overrides]]
 module = [
