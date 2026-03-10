@@ -157,7 +157,7 @@ class DatabaseManager:
         # Проверяем circuit breaker
         if self._circuit_breaker_enabled and self._circuit_breaker.is_open:
             raise CircuitBreakerError(
-                "Cannot get pool: circuit breaker is OPEN. " "Service is currently unavailable."
+                "Cannot get pool: circuit breaker is OPEN. Service is currently unavailable."
             )
 
         # Проверяем: нужен ли новый пул

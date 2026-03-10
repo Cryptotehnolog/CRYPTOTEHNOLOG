@@ -56,7 +56,7 @@ async def db_pool() -> AsyncGenerator[asyncpg.Pool, None]:
         # Проверяем, существуют ли уже таблицы
         async with pool.acquire() as conn:
             tables = await conn.fetch(
-                "SELECT table_name FROM information_schema.tables " "WHERE table_schema = 'public'"
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
             )
             table_names = {row["table_name"] for row in tables}
 
