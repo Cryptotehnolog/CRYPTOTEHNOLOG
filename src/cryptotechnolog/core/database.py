@@ -157,15 +157,12 @@ class DatabaseManager:
         # Проверяем circuit breaker
         if self._circuit_breaker_enabled and self._circuit_breaker.is_open:
             raise CircuitBreakerError(
-                "Cannot get pool: circuit breaker is OPEN. "
-                "Service is currently unavailable."
+                "Cannot get pool: circuit breaker is OPEN. " "Service is currently unavailable."
             )
 
         # Проверяем: нужен ли новый пул
         needs_new_pool = (
-            self._pool is None or
-            self._loop_id != current_loop_id or
-            not self._connected
+            self._pool is None or self._loop_id != current_loop_id or not self._connected
         )
 
         if needs_new_pool:
@@ -174,7 +171,7 @@ class DatabaseManager:
                 logger.info(
                     "Закрытие пула БД из-за смены event loop",
                     old_loop=self._loop_id,
-                    new_loop=current_loop_id
+                    new_loop=current_loop_id,
                 )
                 try:
                     await self._pool.close()
@@ -186,7 +183,7 @@ class DatabaseManager:
                 "Создание пула PostgreSQL",
                 loop_id=current_loop_id,
                 min_size=self._min_size,
-                max_size=self._max_size
+                max_size=self._max_size,
             )
 
             self._pool = await asyncpg.create_pool(
@@ -204,7 +201,7 @@ class DatabaseManager:
                 logger.info(
                     "Подключение к PostgreSQL установлено",
                     version=version[:50],
-                    loop_id=current_loop_id
+                    loop_id=current_loop_id,
                 )
 
         return self._pool
