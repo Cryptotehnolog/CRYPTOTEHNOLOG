@@ -9,9 +9,9 @@ Property-based тесты для валидаторов конфигурации
 from decimal import Decimal
 from typing import Any
 
-import pytest
-from hypothesis import assume, given, settings, HealthCheck
+from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
+import pytest
 
 from cryptotechnolog.config.models import (
     ExchangeConfig,

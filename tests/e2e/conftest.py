@@ -2,19 +2,19 @@
 """E2E тесты используют fixtures из integration для работы с БД и Redis."""
 
 import asyncio
-import os
-import sys
 from collections.abc import AsyncGenerator, Generator
+import os
 from pathlib import Path
-
-from typing import TYPE_CHECKING
+import sys
 
 import asyncpg
 import pytest
 import pytest_asyncio
+import redis.asyncio as redis
 
-if TYPE_CHECKING:
-    from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
+from cryptotechnolog.config.settings import Settings
+from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
+from tests.integration.conftest import apply_migrations
 
 # Windows asyncio fix
 if sys.platform == "win32":
@@ -39,9 +39,6 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 @pytest_asyncio.fixture(scope="function")
 async def db_pool() -> AsyncGenerator[asyncpg.Pool, None]:
     """Function-scoped пул БД для E2E тестов."""
-    from cryptotechnolog.config.settings import Settings
-    from tests.integration.conftest import apply_migrations
-
     settings = Settings()
 
     # Создаём новый пул для каждого теста
@@ -89,10 +86,6 @@ async def db_pool() -> AsyncGenerator[asyncpg.Pool, None]:
 @pytest_asyncio.fixture(autouse=True)
 async def redis_clean_state() -> AsyncGenerator[None, None]:
     """Очистка Redis перед каждым тестом."""
-    import redis.asyncio as redis
-
-    from cryptotechnolog.config.settings import Settings
-
     settings = Settings()
     client = redis.Redis(
         host=settings.redis_host,
@@ -111,8 +104,6 @@ async def redis_clean_state() -> AsyncGenerator[None, None]:
 @pytest.fixture
 def event_bus() -> "EnhancedEventBus":
     """Создать event bus для E2E тестов."""
-    from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
-
     return EnhancedEventBus(
         enable_persistence=False,
         rate_limit=1000,
