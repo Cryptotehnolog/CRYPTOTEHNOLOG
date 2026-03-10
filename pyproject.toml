@@ -243,6 +243,7 @@ module = [
     "polars.*",
     "scipy.*",
     "cryptotechnolog_rust.*",
+    "yaml.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"

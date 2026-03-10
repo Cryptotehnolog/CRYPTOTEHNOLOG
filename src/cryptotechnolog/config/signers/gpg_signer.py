@@ -12,7 +12,7 @@ import asyncio
 from pathlib import Path
 import subprocess
 
-from cryptotechnolog.config.protocols import IConfigSigner
+from cryptotechnolog.config.protocols import IConfigSigner, ISubprocessRunner
 
 
 class SignatureError(Exception):
@@ -36,6 +36,36 @@ class SignatureError(Exception):
         self.reason = reason
         message = f"Ошибка проверки подписи для {path}: {reason}"
         super().__init__(message)
+
+
+class SubprocessRunner(ISubprocessRunner):
+    """
+    Реализация ISubprocessRunner через asyncio.
+    """
+
+    async def run(
+        self,
+        command: list[str],
+        stdin: bytes | None = None,
+    ) -> tuple[int, bytes, bytes]:
+        """
+        Выполнить команду.
+
+        Аргументы:
+            command: Команда и аргументы
+            stdin: Данные для stdin
+
+        Returns:
+            Кортеж (return_code, stdout, stderr)
+        """
+        result = await asyncio.create_subprocess_exec(
+            *command,
+            stdin=asyncio.subprocess.PIPE if stdin else None,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await result.communicate(input=stdin)
+        return result.returncode, stdout, stderr  # type: ignore[return-value]
 
 
 class GPGSigner(IConfigSigner):
@@ -72,6 +102,7 @@ class GPGSigner(IConfigSigner):
         keyring_path: Path | None = None,
         trusted_key_id: str | None = None,
         require_signatures: bool = True,
+        subprocess_runner: ISubprocessRunner | None = None,
     ) -> None:
         """
         Инициализировать GPG верификатор.
@@ -80,10 +111,12 @@ class GPGSigner(IConfigSigner):
             keyring_path: Путь к директории с ключами
             trusted_key_id: ID доверенного ключа
             require_signatures: Требовать подписи в production
+            subprocess_runner: Раннер для subprocess (для DI/тестирования)
         """
         self._keyring_path = keyring_path
         self._trusted_key_id = trusted_key_id
         self._require_signatures = require_signatures
+        self._subprocess_runner = subprocess_runner or SubprocessRunner()
         self._gpg_available: bool | None = None
 
     async def verify(self, path: Path) -> bool:
@@ -160,14 +193,8 @@ class GPGSigner(IConfigSigner):
             return self._gpg_available
 
         try:
-            result = await asyncio.create_subprocess_exec(
-                "gpg",
-                "--version",
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL,
-            )
-            await result.communicate()
-            self._gpg_available = result.returncode == 0
+            returncode, _stdout, _stderr = await self._subprocess_runner.run(["gpg", "--version"])
+            self._gpg_available = returncode == 0
         except FileNotFoundError:
             self._gpg_available = False
 
@@ -196,14 +223,9 @@ class GPGSigner(IConfigSigner):
             cmd.extend(["--trusted-key", self._trusted_key_id])
 
         try:
-            result = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            _stdout, stderr = await result.communicate()
+            returncode, _stdout, stderr = await self._subprocess_runner.run(cmd)
 
-            if result.returncode == 0:
+            if returncode == 0:
                 return True
 
             # Анализируем вывод gpg

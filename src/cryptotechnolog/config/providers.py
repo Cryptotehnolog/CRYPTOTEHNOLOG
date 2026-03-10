@@ -120,6 +120,7 @@ class VaultConfigProvider(IConfigLoader):
         vault_addr: str | None = None,
         vault_token: str | None = None,
         mount_point: str = "secret",
+        http_client: httpx.AsyncClient | None = None,
     ) -> None:
         """
         Инициализировать провайдер.
@@ -128,11 +129,13 @@ class VaultConfigProvider(IConfigLoader):
             vault_addr: Адрес Vault сервера
             vault_token: Токен доступа
             mount_point: Точка монтирования (по умолчанию "secret")
+            http_client: AsyncClient для HTTP запросов (для DI/тестирования)
         """
         self._vault_addr = vault_addr or os.environ.get("VAULT_ADDR")
         self._vault_token = vault_token or os.environ.get("VAULT_TOKEN")
         self._mount_point = mount_point
         self._last_source: str | None = None
+        self._http_client = http_client
 
         if not self._vault_addr:
             raise ValueError("VAULT_ADDR не установлен")
@@ -168,26 +171,29 @@ class VaultConfigProvider(IConfigLoader):
 
         headers: dict[str, str] = {"X-Vault-Token": cast("str", self._vault_token)}
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(url, headers=headers)
+        if self._http_client:
+            response = await self._http_client.get(url, headers=headers)
+        else:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, headers=headers)
 
-            if response.status_code == HTTP_NOT_FOUND:
-                raise KeyError(f"Секрет не найден в Vault: {source}")
+        if response.status_code == HTTP_NOT_FOUND:
+            raise KeyError(f"Секрет не найден в Vault: {source}")
 
-            if response.status_code != HTTP_OK:
-                raise OSError(f"Ошибка Vault: {response.status_code} - {response.text}")
+        if response.status_code != HTTP_OK:
+            raise OSError(f"Ошибка Vault: {response.status_code} - {response.text}")
 
-            data = response.json()
+        data = response.json()
 
-            # Извлекаем данные из KV v2 формата
-            if "data" in data and "data" in data["data"]:
-                content = json.dumps(data["data"]["data"])
-            elif "data" in data:
-                content = json.dumps(data["data"])
-            else:
-                content = json.dumps(data)
+        # Извлекаем данные из KV v2 формата
+        if "data" in data and "data" in data["data"]:
+            content = json.dumps(data["data"]["data"])
+        elif "data" in data:
+            content = json.dumps(data["data"])
+        else:
+            content = json.dumps(data)
 
-            return content.encode("utf-8")
+        return content.encode("utf-8")
 
     async def reload(self) -> bytes:
         """

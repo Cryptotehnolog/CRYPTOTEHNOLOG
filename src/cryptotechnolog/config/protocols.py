@@ -17,6 +17,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
+    from watchdog.events import FileSystemEvent, FileSystemEventHandler
+
     from cryptotechnolog.config.models import SystemConfig
 
 
@@ -140,6 +142,77 @@ class IConfigSigner(Protocol):
             True если подпись требуется
         """
         ...
+
+
+class ISubprocessRunner(Protocol):
+    """
+    Протокол для запуска subprocess.
+
+    Позволяет мокать subprocess в тестах.
+
+    Методы:
+        run: Выполнить команду
+    """
+
+    async def run(
+        self,
+        command: list[str],
+        stdin: bytes | None = None,
+    ) -> tuple[int, bytes, bytes]:
+        """
+        Выполнить команду.
+
+        Аргументы:
+            command: Команда и аргументы
+            stdin: Данные для stdin
+
+        Returns:
+            Кортеж (return_code, stdout, stderr)
+        """
+        ...
+
+
+class IObserver(Protocol):
+    """
+    Протокол для Observer из watchdog.
+
+    Позволяет мокать Observer в тестах.
+    Соответствует BaseObserver из watchdog.observers.api.
+
+    Методы:
+        start: Запустить observer
+        stop: Остановить observer
+        schedule: Запланировать мониторинг
+        join: Дождаться завершения
+    """
+
+    def start(self) -> None: ...
+
+    def stop(self) -> None: ...
+
+    def schedule(
+        self,
+        event_handler: FileSystemEventHandler,
+        path: str,
+        *,
+        recursive: bool = ...,
+        event_filter: list[type[FileSystemEvent]] | None = ...,
+    ) -> object: ...
+
+    def join(self, timeout: float | None = ...) -> None: ...
+
+
+class IObserverFactory(Protocol):
+    """
+    Протокол для фабрики Observer.
+
+    Позволяет мокать создание Observer в тестах.
+
+    Методы:
+        __call__: Создать новый экземпляр Observer
+    """
+
+    def __call__(self) -> IObserver: ...
 
 
 class IConfigRepository(Protocol):
