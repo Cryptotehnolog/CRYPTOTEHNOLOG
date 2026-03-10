@@ -46,13 +46,15 @@ class TestConfigRepository:
         mock_conn.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_save_version_duplicate(self, repo: ConfigRepository, mock_pool: MagicMock) -> None:
+    async def test_save_version_duplicate(
+        self, repo: ConfigRepository, mock_pool: MagicMock
+    ) -> None:
         """Тест обновления при дубликате версии."""
         mock_conn = AsyncMock()
         # Первый вызов - UniqueViolationError, второй - успех
         mock_conn.execute.side_effect = [
             asyncpg.UniqueViolationError("duplicate key", "23505", "unique_version"),
-            None
+            None,
         ]
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
 
@@ -62,7 +64,9 @@ class TestConfigRepository:
         assert mock_conn.execute.call_count == 2  # INSERT + UPDATE
 
     @pytest.mark.asyncio
-    async def test_save_version_connection_error(self, repo: ConfigRepository, mock_pool: MagicMock) -> None:
+    async def test_save_version_connection_error(
+        self, repo: ConfigRepository, mock_pool: MagicMock
+    ) -> None:
         """Тест ошибки подключения."""
         mock_conn = AsyncMock()
         mock_conn.execute.side_effect = asyncpg.PostgresConnectionError("connection failed")
