@@ -248,9 +248,7 @@ class ConfigManager:
         # Получаем версию из репозитория
         stored = await self._repository.get_by_version(version)
         if stored is None:
-            raise ConfigManagerError(
-                "load_from_history", f"Версия {version} не найдена"
-            )
+            raise ConfigManagerError("load_from_history", f"Версия {version} не найдена")
 
         # Парсим и валидируем
         data = stored["config_yaml"].encode("utf-8")

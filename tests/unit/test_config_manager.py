@@ -76,9 +76,7 @@ def mock_repository() -> MagicMock:
     repository = MagicMock()
     repository.save_version = AsyncMock()
     repository.get_history = AsyncMock(
-        return_value=[
-            {"version": "1.0.0", "loaded_at": "2024-01-01", "is_active": True}
-        ]
+        return_value=[{"version": "1.0.0", "loaded_at": "2024-01-01", "is_active": True}]
     )
     repository.get_latest = AsyncMock(
         return_value={"version": "1.0.0", "config_yaml": "version: 1.0.0"}
