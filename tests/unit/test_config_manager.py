@@ -13,13 +13,13 @@ Unit тесты для ConfigManager.
 
 from __future__ import annotations
 
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from decimal import Decimal
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from cryptotechnolog.config.manager import ConfigManager, ConfigManagerError
-from cryptotechnolog.config.models import SystemConfig
+from cryptotechnolog.config.models import RiskConfig, SystemConfig
 from cryptotechnolog.core.event import Event, Priority
 
 
@@ -43,10 +43,6 @@ def mock_parser() -> MagicMock:
 @pytest.fixture
 def mock_validator() -> MagicMock:
     """Создать мок валидатора конфигурации."""
-    from decimal import Decimal
-
-    from cryptotechnolog.config.models import ExchangeConfig, RiskConfig, StrategyConfig, SystemConfig
-
     validator = MagicMock()
     config = SystemConfig(
         version="1.0.0",
@@ -291,7 +287,7 @@ class TestConfigManagerErrors:
         mock_loader: MagicMock,
     ) -> None:
         """Тест обработки ошибки загрузки."""
-        mock_loader.load = AsyncMock(side_effect=IOError("File not found"))
+        mock_loader.load = AsyncMock(side_effect=OSError("File not found"))
 
         with pytest.raises(ConfigManagerError) as exc_info:
             await config_manager.load("config.yaml")
