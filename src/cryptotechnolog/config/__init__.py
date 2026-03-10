@@ -12,9 +12,12 @@ from .logging import (
     log_exception,
     log_performance,
 )
+from .manager import ConfigManager, ConfigManagerError
 from .settings import Settings, get_settings, reload_settings, settings, validate_settings
 
 __all__ = [
+    "ConfigManager",
+    "ConfigManagerError",
     "LogContext",
     "LoggerMixin",
     "Settings",

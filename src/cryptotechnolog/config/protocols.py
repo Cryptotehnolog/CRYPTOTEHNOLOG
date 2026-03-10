@@ -150,6 +150,7 @@ class IConfigRepository(Protocol):
         save_version: Сохранить версию конфигурации
         get_history: Получить историю версий
         get_latest: Получить последнюю версию
+        get_by_version: Получить конкретную версию
     """
 
     async def save_version(
@@ -191,6 +192,18 @@ class IConfigRepository(Protocol):
 
         Returns:
             Последняя версия или None
+        """
+        ...
+
+    async def get_by_version(self, version: str) -> dict[str, Any] | None:
+        """
+        Получить конкретную версию конфигурации.
+
+        Аргументы:
+            version: Версия конфигурации
+
+        Returns:
+            Данные версии или None
         """
         ...
 

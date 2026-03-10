@@ -210,6 +210,7 @@ force-sort-within-sections = true
 "tests/**/*.py" = ["ARG", "PLR2004"]  # Allow unused arguments in tests
 "**/*.pyi" = ["F401", "I001"]  # Allow unused imports and unsorted imports in type stubs (TYPE_CHECKING blocks)
 "src/core/redis_manager.py" = ["UP035"]  # Allow set[str] with quotes for mypy compatibility
+"src/cryptotechnolog/config/manager.py" = ["TC001"]  # DI паттерн: Protocol нужны для типизации зависимостей, не для наследования
 
 [tool.mypy]
 python_version = "3.12"
