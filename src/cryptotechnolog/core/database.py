@@ -12,11 +12,11 @@ Database Layer — PostgreSQL Manager с асинхронным подключе
 - Circuit breaker для отказоустойчивости
 """
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import hashlib
 import json
-import asyncio
 from typing import Any, cast
 
 import asyncpg
@@ -128,7 +128,7 @@ class DatabaseManager:
     def _get_current_loop_id(self) -> int:
         """
         Получить ID текущего event loop.
-        
+
         Returns:
             ID текущего event loop.
         """
@@ -142,32 +142,32 @@ class DatabaseManager:
     async def _ensure_pool(self) -> asyncpg.Pool:
         """
         Обеспечить наличие пула для текущего event loop.
-        
+
         Если пул не существует или создан в другом event loop,
         создаёт новый пул.
-        
+
         Returns:
             Пул соединений для текущего event loop.
-        
+
         Raises:
             CircuitBreakerError: Если circuit breaker открыт
         """
         current_loop_id = self._get_current_loop_id()
-        
+
         # Проверяем circuit breaker
         if self._circuit_breaker_enabled and self._circuit_breaker.is_open:
             raise CircuitBreakerError(
                 "Cannot get pool: circuit breaker is OPEN. "
                 "Service is currently unavailable."
             )
-        
+
         # Проверяем: нужен ли новый пул
         needs_new_pool = (
             self._pool is None or
             self._loop_id != current_loop_id or
             not self._connected
         )
-        
+
         if needs_new_pool:
             # Закрываем старый пул если есть
             if self._pool is not None and self._loop_id != current_loop_id:
@@ -180,7 +180,7 @@ class DatabaseManager:
                     await self._pool.close()
                 except Exception as e:
                     logger.warning("Ошибка закрытия пула", error=str(e))
-            
+
             # Создаём новый пул
             logger.info(
                 "Создание пула PostgreSQL",
@@ -188,7 +188,7 @@ class DatabaseManager:
                 min_size=self._min_size,
                 max_size=self._max_size
             )
-            
+
             self._pool = await asyncpg.create_pool(
                 self._url,
                 min_size=self._min_size,
@@ -197,7 +197,7 @@ class DatabaseManager:
             )
             self._loop_id = current_loop_id
             self._connected = True
-            
+
             # Проверяем подключение
             async with self._pool.acquire() as conn:
                 version = await conn.fetchval("SELECT version()")
@@ -206,7 +206,7 @@ class DatabaseManager:
                     version=version[:50],
                     loop_id=current_loop_id
                 )
-        
+
         return self._pool
 
     async def connect(self) -> None:
