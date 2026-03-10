@@ -34,7 +34,7 @@ COMMENT ON COLUMN config_versions.content_hash IS 'SHA256 хеш содержи�
 COMMENT ON COLUMN config_versions.config_yaml IS 'Полное YAML содержимое';
 COMMENT ON COLUMN config_versions.loaded_by IS 'Кто загрузил (оператор или auto_reload)';
 COMMENT ON COLUMN config_versions.loaded_at IS 'Время загрузки';
-COMMENT ON COLUMN config_versions.is_active FROM 'Активна ли эта версия';
+COMMENT ON COLUMN config_versions.is_active IS 'Активна ли эта версия';
 COMMENT ON COLUMN config_versions.signature_valid IS 'Валидность GPG подписи';
 COMMENT ON COLUMN config_versions.signature_key_id IS 'ID GPG ключа';
 
