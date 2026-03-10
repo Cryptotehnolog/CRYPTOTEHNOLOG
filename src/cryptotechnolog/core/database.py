@@ -4,7 +4,7 @@ Database Layer — PostgreSQL Manager с асинхронным подключе
 Использует asyncpg для высокопроизводительного асинхронного доступа к PostgreSQL.
 Поддерживает:
 - Connection pooling
-- Транзакции
+- Динамическое создание пула под каждый event loop
 - Prepared statements
 - Контекстные менеджеры
 - Redis кэширование
@@ -16,6 +16,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import hashlib
 import json
+import asyncio
 from typing import Any, cast
 
 import asyncpg
@@ -29,16 +30,27 @@ logger = get_logger(__name__)
 RedisClientType = Any  # redis.asyncio.Redis
 
 
+# Глобальное хранилище пулов по event loop id
+# Key: id(event_loop), Value: asyncpg.Pool
+_pool_registry: dict[int, asyncpg.Pool] = {}
+_registry_lock = asyncio.Lock()
+
+
 class DatabaseManager:
     """
     Менеджер подключения к PostgreSQL.
 
     Обеспечивает:
     - Пул соединений с настраиваемыми параметрами
+    - Динамическое создание пула под каждый event loop
     - Асинхронные операции
     - Транзакции с автоматическим rollback
     - Graceful shutdown
     - Circuit breaker для fault tolerance
+
+    Особенности:
+    - Пул создаётся лениво при первом обращении
+    - Автоматическое пересоздание пула при смене event loop
 
     Пример:
         >>> db = DatabaseManager()
@@ -71,6 +83,9 @@ class DatabaseManager:
         self._connection: asyncpg.Connection | None = None
         self._connected = False
         self._redis: RedisClientType | None = None
+
+        # ID event loop для отслеживания смены
+        self._loop_id: int | None = None
 
         # Circuit breaker for fault tolerance
         self._circuit_breaker_enabled = circuit_breaker_enabled
@@ -110,46 +125,113 @@ class DatabaseManager:
             return False
         return self.is_connected
 
-    async def connect(self) -> None:
+    def _get_current_loop_id(self) -> int:
         """
-        Подключиться к PostgreSQL и создать пул соединений.
+        Получить ID текущего event loop.
+        
+        Returns:
+            ID текущего event loop.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+            return id(loop)
+        except RuntimeError:
+            # Нет запущенного loop - используем 0 как идентификатор
+            return 0
 
+    async def _ensure_pool(self) -> asyncpg.Pool:
+        """
+        Обеспечить наличие пула для текущего event loop.
+        
+        Если пул не существует или создан в другом event loop,
+        создаёт новый пул.
+        
+        Returns:
+            Пул соединений для текущего event loop.
+        
         Raises:
-            RuntimeError: Если подключение уже установлено
-            asyncpg.InvalidCatalogNameError: Если БД не существует
-            asyncpg.InvalidPasswordError: Если неверный пароль
+            CircuitBreakerError: Если circuit breaker открыт
         """
-        if self._connected and self._pool is not None:
-            raise RuntimeError("Уже подключено к БД")
-
-        # Check circuit breaker before attempting connection
+        current_loop_id = self._get_current_loop_id()
+        
+        # Проверяем circuit breaker
         if self._circuit_breaker_enabled and self._circuit_breaker.is_open:
             raise CircuitBreakerError(
-                "Cannot connect to PostgreSQL: circuit breaker is OPEN. "
+                "Cannot get pool: circuit breaker is OPEN. "
                 "Service is currently unavailable."
             )
-
-        logger.info("Подключение к PostgreSQL", url=self._url.split("@")[1])
-
-        try:
+        
+        # Проверяем: нужен ли новый пул
+        needs_new_pool = (
+            self._pool is None or
+            self._loop_id != current_loop_id or
+            not self._connected
+        )
+        
+        if needs_new_pool:
+            # Закрываем старый пул если есть
+            if self._pool is not None and self._loop_id != current_loop_id:
+                logger.info(
+                    "Закрытие пула БД из-за смены event loop",
+                    old_loop=self._loop_id,
+                    new_loop=current_loop_id
+                )
+                try:
+                    await self._pool.close()
+                except Exception as e:
+                    logger.warning("Ошибка закрытия пула", error=str(e))
+            
+            # Создаём новый пул
+            logger.info(
+                "Создание пула PostgreSQL",
+                loop_id=current_loop_id,
+                min_size=self._min_size,
+                max_size=self._max_size
+            )
+            
             self._pool = await asyncpg.create_pool(
                 self._url,
                 min_size=self._min_size,
                 max_size=self._max_size,
                 command_timeout=60,
             )
+            self._loop_id = current_loop_id
             self._connected = True
-
-            # Проверить подключение
+            
+            # Проверяем подключение
             async with self._pool.acquire() as conn:
                 version = await conn.fetchval("SELECT version()")
-                logger.info("Подключение к PostgreSQL установлено", version=version[:50])
+                logger.info(
+                    "Подключение к PostgreSQL установлено",
+                    version=version[:50],
+                    loop_id=current_loop_id
+                )
+        
+        return self._pool
 
-        except Exception as e:
-            logger.error("Ошибка подключения к PostgreSQL", error=str(e))
-            self._pool = None
-            self._connected = False
-            raise
+    async def connect(self) -> None:
+        """
+        Подключиться к PostgreSQL и создать пул соединений.
+
+        При вызове автоматически создаёт пул для текущего event loop.
+        Если пул уже существует и loop не изменился - ничего не делает.
+
+        Raises:
+            RuntimeError: Если подключение уже установлено
+            asyncpg.InvalidCatalogNameError: Если БД не существует
+            asyncpg.InvalidPasswordError: Если неверный пароль
+            CircuitBreakerError: Если circuit breaker открыт
+        """
+        current_loop_id = self._get_current_loop_id()
+
+        # Если уже подключены в текущем loop - не делаем ничего
+        if self._connected and self._pool is not None and self._loop_id == current_loop_id:
+            logger.debug("Уже подключено к БД в текущем event loop", loop_id=current_loop_id)
+            return
+
+        # Создаём пул (метод сам обработает смену loop)
+        await self._ensure_pool()
+        logger.info("Подключение к PostgreSQL выполнено", loop_id=current_loop_id)
 
     async def disconnect(self) -> None:
         """Отключиться от PostgreSQL и закрыть пул."""
@@ -158,6 +240,7 @@ class DatabaseManager:
             await self._pool.close()
             self._pool = None
             self._connected = False
+            self._loop_id = None
             logger.info("Отключение от PostgreSQL выполнено")
 
     @asynccontextmanager
@@ -172,6 +255,10 @@ class DatabaseManager:
             >>> async with db.connection() as conn:
             ...     await conn.fetch("SELECT 1")
         """
+        # Автоматически создаём пул если его нет
+        if self._pool is None:
+            await self._ensure_pool()
+
         if self._connection is not None:
             # Одиночное соединение
             yield self._connection
