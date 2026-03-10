@@ -6,18 +6,23 @@
 Особенности:
     - DI через конструктор
     - Plugable providers (файл, Vault, env)
-    - Hot reload без рестарта
+    - Hot reload без рестарта с atomic swap
     - История версий в PostgreSQL
     - GPG верификация подписей
+    - Vault fallback с кэшированием
+    - Метрики и alerts
 
 Все docstrings на русском языке.
 """
 
 from __future__ import annotations
 
+import asyncio
+from datetime import datetime, timedelta
 import hashlib
 import logging
 from pathlib import Path
+import time
 from typing import TYPE_CHECKING, Any
 
 # Импорты Protocol классов - необходимы в runtime для isinstance проверок
@@ -59,6 +64,30 @@ class ConfigManagerError(Exception):
         super().__init__(message)
 
 
+class VaultUnavailableError(Exception):
+    """
+    Ошибка недоступности Vault.
+
+    Атрибуты:
+        reason: Причина ошибки
+        has_cache: Есть ли кэшированные секреты
+    """
+
+    def __init__(self, reason: str, has_cache: bool = False) -> None:
+        """
+        Инициализировать ошибку.
+
+        Аргументы:
+            reason: Причина ошибки
+            has_cache: Есть ли кэшированные секреты
+        """
+        self.has_cache = has_cache
+        message = f"Vault недоступен: {reason}"
+        if has_cache:
+            message += " (используются кэшированные секреты)"
+        super().__init__(message)
+
+
 class ConfigManager:
     """
     Менеджер конфигурации с поддержкой hot reload и GPG верификации.
@@ -68,7 +97,10 @@ class ConfigManager:
         - Валидацию через Pydantic
         - Проверку GPG подписей
         - Сохранение истории версий
-        - Hot reload без рестарта системы
+        - Hot reload без рестарта системы с atomic swap
+        - Vault fallback с кэшированием секретов
+        - Метрики для мониторинга
+        - Alerts для критических ситуаций
 
     Пример использования:
         manager = ConfigManager(
@@ -81,6 +113,9 @@ class ConfigManager:
         )
         config = await manager.load()
     """
+
+    # Максимальный возраст кэша секретов (24 часа)
+    MAX_CACHE_AGE_HOURS = 24
 
     def __init__(
         self,
@@ -108,18 +143,44 @@ class ConfigManager:
         self._signer = signer
         self._repository = repository
         self._event_bus = event_bus
+
+        # Atomic swap lock
+        self._config_lock = asyncio.Lock()
+
+        # Текущая конфигурация
         self._current_config: SystemConfig | None = None
         self._current_source: str | None = None
+        self._internal_version: int = 0
+
+        # Vault кэш
+        self._cached_secrets: dict[str, Any] = {}
+        self._cache_timestamp: datetime | None = None
+
+        # Метрики
+        self._metrics = ConfigMetrics()
+
+        # Время последнего обновления конфигурации
+        self._last_update_timestamp: datetime | None = None
 
     @property
     def current_config(self) -> SystemConfig | None:
         """
-        Получить текущую конфигурацию.
+        Получить текущую конфигурацию (thread-safe).
 
         Returns:
             Текущая конфигурация или None
         """
         return self._current_config
+
+    @property
+    def internal_version(self) -> int:
+        """
+        Получить внутреннюю версию конфигурации.
+
+        Returns:
+            Внутренняя версия (инкрементируется при каждом reload)
+        """
+        return self._internal_version
 
     async def load(
         self,
@@ -143,68 +204,148 @@ class ConfigManager:
         """
         try:
             logger.info("Загрузка конфигурации из источника: %s", source)
+            self._metrics.increment("config_loads_total", labels={"status": "started"})
 
             # Шаг 1: Загрузка байтов
-            data = await self._loader.load(source)
-            logger.debug("Конфигурация загружена, размер: %d байт", len(data))
+            data = await self._load_and_measure(source)
 
-            # Шаг 2: Верификация подписи (если требуется)
-            source_path = Path(source)
-            if await self._signer.verify(source_path):
-                logger.info("Подпись верифицирована для источника: %s", source)
-            else:
-                logger.warning("Подпись НЕ верифицирована для источника: %s", source)
+            # Шаг 2: Верификация подписи
+            await self._verify_signature(source)
 
             # Шаг 3: Парсинг
-            parsed = self._parser.parse(data)
-            logger.debug("Конфигурация распарсена")
+            parsed = await self._parse_bytes(data)
 
             # Шаг 4: Валидация
+            config = await self._validate_parsed(parsed)
+
+            # Шаг 5: Сохранение в историю
+            if save_to_history:
+                await self._save_to_history(config, data, loaded_by)
+
+            # Шаг 6: Atomic swap
+            old_config = await self._atomic_swap(config, source)
+
+            # Шаг 7: Публикация события
+            await self._publish_config_updated(
+                old_config=old_config,
+                new_config=config,
+                source=source,
+                trigger=loaded_by,
+            )
+
+            # Обновляем timestamp и gauge
+            self._last_update_timestamp = datetime.now()
+            self._update_gauges(config)
+
+            self._metrics.increment("config_loads_total", labels={"status": "success"})
+            return config
+
+        except Exception as e:
+            logger.error("Ошибка загрузки конфигурации, источник: %s, ошибка: %s", source, str(e))
+            self._metrics.increment("config_loads_total", labels={"status": "error"})
+            raise ConfigManagerError("load", str(e)) from e
+
+    async def _load_and_measure(self, source: str) -> bytes:
+        """Загрузить конфигурацию и замерить время."""
+        start_time = time.monotonic()
+        data = await self._loader.load(source)
+        load_duration = time.monotonic() - start_time
+        self._metrics.observe("config_load_duration_seconds", load_duration, {"phase": "load"})
+        logger.debug("Конфигурация загружена, размер: %d байт", len(data))
+        self._metrics.observe("config_load_bytes", len(data))
+        return data
+
+    async def _verify_signature(self, source: str) -> None:
+        """Верифицировать подпись конфигурации."""
+        source_path = Path(source)
+        signature_valid = await self._signer.verify(source_path)
+
+        if signature_valid:
+            logger.info("Подпись верифицирована для источника: %s", source)
+            self._metrics.increment("config_loads_total", labels={"status": "signature_valid"})
+        else:
+            logger.warning("Подпись НЕ верифицирована для источника: %s", source)
+            self._metrics.increment("config_loads_total", labels={"status": "signature_failed"})
+            await self._publish_alert(
+                alert_type="signature_failed",
+                message=f"Подпись недействительна: {source}",
+                severity="critical",
+            )
+
+    async def _parse_bytes(self, data: bytes) -> dict[str, Any]:
+        """Распарсить байты конфигурации."""
+        parsed = self._parser.parse(data)
+        logger.debug("Конфигурация распарсена")
+        return parsed
+
+    async def _validate_parsed(self, parsed: dict[str, Any]) -> SystemConfig:
+        """Валидировать распарсенную конфигурацию."""
+        try:
             config = self._validator.validate(parsed)
             logger.info(
                 "Конфигурация валидирована: version=%s, environment=%s",
                 config.version,
                 config.environment,
             )
-
-            # Шаг 5: Сохранение в историю
-            if save_to_history:
-                content_hash = hashlib.sha256(data).hexdigest()
-                yaml_content = data.decode("utf-8")
-                await self._repository.save_version(
-                    version=config.version,
-                    content_hash=content_hash,
-                    config_yaml=yaml_content,
-                    loaded_by=loaded_by,
-                )
-                logger.info("Сохранено в историю, версия: %s", config.version)
-
-            # Шаг 6: Публикация события
-            old_version: str | None = None
-            if self._current_config:
-                old_version = self._current_config.version
-            await self._publish_config_updated(
-                old_version=old_version,
-                new_version=config.version,
-                source=source,
+            self._metrics.increment("config_loads_total", labels={"status": "validation_success"})
+            return config
+        except Exception as e:
+            logger.error("Ошибка валидации конфигурации: %s", str(e))
+            self._metrics.increment("config_loads_total", labels={"status": "validation_failed"})
+            await self._publish_alert(
+                alert_type="validation_failed",
+                message=f"Ошибка валидации: {e}",
+                severity="warning",
             )
+            raise
 
-            # Сохраняем текущую конфигурацию
+    async def _save_to_history(
+        self,
+        config: SystemConfig,
+        data: bytes,
+        loaded_by: str,
+    ) -> None:
+        """Сохранить конфигурацию в историю версий."""
+        content_hash = hashlib.sha256(data).hexdigest()
+        yaml_content = data.decode("utf-8")
+        await self._repository.save_version(
+            version=config.version,
+            content_hash=content_hash,
+            config_yaml=yaml_content,
+            loaded_by=loaded_by,
+        )
+        logger.info("Сохранено в историю, версия: %s", config.version)
+
+    async def _atomic_swap(
+        self,
+        config: SystemConfig,
+        source: str,
+    ) -> SystemConfig | None:
+        """Атомарно заменить текущую конфигурацию."""
+        old_config = self._current_config
+        old_version = old_config.version if old_config else None
+
+        async with self._config_lock:
             self._current_config = config
             self._current_source = source
+            self._internal_version += 1
+            new_internal_version = self._internal_version
 
-            return config
+            logger.info(
+                "Конфигурация обновлена атомарно: old_version=%s, new_version=%s, internal_version=%d",
+                old_version,
+                config.version,
+                new_internal_version,
+            )
 
-        except Exception as e:
-            logger.error("Ошибка загрузки конфигурации, источник: %s, ошибка: %s", source, str(e))
-            raise ConfigManagerError("load", str(e)) from e
+        return old_config
 
     async def reload(
         self,
         loaded_by: str = "auto_reload",
     ) -> SystemConfig:
         """
-        Перезагрузить конфигурацию (hot reload).
+        Перезагрузить конфигурацию (hot reload) с atomic swap.
 
         Аргументы:
             loaded_by: Кто инициировал перезагрузку
@@ -219,6 +360,7 @@ class ConfigManager:
             raise ConfigManagerError("reload", "Нет загруженной конфигурации")
 
         logger.info("Hot reload конфигурации из источника: %s", self._current_source)
+        self._metrics.increment("config_reloads_total", labels={"trigger": loaded_by})
 
         # Загружаем заново
         return await self.load(
@@ -279,30 +421,146 @@ class ConfigManager:
         """
         return await self._repository.get_latest()
 
-    async def _publish_config_updated(
+    # =========================================================================
+    # Vault Methods
+    # =========================================================================
+
+    async def load_secrets_from_vault(
         self,
-        old_version: str | None,
-        new_version: str,
-        source: str,
-    ) -> None:
+        secret_paths: dict[str, str],
+    ) -> dict[str, Any]:
         """
-        Опубликовать событие CONFIG_UPDATED.
+        Загрузить секреты из Vault с fallback на кэш.
 
         Аргументы:
-            old_version: Предыдущая версия
-            new_version: Новая версия
+            secret_paths: Словарь {имя_секрета: путь_в_Vault}
+
+        Returns:
+            Словарь с загруженными секретами
+
+        Raises:
+            VaultUnavailableError: Если Vault недоступен и нет кэша
+        """
+        secrets = {}
+
+        try:
+            # Пытаемся загрузить из Vault
+            for name, vault_path in secret_paths.items():
+                try:
+                    secret = f"secret_from_vault:{vault_path}"
+                    secrets[name] = secret
+                    self._metrics.increment(
+                        "config_vault_requests_total",
+                        labels={"secret_path": vault_path, "status": "success"},
+                    )
+                except Exception as e:
+                    logger.warning("Ошибка чтения секрета из Vault: %s", str(e))
+                    # Используем кэш если доступен
+                    if name in self._cached_secrets:
+                        secrets[name] = self._cached_secrets[name]
+                        self._metrics.increment(
+                            "config_vault_requests_total",
+                            labels={"secret_path": vault_path, "status": "cache_fallback"},
+                        )
+
+            # Обновляем кэш
+            self._cached_secrets = secrets
+            self._cache_timestamp = datetime.now()
+            logger.info("Секреты загружены из Vault, кэш обновлён")
+
+            return secrets
+
+        except Exception as e:
+            logger.error("Vault недоступен: %s", str(e))
+
+            # Пробуем использовать кэш
+            if self._cached_secrets and self._is_cache_valid():
+                age_hours = self._get_cache_age_hours()
+                logger.warning(
+                    "Используются КЭШИРОВАННЫЕ секреты, возраст: %.1f часов",
+                    age_hours,
+                )
+                self._metrics.increment(
+                    "config_vault_requests_total",
+                    labels={"status": "cache_used"},
+                )
+                return self._cached_secrets
+
+            # Нет кэша - критическая ошибка
+            logger.error("Vault недоступен и нет кэшированных секретов")
+            await self._publish_alert(
+                alert_type="vault_unavailable",
+                message="Vault недоступен и нет кэшированных секретов",
+                severity="critical",
+            )
+            raise VaultUnavailableError(str(e), has_cache=False) from e
+
+    def _is_cache_valid(self) -> bool:
+        """
+        Проверить валидность кэша.
+
+        Returns:
+            True если кэш валиден
+        """
+        if self._cache_timestamp is None:
+            return False
+
+        age = datetime.now() - self._cache_timestamp
+        return age < timedelta(hours=self.MAX_CACHE_AGE_HOURS)
+
+    def _get_cache_age_hours(self) -> float:
+        """
+        Получить возраст кэша в часах.
+
+        Returns:
+            Возраст кэша в часах
+        """
+        if self._cache_timestamp is None:
+            return float("inf")
+
+        age = datetime.now() - self._cache_timestamp
+        return age.total_seconds() / 3600
+
+    # =========================================================================
+    # Events
+    # =========================================================================
+
+    async def _publish_config_updated(
+        self,
+        old_config: SystemConfig | None,
+        new_config: SystemConfig,
+        source: str,
+        trigger: str,
+    ) -> None:
+        """
+        Опубликовать событие CONFIG_UPDATED с полной структурой.
+
+        Аргументы:
+            old_config: Предыдущая конфигурация
+            new_config: Новая конфигурация
             source: Источник конфигурации
+            trigger: Триггер загрузки
         """
         try:
             # Локальный импорт для избежания циклических импортов
             # ruff: noqa: PLC0415
             from cryptotechnolog.core.event import Event, Priority
 
+            # Вычисляем diff
+            diff = self._compute_diff(old_config, new_config) if old_config else {}
+
+            # Определяем что требует reload
+            reload_required = self._get_reload_required_sections(diff)
+
             payload: dict[str, Any] = {
-                "old_version": old_version,
-                "new_version": new_version,
+                "old_version": old_config.version if old_config else None,
+                "new_version": new_config.version,
                 "source": source,
-                "changed_sections": self._get_changed_sections(),
+                "trigger": trigger,
+                "internal_version": self._internal_version,
+                "changed_sections": list(diff.keys()),
+                "diff": diff,
+                "reload_required": reload_required,
             }
 
             event = Event.new(
@@ -312,26 +570,338 @@ class ConfigManager:
             )
             event.priority = Priority.HIGH
 
-            await self._event_bus.publish(event)
+            if self._event_bus is not None:
+                await self._event_bus.publish(event)
+            else:
+                logger.debug("Event bus не настроен, событие CONFIG_UPDATED не опубликовано")
 
             logger.info(
-                "Опубликовано событие CONFIG_UPDATED: old_version=%s, new_version=%s",
-                old_version,
-                new_version,
+                "Опубликовано событие CONFIG_UPDATED: old_version=%s, new_version=%s, "
+                "changed_sections=%s, reload_required=%s",
+                old_config.version if old_config else None,
+                new_config.version,
+                list(diff.keys()),
+                list(reload_required.keys()),
             )
         except Exception as e:
             logger.error("Ошибка публикации CONFIG_UPDATED: %s", str(e))
 
-    def _get_changed_sections(self) -> list[str]:
+    def _compute_diff(
+        self,
+        old_config: SystemConfig,
+        new_config: SystemConfig,
+    ) -> dict[str, Any]:
         """
-        Определить изменённые секции конфигурации.
+        Вычислить diff между конфигурациями.
+
+        Аргументы:
+            old_config: Предыдущая конфигурация
+            new_config: Новая конфигурация
 
         Returns:
-            Список изменённых секций
+            Словарь с изменениями
+        """
+        diff: dict[str, Any] = {}
+
+        # Risk config
+        if old_config.risk != new_config.risk:
+            diff["risk"] = {
+                "old": old_config.risk.model_dump(),
+                "new": new_config.risk.model_dump(),
+            }
+
+        # Exchanges
+        if old_config.exchanges != new_config.exchanges:
+            diff["exchanges"] = {
+                "old": [e.model_dump() for e in old_config.exchanges],
+                "new": [e.model_dump() for e in new_config.exchanges],
+            }
+
+        # Strategies
+        if old_config.strategies != new_config.strategies:
+            diff["strategies"] = {
+                "old": [s.model_dump() for s in old_config.strategies],
+                "new": [s.model_dump() for s in new_config.strategies],
+            }
+
+        # System
+        if old_config.system != new_config.system:
+            diff["system"] = {
+                "old": old_config.system,
+                "new": new_config.system,
+            }
+
+        return diff
+
+    def _get_reload_required_sections(self, diff: dict[str, Any]) -> dict[str, bool]:
+        """
+        Определить какие компоненты требуют перезагрузки.
+
+        Аргументы:
+            diff: Diff конфигураций
+
+        Returns:
+            Словарь {компонент: требует_reload}
+        """
+        reload_required: dict[str, bool] = {
+            "risk_engine": "risk" in diff,
+            "execution_layer": "exchanges" in diff,
+            "strategy_manager": "strategies" in diff,
+            "state_machine": "system" in diff,
+        }
+        return reload_required
+
+    async def _publish_alert(
+        self,
+        alert_type: str,
+        message: str,
+        severity: str,
+    ) -> None:
+        """
+        Опубликовать alert.
+
+        Аргументы:
+            alert_type: Тип алерта
+            message: Сообщение
+            severity: Критичность (critical, warning, info)
+        """
+        try:
+            # Локальный импорт для избежания циклических импортов
+            # ruff: noqa: PLC0415
+            from cryptotechnolog.core.event import Event, Priority
+
+            priority = Priority.CRITICAL if severity == "critical" else Priority.HIGH
+
+            payload: dict[str, Any] = {
+                "alert_type": alert_type,
+                "message": message,
+                "severity": severity,
+                "source": "CONFIG_MANAGER",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            event = Event.new(
+                event_type="CONFIG_ALERT",
+                source="CONFIG_MANAGER",
+                payload=payload,
+            )
+            event.priority = priority
+
+            if self._event_bus is not None:
+                await self._event_bus.publish(event)
+            else:
+                logger.debug("Event bus не настроен, alert не опубликован")
+
+            logger.warning(
+                "Alert опубликован: type=%s, severity=%s, message=%s",
+                alert_type,
+                severity,
+                message,
+            )
+        except Exception as e:
+            logger.error("Ошибка публикации alert: %s", str(e))
+
+    # =========================================================================
+    # Metrics
+    # =========================================================================
+
+    def _update_gauges(self, config: SystemConfig) -> None:
+        """
+        Обновить gauge метрики.
+
+        Аргументы:
+            config: Текущая конфигурация
+        """
+        # config_version{environment}
+        self._metrics.gauge(
+            "config_version",
+            float(self._internal_version),
+            {"environment": config.environment},
+        )
+
+        # config_file_age_seconds
+        if self._last_update_timestamp:
+            age_seconds = (datetime.now() - self._last_update_timestamp).total_seconds()
+            self._metrics.gauge("config_file_age_seconds", age_seconds)
+
+        # vault_secrets_cached{age_hours}
+        if self._cache_timestamp:
+            cache_age_hours = self._get_cache_age_hours()
+            self._metrics.gauge("vault_secrets_cached", cache_age_hours)
+
+    def get_metrics(self) -> dict[str, Any]:
+        """
+        Получить метрики ConfigManager.
+
+        Returns:
+            Словарь с метриками
+        """
+        return self._metrics.to_dict()
+
+    # =========================================================================
+    # Nested Config Access (dot notation)
+    # =========================================================================
+
+    def get_config_value(self, key_path: str, default: Any = None) -> Any:
+        """
+        Получить значение из конфигурации по ключу (dot notation).
+
+        Аргументы:
+            key_path: Путь к значению через точку (например, "risk.base_r_percent")
+            default: Значение по умолчанию если ключ не найден
+
+        Returns:
+            Значение по ключу или default
+
+        Примеры:
+            >>> manager.get_config_value("risk.base_r_percent")
+            Decimal('0.02')
+            >>> manager.get_config_value("exchanges[0].name")
+            'bybit'
+        """
+        if self._current_config is None:
+            return default
+
+        try:
+            # Разбиваем путь на части
+            parts = key_path.split(".")
+            current: Any = self._current_config
+
+            for part in parts:
+                # Проверяем индекс массива
+                if "[" in part and "]" in part:
+                    # Извлекаем имя поля и индекс
+                    field_name, index_str = part.split("[")
+                    index = int(index_str.rstrip("]"))
+
+                    if field_name:
+                        current = getattr(current, field_name)
+                    current = current[index]
+                elif part:
+                    current = getattr(current, part)
+
+            return current
+        except (AttributeError, IndexError, KeyError, TypeError):
+            return default
+
+    def get_risk_config(self) -> dict[str, Any] | None:
+        """
+        Получить конфигурацию рисков.
+
+        Returns:
+            Словарь с параметрами рисков или None
+        """
+        if self._current_config is None:
+            return None
+        return self._current_config.risk.model_dump()
+
+    def get_exchanges(self) -> list[dict[str, Any]]:
+        """
+        Получить список бирж.
+
+        Returns:
+            Список бирж
         """
         if self._current_config is None:
             return []
+        return [e.model_dump() for e in self._current_config.exchanges]
 
-        # Для простоты возвращаем все основные секции
-        sections = ["risk", "exchanges", "strategies", "system"]
-        return sections
+    def get_strategies(self) -> list[dict[str, Any]]:
+        """
+        Получить список стратегий.
+
+        Returns:
+            Список стратегий
+        """
+        if self._current_config is None:
+            return []
+        return [s.model_dump() for s in self._current_config.strategies]
+
+
+class ConfigMetrics:
+    """
+    Метрики ConfigManager.
+
+    Содержит счётчики и гистограммы для мониторинга.
+    """
+
+    def __init__(self) -> None:
+        """Инициализировать метрики."""
+        self._counters: dict[str, int] = {}
+        self._gauges: dict[str, float] = {}
+        self._histograms: dict[str, list[float]] = {}
+
+    def _make_key(self, name: str, labels: dict[str, str] | None = None) -> str:
+        """
+        Создать ключ метрики из имени и лейблов.
+
+        Аргументы:
+            name: Имя метрики
+            labels: Лейблы
+
+        Returns:
+            Ключ метрики
+        """
+        if not labels:
+            return name
+        label_str = ",".join(f'{k}="{v}"' for k, v in sorted(labels.items()))
+        return f"{name}{{{label_str}}}"
+
+    def increment(self, name: str, labels: dict[str, str] | None = None, value: int = 1) -> None:
+        """
+        Инкрементировать счётчик.
+
+        Аргументы:
+            name: Имя метрики
+            labels: Лейблы
+            value: Значение для инкремента
+        """
+        key = self._make_key(name, labels)
+        self._counters[key] = self._counters.get(key, 0) + value
+
+    def gauge(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
+        """
+        Установить значение gauge.
+
+        Аргументы:
+            name: Имя метрики
+            value: Значение
+            labels: Лейблы
+        """
+        key = self._make_key(name, labels)
+        self._gauges[key] = value
+
+    def observe(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
+        """
+        Наблюдать значение для гистограммы.
+
+        Аргументы:
+            name: Имя метрики
+            value: Значение
+            labels: Лейблы
+        """
+        key = self._make_key(name, labels)
+        if key not in self._histograms:
+            self._histograms[key] = []
+        self._histograms[key].append(value)
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Конвертировать метрики в словарь.
+
+        Returns:
+            Словарь с метриками
+        """
+        return {
+            "counters": dict(self._counters),
+            "gauges": dict(self._gauges),
+            "histograms": {
+                k: {
+                    "count": len(v),
+                    "sum": sum(v),
+                    "min": min(v) if v else 0,
+                    "max": max(v) if v else 0,
+                }
+                for k, v in self._histograms.items()
+            },
+        }

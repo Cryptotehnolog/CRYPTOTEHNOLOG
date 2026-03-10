@@ -124,9 +124,9 @@ class TestStateMachineInvariants:
             if len(get_allowed_transitions(state)) == 0:
                 states_without_outgoing.append(state)
 
-        assert len(states_without_outgoing) == 0, (
-            f"Состояния без исходящих переходов: {states_without_outgoing}"
-        )
+        assert (
+            len(states_without_outgoing) == 0
+        ), f"Состояния без исходящих переходов: {states_without_outgoing}"
 
     def test_all_states_have_incoming_transitions(self):
         """

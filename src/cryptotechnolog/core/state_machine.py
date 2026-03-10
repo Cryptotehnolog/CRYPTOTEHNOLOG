@@ -889,14 +889,12 @@ class StateMachine:
         # Fallback - пробуем из БД
         if self._db:
             try:
-                row = await self._db.fetchrow(
-                    """
+                row = await self._db.fetchrow("""
                     SELECT current_state, version, transition_counter, metadata
                     FROM state_machine_checkpoints
                     ORDER BY created_at DESC
                     LIMIT 1
-                    """
-                )
+                    """)
                 if row:
                     self._current_state = SystemState(row["current_state"])
                     self._version = row["version"]

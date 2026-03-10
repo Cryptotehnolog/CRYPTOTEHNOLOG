@@ -154,14 +154,12 @@ class TestStateMachineAuditTrail:
         assert table_exists is True
 
         # Проверяем структуру таблицы
-        columns = await clean_db.fetch(
-            """
+        columns = await clean_db.fetch("""
             SELECT column_name, data_type
             FROM information_schema.columns
             WHERE table_name = 'audit_events'
             ORDER BY ordinal_position
-            """
-        )
+            """)
 
         column_names = [c["column_name"] for c in columns]
         assert "id" in column_names
@@ -177,14 +175,12 @@ class TestStateMachineAuditTrail:
     async def test_state_transitions_table_structure(self, clean_db):
         """Test that state_transitions table has correct structure."""
         # Проверяем структуру таблицы
-        columns = await clean_db.fetch(
-            """
+        columns = await clean_db.fetch("""
             SELECT column_name, data_type
             FROM information_schema.columns
             WHERE table_name = 'state_transitions'
             ORDER BY ordinal_position
-            """
-        )
+            """)
 
         column_names = [c["column_name"] for c in columns]
         assert "id" in column_names
@@ -200,14 +196,12 @@ class TestStateMachineAuditTrail:
     async def test_state_machine_states_table_structure(self, clean_db):
         """Test that state_machine_states table has correct structure."""
         # Проверяем структуру таблицы
-        columns = await clean_db.fetch(
-            """
+        columns = await clean_db.fetch("""
             SELECT column_name, data_type
             FROM information_schema.columns
             WHERE table_name = 'state_machine_states'
             ORDER BY ordinal_position
-            """
-        )
+            """)
 
         column_names = [c["column_name"] for c in columns]
         assert "id" in column_names

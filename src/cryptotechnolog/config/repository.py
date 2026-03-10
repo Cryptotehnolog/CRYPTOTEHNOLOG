@@ -168,8 +168,7 @@ class ConfigRepository(IConfigRepository):
         """
         try:
             async with self._pool.acquire() as conn:
-                row = await conn.fetchrow(
-                    f"""
+                row = await conn.fetchrow(f"""
                     SELECT
                         id,
                         version,
@@ -184,8 +183,7 @@ class ConfigRepository(IConfigRepository):
                     WHERE is_active = TRUE
                     ORDER BY loaded_at DESC
                     LIMIT 1
-                    """
-                )
+                    """)
 
                 return dict(row) if row else None
         except asyncpg.PostgresConnectionError as e:

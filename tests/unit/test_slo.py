@@ -75,9 +75,7 @@ class TestSLODefinition:
 
         # Добавим наблюдения где p95 будет > 50ms
         for _ in range(20):
-            asyncio.get_event_loop().run_until_complete(
-                histogram.observe(0.1)  # 100ms
-            )
+            asyncio.get_event_loop().run_until_complete(histogram.observe(0.1))  # 100ms
 
         result = slo.check(histogram)
 
@@ -199,9 +197,7 @@ class TestSLOIntegration:
             "Test",
         )
 
-        asyncio.get_event_loop().run_until_complete(
-            histogram.observe(10.0)  # 10000ms >> 100ms
-        )
+        asyncio.get_event_loop().run_until_complete(histogram.observe(10.0))  # 10000ms >> 100ms
 
         # Проверяем что есть нарушение
         violations = registry.check_slo_violations(metrics)

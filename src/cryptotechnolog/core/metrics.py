@@ -959,9 +959,11 @@ class SLODefinition:
             "actual_ms": round(percentile_ms, 3),
             "is_violated": is_violated,
             "compliance_percent": round(
-                (1 - (percentile_ms / self.threshold_ms)) * 100
-                if percentile_ms <= self.threshold_ms
-                else 0,
+                (
+                    (1 - (percentile_ms / self.threshold_ms)) * 100
+                    if percentile_ms <= self.threshold_ms
+                    else 0
+                ),
                 2,
             ),
         }

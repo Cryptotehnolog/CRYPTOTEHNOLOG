@@ -80,13 +80,11 @@ async def test_state_transition_persisted(db_pool, test_event_bus, setup_listene
 
     # Verify transition was recorded
     async with db_pool.acquire() as conn:
-        result = await conn.fetchrow(
-            """
+        result = await conn.fetchrow("""
             SELECT from_state, to_state, trigger, operator, duration_ms
             FROM state_transitions
             ORDER BY id DESC LIMIT 1
-            """
-        )
+            """)
 
     assert result is not None
     assert result["from_state"] == "boot"
@@ -198,13 +196,11 @@ async def test_audit_event_structure(db_pool, test_event_bus, setup_listeners):
 
     # Verify audit event structure
     async with db_pool.acquire() as conn:
-        result = await conn.fetchrow(
-            """
+        result = await conn.fetchrow("""
             SELECT event_type, entity_type, entity_id, metadata, severity
             FROM audit_events
             WHERE event_type = 'STATE_TRANSITION'
-            """
-        )
+            """)
 
     assert result is not None
     assert result["entity_type"] == "state_machine"
@@ -239,13 +235,11 @@ async def test_risk_events_persisted(db_pool, test_event_bus, setup_listeners):
 
     # Verify risk event
     async with db_pool.acquire() as conn:
-        result = await conn.fetchrow(
-            """
+        result = await conn.fetchrow("""
             SELECT event_type, symbol, allowed, reason
             FROM risk_events
             ORDER BY id DESC LIMIT 1
-            """
-        )
+            """)
 
     assert result is not None
     assert result["event_type"] == "RISK_VIOLATION"

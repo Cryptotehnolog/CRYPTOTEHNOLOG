@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\.venv\_pytest\terminalprogress.py
+# hypothesis_version: 6.151.9
+
+['TERM', 'dumb', 'terminalreporter']

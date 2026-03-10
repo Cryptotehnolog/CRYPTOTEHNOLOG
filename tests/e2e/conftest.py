@@ -1,150 +1,119 @@
-# ==================== E2E Tests Configuration ====================
-"""
-Pytest configuration for E2E tests
-
-Provides fixtures for:
-- Exchange clients (mock/real)
-- Database connections
-- Trading accounts
-- Risk engine
-- Test data generators
-"""
+# ==================== E2E Test Configuration ====================
+"""E2E тесты используют fixtures из integration для работы с БД и Redis."""
 
 import asyncio
+import os
+import sys
+from collections.abc import AsyncGenerator, Generator
+from pathlib import Path
 
+from typing import TYPE_CHECKING
+
+import asyncpg
 import pytest
+import pytest_asyncio
 
-# ==================== Pytest Configuration ====================
+if TYPE_CHECKING:
+    from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
 
+# Windows asyncio fix
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-def pytest_configure(config):
-    """Register custom markers."""
-    config.addinivalue_line("markers", "e2e: End-to-end tests")
-    config.addinivalue_line("markers", "order: Order-related tests")
-    config.addinivalue_line("markers", "position: Position-related tests")
-    config.addinivalue_line("markers", "risk: Risk management tests")
-    config.addinivalue_line("markers", "multi_asset: Multi-asset tests")
-    config.addinivalue_line("markers", "multi_exchange: Multi-exchange tests")
-    config.addinivalue_line("markers", "timeframe: Timeframe tests")
-    config.addinivalue_line("markers", "correlation: Correlation tests")
-    config.addinivalue_line("markers", "performance: Performance tests")
-    config.addinivalue_line("markers", "latency: Latency tests")
-    config.addinivalue_line("markers", "resilience: Resilience tests")
-    config.addinivalue_line("markers", "concurrency: Concurrency tests")
-    config.addinivalue_line("markers", "data: Data tests")
-    config.addinivalue_line("markers", "storage: Storage tests")
-    config.addinivalue_line("markers", "reconciliation: Reconciliation tests")
-    config.addinivalue_line("markers", "edge_case: Edge case tests")
-    config.addinivalue_line("markers", "market: Market condition tests")
-    config.addinivalue_line("markers", "exchange: Exchange tests")
-    config.addinivalue_line("markers", "system: System failure tests")
-    config.addinivalue_line("markers", "user_error: User error tests")
-    config.addinivalue_line("markers", "compliance: Compliance tests")
-    config.addinivalue_line("markers", "reporting: Reporting tests")
-    config.addinivalue_line("markers", "security: Security tests")
-    config.addinivalue_line("markers", "retention: Data retention tests")
+# Set test environment
+os.environ["ENVIRONMENT"] = "test"
+os.environ["DEBUG"] = "true"
 
 
-# ==================== Async Support ====================
-
-
+# Session-scoped event loop для всех E2E тестов
 @pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
+    """Один event loop для всех E2E тестов."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     yield loop
     loop.close()
 
 
-# ==================== E2E Fixtures (Placeholders) ====================
+# Function-scoped db_pool - создаём новый пул для каждого теста
+@pytest_asyncio.fixture(scope="function")
+async def db_pool() -> AsyncGenerator[asyncpg.Pool, None]:
+    """Function-scoped пул БД для E2E тестов."""
+    from cryptotechnolog.config.settings import Settings
+    from tests.integration.conftest import apply_migrations
+
+    settings = Settings()
+
+    # Создаём новый пул для каждого теста
+    pool = await asyncpg.create_pool(
+        host=settings.postgres_host,
+        port=settings.postgres_port,
+        user=settings.postgres_user,
+        password=settings.postgres_password.get_secret_value(),
+        database=settings.postgres_test_db,
+        min_size=2,
+        max_size=5,
+    )
+
+    try:
+        # Проверяем, существуют ли уже таблицы
+        async with pool.acquire() as conn:
+            tables = await conn.fetch(
+                "SELECT table_name FROM information_schema.tables " "WHERE table_schema = 'public'"
+            )
+            table_names = {row["table_name"] for row in tables}
+
+            # Применяем миграции только если таблиц нет
+            if "schema_migrations" not in table_names:
+                await apply_migrations(conn)
+
+            # Применяем миграцию config_versions если её нет
+            if "config_versions" not in table_names:
+                config_versions_migration = (
+                    Path(__file__).parent.parent.parent
+                    / "scripts"
+                    / "migrations"
+                    / "010_config_versions.sql"
+                )
+                if config_versions_migration.exists():
+                    sql = config_versions_migration.read_text(encoding="utf-8")
+                    await conn.execute(sql)
+
+        yield pool
+    finally:
+        # Cleanup
+        await pool.close()
 
 
-@pytest.fixture
-def exchange_client():
-    """
-    Fixture: Exchange client for E2E tests
+# Clean Redis state для каждого теста
+@pytest_asyncio.fixture(autouse=True)
+async def redis_clean_state() -> AsyncGenerator[None, None]:
+    """Очистка Redis перед каждым тестом."""
+    import redis.asyncio as redis
 
-    Returns a mock or real exchange client.
-    Override in conftest to use real exchange.
-    """
-    # TODO: Implement with actual exchange client
-    raise NotImplementedError("Implement exchange_client fixture")
+    from cryptotechnolog.config.settings import Settings
 
+    settings = Settings()
+    client = redis.Redis(
+        host=settings.redis_host,
+        port=settings.redis_port,
+        decode_responses=False,
+    )
+    try:
+        await client.flushdb()
+    finally:
+        await client.close()
 
-@pytest.fixture
-def trading_account():
-    """
-    Fixture: Trading account with balance
-
-    Returns a test trading account.
-    """
-    # TODO: Implement
-    raise NotImplementedError("Implement trading_account fixture")
-
-
-@pytest.fixture
-def risk_engine():
-    """
-    Fixture: Risk engine instance
-
-    Returns the risk engine for testing.
-    """
-    # TODO: Implement
-    raise NotImplementedError("Implement risk_engine fixture")
-
-
-@pytest.fixture
-def database():
-    """
-    Fixture: Database connection
-
-    Returns a database connection for testing.
-    """
-    # TODO: Implement
-    raise NotImplementedError("Implement database fixture")
-
-
-@pytest.fixture
-def test_symbols():
-    """
-    Fixture: List of test symbols
-
-    Returns symbols available for testing.
-    """
-    return ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
-
-
-@pytest.fixture
-def test_balances():
-    """
-    Fixture: Test account balances
-
-    Returns initial balances for testing.
-    """
-    return {
-        "USDT": 100000.0,
-        "BTC": 10.0,
-        "ETH": 100.0,
-    }
-
-
-@pytest.fixture
-def mock_market_data():
-    """
-    Fixture: Mock market data
-
-    Returns mock market data for testing.
-    """
-    # TODO: Implement
-    return {}
-
-
-@pytest.fixture
-def cleanup_positions():
-    """
-    Fixture: Cleanup positions after test
-
-    Yields and cleans up test positions.
-    """
     yield
-    # Cleanup logic here
+
+
+# Event bus fixture для E2E тестов
+@pytest.fixture
+def event_bus() -> "EnhancedEventBus":
+    """Создать event bus для E2E тестов."""
+    from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
+
+    return EnhancedEventBus(
+        enable_persistence=False,
+        rate_limit=1000,
+    )
