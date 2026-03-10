@@ -5,6 +5,7 @@ Unit тесты для ConfigWatcher.
 """
 
 import asyncio
+import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -54,14 +55,19 @@ class TestConfigWatcherWatch:
         mock_observer = MagicMock()
         watcher._observer_factory = MagicMock(return_value=mock_observer)
 
-        # Мокаем event_handler чтобы не было ошибок
-        with patch.object(ConfigWatcher, "_update_callback", create=True):
-            await watcher.watch([Path("config/dev")])
+        # Создаём временную директорию для теста
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_path = Path(tmpdir) / "config"
+            test_path.mkdir()
 
-        assert watcher._is_watching is True
-        assert watcher._watched_paths == [Path("config/dev")]
-        mock_observer.schedule.assert_called()
-        mock_observer.start.assert_called_once()
+            # Мокаем event_handler чтобы не было ошибок
+            with patch.object(ConfigWatcher, "_update_callback", create=True):
+                await watcher.watch([test_path])
+
+            assert watcher._is_watching is True
+            assert watcher._watched_paths == [test_path]
+            mock_observer.schedule.assert_called()
+            mock_observer.start.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_watch_already_watching(self) -> None:

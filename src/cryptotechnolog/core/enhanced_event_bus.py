@@ -1160,7 +1160,8 @@ class EnhancedEventBus:
         """
         logger.info("Начало drain EnhancedEventBus", timeout=timeout)
 
-        start_time = asyncio.get_event_loop().time()
+        loop = asyncio.get_running_loop()
+        start_time = loop.time()
 
         while True:
             # Проверить общее количество событий в очередях
@@ -1179,7 +1180,7 @@ class EnhancedEventBus:
                 return True
 
             # Проверить таймаут
-            elapsed = asyncio.get_event_loop().time() - start_time
+            elapsed = loop.time() - start_time
             if elapsed >= timeout:
                 logger.warning(
                     "EnhancedEventBus drain - таймаут",
