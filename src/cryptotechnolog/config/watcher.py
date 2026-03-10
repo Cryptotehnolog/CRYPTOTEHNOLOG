@@ -90,7 +90,7 @@ class ConfigFileEventHandler(FileSystemEventHandler):
             self._pending_tasks[path_str].cancel()
 
         # Создаём новую задачу с задержкой
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         task = loop.call_later(
             self._debounce_seconds,
             self._execute_callback,
