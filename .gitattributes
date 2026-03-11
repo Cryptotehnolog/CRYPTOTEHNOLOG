@@ -1,0 +1,21 @@
+# .gitattributes - настройки Git для работы с файлами
+
+# Автоматически определять окончания строк
+* text=auto
+
+# Принудительно использовать LF для специфичных файлов
+*.py text eol=lf
+*.rs text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Бинарные файлы - не изменять
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
