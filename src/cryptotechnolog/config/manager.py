@@ -23,10 +23,24 @@ import hashlib
 import logging
 from pathlib import Path
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
+
+class HistogramStats(TypedDict):
+    """Тип для статистики гистограммы."""
+
+    count: float
+    sum: float
+    min: float
+    max: float
+    avg: float
+    p50: float
+    p95: float
+    p99: float
+
+# ruff: noqa: E402
 # Импорты Protocol классов - необходимы в runtime для isinstance проверок
-from cryptotechnolog.config.protocols import (
+from cryptotechnolog.config.protocols import (  # type: ignore[misc]
     IConfigLoader,
     IConfigParser,
     IConfigRepository,
@@ -1146,7 +1160,7 @@ class ConfigMetrics:
     def _compute_histogram_stats(
         self,
         data: dict[str, list[float]],
-    ) -> dict[str, dict[str, float]]:
+    ) -> dict[str, HistogramStats]:
         """
         Вычислить статистику для гистограмм.
 
@@ -1156,41 +1170,41 @@ class ConfigMetrics:
         Returns:
             Словарь со статистикой
         """
-        result: dict[str, dict[str, float]] = {}
+        result: dict[str, HistogramStats] = {}
         for key, values in data.items():
             if not values:
-                result[key] = {
-                    "count": float(0),
-                    "sum": float(0),
-                    "min": float(0),
-                    "max": float(0),
-                    "avg": float(0),
-                    "p50": float(0),
-                    "p95": float(0),
-                    "p99": float(0),
-                }
+                result[key] = HistogramStats(
+                    count=float(0),
+                    sum=float(0),
+                    min=float(0),
+                    max=float(0),
+                    avg=float(0),
+                    p50=float(0),
+                    p95=float(0),
+                    p99=float(0),
+                )
                 continue
 
             sorted_values = sorted(values)
-            count: float = float(len(values))
+            values_count = float(len(values))
 
-            def percentile(data: list[float], p: float) -> float:
+            def percentile(percentile_data: list[float], p: float) -> float:
                 """Вычислить перцентиль."""
-                idx = int(len(data) * p / 100)
-                if idx >= len(data):
-                    idx = len(data) - 1
-                return data[idx]
+                idx = int(len(percentile_data) * p / 100)
+                if idx >= len(percentile_data):
+                    idx = len(percentile_data) - 1
+                return percentile_data[idx]
 
-            result[key] = {
-                "count": count,
-                "sum": sum(values),
-                "min": min(values),
-                "max": max(values),
-                "avg": sum(values) / count,
-                "p50": percentile(sorted_values, 50),
-                "p95": percentile(sorted_values, 95),
-                "p99": percentile(sorted_values, 99),
-            }
+            result[key] = HistogramStats(
+                count=values_count,
+                sum=sum(values),
+                min=min(values),
+                max=max(values),
+                avg=sum(values) / values_count,
+                p50=percentile(sorted_values, 50),
+                p95=percentile(sorted_values, 95),
+                p99=percentile(sorted_values, 99),
+            )
 
         return result
 
@@ -1211,16 +1225,19 @@ class ConfigMetrics:
         # Gauges
         for gauge_name, gauge_value in self._gauges.items():
             lines.append(f"# TYPE {gauge_name} gauge")
-            lines.append(f"{gauge_name} {float(gauge_value)}")
+            lines.append(f"{gauge_name} {gauge_value}")
 
         # Histograms
-        for hist_name, hist_stats in self._compute_histogram_stats(self._histograms).items():
+        histogram_data = self._compute_histogram_stats(self._histograms)
+        for hist_name, hist_stats in histogram_data.items():
             lines.append(f"# TYPE {hist_name} histogram")
-            for suffix, hist_value in hist_stats.items():
-                if suffix != "count":
-                    lines.append(f'{hist_name}_bucket{{{suffix}="{hist_value}"}} {float(hist_stats["count"])}')
-                else:
-                    lines.append(f"{hist_name}_sum {hist_stats['sum']}")
-                lines.append(f"{hist_name}_{suffix} {float(hist_value)}")
+            lines.append(f"{hist_name}_count {hist_stats['count']}")
+            lines.append(f"{hist_name}_sum {hist_stats['sum']}")
+            lines.append(f"{hist_name}_min {hist_stats['min']}")
+            lines.append(f"{hist_name}_max {hist_stats['max']}")
+            lines.append(f"{hist_name}_avg {hist_stats['avg']}")
+            lines.append(f"{hist_name}_p50 {hist_stats['p50']}")
+            lines.append(f"{hist_name}_p95 {hist_stats['p95']}")
+            lines.append(f"{hist_name}_p99 {hist_stats['p99']}")
 
         return "\n".join(lines)

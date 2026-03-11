@@ -10,7 +10,6 @@
 - get_dashboard_data()
 """
 
-
 from cryptotechnolog.core.metrics import (
     Histogram,
     MetricsCollector,

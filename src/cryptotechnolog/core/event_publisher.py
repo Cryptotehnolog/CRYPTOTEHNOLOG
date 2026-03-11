@@ -72,7 +72,12 @@ def publish_event(
 
         # Ждать с таймаутом
         try:
-            loop.call_later(timeout, lambda: future.cancel() if (future := asyncio.ensure_future(coro, loop=loop)) else None)
+            loop.call_later(
+                timeout,
+                lambda: (
+                    future.cancel() if (future := asyncio.ensure_future(coro, loop=loop)) else None
+                ),
+            )
             future = asyncio.ensure_future(coro, loop=loop)
             success: bool = asyncio.run_coroutine_threadsafe(coro, loop).result(timeout=timeout)
 

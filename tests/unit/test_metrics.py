@@ -9,7 +9,6 @@
 - Формат Prometheus
 """
 
-
 import pytest
 
 from cryptotechnolog.core.metrics import (

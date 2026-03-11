@@ -140,7 +140,9 @@ class TestPydanticValidatorPropertyBased:
         max_drawdown_hard=st.decimals(min_value="0.10", max_value="0.50", places=3),
         max_drawdown_soft=st.decimals(min_value="0.05", max_value="0.45", places=3),
     )
-    @settings(max_examples=30, suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much])
+    @settings(
+        max_examples=30, suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much]
+    )
     def test_drawdown_soft_less_than_hard(
         self,
         max_drawdown_hard: Decimal,
