@@ -70,7 +70,7 @@ class SystemHealth:
     overall_status: HealthStatus
     components: dict[str, ComponentHealth]
     timestamp: float = field(default_factory=time.time)
-    version: str = "1.1.0"
+    version: str = "1.4.0"
 
     def is_healthy(self) -> bool:
         """Проверить здорова ли вся система."""
@@ -669,7 +669,7 @@ class HealthChecker:
         system_health = SystemHealth(
             overall_status=overall_status,
             components=components,
-            version="1.1.0",
+            version="1.4.0",
         )
 
         # Уведомляем об изменении статуса

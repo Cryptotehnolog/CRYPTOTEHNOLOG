@@ -96,26 +96,26 @@ repos:
       # Check workspace dependencies (early detection)
       - id: cargo-check-workspace
         name: cargo check workspace
-        entry: bash -c 'cd rust_components && cargo check --workspace --all-targets'
+        entry: bash -c 'cd crates && cargo check --workspace --all-targets'
         language: system
         pass_filenames: false
-        files: rust_components/.*\.rs$|rust_components/Cargo\.toml$
+        files: crates/.*\.rs$|crates/Cargo\.toml$
 
       # Format Rust code
       - id: cargo-fmt
         name: cargo fmt
-        entry: bash -c 'cd rust_components && cargo fmt -- --check'
+        entry: bash -c 'cd crates && cargo fmt -- --check'
         language: system
         pass_filenames: false
-        files: rust_components/.*\.rs$
+        files: crates/.*\.rs$
 
       # Run clippy
       - id: cargo-clippy
         name: cargo clippy
-        entry: bash -c 'cd rust_components && cargo clippy --workspace -- -D warnings'
+        entry: bash -c 'cd crates && cargo clippy --workspace -- -D warnings'
         language: system
         pass_filenames: false
-        files: rust_components/.*\.rs$|rust_components/Cargo\.toml$
+        files: crates/.*\.rs$|crates/Cargo\.toml$
 
   # ==================== Docker ====================
   - repo: https://github.com/hadolint/hadolint

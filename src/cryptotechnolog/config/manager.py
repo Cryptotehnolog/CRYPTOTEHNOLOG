@@ -41,7 +41,7 @@ class HistogramStats(TypedDict):
 
 # ruff: noqa: E402
 # Импорты Protocol классов - необходимы в runtime для isinstance проверок
-from cryptotechnolog.config.protocols import (  # type: ignore[misc]
+from cryptotechnolog.config.protocols import (
     IConfigLoader,
     IConfigParser,
     IConfigRepository,
