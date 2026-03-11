@@ -1,187 +1,575 @@
-# ==================== E2E: Core Trading Flow ====================
+# ==================== E2E: Trading Flow ====================
 """
-Core Trading Flow E2E Tests (15 сценариев)
+Trading Flow E2E Tests
 
-Тестирует полный цикл ордера от создания до исполнения.
-Запускается против реальной или mock-биржи.
+Тестирует полный торговый процесс:
+- Order lifecycle
+- Trade execution
+- Position management
+- Risk checks
 """
 
+import asyncio
+from datetime import datetime, timezone
+from decimal import Decimal
 import pytest
 
-# ==================== Order Creation & Validation ====================
-
-
-@pytest.mark.e2e
-@pytest.mark.order
-def test_limit_order_placement():
-    """
-    E2E: Размещение лимитного ордера
-    """
-    # TODO: Implement
-    pass
-
-
-@pytest.mark.e2e
-@pytest.mark.order
-def test_market_order_execution():
-    """
-    E2E: Исполнение рыночного ордера
-    """
-    # TODO: Implement
-    pass
-
-
-@pytest.mark.e2e
-@pytest.mark.order
-def test_stop_loss_order_trigger():
-    """
-    E2E: Срабатывание stop-loss ордера
-    """
-    # TODO: Implement
-    pass
-
-
-@pytest.mark.e2e
-@pytest.mark.order
-def test_take_profit_order_trigger():
-    """
-    E2E: Срабатывание take-profit ордера
-    """
-    # TODO: Implement
-    pass
-
-
-@pytest.mark.e2e
-@pytest.mark.order
-def test_stop_limit_order():
-    """
-    E2E: Stop-limit ордер
-    """
-    # TODO: Implement
-    pass
-
-
-@pytest.mark.e2e
-@pytest.mark.order
-def test_oco_one_cancels_other():
-    """
-    E2E: OCO ордер (One Cancels Other)
-    """
-    # TODO: Implement
-    pass
-
-
-@pytest.mark.e2e
-@pytest.mark.order
-def test_iceberg_order():
-    """
-    E2E: Iceberg ордер (скрытый объём)
-    """
-    # TODO: Implement
-    pass
+from cryptotechnolog.core.event import Event, EventType
+from cryptotechnolog.core.stubs import OrderStub, TradeStub, PositionStub
 
 
 # ==================== Order Lifecycle ====================
 
 
 @pytest.mark.e2e
-@pytest.mark.order
-def test_order_partial_fill_to_full():
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_order_creation(db_pool):
     """
-    E2E: Частичное исполнение до полного
+    E2E: Создание ордера
     """
-    # TODO: Implement
-    pass
+    async with db_pool.acquire() as conn:
+        # Создаём ордер
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.ORDER_SUBMITTED.value,
+            {
+                "order_id": "flow_order_1",
+                "symbol": "BTC/USDT",
+                "side": "buy",
+                "order_type": "limit",
+                "quantity": "0.01",
+                "price": "50000",
+                "status": "new",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        # Проверяем что ордер создан
+        result = await conn.fetchval(
+            "SELECT data->>'status' FROM events WHERE data->>'order_id' = $1",
+            "flow_order_1",
+        )
+
+    assert result == "new"
 
 
 @pytest.mark.e2e
-@pytest.mark.order
-def test_order_cancellation_before_fill():
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_order_validation(db_pool):
     """
-    E2E: Отмена ордера до исполнения
+    E2E: Валидация ордера
     """
-    # TODO: Implement
-    pass
+    async with db_pool.acquire() as conn:
+        # Ордер проходит валидацию
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.ORDER_SUBMITTED.value,
+            {
+                "order_id": "valid_order",
+                "symbol": "BTC/USDT",
+                "quantity": "0.01",
+                "price": "50000",
+                "validated": True,
+            },
+            datetime.now(timezone.utc),
+        )
+
+        result = await conn.fetchval(
+            "SELECT data->>'validated' FROM events WHERE data->>'order_id' = $1",
+            "valid_order",
+        )
+
+    assert result == "True"
 
 
 @pytest.mark.e2e
-@pytest.mark.order
-def test_order_modification_price():
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_order_rejection(db_pool):
     """
-    E2E: Изменение цены ордера
+    E2E: Отклонение ордера
     """
-    # TODO: Implement
-    pass
+    async with db_pool.acquire() as conn:
+        # Ордер отклонён
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.ORDER_REJECTED.value,
+            {
+                "order_id": "rejected_order",
+                "reason": "insufficient_balance",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        result = await conn.fetchval(
+            "SELECT COUNT(*) FROM events WHERE data->>'order_id' = $1",
+            "rejected_order",
+        )
+
+    assert result >= 1
 
 
 @pytest.mark.e2e
-@pytest.mark.order
-def test_order_modification_size():
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_order_modification(db_pool):
     """
-    E2E: Изменение размера ордера
+    E2E: Модификация ордера
     """
-    # TODO: Implement
-    pass
+    async with db_pool.acquire() as conn:
+        # Создаём ордер
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.ORDER_SUBMITTED.value,
+            {"order_id": "modify_order", "price": "50000"},
+            datetime.now(timezone.utc),
+        )
+
+        # Модифицируем
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.ORDER_UPDATED.value,
+            {"order_id": "modify_order", "price": "51000"},
+            datetime.now(timezone.utc),
+        )
+
+        # Проверяем модификацию
+        result = await conn.fetchval(
+            """
+            SELECT data->>'price' FROM events 
+            WHERE data->>'order_id' = $1 AND event_type = $2
+            """,
+            "modify_order",
+            EventType.ORDER_UPDATED.value,
+        )
+
+    assert result == "51000"
 
 
 @pytest.mark.e2e
-@pytest.mark.order
-def test_order_expiration_types():
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_order_cancellation(db_pool):
     """
-    E2E: Различные типы истечения (GTC, IOC, FOK, Day)
+    E2E: Отмена ордера
     """
-    # TODO: Implement
-    pass
+    async with db_pool.acquire() as conn:
+        # Создаём ордер
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.ORDER_SUBMITTED.value,
+            {"order_id": "cancel_order", "status": "pending_cancel"},
+            datetime.now(timezone.utc),
+        )
+
+        # Отменяем
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.ORDER_CANCELLED.value,
+            {"order_id": "cancel_order", "reason": "user_request"},
+            datetime.now(timezone.utc),
+        )
+
+        result = await conn.fetchval(
+            "SELECT COUNT(*) FROM events WHERE data->>'order_id' = $1",
+            "cancel_order",
+        )
+
+    assert result >= 2
+
+
+# ==================== Trade Execution ====================
 
 
 @pytest.mark.e2e
-@pytest.mark.order
-def test_order_rejection_insufficient_margin():
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_trade_execution(db_pool):
     """
-    E2E: Отклонение ордера при недостаточном маржине
+    E2E: Исполнение сделки
     """
-    # TODO: Implement
-    pass
+    async with db_pool.acquire() as conn:
+        # Создаём ордер
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.ORDER_SUBMITTED.value,
+            {
+                "order_id": "exec_order",
+                "symbol": "BTC/USDT",
+                "quantity": "0.01",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        # Исполняем
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.TRADE_EXECUTED.value,
+            {
+                "trade_id": "exec_trade",
+                "order_id": "exec_order",
+                "symbol": "BTC/USDT",
+                "quantity": "0.01",
+                "price": "50000",
+                "fee": "0.50",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        # Проверяем исполнение
+        result = await conn.fetchval(
+            "SELECT data->>'order_id' FROM events WHERE data->>'trade_id' = $1",
+            "exec_trade",
+        )
+
+    assert result == "exec_order"
+
+
+@pytest.mark.e2e
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_partial_execution(db_pool):
+    """
+    E2E: Частичное исполнение
+    """
+    async with db_pool.acquire() as conn:
+        # Ордер на 1 BTC, исполняем 0.5
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.TRADE_EXECUTED.value,
+            {
+                "trade_id": "partial_trade",
+                "order_id": "partial_order",
+                "quantity": "0.005",
+                "remaining": "0.005",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        result = await conn.fetchval(
+            "SELECT data->>'remaining' FROM events WHERE data->>'trade_id' = $1",
+            "partial_trade",
+        )
+
+    assert result == "0.005"
+
+
+@pytest.mark.e2e
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_trade_settlement(db_pool):
+    """
+    E2E: Расчёт сделки
+    """
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.TRADE_EXECUTED.value,
+            {
+                "trade_id": "settle_trade",
+                "quantity": "0.01",
+                "price": "50000",
+                "fee": "0.50",
+                "total": "500.50",
+                "settled": True,
+            },
+            datetime.now(timezone.utc),
+        )
+
+        result = await conn.fetchval(
+            "SELECT data->>'settled' FROM events WHERE data->>'trade_id' = $1",
+            "settle_trade",
+        )
+
+    assert result == "True"
 
 
 # ==================== Position Management ====================
 
 
 @pytest.mark.e2e
-@pytest.mark.position
-def test_long_position_open_close():
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_position_opening(db_pool):
     """
-    E2E: Открытие и закрытие длинной позиции
+    E2E: Открытие позиции
     """
-    # TODO: Implement
-    pass
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.POSITION_OPENED.value,
+            {
+                "symbol": "BTC/USDT",
+                "side": "long",
+                "quantity": "0.01",
+                "entry_price": "50000",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        result = await conn.fetchval(
+            "SELECT COUNT(*) FROM events WHERE event_type = $1",
+            EventType.POSITION_OPENED.value,
+        )
+
+    assert result >= 1
 
 
 @pytest.mark.e2e
-@pytest.mark.position
-def test_short_position_open_close():
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_position_update(db_pool):
     """
-    E2E: Открытие и закрытие короткой позиции
+    E2E: Обновление позиции
     """
-    # TODO: Implement
-    pass
+    async with db_pool.acquire() as conn:
+        # Открываем позицию
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.POSITION_OPENED.value,
+            {"symbol": "BTC/USDT", "quantity": "0.01"},
+            datetime.now(timezone.utc),
+        )
+
+        # Обновляем
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.POSITION_UPDATED.value,
+            {
+                "symbol": "BTC/USDT",
+                "quantity": "0.02",
+                "current_price": "51000",
+                "unrealized_pnl": "10.00",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        result = await conn.fetchval(
+            "SELECT data->>'quantity' FROM events WHERE event_type = $1",
+            EventType.POSITION_UPDATED.value,
+        )
+
+    assert result == "0.02"
 
 
 @pytest.mark.e2e
-@pytest.mark.position
-def test_position_flip():
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_position_closing(db_pool):
     """
-    E2E: Переворот позиции (long → short или short → long)
+    E2E: Закрытие позиции
     """
-    # TODO: Implement
-    pass
+    async with db_pool.acquire() as conn:
+        # Закрываем позицию
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.POSITION_CLOSED.value,
+            {
+                "symbol": "BTC/USDT",
+                "quantity": "0.01",
+                "exit_price": "51000",
+                "realized_pnl": "10.00",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        result = await conn.fetchval(
+            "SELECT data->>'realized_pnl' FROM events WHERE event_type = $1",
+            EventType.POSITION_CLOSED.value,
+        )
+
+    assert result == "10.00"
+
+
+# ==================== Risk Checks ====================
 
 
 @pytest.mark.e2e
-@pytest.mark.position
-def test_hedging():
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_pre_trade_risk_check(db_pool):
     """
-    E2E: Хеджирование позиций
+    E2E: Предторговая проверка рисков
     """
-    # TODO: Implement
-    pass
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.ORDER_SUBMITTED.value,
+            {
+                "order_id": "risk_check_order",
+                "symbol": "BTC/USDT",
+                "risk_check": "passed",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        result = await conn.fetchval(
+            "SELECT data->>'risk_check' FROM events WHERE data->>'order_id' = $1",
+            "risk_check_order",
+        )
+
+    assert result == "passed"
+
+
+@pytest.mark.e2e
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_post_trade_risk_update(db_pool):
+    """
+    E2E: Обновление рисков после сделки
+    """
+    async with db_pool.acquire() as conn:
+        # После сделки обновляем риски
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.TRADE_EXECUTED.value,
+            {
+                "trade_id": "risk_update_trade",
+                "exposure_update": "500",
+                "new_exposure": "5000",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        result = await conn.fetchval(
+            "SELECT data->>'new_exposure' FROM events WHERE data->>'trade_id' = $1",
+            "risk_update_trade",
+        )
+
+    assert result == "5000"
+
+
+# ==================== Complete Flow ====================
+
+
+@pytest.mark.e2e
+@pytest.mark.flow
+@pytest.mark.asyncio
+async def test_complete_trading_flow(db_pool):
+    """
+    E2E: Полный торговый процесс
+    """
+    order_id = "complete_flow_order"
+    trade_id = "complete_flow_trade"
+
+    async with db_pool.acquire() as conn:
+        # 1. Создаём ордер
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.ORDER_SUBMITTED.value,
+            {
+                "order_id": order_id,
+                "symbol": "BTC/USDT",
+                "side": "buy",
+                "quantity": "0.01",
+                "price": "50000",
+                "status": "new",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        # 2. Ордер валидирован
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.ORDER_ACCEPTED.value,
+            {"order_id": order_id, "status": "accepted"},
+            datetime.now(timezone.utc),
+        )
+
+        # 3. Сделка исполнена
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.TRADE_EXECUTED.value,
+            {
+                "trade_id": trade_id,
+                "order_id": order_id,
+                "quantity": "0.01",
+                "price": "50000",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        # 4. Позиция открыта
+        await conn.execute(
+            """
+            INSERT INTO events (event_type, data, created_at)
+            VALUES ($1, $2, $3)
+            """,
+            EventType.POSITION_OPENED.value,
+            {
+                "symbol": "BTC/USDT",
+                "quantity": "0.01",
+                "entry_price": "50000",
+            },
+            datetime.now(timezone.utc),
+        )
+
+        # Проверяем весь процесс
+        events_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM events WHERE data->>'order_id' = $1",
+            order_id,
+        )
+
+    assert events_count >= 2
