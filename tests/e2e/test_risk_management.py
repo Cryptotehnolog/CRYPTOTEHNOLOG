@@ -9,14 +9,12 @@ Risk Management E2E Tests
 - Exposure management
 """
 
-import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
+
 import pytest
 
-from cryptotechnolog.core.event import Event, EventType
-from cryptotechnolog.core.stubs import RiskEngineStub, OrderStub, PositionStub
-
+from cryptotechnolog.core.event import EventType
 
 # ==================== Position Limits ====================
 
@@ -43,7 +41,7 @@ async def test_max_position_size(db_pool):
                 "quantity": str(max_position),
                 "entry_price": "50000",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем что позиция в пределах лимита
@@ -73,7 +71,7 @@ async def test_position_limit_enforcement(db_pool):
             """,
             EventType.POSITION_UPDATED.value,
             {"symbol": "ETH/USDT", "quantity": "5.0", "limit": str(limit)},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -135,7 +133,7 @@ async def test_max_order_size(db_pool):
                 "symbol": "BTC/USDT",
                 "quantity": str(max_order),
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -153,7 +151,6 @@ async def test_order_frequency_limit(db_pool):
     """
     E2E: Лимит частоты ордеров
     """
-    max_orders_per_minute = 60
 
     async with db_pool.acquire() as conn:
         # Создаём ордера
@@ -165,7 +162,7 @@ async def test_order_frequency_limit(db_pool):
                 """,
                 EventType.ORDER_SUBMITTED.value,
                 {"order_id": f"freq_{i}"},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
         # Проверяем количество
@@ -187,11 +184,11 @@ async def test_daily_order_limit(db_pool):
     daily_limit = 1000
 
     async with db_pool.acquire() as conn:
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         count = await conn.fetchval(
             """
-            SELECT COUNT(*) FROM events 
-            WHERE event_type = $1 
+            SELECT COUNT(*) FROM events
+            WHERE event_type = $1
             AND DATE(created_at) = $2
             """,
             EventType.ORDER_SUBMITTED.value,
@@ -211,7 +208,7 @@ async def test_max_drawdown_detection(db_pool):
     """
     E2E: Обнаружение максимальной просадки
     """
-    max_drawdown = Decimal("0.20")  # 20%
+    Decimal("0.20")  # 20%
 
     async with db_pool.acquire() as conn:
         # Создаём историю P&L
@@ -224,14 +221,14 @@ async def test_max_drawdown_detection(db_pool):
                 """,
                 EventType.TRADE_EXECUTED.value,
                 {"trade_id": f"dd_{i}", "pnl": pnl},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
         # Рассчитываем просадку
         results = await conn.fetch(
             """
-            SELECT (data->>'pnl')::numeric as pnl 
-            FROM events 
+            SELECT (data->>'pnl')::numeric as pnl
+            FROM events
             WHERE event_type = $1
             ORDER BY created_at
             """,
@@ -245,11 +242,9 @@ async def test_max_drawdown_detection(db_pool):
         for row in results:
             pnl = Decimal(row["pnl"])
             cumulative_pnl += pnl
-            if cumulative_pnl > peak:
-                peak = cumulative_pnl
+            peak = max(peak, cumulative_pnl)
             dd = (peak - cumulative_pnl) / (peak + 1000) if peak > 0 else 0
-            if dd > max_dd:
-                max_dd = dd
+            max_dd = max(max_dd, dd)
 
     # Проверяем что система может обнаружить просадку
     assert isinstance(max_dd, Decimal)
@@ -277,7 +272,7 @@ async def test_drawdown_protection_action(db_pool):
                 "threshold": str(threshold),
                 "action": "reduce_exposure",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем что событие записано
@@ -305,7 +300,7 @@ async def test_single_asset_exposure(db_pool):
         # Рассчитываем экспозицию по одному активу
         result = await conn.fetch(
             """
-            SELECT data FROM events 
+            SELECT data FROM events
             WHERE event_type = $1 AND data->>'symbol' = $2
             """,
             EventType.POSITION_UPDATED.value,
@@ -354,7 +349,7 @@ async def test_long_short_ratio(db_pool):
         # Считаем long позиции
         long_count = await conn.fetchval(
             """
-            SELECT COUNT(*) FROM events 
+            SELECT COUNT(*) FROM events
             WHERE event_type = $1 AND data->>'side' = 'buy'
             """,
             EventType.ORDER_SUBMITTED.value,
@@ -363,7 +358,7 @@ async def test_long_short_ratio(db_pool):
         # Считаем short позиции
         short_count = await conn.fetchval(
             """
-            SELECT COUNT(*) FROM events 
+            SELECT COUNT(*) FROM events
             WHERE event_type = $1 AND data->>'side' = 'sell'
             """,
             EventType.ORDER_SUBMITTED.value,
@@ -390,7 +385,7 @@ async def test_risk_metrics_collection(db_pool):
         # Проверяем что собираем основные метрики
         metrics = await conn.fetch(
             """
-            SELECT 
+            SELECT
                 COUNT(*) as total_events,
                 COUNT(DISTINCT data->>'symbol') as unique_symbols,
                 COUNT(DISTINCT data->>'order_id') as unique_orders
@@ -423,7 +418,7 @@ async def test_risk_alert_generation(db_pool):
                 "threshold": "100",
                 "severity": "high",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем что алерт записан
@@ -446,7 +441,7 @@ async def test_risk_reporting(db_pool):
         # Генерируем отчёт
         report = await conn.fetch(
             """
-            SELECT 
+            SELECT
                 data->>'symbol' as symbol,
                 COUNT(*) as event_count,
                 MIN(created_at) as first_event,

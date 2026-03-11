@@ -9,15 +9,13 @@ Compliance & Audit E2E Tests (10 сценариев)
 - Data Retention
 """
 
-import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+
 import pytest
 
 from cryptotechnolog.core.event import Event, EventType
-from cryptotechnolog.core.stubs import OrderStub, TradeStub, PositionStub
-
+from cryptotechnolog.core.stubs import OrderStub, PositionStub, TradeStub
 
 # ==================== Audit Trail ====================
 
@@ -44,7 +42,7 @@ async def test_every_order_logged(db_pool, event_bus):
     event = Event(
         event_type=EventType.ORDER_SUBMITTED,
         data=order.to_dict(),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     await event_bus.publish(event)
 
@@ -52,9 +50,9 @@ async def test_every_order_logged(db_pool, event_bus):
     async with db_pool.acquire() as conn:
         result = await conn.fetch(
             """
-            SELECT * FROM events 
-            WHERE event_type = $1 
-            ORDER BY created_at DESC 
+            SELECT * FROM events
+            WHERE event_type = $1
+            ORDER BY created_at DESC
             LIMIT 1
             """,
             EventType.ORDER_SUBMITTED.value,
@@ -86,7 +84,7 @@ async def test_every_trade_logged(db_pool, event_bus):
     event = Event(
         event_type=EventType.TRADE_EXECUTED,
         data=trade.to_dict(),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     await event_bus.publish(event)
 
@@ -94,9 +92,9 @@ async def test_every_trade_logged(db_pool, event_bus):
     async with db_pool.acquire() as conn:
         result = await conn.fetch(
             """
-            SELECT * FROM events 
-            WHERE event_type = $1 
-            ORDER BY created_at DESC 
+            SELECT * FROM events
+            WHERE event_type = $1
+            ORDER BY created_at DESC
             LIMIT 1
             """,
             EventType.TRADE_EXECUTED.value,
@@ -126,7 +124,7 @@ async def test_position_changes_logged(db_pool, event_bus):
     event = Event(
         event_type=EventType.POSITION_UPDATED,
         data=position.to_dict(),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     await event_bus.publish(event)
 
@@ -134,9 +132,9 @@ async def test_position_changes_logged(db_pool, event_bus):
     async with db_pool.acquire() as conn:
         result = await conn.fetch(
             """
-            SELECT * FROM events 
-            WHERE event_type = $1 
-            ORDER BY created_at DESC 
+            SELECT * FROM events
+            WHERE event_type = $1
+            ORDER BY created_at DESC
             LIMIT 1
             """,
             EventType.POSITION_UPDATED.value,
@@ -161,7 +159,7 @@ async def test_risk_breaches_logged(db_pool, event_bus):
             "current_value": "0.25",
             "action": "close_all_positions",
         },
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     await event_bus.publish(event)
 
@@ -169,9 +167,9 @@ async def test_risk_breaches_logged(db_pool, event_bus):
     async with db_pool.acquire() as conn:
         result = await conn.fetch(
             """
-            SELECT * FROM events 
-            WHERE event_type = $1 
-            ORDER BY created_at DESC 
+            SELECT * FROM events
+            WHERE event_type = $1
+            ORDER BY created_at DESC
             LIMIT 1
             """,
             EventType.RISK_BREACH.value,
@@ -200,16 +198,16 @@ async def test_daily_pnl_report(db_pool):
             """,
             EventType.TRADE_EXECUTED.value,
             {"trade_id": "t1", "pnl": "100.00"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
             EventType.TRADE_EXECUTED.value,
             {"trade_id": "t2", "pnl": "-50.00"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Рассчитываем P&L
         result = await conn.fetch(
             """
-            SELECT 
+            SELECT
                 DATE(created_at) as date,
                 SUM((data->>'pnl')::numeric) as total_pnl
             FROM events
@@ -236,7 +234,7 @@ async def test_monthly_statement(db_pool):
         # Рассчитываем месячную статистику
         result = await conn.fetch(
             """
-            SELECT 
+            SELECT
                 DATE_TRUNC('month', created_at) as month,
                 COUNT(*) as total_events,
                 COUNT(DISTINCT data->>'trade_id') as total_trades
@@ -261,7 +259,7 @@ async def test_tax_report(db_pool):
         # Рассчитываем реализованные прибыли/убытки
         result = await conn.fetch(
             """
-            SELECT 
+            SELECT
                 data->>'symbol' as symbol,
                 SUM((data->>'pnl')::numeric) as total_pnl
             FROM events
@@ -329,8 +327,8 @@ async def test_permission_enforcement(db_pool):
         # Проверяем что события содержат информацию об источнике
         result = await conn.fetch(
             """
-            SELECT data FROM events 
-            WHERE event_type = $1 
+            SELECT data FROM events
+            WHERE event_type = $1
             LIMIT 1
             """,
             EventType.ORDER_SUBMITTED.value,
@@ -353,8 +351,8 @@ async def test_access_control(db_pool):
         # Проверяем что таблицы имеют правильные права
         result = await conn.fetch(
             """
-            SELECT table_name, privilege_type 
-            FROM information_schema.table_privileges 
+            SELECT table_name, privilege_type
+            FROM information_schema.table_privileges
             WHERE table_schema = 'public'
             LIMIT 10
             """
@@ -374,8 +372,8 @@ async def test_audit_compliance(db_pool):
         # Проверяем完整性 (целостность) аудита
         result = await conn.fetch(
             """
-            SELECT COUNT(*) as count 
-            FROM events 
+            SELECT COUNT(*) as count
+            FROM events
             WHERE created_at IS NOT NULL
             """
         )
@@ -419,7 +417,7 @@ async def test_gdpr_compliance(db_pool):
         # (для реализации права на удаление)
         result = await conn.fetch(
             """
-            SELECT data FROM events 
+            SELECT data FROM events
             LIMIT 1
             """
         )
@@ -440,8 +438,8 @@ async def test_data_export(db_pool):
         # Экспорт всех событий
         result = await conn.fetch(
             """
-            SELECT event_type, data, created_at 
-            FROM events 
+            SELECT event_type, data, created_at
+            FROM events
             ORDER BY created_at DESC
             LIMIT 100
             """

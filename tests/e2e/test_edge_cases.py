@@ -11,13 +11,12 @@ Edge Cases E2E Tests (15 сценариев)
 """
 
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+
 import pytest
 
-from cryptotechnolog.core.event import Event, EventType
-from cryptotechnolog.core.stubs import OrderStub, TradeStub, PositionStub
-
+from cryptotechnolog.core.event import EventType
 
 # ==================== Zero Values ====================
 
@@ -38,7 +37,7 @@ async def test_zero_quantity_order(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             {"order_id": "zero_qty", "quantity": "0"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -63,7 +62,7 @@ async def test_zero_price_order(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             {"order_id": "zero_price", "order_type": "market", "price": "0"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -88,7 +87,7 @@ async def test_zero_balance(db_pool):
             """,
             EventType.POSITION_UPDATED.value,
             {"symbol": "BTC/USDT", "quantity": "0", "balance": "0"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -122,7 +121,7 @@ async def test_max_decimal_value(db_pool):
                 "quantity": str(max_value),
                 "price": str(max_value),
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -153,7 +152,7 @@ async def test_min_decimal_value(db_pool):
                 "quantity": str(min_value),
                 "price": str(min_value * 1000),
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -178,7 +177,7 @@ async def test_negative_values(db_pool):
             """,
             EventType.TRADE_EXECUTED.value,
             {"trade_id": "negative", "pnl": "-100.50"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -205,7 +204,7 @@ async def test_large_string_values(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             {"order_id": "large_string", "memo": large_string},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -234,7 +233,7 @@ async def test_concurrent_order_inserts(db_pool):
                 """,
                 EventType.ORDER_SUBMITTED.value,
                 {"order_id": order_id, "symbol": "BTC/USDT"},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
     # Запускаем 10 параллельных вставок
@@ -266,7 +265,7 @@ async def test_concurrent_trade_updates(db_pool):
                 """,
                 EventType.TRADE_EXECUTED.value,
                 {"trade_id": f"trade_{i}", "status": "pending"},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
     # Обновляем параллельно
@@ -274,7 +273,7 @@ async def test_concurrent_trade_updates(db_pool):
         async with db_pool.acquire() as conn:
             await conn.execute(
                 """
-                UPDATE events 
+                UPDATE events
                 SET data = data || jsonb_build_object('status', $1)
                 WHERE data->>'trade_id' = $2
                 """,
@@ -313,7 +312,7 @@ async def test_connection_recovery(db_pool):
                 """,
                 EventType.ORDER_SUBMITTED.value,
                 {"order_id": f"reconnect_{i}"},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
     # Проверяем что все записи созданы
@@ -342,7 +341,7 @@ async def test_partial_transaction(db_pool):
                 """,
                 EventType.ORDER_SUBMITTED.value,
                 {"order_id": "partial_1"},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
             # Второй ордер - должен откатиться при ошибке
             # (в реальном тесте здесь была бы ошибка)
@@ -364,7 +363,7 @@ async def test_future_timestamp(db_pool):
     """
     E2E: Будущая временная метка
     """
-    future_time = datetime.now(timezone.utc) + timedelta(days=365)
+    future_time = datetime.now(UTC) + timedelta(days=365)
 
     async with db_pool.acquire() as conn:
         await conn.execute(
@@ -391,7 +390,7 @@ async def test_past_timestamp(db_pool):
     """
     E2E: Прошедшая временная метка
     """
-    past_time = datetime.now(timezone.utc) - timedelta(days=365)
+    past_time = datetime.now(UTC) - timedelta(days=365)
 
     async with db_pool.acquire() as conn:
         await conn.execute(
@@ -419,7 +418,7 @@ async def test_timezone_handling(db_pool):
     E2E: Обработка часовых поясов
     """
     # UTC
-    utc_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    utc_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
     async with db_pool.acquire() as conn:
         await conn.execute(
@@ -459,7 +458,7 @@ async def test_unicode_characters(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             {"order_id": "unicode", "note": unicode_text},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -484,7 +483,7 @@ async def test_special_characters_in_symbol(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             {"order_id": "special_symbol", "symbol": "BTC/USDT"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -512,7 +511,7 @@ async def test_empty_json_object(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             {},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -537,7 +536,7 @@ async def test_missing_optional_fields(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             {"order_id": "minimal"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -563,7 +562,7 @@ async def test_null_handling(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             {"order_id": "null_test", "note": None},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(

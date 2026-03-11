@@ -10,13 +10,12 @@ Performance E2E Tests
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import time
+
 import pytest
 
 from cryptotechnolog.core.event import Event, EventType
-from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
-
 
 # ==================== Throughput ====================
 
@@ -36,7 +35,7 @@ async def test_event_bus_throughput(event_bus):
         event = Event(
             event_type=EventType.ORDER_SUBMITTED,
             data={"order_id": f"perf_order_{i}", "symbol": "BTC/USDT"},
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         events.append(event)
 
@@ -76,7 +75,7 @@ async def test_database_throughput(db_pool):
                 """,
                 EventType.ORDER_SUBMITTED.value,
                 {"order_id": f"db_perf_{i}"},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
     end_time = time.perf_counter()
@@ -102,7 +101,7 @@ async def test_event_publish_latency(event_bus):
         event = Event(
             event_type=EventType.ORDER_SUBMITTED,
             data={"order_id": f"latency_test_{i}"},
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
         start = time.perf_counter()
@@ -135,7 +134,7 @@ async def test_database_query_latency(db_pool):
                 """,
                 EventType.ORDER_SUBMITTED.value,
                 {"order_id": f"query_latency_{i}"},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
     # Замеряем время запроса
@@ -166,7 +165,7 @@ async def test_concurrent_event_publishing(event_bus):
             event = Event(
                 event_type=EventType.ORDER_SUBMITTED,
                 data={"order_id": f"concurrent_{i}"},
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
             await event_bus.publish(event)
 
@@ -200,7 +199,7 @@ async def test_concurrent_database_writes(db_pool):
                     """,
                     EventType.ORDER_SUBMITTED.value,
                     {"order_id": f"batch_{batch_id}_{i}"},
-                    datetime.now(timezone.utc),
+                    datetime.now(UTC),
                 )
 
     start_time = time.perf_counter()
@@ -231,7 +230,7 @@ async def test_memory_usage_event_bus(event_bus):
         event = Event(
             event_type=EventType.ORDER_SUBMITTED,
             data={"order_id": f"mem_test_{i}", "payload": "x" * 1000},
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await event_bus.publish(event)
 
@@ -282,7 +281,7 @@ async def test_sustained_load(event_bus, db_pool):
             event = Event(
                 event_type=EventType.ORDER_SUBMITTED,
                 data={"order_id": f"load_{count}"},
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
             await event_bus.publish(event)
             count += 1
@@ -313,7 +312,7 @@ async def test_burst_handling(event_bus):
             event = Event(
                 event_type=EventType.ORDER_SUBMITTED,
                 data={"order_id": f"burst_{i}"},
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
             tasks.append(event_bus.publish(event))
         await asyncio.gather(*tasks)
@@ -345,7 +344,7 @@ async def test_linear_scaling(event_bus):
             Event(
                 event_type=EventType.ORDER_SUBMITTED,
                 data={"order_id": f"scale_{i}"},
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
             for i in range(count)
         ]

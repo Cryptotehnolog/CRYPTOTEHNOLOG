@@ -9,14 +9,11 @@ Trading Flow E2E Tests
 - Risk checks
 """
 
-import asyncio
-from datetime import datetime, timezone
-from decimal import Decimal
+from datetime import UTC, datetime
+
 import pytest
 
-from cryptotechnolog.core.event import Event, EventType
-from cryptotechnolog.core.stubs import OrderStub, TradeStub, PositionStub
-
+from cryptotechnolog.core.event import EventType
 
 # ==================== Order Lifecycle ====================
 
@@ -45,7 +42,7 @@ async def test_order_creation(db_pool):
                 "price": "50000",
                 "status": "new",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем что ордер создан
@@ -79,7 +76,7 @@ async def test_order_validation(db_pool):
                 "price": "50000",
                 "validated": True,
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -109,7 +106,7 @@ async def test_order_rejection(db_pool):
                 "order_id": "rejected_order",
                 "reason": "insufficient_balance",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -136,7 +133,7 @@ async def test_order_modification(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             {"order_id": "modify_order", "price": "50000"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Модифицируем
@@ -147,13 +144,13 @@ async def test_order_modification(db_pool):
             """,
             EventType.ORDER_UPDATED.value,
             {"order_id": "modify_order", "price": "51000"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем модификацию
         result = await conn.fetchval(
             """
-            SELECT data->>'price' FROM events 
+            SELECT data->>'price' FROM events
             WHERE data->>'order_id' = $1 AND event_type = $2
             """,
             "modify_order",
@@ -179,7 +176,7 @@ async def test_order_cancellation(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             {"order_id": "cancel_order", "status": "pending_cancel"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Отменяем
@@ -190,7 +187,7 @@ async def test_order_cancellation(db_pool):
             """,
             EventType.ORDER_CANCELLED.value,
             {"order_id": "cancel_order", "reason": "user_request"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -224,7 +221,7 @@ async def test_trade_execution(db_pool):
                 "symbol": "BTC/USDT",
                 "quantity": "0.01",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Исполняем
@@ -242,7 +239,7 @@ async def test_trade_execution(db_pool):
                 "price": "50000",
                 "fee": "0.50",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем исполнение
@@ -275,7 +272,7 @@ async def test_partial_execution(db_pool):
                 "quantity": "0.005",
                 "remaining": "0.005",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -308,7 +305,7 @@ async def test_trade_settlement(db_pool):
                 "total": "500.50",
                 "settled": True,
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -342,7 +339,7 @@ async def test_position_opening(db_pool):
                 "quantity": "0.01",
                 "entry_price": "50000",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -369,7 +366,7 @@ async def test_position_update(db_pool):
             """,
             EventType.POSITION_OPENED.value,
             {"symbol": "BTC/USDT", "quantity": "0.01"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Обновляем
@@ -385,7 +382,7 @@ async def test_position_update(db_pool):
                 "current_price": "51000",
                 "unrealized_pnl": "10.00",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -417,7 +414,7 @@ async def test_position_closing(db_pool):
                 "exit_price": "51000",
                 "realized_pnl": "10.00",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -450,7 +447,7 @@ async def test_pre_trade_risk_check(db_pool):
                 "symbol": "BTC/USDT",
                 "risk_check": "passed",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -481,7 +478,7 @@ async def test_post_trade_risk_update(db_pool):
                 "exposure_update": "500",
                 "new_exposure": "5000",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         result = await conn.fetchval(
@@ -521,7 +518,7 @@ async def test_complete_trading_flow(db_pool):
                 "price": "50000",
                 "status": "new",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # 2. Ордер валидирован
@@ -532,7 +529,7 @@ async def test_complete_trading_flow(db_pool):
             """,
             EventType.ORDER_ACCEPTED.value,
             {"order_id": order_id, "status": "accepted"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # 3. Сделка исполнена
@@ -548,7 +545,7 @@ async def test_complete_trading_flow(db_pool):
                 "quantity": "0.01",
                 "price": "50000",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # 4. Позиция открыта
@@ -563,7 +560,7 @@ async def test_complete_trading_flow(db_pool):
                 "quantity": "0.01",
                 "entry_price": "50000",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем весь процесс

@@ -10,14 +10,14 @@ Data Integrity E2E Tests (12 сценариев)
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
+
+import asyncpg
 import pytest
-import pytest_asyncio
 
-from cryptotechnolog.core.event import Event, EventType
+from cryptotechnolog.core.event import EventType
 from cryptotechnolog.core.stubs import OrderStub, TradeStub
-
 
 # ==================== Database Constraints ====================
 
@@ -48,11 +48,11 @@ async def test_order_id_unique_constraint(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             order.to_dict(),
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Пытаемся вставить дубликат - ожидаем ошибку
-        with pytest.raises(Exception):  # asyncpg.UniqueViolationError
+        with pytest.raises(asyncpg.UniqueViolationError):
             await conn.execute(
                 """
                 INSERT INTO events (event_type, data, created_at)
@@ -60,7 +60,7 @@ async def test_order_id_unique_constraint(db_pool):
                 """,
                 EventType.ORDER_SUBMITTED.value,
                 order.to_dict(),
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
 
@@ -90,11 +90,11 @@ async def test_trade_id_unique_constraint(db_pool):
             """,
             EventType.TRADE_EXECUTED.value,
             trade.to_dict(),
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Пытаемся вставить дубликат
-        with pytest.raises(Exception):
+        with pytest.raises(asyncpg.UniqueViolationError):
             await conn.execute(
                 """
                 INSERT INTO events (event_type, data, created_at)
@@ -102,7 +102,7 @@ async def test_trade_id_unique_constraint(db_pool):
                 """,
                 EventType.TRADE_EXECUTED.value,
                 trade.to_dict(),
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
 
@@ -115,7 +115,7 @@ async def test_not_null_constraints(db_pool):
     """
     async with db_pool.acquire() as conn:
         # Проверяем что created_at не может быть NULL
-        with pytest.raises(Exception):
+        with pytest.raises(asyncpg.NotNullViolationError):
             await conn.execute(
                 """
                 INSERT INTO events (event_type, data, created_at)
@@ -135,7 +135,7 @@ async def test_check_constraints(db_pool):
     """
     async with db_pool.acquire() as conn:
         # Проверяем что event_type не может быть пустым
-        with pytest.raises(Exception):
+        with pytest.raises(asyncpg.CheckViolationError):
             await conn.execute(
                 """
                 INSERT INTO events (event_type, data, created_at)
@@ -143,7 +143,7 @@ async def test_check_constraints(db_pool):
                 """,
                 "",  # Пустой event_type
                 {"test": "data"},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
 
@@ -177,7 +177,7 @@ async def test_order_foreign_key(db_pool):
             """,
             EventType.TRADE_EXECUTED.value,
             trade.to_dict(),
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем что запись создана
@@ -204,7 +204,7 @@ async def test_position_symbol_reference(db_pool):
             """,
             EventType.POSITION_UPDATED.value,
             {"symbol": "BTC/USDT", "quantity": "0.01", "entry_price": "50000"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем что запись создана
@@ -243,7 +243,7 @@ async def test_decimal_precision(db_pool):
             """,
             EventType.TRADE_EXECUTED.value,
             trade.to_dict(),
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем что данные сохранились корректно
@@ -261,7 +261,7 @@ async def test_timestamp_validity(db_pool):
     """
     E2E: Валидность временных меток
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     async with db_pool.acquire() as conn:
         await conn.execute(
@@ -303,7 +303,7 @@ async def test_json_structure(db_pool):
                 "quantity": "0.01",
                 "nested": {"field": "value"},
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем что JSON сохранился
@@ -354,7 +354,7 @@ async def test_order_trade_consistency(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             order.to_dict(),
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Вставляем сделку
@@ -365,7 +365,7 @@ async def test_order_trade_consistency(db_pool):
             """,
             EventType.TRADE_EXECUTED.value,
             trade.to_dict(),
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем что связь сохранена
@@ -397,7 +397,7 @@ async def test_position_balance_consistency(db_pool):
                 "entry_price": "50000",
                 "current_price": "51000",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем что позиция записана
@@ -418,7 +418,7 @@ async def test_event_sequence(db_pool):
     async with db_pool.acquire() as conn:
         timestamps = []
         for i in range(5):
-            ts = datetime.now(timezone.utc)
+            ts = datetime.now(UTC)
             timestamps.append(ts)
             await conn.execute(
                 """
@@ -474,7 +474,7 @@ async def test_idempotent_operations(db_pool):
                 """,
                 EventType.ORDER_SUBMITTED.value,
                 order.to_dict(),
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
         # Проверяем что только одна запись создана
@@ -505,7 +505,7 @@ async def test_detect_data_corruption(db_pool):
             """,
             EventType.ORDER_SUBMITTED.value,
             {"order_id": "corruption_test", "symbol": "BTC/USDT"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем что данные не повреждены
@@ -534,7 +534,7 @@ async def test_recover_from_backup(db_pool):
                 """,
                 EventType.ORDER_SUBMITTED.value,
                 {"order_id": f"backup_test_{i}"},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
         # Проверяем что данные можно восстановить

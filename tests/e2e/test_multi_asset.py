@@ -8,14 +8,11 @@ Multi-Asset E2E Tests
 - Portfolio management
 """
 
-import asyncio
-from datetime import datetime, timezone
-from decimal import Decimal
+from datetime import UTC, datetime
+
 import pytest
 
-from cryptotechnolog.core.event import Event, EventType
-from cryptotechnolog.core.stubs import OrderStub, TradeStub, PositionStub
-
+from cryptotechnolog.core.event import EventType
 
 # ==================== Multiple Symbols ====================
 
@@ -38,7 +35,7 @@ async def test_multiple_symbols_trading(db_pool):
                 """,
                 EventType.ORDER_SUBMITTED.value,
                 {"order_id": f"order_{symbol}", "symbol": symbol, "side": "buy"},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
         # Проверяем что все символы записаны
@@ -67,7 +64,7 @@ async def test_symbol_isolation(db_pool):
                 """,
                 EventType.POSITION_UPDATED.value,
                 {"symbol": symbol, "quantity": "1.0", "entry_price": "50000"},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
         # Проверяем что позиции не смешиваются
@@ -107,7 +104,7 @@ async def test_cross_asset_orders(db_pool):
                 """,
                 EventType.ORDER_SUBMITTED.value,
                 order,
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
         # Проверяем общее количество
@@ -143,7 +140,7 @@ async def test_portfolio_positions(db_pool):
                 """,
                 EventType.POSITION_UPDATED.value,
                 position,
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
 
         # Рассчитываем общую стоимость портфеля
@@ -195,7 +192,7 @@ async def test_portfolio_rebalancing(db_pool):
             """,
             EventType.POSITION_UPDATED.value,
             {"symbol": "BTC/USDT", "quantity": "1.0", "target_ratio": "0.6"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Создаём событие ребалансировки
@@ -211,13 +208,13 @@ async def test_portfolio_rebalancing(db_pool):
                 "action": "rebalance",
                 "target_ratio": "0.4",
             },
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
         # Проверяем что ребалансировка записана
         count = await conn.fetchval(
             """
-            SELECT COUNT(*) FROM events 
+            SELECT COUNT(*) FROM events
             WHERE data->>'action' = 'rebalance'
             """
         )
@@ -249,7 +246,7 @@ async def test_asset_correlation_data(db_pool):
                         "trade_id": f"{symbol.replace('/', '_')}_{i}",
                         "price": str(50000 + i * 100),
                     },
-                    datetime.now(timezone.utc),
+                    datetime.now(UTC),
                 )
 
         # Проверяем что данные есть для обоих символов
@@ -277,7 +274,7 @@ async def test_multi_asset_risk(db_pool):
         # Рассчитываем риск портфеля
         result = await conn.fetch(
             """
-            SELECT 
+            SELECT
                 data->>'symbol' as symbol,
                 data->>'quantity' as quantity,
                 data->>'entry_price' as price
