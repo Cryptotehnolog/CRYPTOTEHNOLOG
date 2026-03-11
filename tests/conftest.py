@@ -29,15 +29,21 @@ os.environ["DEBUG"] = "true"
 # ==================== Event Loop Fixture ====================
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def event_loop() -> "Generator[asyncio.AbstractEventLoop, None, None]":
-    """One event loop for entire test session.
+    """Создать новый event loop для каждого теста.
 
-    Creates new event loop for session scope fixtures.
+    Это предотвращает ошибки 'Event loop is closed' между тестами.
     """
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     yield loop
+    # Отменяем все ожидающие задачи
+    pending = asyncio.all_tasks(loop)
+    for task in pending:
+        task.cancel()
+    # Дожидаемся завершения отменённых задач
+    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
     loop.close()
 
 
