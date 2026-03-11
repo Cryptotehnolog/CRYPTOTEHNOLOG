@@ -38,6 +38,7 @@ class HistogramStats(TypedDict):
     p95: float
     p99: float
 
+
 # ruff: noqa: E402
 # Импорты Protocol классов - необходимы в runtime для isinstance проверок
 from cryptotechnolog.config.protocols import (  # type: ignore[misc]
