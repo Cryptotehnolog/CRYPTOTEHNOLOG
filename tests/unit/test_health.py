@@ -95,7 +95,7 @@ class TestSystemHealth:
 
         assert health.overall_status == HealthStatus.HEALTHY
         assert len(health.components) == 1
-        assert health.version == "1.1.0"
+        assert health.version == "1.4.0"
 
     def test_is_healthy(self) -> None:
         """Проверка метода is_healthy()."""
@@ -154,7 +154,7 @@ class TestSystemHealth:
 
         assert result["overall_status"] == "healthy"
         assert "test" in result["components"]
-        assert result["version"] == "1.1.0"
+        assert result["version"] == "1.4.0"
 
 
 class TestDatabaseHealthCheck:
