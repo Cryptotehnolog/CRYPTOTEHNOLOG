@@ -449,7 +449,8 @@ class PersistenceLayer:
             event_json = json.dumps(event_dict, ensure_ascii=False)
 
             # Добавить в stream с ограничением длины
-            stream_id = await self.redis.xadd(
+            assert self.redis is not None  # pylint: disable=using-constant-test
+            stream_id: str | None = await self.redis.xadd(
                 stream_key, {"event": event_json}, maxlen=self.max_stream_len, approximate=True
             )
 
@@ -513,6 +514,7 @@ class PersistenceLayer:
             start = from_id if from_id else "0-0"
 
             # Чтение из stream
+            assert self.redis is not None  # pylint: disable=using-constant-test
             stream_data = await self.redis.xrange(stream_key, min=start, max="+", count=limit)
 
             events = []
@@ -543,7 +545,9 @@ class PersistenceLayer:
             await self.connect()
 
         stream_key = f"{self.stream_prefix}:{priority.value}"
-        return await self.redis.xlen(stream_key)
+        assert self.redis is not None  # pylint: disable=using-constant-test
+        length: int = await self.redis.xlen(stream_key)
+        return length
 
 
 # ==================== Enhanced Event Bus ====================
@@ -610,11 +614,10 @@ class EnhancedEventBus:
 
         # Persistence
         self.enable_persistence = enable_persistence
+        self.persistence: PersistenceLayer | None = None
         if enable_persistence and redis_url:
             redis_url = redis_url or settings.event_bus_redis_url
             self.persistence = PersistenceLayer(redis_url)
-        else:
-            self.persistence = None
 
         # Subscribers management
         self.subscribers: dict[int, AsyncEventReceiver] = {}

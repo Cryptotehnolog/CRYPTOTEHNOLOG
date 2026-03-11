@@ -33,13 +33,10 @@ _TEST_DB_INIT_LOCK_ID = 1234567890
 # ==================== Event Loop Fixture ====================
 
 
-@pytest.fixture(scope="session")
-def event_loop() -> "Generator[asyncio.AbstractEventLoop, None, None]":
-    """One event loop for entire test session."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    yield loop
-    loop.close()
+# NOTE: We don't define a custom event_loop fixture here.
+# pytest-asyncio will automatically create a function-scoped event loop
+# for each async test, which is the recommended approach.
+# This avoids "RuntimeError: Event loop is closed" issues.
 
 
 # ==================== Migration Helpers ====================
@@ -150,7 +147,7 @@ async def test_db_setup() -> AsyncGenerator[None, None]:
     yield  # Required for async generator fixture
 
 
-@pytest_asyncio.fixture(autouse=True)
+@pytest_asyncio.fixture()
 async def clean_tables_between_tests() -> AsyncGenerator[None, None]:
     """Clean tables between tests (but keep schema from migrations)."""
     settings = Settings()
@@ -206,26 +203,33 @@ async def db_pool():
     """
     Function-scoped database pool for integration tests.
 
-    Использует существующий DatabaseManager из проекта.
-    Применяет все миграции перед тестами (если ещё не применены).
+    Creates its own connection pool to avoid event loop issues.
+    The pool is closed after each test to ensure clean state.
     """
-    from cryptotechnolog.core.database import get_database  # noqa: PLC0415
+    settings = Settings()
 
-    db = get_database()
+    # Create our own pool instead of using global get_database()
+    pool = await asyncpg.create_pool(
+        settings.postgres_test_async_url,
+        min_size=1,
+        max_size=5,
+        command_timeout=60,
+    )
 
-    # Подключаемся только если ещё не подключено
-    if not db.is_connected:
-        await db.connect()
-
-    # Применяем миграции только если таблицы не существуют
-    tables = await db.get_table_names()
-    if "schema_migrations" not in tables:
-        async with db.pool.acquire() as conn:
+    # Verify schema exists (migrations are applied in test_db_setup)
+    async with pool.acquire() as conn:
+        tables = await conn.fetch(
+            "SELECT tablename FROM pg_tables WHERE schemaname = 'public' "
+            "AND tablename = 'schema_migrations'"
+        )
+        if not tables:
+            # Apply migrations if not present
             await apply_migrations(conn)
 
-    yield db.pool
+    yield pool
 
-    # Не закрываем подключение - оно может использоваться другими тестами
+    # Close the pool after each test to avoid event loop issues
+    await pool.close()
 
 
 # ==================== Settings Fixtures ====================

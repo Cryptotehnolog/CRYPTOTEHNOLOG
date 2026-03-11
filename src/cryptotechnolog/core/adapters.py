@@ -6,7 +6,7 @@ Adapters — Реализации интерфейсов.
 - Concrete repositories — реализации для PostgreSQL
 """
 
-from typing import Any
+from typing import Any, cast
 
 import structlog
 
@@ -142,7 +142,7 @@ class PostgresOrderRepository:
                 status,
                 order_id,
             )
-            return result == "UPDATE 1"
+            return cast("str", result) == "UPDATE 1"
 
     async def delete(self, order_id: str) -> bool:
         """Удалить ордер."""
@@ -151,7 +151,7 @@ class PostgresOrderRepository:
                 "DELETE FROM orders WHERE id = $1",
                 order_id,
             )
-            return result == "DELETE 1"
+            return cast("str", result) == "DELETE 1"
 
 
 class PostgresPositionRepository:
@@ -211,7 +211,7 @@ class PostgresPositionRepository:
                 pnl,
                 position_id,
             )
-            return result == "UPDATE 1"
+            return cast("str", result) == "UPDATE 1"
 
     async def close(self, position_id: str) -> bool:
         async with self._pool.acquire() as conn:
@@ -219,7 +219,7 @@ class PostgresPositionRepository:
                 "UPDATE positions SET status = 'closed', closed_at = NOW() WHERE id = $1",
                 position_id,
             )
-            return result == "UPDATE 1"
+            return cast("str", result) == "UPDATE 1"
 
 
 class PostgresRiskLimitRepository:

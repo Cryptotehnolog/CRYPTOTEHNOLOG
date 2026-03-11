@@ -839,10 +839,87 @@ class PortfolioGovernorStub:
         """
         Получить общий P&L.
 
+        ЗАГЛУШКА: Всегда возвращает 0.0.
+
         Returns:
             0.0 (заглушка)
         """
         return 0.0
+
+
+# ============================================================================
+# E2E Test Stubs - Заглушки для E2E тестов
+# ============================================================================
+
+
+@dataclass
+class OrderStub:
+    """Заглушка ордера для E2E тестов."""
+
+    order_id: str
+    symbol: str
+    side: str  # "buy" или "sell"
+    order_type: str  # "market", "limit", "stop"
+    quantity: float
+    price: float | None = None
+    status: str = "pending"
+    filled_quantity: float = 0.0
+    average_price: float | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    memo: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Конвертировать в словарь."""
+        return {
+            "order_id": self.order_id,
+            "symbol": self.symbol,
+            "side": self.side,
+            "order_type": self.order_type,
+            "quantity": self.quantity,
+            "price": self.price,
+            "status": self.status,
+            "filled_quantity": self.filled_quantity,
+            "average_price": self.average_price,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "memo": self.memo,
+        }
+
+
+@dataclass
+class TradeStub:
+    """Заглушка сделки для E2E тестов."""
+
+    trade_id: str
+    order_id: str
+    symbol: str
+    side: str
+    price: float
+    quantity: float
+    fee: float = 0.0
+    pnl: float | None = None
+    status: str = "closed"
+    executed_at: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Конвертировать в словарь."""
+        return {
+            "trade_id": self.trade_id,
+            "order_id": self.order_id,
+            "symbol": self.symbol,
+            "side": self.side,
+            "price": self.price,
+            "quantity": self.quantity,
+            "fee": self.fee,
+            "pnl": self.pnl,
+            "status": self.status,
+            "executed_at": self.executed_at,
+        }
+
+
+# PositionStub - это алиас для Position (уже определён выше)
+PositionStub = Position
 
 
 # ============================================================================

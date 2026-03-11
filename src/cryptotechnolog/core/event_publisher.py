@@ -67,13 +67,14 @@ def publish_event(
         # Попробовать найти running loop
         loop = asyncio.get_running_loop()
 
-        # Создать Future для публикации
-        future = loop.create_task(bus.publish(event))
+        # Создать корутину для публикации
+        coro = bus.publish(event)
 
         # Ждать с таймаутом
         try:
-            loop.call_later(timeout, future.cancel)
-            success = asyncio.run_coroutine_threadsafe(future, loop).result(timeout=timeout)
+            loop.call_later(timeout, lambda: future.cancel() if (future := asyncio.ensure_future(coro, loop=loop)) else None)
+            future = asyncio.ensure_future(coro, loop=loop)
+            success: bool = asyncio.run_coroutine_threadsafe(coro, loop).result(timeout=timeout)
 
             if success:
                 logger.debug(

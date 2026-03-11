@@ -22,44 +22,52 @@ class Priority(StrEnum):
     NORMAL = "normal"  # Торговые сигналы, обычные операции
     LOW = "low"  # Метрики, информационные логи
 
-    def to_rust_priority(self) -> str:
-        """Конвертировать в строку для Rust биндингов."""
-        return self.value
-
     @classmethod
     def from_string(cls, value: str) -> Priority:
         """Создать Priority из строки."""
         try:
             return cls(value.lower())
         except ValueError:
-            # По умолчанию NORMAL
             return cls.NORMAL
 
-    def queue_capacity(self) -> int:
-        """Получить ёмкость очереди для приоритета."""
-        return {
-            Priority.CRITICAL: 100,  # Маленькая, быстрая
-            Priority.HIGH: 500,  # Средняя
-            Priority.NORMAL: 10000,  # Большая
-            Priority.LOW: 50000,  # Очень большая
-        }[self]
-
     def requires_persistence(self) -> bool:
-        """Требуется ли персистентность для этого приоритета."""
-        return self in (Priority.CRITICAL, Priority.HIGH)
+        """Определить, требует ли приоритет персистентности."""
+        return self in (Priority.CRITICAL, Priority.HIGH, Priority.NORMAL)
 
-    def is_droppable(self) -> bool:
-        """Можно ли отбрасывать события этого приоритета."""
-        return self == Priority.LOW
 
-    def as_u8(self) -> int:
-        """Конвертировать в числовое значение (для Rust)."""
-        return {
-            Priority.CRITICAL: 0,
-            Priority.HIGH: 1,
-            Priority.NORMAL: 2,
-            Priority.LOW: 3,
-        }[self]
+class EventType(StrEnum):
+    """Типы событий для торговой платформы."""
+
+    # Ордера
+    ORDER_SUBMITTED = "ORDER_SUBMITTED"
+    ORDER_ACCEPTED = "ORDER_ACCEPTED"
+    ORDER_REJECTED = "ORDER_REJECTED"
+    ORDER_UPDATED = "ORDER_UPDATED"
+    ORDER_CANCELLED = "ORDER_CANCELLED"
+
+    # Сделки
+    TRADE_EXECUTED = "TRADE_EXECUTED"
+
+    # Позиции
+    POSITION_OPENED = "POSITION_OPENED"
+    POSITION_UPDATED = "POSITION_UPDATED"
+    POSITION_CLOSED = "POSITION_CLOSED"
+
+    # Риски
+    RISK_BREACH = "RISK_BREACH"
+
+    # Системные
+    SYSTEM_STATE_CHANGED = "SYSTEM_STATE_CHANGED"
+    CONFIG_UPDATED = "CONFIG_UPDATED"
+    CONFIG_ROLLEDBACK = "CONFIG_ROLLEDBACK"
+
+    # Метрики
+    METRICS_COLLECTED = "METRICS_COLLECTED"
+    HEALTH_CHECK = "HEALTH_CHECK"
+
+    def to_rust_priority(self) -> str:
+        """Конвертировать в строку для Rust биндингов."""
+        return self.value
 
 
 @dataclass

@@ -52,9 +52,9 @@ class TestSLODefinition:
 
         histogram = Histogram("test_metric", "Test")
 
-        # Добавим много наблюдений для корректного p95
+        # Используем синхронный метод observe_sync
         for _ in range(20):
-            asyncio.get_event_loop().run_until_complete(histogram.observe(0.05))
+            histogram.observe_sync(0.05)  # 50ms
 
         result = slo.check(histogram)
 
@@ -73,9 +73,9 @@ class TestSLODefinition:
 
         histogram = Histogram("test_metric", "Test")
 
-        # Добавим наблюдения где p95 будет > 50ms
+        # Используем синхронный метод observe_sync
         for _ in range(20):
-            asyncio.get_event_loop().run_until_complete(histogram.observe(0.1))  # 100ms
+            histogram.observe_sync(0.1)  # 100ms
 
         result = slo.check(histogram)
 
@@ -122,12 +122,12 @@ class TestSLORegistry:
         registry = SLORegistry()
         metrics = MetricsCollector()
 
-        # Добавим данные в гистограмму
+        # Добавим данные в гистограмму (используем синхронный метод)
         histogram = metrics.get_histogram(
             "risk_engine_latency_seconds",
             "Test latency",
         )
-        asyncio.get_event_loop().run_until_complete(histogram.observe(0.05))
+        histogram.observe_sync(0.05)  # 50ms
 
         violations = registry.check_slo_violations(metrics)
 
@@ -191,13 +191,12 @@ class TestSLOIntegration:
         registry = SLORegistry()
         metrics = MetricsCollector()
 
-        # Создаём гистограмму с нарушением
+        # Создаём гистограмму с нарушением (используем синхронный метод)
         histogram = metrics.get_histogram(
             "risk_engine_latency_seconds",
             "Test",
         )
-
-        asyncio.get_event_loop().run_until_complete(histogram.observe(10.0))  # 10000ms >> 100ms
+        histogram.observe_sync(10.0)  # 10000ms >> 100ms
 
         # Проверяем что есть нарушение
         violations = registry.check_slo_violations(metrics)

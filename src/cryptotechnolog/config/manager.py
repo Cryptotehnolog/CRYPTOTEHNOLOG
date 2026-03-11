@@ -249,16 +249,23 @@ class ConfigManager:
         """Загрузить конфигурацию и замерить время."""
         start_time = time.monotonic()
         data = await self._loader.load(source)
-        load_duration = time.monotonic() - start_time
-        self._metrics.observe("config_load_duration_seconds", load_duration, {"phase": "load"})
+        duration = (time.monotonic() - start_time) * 1000  # ms
+
+        self._metrics.observe("config_load_duration_seconds", duration / 1000, {"phase": "load"})
+        self._metrics.timing("config_load_phase", duration, {"phase": "load"})
+
         logger.debug("Конфигурация загружена, размер: %d байт", len(data))
         self._metrics.observe("config_load_bytes", len(data))
         return data
 
     async def _verify_signature(self, source: str) -> None:
         """Верифицировать подпись конфигурации."""
+        start_time = time.monotonic()
         source_path = Path(source)
         signature_valid = await self._signer.verify(source_path)
+        duration = (time.monotonic() - start_time) * 1000  # ms
+
+        self._metrics.timing("config_load_phase", duration, {"phase": "signature_verify"})
 
         if signature_valid:
             logger.info("Подпись верифицирована для источника: %s", source)
@@ -420,6 +427,185 @@ class ConfigManager:
             Последняя версия или None
         """
         return await self._repository.get_latest()
+
+    # =========================================================================
+    # Rollback Methods
+    # =========================================================================
+
+    async def rollback_to_version(
+        self,
+        version: str,
+        loaded_by: str = "rollback",
+    ) -> SystemConfig:
+        """
+        Выполнить rollback к указанной версии конфигурации.
+
+        Загружает конфигурацию из истории, применяет её как текущую
+        и публикует событие ROLLEDBACK.
+
+        Аргументы:
+            version: Версия для rollback
+            loaded_by: Кто инициировал rollback
+
+        Returns:
+            Применённая конфигурация
+
+        Raises:
+            ConfigManagerError: При ошибке rollback
+        """
+        logger.info("Начало rollback к версии: %s", version)
+        self._metrics.increment("config_rollbacks_total", labels={"target_version": version})
+
+        try:
+            # Получаем версию из репозитория
+            stored = await self._repository.get_by_version(version)
+            if stored is None:
+                raise ConfigManagerError(
+                    "rollback_to_version",
+                    f"Версия {version} не найдена в истории",
+                )
+
+            # Парсим и валидируем
+            data = stored["config_yaml"].encode("utf-8")
+            parsed = self._parser.parse(data)
+            config = self._validator.validate(parsed)
+
+            # Сохраняем текущую конфигурацию перед rollback
+            old_config = self._current_config
+            old_version = old_config.version if old_config else None
+
+            # Применяем rollback через atomic swap
+            await self._atomic_swap(config, f"rollback:{version}")
+
+            # Сохраняем в историю как новую версию с пометкой rollback
+            await self._save_to_history(
+                config,
+                data,
+                f"rollback_to_{version}_by_{loaded_by}",
+            )
+
+            # Публикуем событие ROLLEDBACK
+            await self._publish_rollback_event(
+                old_version=old_version,
+                target_version=version,
+                loaded_by=loaded_by,
+            )
+
+            self._metrics.increment("config_rollbacks_total", labels={"status": "success"})
+            logger.info("Rollback выполнен: %s -> %s", old_version, version)
+
+            return config
+
+        except Exception as e:
+            logger.error("Ошибка rollback к версии %s: %s", version, str(e))
+            self._metrics.increment(
+                "config_rollbacks_total",
+                labels={"status": "error"},
+            )
+            raise ConfigManagerError("rollback_to_version", str(e)) from e
+
+    async def rollback_to_previous(self, loaded_by: str = "rollback") -> SystemConfig:
+        """
+        Выполнить rollback к предыдущей версии конфигурации.
+
+        Аргументы:
+            loaded_by: Кто инициировал rollback
+
+        Returns:
+            Применённая конфигурация
+
+        Raises:
+            ConfigManagerError: Если нет предыдущей версии
+        """
+        logger.info("Запрос rollback к предыдущей версии")
+
+        history = await self.get_history(limit=2)
+
+        # history[0] - текущая версия, history[1] - предыдущая
+        MIN_VERSIONS_FOR_ROLLBACK = 2
+        if len(history) < MIN_VERSIONS_FOR_ROLLBACK:
+            raise ConfigManagerError(
+                "rollback_to_previous",
+                "Нет предыдущей версии для rollback",
+            )
+
+        previous_version = history[1]["version"]
+        return await self.rollback_to_version(previous_version, loaded_by)
+
+    async def get_rollback_candidates(self) -> list[dict[str, Any]]:
+        """
+        Получить список доступных версий для rollback.
+
+        Returns:
+            Список версий с метаданными
+        """
+        history = await self.get_history(limit=20)
+
+        # Фильтруем - исключаем текущую версию
+        current_version = self._current_config.version if self._current_config else None
+        candidates = [
+            {
+                "version": h["version"],
+                "loaded_at": h.get("loaded_at"),
+                "loaded_by": h.get("loaded_by"),
+                "is_current": h["version"] == current_version,
+            }
+            for h in history
+            if h["version"] != current_version
+        ]
+
+        return candidates
+
+    async def compare_versions(
+        self,
+        version1: str,
+        version2: str,
+    ) -> dict[str, Any]:
+        """
+        Сравнить две версии конфигурации.
+
+        Аргументы:
+            version1: Первая версия
+            version2: Вторая версия
+
+        Returns:
+            Diff между версиями
+        """
+        stored1 = await self._repository.get_by_version(version1)
+        stored2 = await self._repository.get_by_version(version2)
+
+        if stored1 is None:
+            raise ConfigManagerError("compare_versions", f"Версия {version1} не найдена")
+        if stored2 is None:
+            raise ConfigManagerError("compare_versions", f"Версия {version2} не найдена")
+
+        # Парсим обе версии
+        data1 = stored1["config_yaml"].encode("utf-8")
+        data2 = stored2["config_yaml"].encode("utf-8")
+
+        parsed1 = self._parser.parse(data1)
+        parsed2 = self._parser.parse(data2)
+
+        config1 = self._validator.validate(parsed1)
+        config2 = self._validator.validate(parsed2)
+
+        # Вычисляем diff
+        diff = self._compute_diff(config1, config2)
+
+        return {
+            "version1": version1,
+            "version2": version2,
+            "diff": diff,
+            "reload_required": self._get_reload_required_sections(diff),
+            "metadata1": {
+                "loaded_at": stored1.get("loaded_at"),
+                "loaded_by": stored1.get("loaded_by"),
+            },
+            "metadata2": {
+                "loaded_at": stored2.get("loaded_at"),
+                "loaded_by": stored2.get("loaded_by"),
+            },
+        }
 
     # =========================================================================
     # Vault Methods
@@ -701,6 +887,48 @@ class ConfigManager:
         except Exception as e:
             logger.error("Ошибка публикации alert: %s", str(e))
 
+    async def _publish_rollback_event(
+        self,
+        old_version: str | None,
+        target_version: str,
+        loaded_by: str,
+    ) -> None:
+        """
+        Опубликовать событие ROLLEDBACK.
+
+        Аргументы:
+            old_version: Предыдущая версия
+            target_version: Версия на которую выполнен rollback
+            loaded_by: Кто инициировал rollback
+        """
+        try:
+            from cryptotechnolog.core.event import Event, Priority
+
+            payload: dict[str, Any] = {
+                "old_version": old_version,
+                "target_version": target_version,
+                "loaded_by": loaded_by,
+                "rollback_time": datetime.now().isoformat(),
+            }
+
+            event = Event.new(
+                event_type="CONFIG_ROLLEDBACK",
+                source="CONFIG_MANAGER",
+                payload=payload,
+            )
+            event.priority = Priority.HIGH
+
+            if self._event_bus is not None:
+                await self._event_bus.publish(event)
+
+            logger.info(
+                "Опубликовано событие ROLLEDBACK: %s -> %s",
+                old_version,
+                target_version,
+            )
+        except Exception as e:
+            logger.error("Ошибка публикации ROLLEDBACK: %s", str(e))
+
     # =========================================================================
     # Metrics
     # =========================================================================
@@ -820,9 +1048,10 @@ class ConfigManager:
 
 class ConfigMetrics:
     """
-    Метрики ConfigManager.
+    Расширенные метрики ConfigManager.
 
-    Содержит счётчики и гистограммы для мониторинга.
+    Содержит счётчики, гистограммы и тайминги для мониторинга.
+    Поддерживает Prometheus-совместимый формат.
     """
 
     def __init__(self) -> None:
@@ -830,6 +1059,7 @@ class ConfigMetrics:
         self._counters: dict[str, int] = {}
         self._gauges: dict[str, float] = {}
         self._histograms: dict[str, list[float]] = {}
+        self._timings: dict[str, list[float]] = {}  # Время выполнения операций
 
     def _make_key(self, name: str, labels: dict[str, str] | None = None) -> str:
         """
@@ -885,6 +1115,20 @@ class ConfigMetrics:
             self._histograms[key] = []
         self._histograms[key].append(value)
 
+    def timing(self, name: str, duration_ms: float, labels: dict[str, str] | None = None) -> None:
+        """
+        Записать время выполнения операции.
+
+        Аргументы:
+            name: Имя операции
+            duration_ms: Время в миллисекундах
+            labels: Лейблы
+        """
+        key = self._make_key(name, labels)
+        if key not in self._timings:
+            self._timings[key] = []
+        self._timings[key].append(duration_ms)
+
     def to_dict(self) -> dict[str, Any]:
         """
         Конвертировать метрики в словарь.
@@ -895,13 +1139,88 @@ class ConfigMetrics:
         return {
             "counters": dict(self._counters),
             "gauges": dict(self._gauges),
-            "histograms": {
-                k: {
-                    "count": len(v),
-                    "sum": sum(v),
-                    "min": min(v) if v else 0,
-                    "max": max(v) if v else 0,
-                }
-                for k, v in self._histograms.items()
-            },
+            "histograms": self._compute_histogram_stats(self._histograms),
+            "timings": self._compute_histogram_stats(self._timings),
         }
+
+    def _compute_histogram_stats(
+        self,
+        data: dict[str, list[float]],
+    ) -> dict[str, dict[str, float]]:
+        """
+        Вычислить статистику для гистограмм.
+
+        Аргументы:
+            data: Словарь значений
+
+        Returns:
+            Словарь со статистикой
+        """
+        result: dict[str, dict[str, float]] = {}
+        for key, values in data.items():
+            if not values:
+                result[key] = {
+                    "count": float(0),
+                    "sum": float(0),
+                    "min": float(0),
+                    "max": float(0),
+                    "avg": float(0),
+                    "p50": float(0),
+                    "p95": float(0),
+                    "p99": float(0),
+                }
+                continue
+
+            sorted_values = sorted(values)
+            count: float = float(len(values))
+
+            def percentile(data: list[float], p: float) -> float:
+                """Вычислить перцентиль."""
+                idx = int(len(data) * p / 100)
+                if idx >= len(data):
+                    idx = len(data) - 1
+                return data[idx]
+
+            result[key] = {
+                "count": count,
+                "sum": sum(values),
+                "min": min(values),
+                "max": max(values),
+                "avg": sum(values) / count,
+                "p50": percentile(sorted_values, 50),
+                "p95": percentile(sorted_values, 95),
+                "p99": percentile(sorted_values, 99),
+            }
+
+        return result
+
+    def to_prometheus_format(self) -> str:
+        """
+        Экспортировать метрики в Prometheus текстовом формате.
+
+        Returns:
+            Метрики в формате Prometheus
+        """
+        lines: list[str] = []
+
+        # Counters
+        for name, value in self._counters.items():
+            lines.append(f"# TYPE {name} counter")
+            lines.append(f"{name} {value}")
+
+        # Gauges
+        for gauge_name, gauge_value in self._gauges.items():
+            lines.append(f"# TYPE {gauge_name} gauge")
+            lines.append(f"{gauge_name} {float(gauge_value)}")
+
+        # Histograms
+        for hist_name, hist_stats in self._compute_histogram_stats(self._histograms).items():
+            lines.append(f"# TYPE {hist_name} histogram")
+            for suffix, hist_value in hist_stats.items():
+                if suffix != "count":
+                    lines.append(f'{hist_name}_bucket{{{suffix}="{hist_value}"}} {float(hist_stats["count"])}')
+                else:
+                    lines.append(f"{hist_name}_sum {hist_stats['sum']}")
+                lines.append(f"{hist_name}_{suffix} {float(hist_value)}")
+
+        return "\n".join(lines)

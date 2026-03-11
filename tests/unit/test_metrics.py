@@ -260,15 +260,14 @@ class TestMetricsCollector:
         assert "gauge1" in all_metrics["gauges"]
         assert "hist1" in all_metrics["histograms"]
 
-    def test_record_event(self) -> None:
+    @pytest.mark.asyncio
+    async def test_record_event(self) -> None:
         """Запись события."""
         collector = MetricsCollector()
         collector.get_counter("event_published_total")  # Pre-create
 
-        # Это должно работать без ошибок
-        asyncio.get_event_loop().run_until_complete(
-            collector.record_event("TEST_EVENT", "test_source", "normal")
-        )
+        # Используем await вместо run_until_complete
+        await collector.record_event("TEST_EVENT", "test_source", "normal")
 
         metrics = collector.get_all_metrics()
         # Проверяем, что счетчик увеличился
@@ -276,25 +275,23 @@ class TestMetricsCollector:
         # Должен быть счетчик для конкретного события
         assert len(counters) > 0
 
-    def test_record_query_duration(self) -> None:
+    @pytest.mark.asyncio
+    async def test_record_query_duration(self) -> None:
         """Запись длительности запроса."""
         collector = MetricsCollector()
 
-        asyncio.get_event_loop().run_until_complete(
-            collector.record_query_duration("SELECT", "postgresql", 0.125)
-        )
+        await collector.record_query_duration("SELECT", "postgresql", 0.125)
 
         metrics = collector.get_all_metrics()
         histograms = metrics["histograms"]
         assert len(histograms) > 0
 
-    def test_record_connection_count(self) -> None:
+    @pytest.mark.asyncio
+    async def test_record_connection_count(self) -> None:
         """Запись количества соединений."""
         collector = MetricsCollector()
 
-        asyncio.get_event_loop().run_until_complete(
-            collector.record_connection_count("postgresql", 5, 3)
-        )
+        await collector.record_connection_count("postgresql", 5, 3)
 
         metrics = collector.get_all_metrics()
         gauges = metrics["gauges"]
@@ -313,13 +310,14 @@ class TestMetricsCollector:
         assert "memory_bytes" in output
         assert "request_duration" in output
 
-    def test_reset_all(self) -> None:
+    @pytest.mark.asyncio
+    async def test_reset_all(self) -> None:
         """Сброс всех метрик."""
         collector = MetricsCollector()
         collector.get_counter("test_counter").inc_sync(100)
         collector.get_gauge("test_gauge").set_sync(50)
 
-        asyncio.get_event_loop().run_until_complete(collector.reset_all())
+        await collector.reset_all()
 
         metrics = collector.get_all_metrics()
         assert metrics["counters"]["test_counter"] == 0.0

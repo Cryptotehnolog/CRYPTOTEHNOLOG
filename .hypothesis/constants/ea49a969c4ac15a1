@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\core\stubs.py
+# hypothesis_version: 6.151.9
+
+[0.0, 1.0, 10000.0, 100000.0, 'DEGRADED', 'EMERGENCY', 'ExecutionLayer', 'HALTED', 'INITIALIZING', 'PortfolioGovernor', 'READY', 'RiskEngine', 'StateMachine', 'StrategyManager', 'TRADING', 'active_positions', 'all', 'available', 'average_price', 'closed', 'created_at', 'current_exposure_usd', 'daily_pnl_usd', 'executed_at', 'fee', 'filled_quantity', 'locked', 'manual', 'max_daily_loss_usd', 'max_leverage', 'memo', 'note', 'order_id', 'order_type', 'pending', 'pnl', 'price', 'quantity', 'risk_score', 'side', 'size_usd', 'status', 'stopped', 'stub_implementation', 'symbol', 'total', 'trade_id', 'updated_at', 'Фаза 5: Risk Engine']
