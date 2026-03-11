@@ -9,7 +9,6 @@
 - Формат Prometheus
 """
 
-import asyncio
 
 import pytest
 

@@ -10,7 +10,6 @@
 - get_dashboard_data()
 """
 
-import asyncio
 
 from cryptotechnolog.core.metrics import (
     Histogram,
