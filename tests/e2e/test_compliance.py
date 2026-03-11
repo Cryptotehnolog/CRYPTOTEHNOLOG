@@ -307,11 +307,9 @@ async def test_api_key_rotation(db_pool):
     """
     # Проверяем что есть логи изменений конфигурации
     async with db_pool.acquire() as conn:
-        result = await conn.fetch(
-            """
+        result = await conn.fetch("""
             SELECT COUNT(*) as count FROM config_versions
-            """
-        )
+            """)
 
     assert result[0]["count"] >= 0, "Таблица версий конфигурации должна существовать"
 
@@ -336,8 +334,9 @@ async def test_permission_enforcement(db_pool):
 
     # Если есть события - проверяем структуру
     if result:
-        assert "source" in result[0]["data"] or "actor" in result[0]["data"], \
-            "Событие должно содержать информацию об источнике"
+        assert (
+            "source" in result[0]["data"] or "actor" in result[0]["data"]
+        ), "Событие должно содержать информацию об источнике"
 
 
 @pytest.mark.e2e
@@ -349,14 +348,12 @@ async def test_access_control(db_pool):
     """
     async with db_pool.acquire() as conn:
         # Проверяем что таблицы имеют правильные права
-        result = await conn.fetch(
-            """
+        result = await conn.fetch("""
             SELECT table_name, privilege_type
             FROM information_schema.table_privileges
             WHERE table_schema = 'public'
             LIMIT 10
-            """
-        )
+            """)
 
     assert isinstance(result, list), "Должны быть проверены права доступа"
 
@@ -370,13 +367,11 @@ async def test_audit_compliance(db_pool):
     """
     async with db_pool.acquire() as conn:
         # Проверяем完整性 (целостность) аудита
-        result = await conn.fetch(
-            """
+        result = await conn.fetch("""
             SELECT COUNT(*) as count
             FROM events
             WHERE created_at IS NOT NULL
-            """
-        )
+            """)
 
     assert result[0]["count"] >= 0, "Аудит должен вестись"
 
@@ -394,13 +389,11 @@ async def test_seven_year_retention(db_pool):
     async with db_pool.acquire() as conn:
         # Проверяем что события не удаляются автоматически
         # (политика хранения будет применена позже)
-        result = await conn.fetch(
-            """
+        result = await conn.fetch("""
             SELECT MIN(created_at) as oldest_event,
                    MAX(created_at) as newest_event
             FROM events
-            """
-        )
+            """)
 
     assert result[0]["newest_event"] is not None, "Должны быть записи"
 
@@ -415,12 +408,10 @@ async def test_gdpr_compliance(db_pool):
     async with db_pool.acquire() as conn:
         # Проверяем что можем найти данные по идентификатору
         # (для реализации права на удаление)
-        result = await conn.fetch(
-            """
+        result = await conn.fetch("""
             SELECT data FROM events
             LIMIT 1
-            """
-        )
+            """)
 
     # Проверяем структуру данных
     if result:
@@ -436,14 +427,12 @@ async def test_data_export(db_pool):
     """
     async with db_pool.acquire() as conn:
         # Экспорт всех событий
-        result = await conn.fetch(
-            """
+        result = await conn.fetch("""
             SELECT event_type, data, created_at
             FROM events
             ORDER BY created_at DESC
             LIMIT 100
-            """
-        )
+            """)
 
     assert isinstance(result, list), "Должен быть результат экспорта"
     # Проверяем что возвращаются все поля

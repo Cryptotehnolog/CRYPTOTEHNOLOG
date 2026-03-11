@@ -224,6 +224,7 @@ async def test_concurrent_order_inserts(db_pool):
     """
     E2E: Параллельная вставка ордеров
     """
+
     async def insert_order(order_id: str):
         async with db_pool.acquire() as conn:
             await conn.execute(
@@ -286,9 +287,7 @@ async def test_concurrent_trade_updates(db_pool):
 
     # Проверяем что все обновлены
     async with db_pool.acquire() as conn:
-        results = await conn.fetch(
-            "SELECT data FROM events WHERE data->>'trade_id' LIKE 'trade_%'"
-        )
+        results = await conn.fetch("SELECT data FROM events WHERE data->>'trade_id' LIKE 'trade_%'")
     assert len(results) == 5
 
 
@@ -514,9 +513,7 @@ async def test_empty_json_object(db_pool):
             datetime.now(UTC),
         )
 
-        result = await conn.fetchval(
-            "SELECT data FROM events WHERE data = '{}'::jsonb"
-        )
+        result = await conn.fetchval("SELECT data FROM events WHERE data = '{}'::jsonb")
     assert result is not None
 
 

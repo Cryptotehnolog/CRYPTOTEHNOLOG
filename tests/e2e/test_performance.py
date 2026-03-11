@@ -160,6 +160,7 @@ async def test_concurrent_event_publishing(event_bus):
     """
     E2E: Параллельная публикация событий
     """
+
     async def publish_events(count: int):
         for i in range(count):
             event = Event(
@@ -189,6 +190,7 @@ async def test_concurrent_database_writes(db_pool):
     """
     E2E: Параллельная запись в БД
     """
+
     async def write_batch(batch_id: int, count: int):
         async with db_pool.acquire() as conn:
             for i in range(count):
@@ -245,6 +247,7 @@ async def test_connection_pool_efficiency(db_pool):
     """
     E2E: Эффективность пула соединений
     """
+
     async def query():
         async with db_pool.acquire() as conn:
             await conn.fetch("SELECT 1")
