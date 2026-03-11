@@ -334,9 +334,9 @@ async def test_permission_enforcement(db_pool):
 
     # Если есть события - проверяем структуру
     if result:
-        assert (
-            "source" in result[0]["data"] or "actor" in result[0]["data"]
-        ), "Событие должно содержать информацию об источнике"
+        assert "source" in result[0]["data"] or "actor" in result[0]["data"], (
+            "Событие должно содержать информацию об источнике"
+        )
 
 
 @pytest.mark.e2e
