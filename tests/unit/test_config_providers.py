@@ -103,8 +103,9 @@ class TestInfisicalConfigProvider:
 
     def test_missing_token(self) -> None:
         """Тест ошибки при отсутствии INFISICAL_TOKEN."""
-        with patch.dict(os.environ, {}, clear=True), pytest.raises(
-            ValueError, match="INFISICAL_TOKEN"
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            pytest.raises(ValueError, match="INFISICAL_TOKEN"),
         ):
             InfisicalConfigProvider()
 

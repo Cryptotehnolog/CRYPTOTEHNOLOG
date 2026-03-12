@@ -77,6 +77,8 @@ class ConfigManagerError(Exception):
         self.reason = reason
         message = f"Ошибка ConfigManager ({operation}): {reason}"
         super().__init__(message)
+
+
 class ConfigManager:
     """
     Менеджер конфигурации с поддержкой hot reload и GPG верификации.
