@@ -111,9 +111,9 @@ class Settings(BaseSettings):
         return f"redis://{password_part}{self.redis_host}:{self.redis_port}/{self.redis_db}"
 
     # ==================== Secrets Management ====================
-    # HashiCorp Vault (if using)
-    vault_addr: str = "http://localhost:8200"
-    vault_token: SecretStr = SecretStr("dev-only-token")
+    # Infisical (recommended - free, cloud-based)
+    infisical_token: SecretStr | None = None
+    infisical_project_id: str | None = None
 
     # ==================== Exchange API Keys ====================
     # Bybit

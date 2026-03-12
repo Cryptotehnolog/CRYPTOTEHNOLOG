@@ -58,6 +58,7 @@ dependencies = [
 
     # Secrets Management
     "hvac>=2.0.0,<3.0.0",  # HashiCorp Vault
+    "infisical>=0.0.1,<1.0.0",  # Infisical
     "python-gnupg>=0.5.0,<1.0.0",  # GPG signing
     "watchdog>=4.0.0,<5.0.0",  # File monitoring
 

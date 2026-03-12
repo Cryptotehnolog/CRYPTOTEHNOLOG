@@ -13,6 +13,7 @@ from .logging import (
     log_performance,
 )
 from .manager import ConfigManager, ConfigManagerError
+from .providers import InfisicalConfigProvider
 from .settings import Settings, get_settings, reload_settings, settings, validate_settings
 
 __all__ = [

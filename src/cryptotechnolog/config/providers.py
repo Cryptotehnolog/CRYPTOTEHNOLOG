@@ -3,7 +3,7 @@
 
 Реализации:
 - FileConfigProvider: загрузка из файлов (YAML, JSON)
-- VaultConfigProvider: загрузка из HashiCorp Vault
+- InfisicalConfigProvider: загрузка из Infisical
 - EnvConfigProvider: загрузка из переменных окружения
 
 Все docstrings на русском языке.
@@ -100,115 +100,6 @@ class FileConfigProvider(IConfigLoader):
             return path
 
         return self._base_path / path
-
-
-class VaultConfigProvider(IConfigLoader):
-    """
-    Провайдер для загрузки конфигурации из HashiCorp Vault.
-
-    Требует установленных переменных окружения:
-    - VAULT_ADDR: адрес Vault сервера
-    - VAULT_TOKEN: токен доступа
-
-    Пример использования:
-        provider = VaultConfigProvider()
-        data = await provider.load("secret/data/cryptotechnolog/config")
-    """
-
-    def __init__(
-        self,
-        vault_addr: str | None = None,
-        vault_token: str | None = None,
-        mount_point: str = "secret",
-        http_client: httpx.AsyncClient | None = None,
-    ) -> None:
-        """
-        Инициализировать провайдер.
-
-        Аргументы:
-            vault_addr: Адрес Vault сервера
-            vault_token: Токен доступа
-            mount_point: Точка монтирования (по умолчанию "secret")
-            http_client: AsyncClient для HTTP запросов (для DI/тестирования)
-        """
-        self._vault_addr = vault_addr or os.environ.get("VAULT_ADDR")
-        self._vault_token = vault_token or os.environ.get("VAULT_TOKEN")
-        self._mount_point = mount_point
-        self._last_source: str | None = None
-        self._http_client = http_client
-
-        if not self._vault_addr:
-            raise ValueError("VAULT_ADDR не установлен")
-
-        if not self._vault_token:
-            raise ValueError("VAULT_TOKEN не установлен")
-
-    async def load(self, source: str) -> bytes:
-        """
-        Загрузить конфигурацию из Vault.
-
-        Аргументы:
-            source: Путь к секрету (например, "secret/data/myapp/config")
-
-        Returns:
-            Байты содержимого секрета в формате JSON
-
-        Raises:
-            IOError: При ошибке连接到 Vault
-            KeyError: Если секрет не найден
-        """
-        self._last_source = source
-
-        # Формируем URL для KV v2
-        path_parts = source.lstrip("/").split("/")
-        if len(path_parts) >= KV_V2_MIN_PARTS and path_parts[0] == "data":
-            # KV v2 format: /v1/<mount>/data/<path>
-            secret_path = "/".join(path_parts[1:])
-            url = f"{self._vault_addr}/v1/{self._mount_point}/data/{secret_path}"
-        else:
-            # KV v1 format
-            url = f"{self._vault_addr}/v1/{self._mount_point}/{source}"
-
-        headers: dict[str, str] = {"X-Vault-Token": cast("str", self._vault_token)}
-
-        if self._http_client:
-            response = await self._http_client.get(url, headers=headers)
-        else:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(url, headers=headers)
-
-        if response.status_code == HTTP_NOT_FOUND:
-            raise KeyError(f"Секрет не найден в Vault: {source}")
-
-        if response.status_code != HTTP_OK:
-            raise OSError(f"Ошибка Vault: {response.status_code} - {response.text}")
-
-        data = response.json()
-
-        # Извлекаем данные из KV v2 формата
-        if "data" in data and "data" in data["data"]:
-            content = json.dumps(data["data"]["data"])
-        elif "data" in data:
-            content = json.dumps(data["data"])
-        else:
-            content = json.dumps(data)
-
-        return content.encode("utf-8")
-
-    async def reload(self) -> bytes:
-        """
-        Перезагрузить конфигурацию из Vault.
-
-        Returns:
-            Байты содержимого секрета
-
-        Raises:
-            ValueError: Если source не был установлен
-        """
-        if not self._last_source:
-            raise ValueError("Источник не был установлен при первичной загрузке")
-
-        return await self.load(self._last_source)
 
 
 class EnvConfigProvider(IConfigLoader):
@@ -319,3 +210,126 @@ class EnvConfigProvider(IConfigLoader):
 
         # Строка
         return value
+
+
+class InfisicalConfigProvider(IConfigLoader):
+    """
+    Провайдер для загрузки конфигурации из Infisical.
+
+    Требует установленной переменной окружения:
+    - INFISICAL_TOKEN: токен доступа к Infisical
+
+    Пример использования:
+        provider = InfisicalConfigProvider()
+        secrets = await provider.load_secrets("development")
+    """
+
+    def __init__(
+        self,
+        token: str | None = None,
+        project_id: str | None = None,
+        environment: str = "development",
+        http_client: httpx.AsyncClient | None = None,
+    ) -> None:
+        """
+        Инициализировать провайдер.
+
+        Аргументы:
+            token: Токен доступа Infisical
+            project_id: ID проекта в Infisical
+            environment: Окружение (development, production)
+            http_client: AsyncClient для HTTP запросов (для DI/тестирования)
+        """
+        self._token = token or os.environ.get("INFISICAL_TOKEN")
+        self._project_id = project_id or os.environ.get("INFISICAL_PROJECT_ID")
+        self._environment = environment
+        self._last_source: str | None = None
+        self._http_client = http_client
+        self._cached_secrets: dict[str, Any] | None = None
+
+        if not self._token:
+            raise ValueError("INFISICAL_TOKEN не установлен")
+
+    async def load(self, source: str) -> bytes:
+        """
+        Загрузить секреты из Infisical.
+
+        Аргументы:
+            source: Игнорируется (используется environment из конструктора)
+
+        Returns:
+            JSON-байты с секретами
+
+        Raises:
+            OSError: При ошибке запроса к Infisical
+        """
+        self._last_source = source
+
+        secrets = await self._fetch_secrets()
+        self._cached_secrets = secrets
+
+        return json.dumps(secrets).encode("utf-8")
+
+    async def reload(self) -> bytes:
+        """
+        Перезагрузить секреты из Infisical.
+
+        Returns:
+            JSON-байты с секретами
+        """
+        return await self.load(self._last_source or "")
+
+    async def _fetch_secrets(self) -> dict[str, Any]:
+        """
+        Получить секреты из Infisical API.
+
+        Returns:
+            Словарь с секретами
+
+        Raises:
+            OSError: При ошибке запроса
+        """
+        # Используем Infisical API v2
+        base_url = "https://api.infisical.com"
+        url = f"{base_url}/v2/secrets"
+
+        params = {
+            "environment": self._environment,
+            "projectId": self._project_id,
+            "attachTo": "",
+            "includeImportableSecrets": "false",
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self._token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            if self._http_client:
+                response = await self._http_client.get(url, headers=headers, params=params)
+            else:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.get(url, headers=headers, params=params)
+
+            if response.status_code == HTTP_NOT_FOUND:
+                raise KeyError("Секреты не найдены в Infisical")
+
+            if response.status_code != HTTP_OK:
+                raise OSError(f"Ошибка Infisical: {response.status_code} - {response.text}")
+
+            data = response.json()
+
+            # Извлекаем секреты из ответа
+            secrets: dict[str, Any] = {}
+            if "secrets" in data:
+                for secret in data["secrets"]:
+                    key = secret.get("secretKey", "")
+                    value = secret.get("secretValue", "")
+                    if key:
+                        secrets[key] = value
+
+            return secrets
+
+        except httpx.RequestError as e:
+            raise OSError(f"Ошибка подключения к Infisical: {e}") from e

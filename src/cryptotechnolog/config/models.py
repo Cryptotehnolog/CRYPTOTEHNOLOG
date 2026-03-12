@@ -97,16 +97,16 @@ class ExchangeConfig(BaseModel):
     Атрибуты:
         name: Имя биржи (bybit, okx, binance)
         enabled: Включена ли биржа
-        api_key_vault_path: Путь к API ключу в Vault
-        api_secret_vault_path: Путь к secret в Vault
+        api_key: API ключ (хранится в Infisical)
+        api_secret: API secret (хранится в Infisical)
         rate_limits: Rate limits для биржи
         testnet: Использовать testnet
     """
 
     name: str = Field(description="Имя биржи (bybit, okx, binance)")
     enabled: bool = Field(description="Включена ли биржа")
-    api_key_vault_path: str = Field(description="Путь к API ключу в Vault")
-    api_secret_vault_path: str = Field(description="Путь к secret в Vault")
+    api_key: str = Field(default="", description="API ключ (из Infisical)")
+    api_secret: str = Field(default="", description="API secret (из Infisical)")
 
     rate_limits: dict[str, int] = Field(
         default_factory=dict,
@@ -115,27 +115,14 @@ class ExchangeConfig(BaseModel):
 
     testnet: bool = Field(default=False, description="Использовать testnet")
 
-    @field_validator("api_key_vault_path", "api_secret_vault_path")
-    @classmethod
-    def validate_vault_path(cls, v: str) -> str:
-        """
-        Проверить формат пути в Vault.
-
-        Raises:
-            ValueError: Если путь не начинается с 'secret/data/'
-        """
-        if not v.startswith("secret/data/"):
-            raise ValueError(f"Vault путь должен начинаться с 'secret/data/', получено: {v}")
-        return v
-
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
                     "name": "bybit",
                     "enabled": True,
-                    "api_key_vault_path": "secret/data/cryptotehnolog/exchanges/bybit/api_key",
-                    "api_secret_vault_path": "secret/data/cryptotehnolog/exchanges/bybit/api_secret",
+                    "api_key": "",
+                    "api_secret": "",
                     "rate_limits": {"orders_per_second": 10, "requests_per_minute": 1200},
                     "testnet": False,
                 }

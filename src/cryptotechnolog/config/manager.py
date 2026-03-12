@@ -5,11 +5,11 @@
 
 Особенности:
     - DI через конструктор
-    - Plugable providers (файл, Vault, env)
+    - Plugable providers (файл, Infisical, env)
     - Hot reload без рестарта с atomic swap
     - История версий в PostgreSQL
     - GPG верификация подписей
-    - Vault fallback с кэшированием
+    - Infisical integration для секретов
     - Метрики и alerts
 
 Все docstrings на русском языке.
@@ -77,32 +77,6 @@ class ConfigManagerError(Exception):
         self.reason = reason
         message = f"Ошибка ConfigManager ({operation}): {reason}"
         super().__init__(message)
-
-
-class VaultUnavailableError(Exception):
-    """
-    Ошибка недоступности Vault.
-
-    Атрибуты:
-        reason: Причина ошибки
-        has_cache: Есть ли кэшированные секреты
-    """
-
-    def __init__(self, reason: str, has_cache: bool = False) -> None:
-        """
-        Инициализировать ошибку.
-
-        Аргументы:
-            reason: Причина ошибки
-            has_cache: Есть ли кэшированные секреты
-        """
-        self.has_cache = has_cache
-        message = f"Vault недоступен: {reason}"
-        if has_cache:
-            message += " (используются кэшированные секреты)"
-        super().__init__(message)
-
-
 class ConfigManager:
     """
     Менеджер конфигурации с поддержкой hot reload и GPG верификации.
@@ -113,7 +87,7 @@ class ConfigManager:
         - Проверку GPG подписей
         - Сохранение истории версий
         - Hot reload без рестарта системы с atomic swap
-        - Vault fallback с кэшированием секретов
+        - Infisical integration для секретов
         - Метрики для мониторинга
         - Alerts для критических ситуаций
 
@@ -129,7 +103,7 @@ class ConfigManager:
         config = await manager.load()
     """
 
-    # Максимальный возраст кэша секретов (24 часа)
+    # Максимальный возраст кэша секретов (24 часа) - для Infisical
     MAX_CACHE_AGE_HOURS = 24
 
     def __init__(
@@ -166,10 +140,6 @@ class ConfigManager:
         self._current_config: SystemConfig | None = None
         self._current_source: str | None = None
         self._internal_version: int = 0
-
-        # Vault кэш
-        self._cached_secrets: dict[str, Any] = {}
-        self._cache_timestamp: datetime | None = None
 
         # Метрики
         self._metrics = ConfigMetrics()
@@ -623,106 +593,6 @@ class ConfigManager:
         }
 
     # =========================================================================
-    # Vault Methods
-    # =========================================================================
-
-    async def load_secrets_from_vault(
-        self,
-        secret_paths: dict[str, str],
-    ) -> dict[str, Any]:
-        """
-        Загрузить секреты из Vault с fallback на кэш.
-
-        Аргументы:
-            secret_paths: Словарь {имя_секрета: путь_в_Vault}
-
-        Returns:
-            Словарь с загруженными секретами
-
-        Raises:
-            VaultUnavailableError: Если Vault недоступен и нет кэша
-        """
-        secrets = {}
-
-        try:
-            # Пытаемся загрузить из Vault
-            for name, vault_path in secret_paths.items():
-                try:
-                    secret = f"secret_from_vault:{vault_path}"
-                    secrets[name] = secret
-                    self._metrics.increment(
-                        "config_vault_requests_total",
-                        labels={"secret_path": vault_path, "status": "success"},
-                    )
-                except Exception as e:
-                    logger.warning("Ошибка чтения секрета из Vault: %s", str(e))
-                    # Используем кэш если доступен
-                    if name in self._cached_secrets:
-                        secrets[name] = self._cached_secrets[name]
-                        self._metrics.increment(
-                            "config_vault_requests_total",
-                            labels={"secret_path": vault_path, "status": "cache_fallback"},
-                        )
-
-            # Обновляем кэш
-            self._cached_secrets = secrets
-            self._cache_timestamp = datetime.now()
-            logger.info("Секреты загружены из Vault, кэш обновлён")
-
-            return secrets
-
-        except Exception as e:
-            logger.error("Vault недоступен: %s", str(e))
-
-            # Пробуем использовать кэш
-            if self._cached_secrets and self._is_cache_valid():
-                age_hours = self._get_cache_age_hours()
-                logger.warning(
-                    "Используются КЭШИРОВАННЫЕ секреты, возраст: %.1f часов",
-                    age_hours,
-                )
-                self._metrics.increment(
-                    "config_vault_requests_total",
-                    labels={"status": "cache_used"},
-                )
-                return self._cached_secrets
-
-            # Нет кэша - критическая ошибка
-            logger.error("Vault недоступен и нет кэшированных секретов")
-            await self._publish_alert(
-                alert_type="vault_unavailable",
-                message="Vault недоступен и нет кэшированных секретов",
-                severity="critical",
-            )
-            raise VaultUnavailableError(str(e), has_cache=False) from e
-
-    def _is_cache_valid(self) -> bool:
-        """
-        Проверить валидность кэша.
-
-        Returns:
-            True если кэш валиден
-        """
-        if self._cache_timestamp is None:
-            return False
-
-        age = datetime.now() - self._cache_timestamp
-        return age < timedelta(hours=self.MAX_CACHE_AGE_HOURS)
-
-    def _get_cache_age_hours(self) -> float:
-        """
-        Получить возраст кэша в часах.
-
-        Returns:
-            Возраст кэша в часах
-        """
-        if self._cache_timestamp is None:
-            return float("inf")
-
-        age = datetime.now() - self._cache_timestamp
-        return age.total_seconds() / 3600
-
-    # =========================================================================
     # Events
     # =========================================================================
 
@@ -966,11 +836,6 @@ class ConfigManager:
         if self._last_update_timestamp:
             age_seconds = (datetime.now() - self._last_update_timestamp).total_seconds()
             self._metrics.gauge("config_file_age_seconds", age_seconds)
-
-        # vault_secrets_cached{age_hours}
-        if self._cache_timestamp:
-            cache_age_hours = self._get_cache_age_hours()
-            self._metrics.gauge("vault_secrets_cached", cache_age_hours)
 
     def get_metrics(self) -> dict[str, Any]:
         """

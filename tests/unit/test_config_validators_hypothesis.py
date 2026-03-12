@@ -53,28 +53,17 @@ def valid_risk_config_strategy(draw: st.DrawFn) -> dict[str, Any]:
 
 @st.composite
 def valid_exchange_config_strategy(draw: st.DrawFn) -> dict[str, Any]:
-    """Генерировать валидную конфигурацию биржи."""
+    """Генерировать валидную конфигурацию биржи (без Vault)."""
     name = draw(st.sampled_from(["bybit", "okx", "binance", "huobi", "gate"]))
     enabled = draw(st.booleans())
-    vault_path = draw(
-        st.builds(
-            lambda n: f"secret/data/cryptotehnolog/exchanges/{n}/api_key",
-            st.sampled_from(["bybit", "okx", "binance"]),
-        )
-    )
-    secret_path = draw(
-        st.builds(
-            lambda n: f"secret/data/cryptotehnolog/exchanges/{n}/secret",
-            st.sampled_from(["bybit", "okx", "binance"]),
-        )
-    )
     testnet = draw(st.booleans())
 
     return {
         "name": name,
         "enabled": enabled,
-        "api_key_vault_path": vault_path,
-        "api_secret_vault_path": secret_path,
+        "api_key": "",
+        "api_secret": "",
+        "rate_limits": {"orders_per_second": 10, "requests_per_minute": 1200},
         "testnet": testnet,
     }
 
@@ -185,40 +174,6 @@ class TestPydanticValidatorPropertyBased:
         with pytest.raises(ValidationError):
             validator.validate(data)
 
-    @given(data=valid_exchange_config_strategy())
-    @settings(max_examples=30, suppress_health_check=[HealthCheck.too_slow])
-    def test_valid_exchange_config_always_passes(self, data: dict[str, Any]) -> None:
-        """Property: Любая валидная конфигурация биржи должна проходить валидацию."""
-        validator = PydanticValidator(schema=ExchangeConfig)
-        result = validator.validate(data)
-
-        assert isinstance(result, ExchangeConfig)
-        assert result.name == data["name"]
-        assert result.enabled == data["enabled"]
-        # Проверяем что пути начинаются с secret/data/
-        assert result.api_key_vault_path.startswith("secret/data/")
-        assert result.api_secret_vault_path.startswith("secret/data/")
-
-    @given(vault_path=st.text(min_size=5, max_size=100))
-    @settings(max_examples=20, suppress_health_check=[HealthCheck.too_slow])
-    def test_invalid_vault_path_rejected(self, vault_path: str) -> None:
-        """Property: Пути не начинающиеся с 'secret/data/' должны отклоняться."""
-        # Фильтруем валидные пути
-        assume(not vault_path.startswith("secret/data/"))
-
-        validator = PydanticValidator(schema=ExchangeConfig)
-        data = {
-            "name": "bybit",
-            "enabled": True,
-            "api_key_vault_path": vault_path,
-            "api_secret_vault_path": "secret/data/test",
-            "testnet": False,
-        }
-
-        # Должно вызвать ошибку
-        with pytest.raises(ValidationError):
-            validator.validate(data)
-
     @given(data=valid_strategy_config_strategy())
     @settings(max_examples=30, suppress_health_check=[HealthCheck.too_slow])
     def test_valid_strategy_config_always_passes(self, data: dict[str, Any]) -> None:
@@ -308,35 +263,6 @@ class TestValidatorInvariants:
             validator.validate(invalid_data)
 
         assert "мягкий" in str(exc_info.value).lower()
-
-    def test_exchange_config_invariant_vault_path_format(self) -> None:
-        """
-        Инвариант: Все Vault пути должны начинаться с 'secret/data/'.
-
-        Проверяем что формат путей всегда валидный.
-        """
-        validator = PydanticValidator(schema=ExchangeConfig)
-
-        # Невалидные пути
-        invalid_paths = [
-            "wrong/path",
-            "kv/data/test",
-            "not/secret/data",
-            "",
-            "secret/wrong/suffix",
-        ]
-
-        for path in invalid_paths:
-            data = {
-                "name": "bybit",
-                "enabled": True,
-                "api_key_vault_path": path,
-                "api_secret_vault_path": "secret/data/test",
-                "testnet": False,
-            }
-
-            with pytest.raises(ValidationError):
-                validator.validate(data)
 
     def test_strategy_config_invariant_risk_bounds(self) -> None:
         """

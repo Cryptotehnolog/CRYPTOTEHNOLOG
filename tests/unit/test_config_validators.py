@@ -79,8 +79,8 @@ class TestPydanticValidator:
         data = {
             "name": "bybit",
             "enabled": True,
-            "api_key_vault_path": "secret/data/cryptotehnolog/exchanges/bybit/api_key",
-            "api_secret_vault_path": "secret/data/cryptotehnolog/exchanges/bybit/secret",
+            "api_key": "test_api_key",
+            "api_secret": "test_api_secret",
             "rate_limits": {"orders_per_second": 10},
             "testnet": False,
         }
@@ -91,21 +91,21 @@ class TestPydanticValidator:
         assert result.name == "bybit"
         assert result.enabled is True
 
-    def test_validate_invalid_vault_path(self) -> None:
-        """Тест что неверный путь Vault вызывает ошибку."""
+    def test_validate_empty_api_keys(self) -> None:
+        """Тест что пустые API ключи допустимы (будут загружены из Infisical)."""
         validator = PydanticValidator(schema=ExchangeConfig)
         data = {
             "name": "bybit",
             "enabled": True,
-            "api_key_vault_path": "wrong/path",  # Неверный формат!
-            "api_secret_vault_path": "secret/data/test",
+            "api_key": "",
+            "api_secret": "",
             "testnet": False,
         }
 
-        with pytest.raises(ValidationError) as exc_info:
-            validator.validate(data)
+        result = validator.validate(data)
 
-        assert "secret/data/" in str(exc_info.value)
+        assert isinstance(result, ExchangeConfig)
+        assert result.name == "bybit"
 
     def test_validate_valid_strategy_config(self) -> None:
         """Тест валидации корректной конфигурации стратегии."""
