@@ -14,7 +14,6 @@ from hypothesis import strategies as st
 import pytest
 
 from cryptotechnolog.config.models import (
-    ExchangeConfig,
     RiskConfig,
     StrategyConfig,
     SystemConfig,

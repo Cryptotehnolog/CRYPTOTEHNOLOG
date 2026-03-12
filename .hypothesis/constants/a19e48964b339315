@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\config\providers.py
+# hypothesis_version: 6.151.9
+
+[30.0, 200, 404, '.', 'Authorization', 'CT_', 'Content-Type', 'INFISICAL_PROJECT_ID', 'INFISICAL_TOKEN', '[', '_last_source', 'application/json', 'attachTo', 'development', 'environment', 'false', 'projectId', 'secretKey', 'secretValue', 'secrets', 'true', 'utf-8', '{']

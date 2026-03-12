@@ -111,7 +111,6 @@ class Settings(BaseSettings):
         return f"redis://{password_part}{self.redis_host}:{self.redis_port}/{self.redis_db}"
 
     # ==================== Secrets Management ====================
-    # Infisical (recommended - free, cloud-based)
     infisical_token: SecretStr | None = None
     infisical_project_id: str | None = None
 
