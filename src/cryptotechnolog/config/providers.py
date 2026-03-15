@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import configparser
 import json
 import os
 from pathlib import Path
@@ -307,7 +308,6 @@ class InfisicalConfigProvider(IConfigLoader):
         # Try Infisical CLI credentials
         cli_creds_path = Path.home() / ".infisical" / "credentials"
         if cli_creds_path.exists():
-            import configparser
             creds = configparser.ConfigParser()
             creds.read(cli_creds_path)
             if creds.has_option("default", "token"):
@@ -324,11 +324,11 @@ class InfisicalConfigProvider(IConfigLoader):
             return None
 
         for line in env_file.read_text().splitlines():
-            line = line.strip()
-            if line.startswith("#") or not line:
+            stripped_line = line.strip()
+            if stripped_line.startswith("#") or not stripped_line:
                 continue
-            if "=" in line:
-                key, value = line.split("=", 1)
+            if "=" in stripped_line:
+                key, value = stripped_line.split("=", 1)
                 if key.strip() == "INFISICAL_TOKEN":
                     return value.strip()
 
