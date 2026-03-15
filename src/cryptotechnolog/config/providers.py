@@ -271,9 +271,7 @@ class InfisicalConfigProvider(IConfigLoader):
         self._fallback_to_env = fallback_to_env
 
         # Determine Infisical URL (local or cloud)
-        self._infisical_url = local_url or os.environ.get(
-            "INFISICAL_URL", self.DEFAULT_LOCAL_URL
-        )
+        self._infisical_url = local_url or os.environ.get("INFISICAL_URL", self.DEFAULT_LOCAL_URL)
 
         # Get token
         if use_machine_identity:
