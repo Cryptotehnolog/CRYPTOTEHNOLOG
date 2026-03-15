@@ -216,13 +216,28 @@ class InfisicalConfigProvider(IConfigLoader):
     """
     Провайдер для загрузки конфигурации из Infisical.
 
-    Требует установленной переменной окружения:
+    Требует установленных переменных окружения:
     - INFISICAL_TOKEN: токен доступа к Infisical
+    - INFISICAL_URL: URL Infisical сервера (опционально, по умолчанию - локальный)
+
+    Поддерживает:
+    - Локальный Infisical (localhost:8080)
+    - Machine Identity для bot-доступа
+    - Fallback на .env файл если Infisical недоступен
 
     Пример использования:
         provider = InfisicalConfigProvider()
         secrets = await provider.load_secrets("development")
+
+    Пример Machine Identity:
+        provider = InfisicalConfigProvider(
+            use_machine_identity=True,
+            project_id="crypto-trading"
+        )
     """
+
+    DEFAULT_LOCAL_URL = "http://127.0.0.1:8080"
+    DEFAULT_CLOUD_URL = "https://api.infisical.com"
 
     def __init__(
         self,
@@ -230,6 +245,9 @@ class InfisicalConfigProvider(IConfigLoader):
         project_id: str | None = None,
         environment: str = "development",
         http_client: httpx.AsyncClient | None = None,
+        use_machine_identity: bool = False,
+        local_url: str | None = None,
+        fallback_to_env: bool = True,
     ) -> None:
         """
         Инициализировать провайдер.
@@ -237,18 +255,84 @@ class InfisicalConfigProvider(IConfigLoader):
         Аргументы:
             token: Токен доступа Infisical
             project_id: ID проекта в Infisical
-            environment: Окружение (development, production)
+            environment: Окружение (development, staging, production)
             http_client: AsyncClient для HTTP запросов (для DI/тестирования)
+            use_machine_identity: Использовать Machine Identity вместо токена
+            local_url: URL локального Infisical (по умолчанию http://127.0.0.1:8080)
+            fallback_to_env: Использовать .env если Infisical недоступен
         """
-        self._token = token or os.environ.get("INFISICAL_TOKEN")
         self._project_id = project_id or os.environ.get("INFISICAL_PROJECT_ID")
         self._environment = environment
         self._last_source: str | None = None
         self._http_client = http_client
         self._cached_secrets: dict[str, Any] | None = None
+        self._use_machine_identity = use_machine_identity
+        self._fallback_to_env = fallback_to_env
+
+        # Determine Infisical URL (local or cloud)
+        self._infisical_url = local_url or os.environ.get(
+            "INFISICAL_URL", self.DEFAULT_LOCAL_URL
+        )
+
+        # Get token
+        if use_machine_identity:
+            # Machine Identity - читается из файла
+            self._token = self._load_machine_identity_token()
+        else:
+            self._token = token or os.environ.get("INFISICAL_TOKEN")
+
+        if not self._token and fallback_to_env:
+            # Fallback to .env - load from .env.infisical
+            self._token = self._load_token_from_env_file()
 
         if not self._token:
-            raise ValueError("INFISICAL_TOKEN не установлен")
+            raise ValueError(
+                "INFISICAL_TOKEN не установлен и не найден в .env.infisical. "
+                "Запустите scripts/setup_infisical.ps1 для инициализации."
+            )
+
+    def _load_machine_identity_token(self) -> str | None:
+        """
+        Загрузить токен Machine Identity из файла.
+
+        Файл ищется в:
+        - ./secrets/infisical-token (local development)
+        - ~/.infisical/credentials (Infisical CLI)
+        """
+        # Try local file first
+        local_token_path = Path("secrets/infisical-token")
+        if local_token_path.exists():
+            return local_token_path.read_text().strip()
+
+        # Try Infisical CLI credentials
+        cli_creds_path = Path.home() / ".infisical" / "credentials"
+        if cli_creds_path.exists():
+            import configparser
+            creds = configparser.ConfigParser()
+            creds.read(cli_creds_path)
+            if creds.has_option("default", "token"):
+                return creds.get("default", "token")
+
+        return None
+
+    def _load_token_from_env_file(self) -> str | None:
+        """
+        Загрузить токен из .env.infisical файла.
+        """
+        env_file = Path(".env.infisical")
+        if not env_file.exists():
+            return None
+
+        for line in env_file.read_text().splitlines():
+            line = line.strip()
+            if line.startswith("#") or not line:
+                continue
+            if "=" in line:
+                key, value = line.split("=", 1)
+                if key.strip() == "INFISICAL_TOKEN":
+                    return value.strip()
+
+        return None
 
     async def load(self, source: str) -> bytes:
         """
@@ -289,8 +373,8 @@ class InfisicalConfigProvider(IConfigLoader):
         Raises:
             OSError: При ошибке запроса
         """
-        # Используем Infisical API v2
-        base_url = "https://api.infisical.com"
+        # Используем Infisical API v2 - сконфигурированный URL
+        base_url = self._infisical_url
         url = f"{base_url}/v2/secrets"
 
         params = {
@@ -332,4 +416,69 @@ class InfisicalConfigProvider(IConfigLoader):
             return secrets
 
         except httpx.RequestError as e:
+            # Если включен fallback и локальный Infisical недоступен - пробуем cloud
+            if self._fallback_to_env and base_url == self.DEFAULT_LOCAL_URL:
+                # Retry with cloud URL
+                return await self._fetch_secrets_cloud()
             raise OSError(f"Ошибка подключения к Infisical: {e}") from e
+
+    async def _fetch_secrets_cloud(self) -> dict[str, Any]:
+        """
+        Получить секреты из облачного Infisical (fallback).
+
+        Returns:
+            Словарь с секретами
+        """
+        base_url = self.DEFAULT_CLOUD_URL
+        url = f"{base_url}/v2/secrets"
+
+        params = {
+            "environment": self._environment,
+            "projectId": self._project_id,
+            "attachTo": "",
+            "includeImportableSecrets": "false",
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self._token}",
+            "Content-Type": "application/json",
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url, headers=headers, params=params)
+
+        if response.status_code == HTTP_NOT_FOUND:
+            raise KeyError("Секреты не найдены в Infisical")
+
+        if response.status_code != HTTP_OK:
+            raise OSError(f"Ошибка Infisical: {response.status_code} - {response.text}")
+
+        data = response.json()
+
+        secrets: dict[str, Any] = {}
+        if "secrets" in data:
+            for secret in data["secrets"]:
+                key = secret.get("secretKey", "")
+                value = secret.get("secretValue", "")
+                if key:
+                    secrets[key] = value
+
+        return secrets
+
+    def get_url(self) -> str:
+        """
+        Получить текущий URL Infisical.
+
+        Returns:
+            URL Infisical сервера
+        """
+        return self._infisical_url
+
+    def is_local(self) -> bool:
+        """
+        Проверить используется ли локальный Infisical.
+
+        Returns:
+            True если используется локальный Infisical
+        """
+        return self._infisical_url == self.DEFAULT_LOCAL_URL
