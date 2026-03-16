@@ -1,6 +1,6 @@
 # ==================== CRYPTOTEHNOLOG Infisical Docker Compose ====================
 # Local Infisical instance for secrets management
-# 
+#
 # SECURITY FEATURES:
 # - Internal Docker network (isolated from external traffic)
 # - localhost-only access (127.0.0.1)
@@ -13,20 +13,24 @@
 #   # Wait 30 seconds for initialization
 #   curl http://127.0.0.1:8080/api/status
 
+name: cryptotechnolog-infisical
+
 services:
   # ==================== PostgreSQL (Infisical Backend) ====================
   db:
     image: postgres:15-alpine
     container_name: cryptotechnolog_infisical_db
     restart: always
+    env_file:
+      - .env.infisical
     environment:
       POSTGRES_USER: infisical
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: $DB_PASSWORD
       POSTGRES_DB: infisical
     volumes:
       - infisical_postgres:/var/lib/postgresql/data
     networks:
-      - infisical_internal
+      - infisical_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U infisical"]
       interval: 10s
@@ -47,6 +51,8 @@ services:
     image: redis:7-alpine
     container_name: cryptotechnolog_infisical_redis
     restart: always
+    env_file:
+      - .env.infisical
     command: >
       redis-server
       --appendonly yes
@@ -55,7 +61,7 @@ services:
     volumes:
       - infisical_redis:/data
     networks:
-      - infisical_internal
+      - infisical_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -76,12 +82,14 @@ services:
     image: infisical/infisical:v0.158.13
     container_name: cryptotechnolog_infisical
     restart: always
+    env_file:
+      - .env.infisical
     ports:
       # Bind to localhost only for security!
       - "127.0.0.1:8080:8080"
     environment:
       - NODE_ENV=production
-      - DB_CONNECTION_URI=postgres://infisical:${DB_PASSWORD}@db:5432/infisical
+      - DB_CONNECTION_URI=postgres://infisical:$DB_PASSWORD@db:5432/infisical
       - REDIS_URL=redis://redis:6379
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - AUTH_SECRET=${AUTH_SECRET}
@@ -99,7 +107,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - infisical_internal
+      - infisical_network
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/api/status"]
       interval: 30s
@@ -117,9 +125,9 @@ services:
 
 # ==================== Networks ====================
 networks:
-  infisical_internal:
+  infisical_network:
     driver: bridge
-    # internal: true  # Disabled - blocks port mapping
+    name: cryptotechnolog_infisical_network
 
 # ==================== Volumes ====================
 volumes:
