@@ -51,7 +51,41 @@
 
 ## 4. Управление конфигурацией и секретами
 
-*   **Секреты:** Никогда не хардкодьте API-ключи, пароли или токены. Используйте переменные окружения из файла `.env` (см. `.env.example`). В production обязательно применяйте **HashiCorp Vault**.
+*   **Секреты:** Никогда не хардкодьте API-ключи, пароли или токены. Используйте переменные окружения из файла `.env` (см. `.env.example`). В production обязательно применяйте **HashiCorp Vault** или **Infisical**.
+
+    ### 4.1 Рекомендуемая архитектура Infisical (для разработки и production)
+
+    **Локальный Infisical (рекомендуется):**
+    - Запускается через `docker-compose -f docker-compose-infisical.yml up -d`
+    - Доступ только через `127.0.0.1:8080` (localhost-only)
+    - Все данные зашифрованы на уровне volume
+    - Machine Identity для bot-доступа
+
+    **Структура secrets:**
+    ```
+    /crypto/exchange/bybit/api_key
+    /crypto/exchange/bybit/api_secret
+    /telegram/bot_token
+    /database/postgres/password
+    ```
+
+    **Настройка:**
+    ```powershell
+    # Запуск Infisical
+    powershell -ExecutionPolicy Bypass -File scripts\setup_infisical.ps1
+
+    # Использование в коде
+    from cryptotechnolog.config.providers import InfisicalConfigProvider
+    provider = InfisicalConfigProvider(use_machine_identity=True)
+    ```
+
+    ### 4.2 Альтернативы
+
+    | Окружение | Инструмент | Обоснование |
+    |-----------|------------|-------------|
+    | Development | .env файлы | Быстро, просто |
+    | Staging | Infisical (локальный) | Тестирование integration |
+    | Production | Infisical (cloud/hybrid) | Максимальная безопасность |
 *   **Конфигурация:** Все конфигурации должны быть типизированными (Pydantic-модели в Python). Изменения в схемах конфигов должны быть обратно совместимыми или сопровождаться миграциями.
 
 ## 5. Тестирование (критически важно!)
