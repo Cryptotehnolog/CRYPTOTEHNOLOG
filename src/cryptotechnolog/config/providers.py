@@ -663,7 +663,9 @@ class InfisicalConfigProvider(IConfigLoader):
                 # Нет доступа к секрету
                 logger.warning(
                     "Нет доступа к секрету '%s' в path '%s': код %d",
-                    key, secret_path, response.status_code
+                    key,
+                    secret_path,
+                    response.status_code,
                 )
                 return None
 
@@ -671,7 +673,10 @@ class InfisicalConfigProvider(IConfigLoader):
                 # Другая ошибка - логируем и продолжаем
                 logger.error(
                     "Ошибка при получении секрета '%s' из path '%s': код %d, тело: %s",
-                    key, secret_path, response.status_code, response.text[:200]
+                    key,
+                    secret_path,
+                    response.status_code,
+                    response.text[:200],
                 )
                 return None
 
@@ -684,10 +689,7 @@ class InfisicalConfigProvider(IConfigLoader):
             return None
 
         except httpx.RequestError as e:
-            logger.error(
-                "Ошибка подключения к Infisical при получении '%s': %s",
-                key, str(e)
-            )
+            logger.error("Ошибка подключения к Infisical при получении '%s': %s", key, str(e))
             return None
 
     async def _authenticate_machine_identity(self) -> None:
@@ -720,7 +722,8 @@ class InfisicalConfigProvider(IConfigLoader):
             if response.status_code != HTTP_OK:
                 logger.error(
                     "Ошибка аутентификации Machine Identity: код=%d, тело=%s",
-                    response.status_code, response.text[:200]
+                    response.status_code,
+                    response.text[:200],
                 )
                 raise OSError(
                     f"Ошибка аутентификации Machine Identity: {response.status_code} - {response.text}"
@@ -732,7 +735,9 @@ class InfisicalConfigProvider(IConfigLoader):
             if not self._token:
                 raise OSError("Не получен accessToken от Infisical")
 
-            logger.info("Успешная аутентификация Machine Identity для project_id=%s", self._project_id)
+            logger.info(
+                "Успешная аутентификация Machine Identity для project_id=%s", self._project_id
+            )
 
         except httpx.RequestError as e:
             logger.error("Ошибка подключения к Infisical: %s", str(e))

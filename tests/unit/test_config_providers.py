@@ -156,11 +156,15 @@ class TestInfisicalConfigProvider:
         # Мокаем чтобы не читать реальный .env.infisical
         with (
             patch("pathlib.Path.exists", return_value=False),
-            patch.dict(os.environ, {
-                "INFISICAL_CLIENT_ID": "test_client_id",
-                "INFISICAL_CLIENT_SECRET": "test_secret",
-                "INFISICAL_PROJECT_ID": "test_project",
-            }, clear=True),
+            patch.dict(
+                os.environ,
+                {
+                    "INFISICAL_CLIENT_ID": "test_client_id",
+                    "INFISICAL_CLIENT_SECRET": "test_secret",
+                    "INFISICAL_PROJECT_ID": "test_project",
+                },
+                clear=True,
+            ),
         ):
             provider = InfisicalConfigProvider(
                 use_machine_identity=True,
@@ -190,9 +194,7 @@ class TestInfisicalConfigProvider:
         """Тест успешного получения одного секрета."""
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "secret": {"secretValue": "my_secret_value"}
-        }
+        mock_response.json.return_value = {"secret": {"secretValue": "my_secret_value"}}
 
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(return_value=mock_response)
@@ -205,10 +207,7 @@ class TestInfisicalConfigProvider:
                 "INFISICAL_SECRET_KEYS": "API_KEY",
             },
         ):
-            provider = InfisicalConfigProvider(
-                http_client=mock_client,
-                environment="development"
-            )
+            provider = InfisicalConfigProvider(http_client=mock_client, environment="development")
             result = await provider._fetch_single_secret("API_KEY", "/staging/crypto")
 
             assert result == "my_secret_value"
@@ -231,10 +230,7 @@ class TestInfisicalConfigProvider:
                 "INFISICAL_SECRET_KEYS": "NONEXISTENT_KEY",
             },
         ):
-            provider = InfisicalConfigProvider(
-                http_client=mock_client,
-                environment="development"
-            )
+            provider = InfisicalConfigProvider(http_client=mock_client, environment="development")
             result = await provider._fetch_single_secret("NONEXISTENT_KEY", "/staging/crypto")
 
             assert result is None
@@ -257,10 +253,7 @@ class TestInfisicalConfigProvider:
                 "INFISICAL_PROJECT_ID": "test_project",
             },
         ):
-            provider = InfisicalConfigProvider(
-                http_client=mock_client,
-                use_machine_identity=True
-            )
+            provider = InfisicalConfigProvider(http_client=mock_client, use_machine_identity=True)
             await provider._authenticate_machine_identity()
 
             assert provider._token == "test_access_token"
@@ -270,9 +263,7 @@ class TestInfisicalConfigProvider:
         """Тест получения секретов из нескольких путей."""
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "secret": {"secretValue": "secret_value"}
-        }
+        mock_response.json.return_value = {"secret": {"secretValue": "secret_value"}}
 
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(return_value=mock_response)
@@ -286,10 +277,7 @@ class TestInfisicalConfigProvider:
                 "INFISICAL_SECRET_PATHS": "/path1,/path2",
             },
         ):
-            provider = InfisicalConfigProvider(
-                http_client=mock_client,
-                environment="development"
-            )
+            provider = InfisicalConfigProvider(http_client=mock_client, environment="development")
             await provider._fetch_secrets()
 
             # Должно быть 4 вызова (2 ключа x 2 пути)
