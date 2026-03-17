@@ -970,7 +970,7 @@ class EnhancedEventBus:
                     # Даже LOW переполнена
                     event.priority = original_priority
                     self.metrics["dropped"] += 1
-                    raise PublishError(f"Очереди переполнены (NORMAL -> LOW)") from None
+                    raise PublishError("Очереди переполнены (NORMAL -> LOW)") from None
         else:
             success = await self.priority_queue.push(event)
             if not success:
