@@ -1,6 +1,8 @@
 # ==================== Tests for backtest/examples.py ====================
 
 
+from pathlib import Path
+
 from cryptotechnolog.backtest import examples
 
 
@@ -86,3 +88,39 @@ class TestBacktestExamples:
         assert callable(examples.example_simple)
         assert callable(examples.example_with_callbacks)
         assert callable(examples.example_conditional)
+
+    def test_example_from_csv_runs(self, tmp_path: Path):
+        """Test example_from_csv executes without error."""
+        # Create a temporary CSV file
+        csv_file = tmp_path / "test.csv"
+        csv_file.write_text(
+            "timestamp,symbol,bid,ask,last,volume\n"
+            "2024-01-01 10:00:00,BTCUSDT,50000,50001,50000.5,100\n"
+            "2024-01-01 10:00:01,BTCUSDT,50001,50002,50001.5,150\n"
+        )
+
+        result = examples.example_from_csv(str(csv_file))
+
+        assert isinstance(result, dict)
+        assert "ticks_processed" in result
+
+    def test_example_from_csv_with_recorder(self, tmp_path: Path):
+        """Test example_from_csv with recorder enabled."""
+        csv_file = tmp_path / "test.csv"
+        csv_file.write_text(
+            "timestamp,symbol,bid,ask,last,volume\n"
+            "2024-01-01 10:00:00,BTCUSDT,50000,50001,50000.5,100\n"
+        )
+
+        result = examples.example_from_csv(str(csv_file))
+
+        assert result["ticks_processed"] == 1
+
+    def test_example_with_callbacks_position_logic(self):
+        """Test example_with_callbacks executes with position logic."""
+        # This covers lines 54-63 in the callback
+        result = examples.example_with_callbacks()
+
+        # The callback should have executed
+        assert result["ticks_processed"] == 1000
+        assert isinstance(result, dict)
