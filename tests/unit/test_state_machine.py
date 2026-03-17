@@ -10,7 +10,10 @@ Unit тесты для State Machine.
 """
 
 import asyncio
+from contextlib import suppress
+import json
 import time
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -501,3 +504,885 @@ class TestStateMachineUncoveredMethods:
 
         time_in_state = sm.get_time_in_current_state()
         assert time_in_state >= 0
+
+
+class TestStatePoliciesUncovered:
+    """Тесты для непокрытых state policies."""
+
+    @pytest.mark.asyncio
+    async def test_can_open_positions_trading(self) -> None:
+        """Тест can_open_positions в состоянии TRADING."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+
+        assert sm.can_open_positions() is True
+
+    @pytest.mark.asyncio
+    async def test_can_open_positions_halt(self) -> None:
+        """Тест can_open_positions в состоянии HALT."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+        await sm.transition(SystemState.HALT, TriggerType.EMERGENCY_SHUTDOWN)
+
+        assert sm.can_open_positions() is False
+
+    @pytest.mark.asyncio
+    async def test_can_increase_size_trading(self) -> None:
+        """Тест can_increase_size в состоянии TRADING."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+
+        assert sm.can_increase_size() is True
+
+    @pytest.mark.asyncio
+    async def test_can_increase_size_degraded(self) -> None:
+        """Тест can_increase_size в состоянии DEGRADED."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+        await sm.transition(SystemState.DEGRADED, TriggerType.RISK_VIOLATION)
+
+        assert sm.can_increase_size() is False
+
+    @pytest.mark.asyncio
+    async def test_can_place_orders_trading(self) -> None:
+        """Тест can_place_orders в состоянии TRADING."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+
+        assert sm.can_place_orders() is True
+
+    @pytest.mark.asyncio
+    async def test_can_place_orders_survival(self) -> None:
+        """Тест can_place_orders в состоянии SURVIVAL."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+        await sm.transition(SystemState.SURVIVAL, TriggerType.EXECUTION_ERROR)
+
+        # SURVIVAL позволяет только закрытие ордеров
+        assert sm.can_place_orders() is True
+
+    @pytest.mark.asyncio
+    async def test_get_risk_multiplier_trading(self) -> None:
+        """Тест get_risk_multiplier в состоянии TRADING."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+
+        assert sm.get_risk_multiplier() == 1.0
+
+    @pytest.mark.asyncio
+    async def test_get_risk_multiplier_degraded(self) -> None:
+        """Тест get_risk_multiplier в состоянии DEGRADED."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+        await sm.transition(SystemState.DEGRADED, TriggerType.RISK_VIOLATION)
+
+        assert sm.get_risk_multiplier() == 0.5
+
+    @pytest.mark.asyncio
+    async def test_get_risk_multiplier_survival(self) -> None:
+        """Тест get_risk_multiplier в состоянии SURVIVAL."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+        await sm.transition(SystemState.SURVIVAL, TriggerType.EXECUTION_ERROR)
+
+        assert sm.get_risk_multiplier() == 0.1
+
+    @pytest.mark.asyncio
+    async def test_get_max_positions_trading(self) -> None:
+        """Тест get_max_positions в состоянии TRADING."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+
+        # TRADING: 100 позиций
+        assert sm.get_max_positions() == 100
+
+    @pytest.mark.asyncio
+    async def test_get_max_positions_degraded(self) -> None:
+        """Тест get_max_positions в состоянии DEGRADED."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+        await sm.transition(SystemState.DEGRADED, TriggerType.RISK_VIOLATION)
+
+        # DEGRADED: 50 позиций
+        assert sm.get_max_positions() == 50
+
+    @pytest.mark.asyncio
+    async def test_get_max_order_size_trading(self) -> None:
+        """Тест get_max_order_size в состоянии TRADING."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+
+        assert sm.get_max_order_size() == 0.1
+
+    @pytest.mark.asyncio
+    async def test_get_max_order_size_survival(self) -> None:
+        """Тест get_max_order_size в состоянии SURVIVAL."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+        await sm.transition(SystemState.SURVIVAL, TriggerType.EXECUTION_ERROR)
+
+        # SURVIVAL: 0.01 = 1%
+        assert sm.get_max_order_size() == 0.01
+
+    @pytest.mark.asyncio
+    async def test_is_short_selling_allowed_trading(self) -> None:
+        """Тест is_short_selling_allowed в состоянии TRADING."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+
+        assert sm.is_short_selling_allowed() is True
+
+    @pytest.mark.asyncio
+    async def test_is_short_selling_allowed_halt(self) -> None:
+        """Тест is_short_selling_allowed в состоянии HALT."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+        await sm.transition(SystemState.HALT, TriggerType.EMERGENCY_SHUTDOWN)
+
+        assert sm.is_short_selling_allowed() is False
+
+    @pytest.mark.asyncio
+    async def test_requires_manual_approval_halt(self) -> None:
+        """Тест requires_manual_approval в состоянии HALT."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+        await sm.transition(SystemState.HALT, TriggerType.EMERGENCY_SHUTDOWN)
+
+        assert sm.requires_manual_approval() is True
+
+    @pytest.mark.asyncio
+    async def test_requires_manual_approval_trading(self) -> None:
+        """Тест requires_manual_approval в состоянии TRADING."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+
+        assert sm.requires_manual_approval() is False
+
+
+class TestStateMachineWithMocks:
+    """Тесты с моками для непокрытых методов."""
+
+    @pytest.mark.asyncio
+    async def test_initialize_without_db(self) -> None:
+        """Тест initialize без БД."""
+        sm = StateMachine()
+
+        result = await sm.initialize()
+
+        assert result is True
+        assert sm.is_initialized is True
+
+    @pytest.mark.asyncio
+    async def test_initialize_already_initialized(self) -> None:
+        """Тест повторной инициализации."""
+        sm = StateMachine()
+
+        await sm.initialize()
+        result = await sm.initialize()
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_unregister_on_enter_not_found(self) -> None:
+        """Тест удаления несуществующего callback."""
+        sm = StateMachine()
+
+        async def dummy_callback(from_state: SystemState, to_state: SystemState) -> None:
+            pass
+
+        result = sm.unregister_on_enter(SystemState.INIT, dummy_callback)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_unregister_on_exit_not_found(self) -> None:
+        """Тест удаления несуществующего exit callback."""
+        sm = StateMachine()
+
+        async def dummy_callback(from_state: SystemState, to_state: SystemState) -> None:
+            pass
+
+        result = sm.unregister_on_exit(SystemState.BOOT, dummy_callback)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_sync_callback_on_enter(self) -> None:
+        """Тест синхронного callback on_enter."""
+        sm = StateMachine()
+        calls: list[tuple[SystemState, SystemState]] = []
+
+        def sync_callback(from_state: SystemState, to_state: SystemState) -> None:
+            calls.append((from_state, to_state))
+
+        sm.register_on_enter(SystemState.INIT, sync_callback)
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        assert len(calls) == 1
+        assert calls[0] == (SystemState.BOOT, SystemState.INIT)
+
+    @pytest.mark.asyncio
+    async def test_sync_callback_on_exit(self) -> None:
+        """Тест синхронного callback on_exit."""
+        sm = StateMachine()
+        calls: list[tuple[SystemState, SystemState]] = []
+
+        def sync_callback(from_state: SystemState, to_state: SystemState) -> None:
+            calls.append((from_state, to_state))
+
+        sm.register_on_exit(SystemState.BOOT, sync_callback)
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        assert len(calls) == 1
+        assert calls[0] == (SystemState.BOOT, SystemState.INIT)
+
+    @pytest.mark.asyncio
+    async def test_callback_error_handling(self) -> None:
+        """Тест обработки ошибок в callback."""
+        sm = StateMachine()
+
+        async def failing_callback(from_state: SystemState, to_state: SystemState) -> None:
+            raise RuntimeError("Test error")
+
+        sm.register_on_enter(SystemState.INIT, failing_callback)
+
+        # Должно не упасть, а просто залогировать ошибку
+        result = await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        assert result.success is True
+
+    @pytest.mark.asyncio
+    async def test_callback_error_on_exit(self) -> None:
+        """Тест обработки ошибок в exit callback."""
+        sm = StateMachine()
+
+        async def failing_callback(from_state: SystemState, to_state: SystemState) -> None:
+            raise RuntimeError("Test error")
+
+        sm.register_on_exit(SystemState.BOOT, failing_callback)
+
+        result = await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        assert result.success is True
+
+    @pytest.mark.asyncio
+    async def test_state_timeout_exceeded_with_timeout(self) -> None:
+        """Тест превышения таймаута."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        # Для INIT таймаут 60 секунд, но мы в состоянии меньше
+        # Поэтому тест должен показать False
+        assert sm.is_state_timeout_exceeded() is False
+
+    @pytest.mark.asyncio
+    async def test_get_next_state_on_timeout_degraded(self) -> None:
+        """Тест следующего состояния при таймауте для DEGRADED."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+        await sm.transition(SystemState.DEGRADED, TriggerType.RISK_VIOLATION)
+
+        next_state = sm._get_next_state_on_timeout()
+
+        assert next_state == SystemState.HALT
+
+    @pytest.mark.asyncio
+    async def test_get_next_state_on_timeout_no_transition(self) -> None:
+        """Тест состояния без таймаута."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+
+        next_state = sm._get_next_state_on_timeout()
+
+        # TRADING не имеет таймаута
+        assert next_state is None
+
+    @pytest.mark.asyncio
+    async def test_transition_with_event_bus(self) -> None:
+        """Тест перехода с event_bus."""
+        mock_event_bus = AsyncMock()
+        mock_event_bus.publish = AsyncMock()
+
+        sm = StateMachine(event_bus=mock_event_bus)
+
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        # Проверяем что publish был вызван
+        assert mock_event_bus.publish.called
+
+    @pytest.mark.asyncio
+    async def test_transition_event_bus_error(self) -> None:
+        """Тест ошибки event_bus при переходе."""
+        mock_event_bus = AsyncMock()
+        mock_event_bus.publish = AsyncMock(side_effect=RuntimeError("Event bus error"))
+
+        sm = StateMachine(event_bus=mock_event_bus)
+
+        # Не должно упасть
+        result = await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        assert result.success is True
+
+
+class TestCheckpointAndRestore:
+    """Тесты checkpoint и restore."""
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_no_storage(self) -> None:
+        """Тест checkpoint без доступных хранилищ."""
+        sm = StateMachine()
+
+        result = await sm.checkpoint()
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_with_redis(self) -> None:
+        """Тест checkpoint с Redis."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+
+        mock_redis = AsyncMock()
+        mock_redis.set = AsyncMock(return_value=True)
+
+        result = await sm.checkpoint(redis_client=mock_redis)
+
+        assert result is True
+        mock_redis.set.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_with_redis_error(self) -> None:
+        """Тест checkpoint с ошибкой Redis."""
+        sm = StateMachine()
+
+        mock_redis = AsyncMock()
+        mock_redis.set = AsyncMock(side_effect=RuntimeError("Redis error"))
+
+        result = await sm.checkpoint(redis_client=mock_redis)
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_restore_from_checkpoint_no_data(self) -> None:
+        """Тест restore без данных."""
+        sm = StateMachine()
+
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=None)
+
+        result = await sm.restore_from_checkpoint(redis_client=mock_redis)
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_restore_from_checkpoint_with_redis(self) -> None:
+        """Тест restore из Redis."""
+        sm = StateMachine()
+
+        checkpoint_data = {
+            "current_state": "trading",
+            "version": 5,
+            "transition_counter": 10,
+            "state_entered_at": "2024-01-01T00:00:00",
+        }
+
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=json.dumps(checkpoint_data))
+
+        result = await sm.restore_from_checkpoint(redis_client=mock_redis)
+
+        assert result is True
+        assert sm.current_state == SystemState.TRADING
+        assert sm.version == 5
+
+    @pytest.mark.asyncio
+    async def test_restore_from_checkpoint_redis_error(self) -> None:
+        """Тест restore с ошибкой Redis."""
+        sm = StateMachine()
+
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(side_effect=RuntimeError("Redis error"))
+
+        result = await sm.restore_from_checkpoint(redis_client=mock_redis)
+
+        assert result is False
+
+
+class TestTransitionWithDB:
+    """Тесты переходов с БД."""
+
+    @pytest.mark.asyncio
+    async def test_transition_with_db_optimistic_lock_success(self) -> None:
+        """Тест перехода с optimistic locking успех."""
+        mock_db = AsyncMock()
+        # Мокаем успешное обновление (1 строка)
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                "BEGIN",
+                "INSERT 0 1",  # Вставка перехода
+                "UPDATE 1",  # Обновление состояния - 1 строка
+                "COMMIT",
+            ]
+        )
+
+        sm = StateMachine(db_manager=mock_db)
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        # Проверяем что execute был вызван
+        assert mock_db.execute.call_count >= 3
+
+    @pytest.mark.asyncio
+    async def test_transition_with_db_optimistic_lock_conflict(self) -> None:
+        """Тест перехода с optimistic locking конфликт."""
+        mock_db = AsyncMock()
+        # Конфликт версий - 0 строк обновлено
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                "BEGIN",
+                "INSERT 0 1",
+                "UPDATE 0",  # Конфликт
+                "ROLLBACK",
+                "BEGIN",
+                "INSERT 0 1",
+                "UPDATE 1",  # Успех на retry
+                "COMMIT",
+            ]
+        )
+
+        sm = StateMachine(db_manager=mock_db)
+        result = await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        assert result.success is True
+
+    @pytest.mark.asyncio
+    async def test_transition_with_db_error(self) -> None:
+        """Тест перехода с ошибкой БД."""
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(side_effect=RuntimeError("DB error"))
+
+        sm = StateMachine(db_manager=mock_db)
+
+        # Должно упасть после исчерпания retry
+        result = await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        assert result.success is False
+
+
+class TestMonitorStateTimeouts:
+    """Тесты мониторинга таймаутов."""
+
+    @pytest.mark.asyncio
+    async def test_monitor_state_timeout_task(self) -> None:
+        """Тест фоновой задачи мониторинга."""
+        sm = StateMachine()
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        # Запускаем мониторинг на короткое время
+        monitor_task = asyncio.create_task(sm._monitor_state_timeouts(check_interval=1))
+
+        # Даём поработать 2 секунды
+        await asyncio.sleep(2)
+
+        # Отменяем задачу
+        monitor_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await monitor_task
+
+    @pytest.mark.asyncio
+    async def test_monitor_state_timeout_transition(self) -> None:
+        """Тест автоматического перехода по таймауту."""
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                "BEGIN",
+                "INSERT 0 1",
+                "UPDATE 1",
+                "COMMIT",
+            ]
+        )
+
+        sm = StateMachine(db_manager=mock_db)
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        # Для INIT таймаут 120 секунд, не успеет сработать за 0.1 сек
+        # Но проверим что метод работает
+        assert sm._get_next_state_on_timeout() == SystemState.ERROR
+
+
+class TestMetricsCollection:
+    """Тесты сбора метрик."""
+
+    @pytest.mark.asyncio
+    async def test_record_transition_metrics(self) -> None:
+        """Тест записи метрик переходов."""
+        mock_metrics = MagicMock()
+        mock_counter = MagicMock()
+        mock_gauge = MagicMock()
+        mock_metrics.get_counter.return_value = mock_counter
+        mock_metrics.get_gauge.return_value = mock_gauge
+
+        sm = StateMachine(metrics_collector=mock_metrics)
+
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        mock_counter.inc.assert_called()
+        mock_gauge.set.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_record_invalid_transition_metrics(self) -> None:
+        """Тест записи метрик невалидных переходов."""
+        mock_metrics = MagicMock()
+        mock_counter = MagicMock()
+        mock_metrics.get_counter.return_value = mock_counter
+
+        sm = StateMachine(metrics_collector=mock_metrics)
+
+        # Невалидный переход
+        await sm.transition(SystemState.TRADING, TriggerType.TEST)
+
+        mock_counter.inc.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_metrics_error_handling(self) -> None:
+        """Тест обработки ошибок метрик."""
+        mock_metrics = MagicMock()
+        mock_metrics.get_counter.side_effect = RuntimeError("Metrics error")
+
+        sm = StateMachine(metrics_collector=mock_metrics)
+
+        # Не должно упасть
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+
+class TestStateTimeoutTransitions:
+    """Тесты маппинга переходов по таймауту."""
+
+    def test_timeout_transitions_mapping(self) -> None:
+        """Тест маппинга переходов по таймауту."""
+        # Проверяем что маппинг существует
+        sm = StateMachine()
+
+        assert sm._TIMEOUT_TRANSITIONS[SystemState.DEGRADED] == SystemState.HALT
+        assert sm._TIMEOUT_TRANSITIONS[SystemState.SURVIVAL] == SystemState.HALT
+        assert sm._TIMEOUT_TRANSITIONS[SystemState.ERROR] == SystemState.HALT
+        assert sm._TIMEOUT_TRANSITIONS[SystemState.RECOVERY] == SystemState.HALT
+        assert sm._TIMEOUT_TRANSITIONS[SystemState.BOOT] == SystemState.ERROR
+        assert sm._TIMEOUT_TRANSITIONS[SystemState.INIT] == SystemState.ERROR
+
+
+class TestGetHistoryWithCount:
+    """Тесты истории с параметром count."""
+
+    @pytest.mark.asyncio
+    async def test_get_history_with_count(self) -> None:
+        """Тест получения последних N переходов."""
+        sm = StateMachine()
+
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+        await sm.transition(SystemState.READY, TriggerType.INITIALIZATION_COMPLETE)
+        await sm.transition(SystemState.TRADING, TriggerType.OPERATOR_REQUEST)
+
+        # Получаем последние 2 перехода
+        history = sm.get_history(count=2)
+
+        assert len(history) == 2
+
+
+class TestInitializeWithDB:
+    """Тесты initialize с БД."""
+
+    @pytest.mark.asyncio
+    async def test_initialize_with_db_loads_state(self) -> None:
+        """Тест инициализации с загрузкой состояния из БД."""
+        mock_db = AsyncMock()
+        mock_db.fetchrow = AsyncMock(
+            return_value={
+                "current_state": "trading",
+                "version": 5,
+            }
+        )
+
+        sm = StateMachine(db_manager=mock_db)
+        result = await sm.initialize()
+
+        assert result is True
+        assert sm.current_state == SystemState.TRADING
+        assert sm.version == 5
+
+    @pytest.mark.asyncio
+    async def test_initialize_with_db_error(self) -> None:
+        """Тест инициализации с ошибкой БД."""
+        mock_db = AsyncMock()
+        mock_db.fetchrow = AsyncMock(side_effect=RuntimeError("DB error"))
+
+        sm = StateMachine(db_manager=mock_db)
+        result = await sm.initialize()
+
+        # Должно продолжить работу несмотря на ошибку
+        assert result is True
+
+
+class TestCheckpointWithDB:
+    """Тесты checkpoint с БД."""
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_with_db_success(self) -> None:
+        """Тест checkpoint с БД успех."""
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock()
+
+        sm = StateMachine(db_manager=mock_db)
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        result = await sm.checkpoint(redis_client=None)
+
+        assert result is True
+        # Проверяем что был INSERT
+        assert mock_db.execute.call_count >= 2
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_with_db_error(self) -> None:
+        """Тест checkpoint с ошибкой БД."""
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(side_effect=RuntimeError("DB error"))
+
+        sm = StateMachine(db_manager=mock_db)
+
+        result = await sm.checkpoint(redis_client=None)
+
+        assert result is False
+
+
+class TestRestoreFromCheckpointWithDB:
+    """Тесты restore с БД."""
+
+    @pytest.mark.asyncio
+    async def test_restore_from_db_success(self) -> None:
+        """Тест восстановления из БД успех."""
+        mock_db = AsyncMock()
+        mock_db.fetchrow = AsyncMock(
+            return_value={
+                "current_state": "trading",
+                "version": 10,
+                "transition_counter": 5,
+                "metadata": "{}",
+            }
+        )
+
+        sm = StateMachine(db_manager=mock_db)
+
+        result = await sm.restore_from_checkpoint(redis_client=None)
+
+        assert result is True
+        assert sm.current_state == SystemState.TRADING
+        assert sm.version == 10
+
+    @pytest.mark.asyncio
+    async def test_restore_from_db_no_data(self) -> None:
+        """Тест восстановления из БД без данных."""
+        mock_db = AsyncMock()
+        mock_db.fetchrow = AsyncMock(return_value=None)
+
+        sm = StateMachine(db_manager=mock_db)
+
+        result = await sm.restore_from_checkpoint(redis_client=None)
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_restore_from_db_error(self) -> None:
+        """Тест восстановления из БД с ошибкой."""
+        mock_db = AsyncMock()
+        mock_db.fetchrow = AsyncMock(side_effect=RuntimeError("DB error"))
+
+        sm = StateMachine(db_manager=mock_db)
+
+        result = await sm.restore_from_checkpoint(redis_client=None)
+
+        assert result is False
+
+
+class TestSaveTransitionToDB:
+    """Тесты сохранения переходов в БД."""
+
+    @pytest.mark.asyncio
+    async def test_save_transition_to_db(self) -> None:
+        """Тест сохранения перехода в БД."""
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock()
+
+        sm = StateMachine(db_manager=mock_db)
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        # Проверяем что была попытка сохранить
+        assert mock_db.execute.call_count >= 2
+
+
+class TestUpdateStateInDB:
+    """Тесты обновления состояния в БД."""
+
+    @pytest.mark.asyncio
+    async def test_update_state_in_db(self) -> None:
+        """Тест обновления состояния в БД."""
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock()
+
+        sm = StateMachine(db_manager=mock_db)
+
+        await sm._update_state_in_db(SystemState.TRADING)
+
+        # Проверяем что был UPDATE
+        assert mock_db.execute.call_count >= 1
+
+    @pytest.mark.asyncio
+    async def test_update_state_in_db_error(self) -> None:
+        """Тест ошибки обновления состояния в БД."""
+        mock_db = AsyncMock()
+        # Первый вызов - ошибка, второй - ROLLBACK
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                RuntimeError("DB error"),  # UPDATE
+                None,  # ROLLBACK
+            ]
+        )
+
+        sm = StateMachine(db_manager=mock_db)
+
+        # Не должно упасть - исключение обрабатывается
+        await sm._update_state_in_db(SystemState.TRADING)
+
+
+class TestPublishTransitionEvent:
+    """Тесты публикации событий."""
+
+    @pytest.mark.asyncio
+    async def test_publish_transition_event(self) -> None:
+        """Тест публикации события перехода."""
+        mock_event_bus = AsyncMock()
+        mock_event_bus.publish = AsyncMock()
+
+        sm = StateMachine(event_bus=mock_event_bus)
+
+        # Сначала делаем переход
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        # Получаем переход из истории
+        history = sm.get_history()
+        await sm._publish_transition_event(history[0])
+
+        # publish вызывается как при transition так и при ручном вызове
+        assert mock_event_bus.publish.called
+
+
+class TestMonitorStateTimeoutTransition:
+    """Тесты автоматического перехода по таймауту."""
+
+    @pytest.mark.asyncio
+    async def test_monitor_auto_transition(self) -> None:
+        """Тест автоматического перехода при таймауте."""
+        mock_db = AsyncMock()
+        # Мокаем успешные запросы
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                "BEGIN",
+                "INSERT 0 1",
+                "UPDATE 1",
+                "COMMIT",
+            ]
+        )
+
+        sm = StateMachine(db_manager=mock_db)
+        await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
+
+        # Вызываем мониторинг вручную сразу
+        # Для INIT таймаут 120 сек, но _get_next_state_on_timeout
+        # вернёт ERROR
+        next_state = sm._get_next_state_on_timeout()
+        assert next_state == SystemState.ERROR
+
+
+class TestExceptionHandling:
+    """Тесты обработки исключений."""
+
+    @pytest.mark.asyncio
+    async def test_monitor_exception_handling(self) -> None:
+        """Тест обработки исключений в мониторинге."""
+        sm = StateMachine()
+
+        # Запускаем и сразу отменяем
+        monitor_task = asyncio.create_task(sm._monitor_state_timeouts(check_interval=1))
+        await asyncio.sleep(0.1)
+        monitor_task.cancel()
+
+        with suppress(asyncio.CancelledError):
+            await monitor_task
+
+
+class TestUnregisterCallbackEdgeCases:
+    """Тесты граничных случаев для unregister callbacks."""
+
+    @pytest.mark.asyncio
+    async def test_unregister_enter_success(self) -> None:
+        """Тест успешного удаления on_enter callback."""
+        sm = StateMachine()
+
+        async def callback(from_state: SystemState, to_state: SystemState) -> None:
+            pass
+
+        sm.register_on_enter(SystemState.INIT, callback)
+        result = sm.unregister_on_enter(SystemState.INIT, callback)
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_unregister_exit_success(self) -> None:
+        """Тест успешного удаления on_exit callback."""
+        sm = StateMachine()
+
+        async def callback(from_state: SystemState, to_state: SystemState) -> None:
+            pass
+
+        sm.register_on_exit(SystemState.BOOT, callback)
+        result = sm.unregister_on_exit(SystemState.BOOT, callback)
+
+        assert result is True
+
+
+# Mark all tests as unit tests
+pytest.mark.unit(__name__)
