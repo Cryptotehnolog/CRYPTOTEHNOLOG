@@ -7,6 +7,6 @@
 Все docstrings на русском языке.
 """
 
-from cryptotechnolog.config.signers.gpg_signer import GPGSigner, SignatureError
+from cryptotechnolog.config.signers.gpg_signer import GPGSigner, SignatureError, SubprocessRunner
 
-__all__ = ["GPGSigner", "SignatureError"]
+__all__ = ["GPGSigner", "SignatureError", "SubprocessRunner"]
