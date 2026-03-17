@@ -50,39 +50,51 @@ def event_loop() -> "Generator[asyncio.AbstractEventLoop, None, None]":
 # ==================== Database Fixtures ====================
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 async def ensure_test_database() -> None:
     """Ensure test database exists before any tests run.
 
     This fixture automatically creates the trading_test database
     if it doesn't exist. Runs once per test session.
+
+    NOTE: This fixture is NOT auto-used to avoid crashes on Windows
+    when PostgreSQL is not available. Tests that need DB must
+    explicitly request this fixture.
     """
     settings = Settings()
 
-    # Connect to default postgres database to check/create trading_test
-    conn = await asyncpg.connect(
-        f"postgresql://{settings.postgres_user}:{settings.postgres_password.get_secret_value()}"
-        f"@{settings.postgres_host}:{settings.postgres_port}/postgres",
-        command_timeout=30,
-    )
+    # Skip if no PostgreSQL configured
+    if not settings.postgres_host:
+        pytest.skip("PostgreSQL not configured", allow_module_level=True)
 
     try:
-        # Check if database exists
-        db_exists = await conn.fetchrow(
-            "SELECT 1 FROM pg_database WHERE datname = $1",
-            settings.postgres_test_db,
+        # Connect to default postgres database to check/create trading_test
+        conn = await asyncpg.connect(
+            f"postgresql://{settings.postgres_user}:{settings.postgres_password.get_secret_value()}"
+            f"@{settings.postgres_host}:{settings.postgres_port}/postgres",
+            command_timeout=30,
         )
 
-        if not db_exists:
-            # Create database
-            await conn.execute(
-                f"CREATE DATABASE {settings.postgres_test_db} OWNER {settings.postgres_user}"
+        try:
+            # Check if database exists
+            db_exists = await conn.fetchrow(
+                "SELECT 1 FROM pg_database WHERE datname = $1",
+                settings.postgres_test_db,
             )
-            logging.info(f"Created test database: {settings.postgres_test_db}")
-        else:
-            logging.info(f"Test database already exists: {settings.postgres_test_db}")
-    finally:
-        await conn.close()
+
+            if not db_exists:
+                # Create database
+                await conn.execute(
+                    f"CREATE DATABASE {settings.postgres_test_db} OWNER {settings.postgres_user}"
+                )
+                logging.info(f"Created test database: {settings.postgres_test_db}")
+            else:
+                logging.info(f"Test database already exists: {settings.postgres_test_db}")
+        finally:
+            await conn.close()
+    except Exception as e:
+        logging.warning(f"Could not ensure test database: {e}")
+        pytest.skip(f"Test database not available: {e}", allow_module_level=True)
 
 
 @pytest.fixture(scope="session")

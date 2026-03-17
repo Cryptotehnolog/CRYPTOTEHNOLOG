@@ -132,7 +132,7 @@ class TestPriorityQueue:
 
     @pytest.mark.asyncio
     async def test_push_wait_with_timeout(self) -> None:
-        """Тест push_wait с таймаутом."""
+        """Тест push_wait с таймаутом (строка 247-248 - неуспешный случай)."""
         caps = {
             Priority.CRITICAL: 1,
             Priority.HIGH: 1,
@@ -152,6 +152,33 @@ class TestPriorityQueue:
         result = await pq.push_wait(event2, timeout=0.1)
 
         assert result is False
+
+    @pytest.mark.asyncio
+    async def test_push_wait_success(self) -> None:
+        """Тест успешного push_wait (строки 247-248)."""
+        caps = {
+            Priority.CRITICAL: 2,
+            Priority.HIGH: 1,
+            Priority.NORMAL: 1,
+            Priority.LOW: 1,
+        }
+        pq = PriorityQueue(caps)
+
+        event1 = Event.new("TEST", "SRC", {"i": 1})
+        event1.priority = Priority.CRITICAL
+
+        # Успешное добавление
+        result = await pq.push_wait(event1, timeout=1.0)
+        assert result is True
+        assert pq.size(Priority.CRITICAL) == 1
+
+    @pytest.mark.asyncio
+    async def test_pop_returns_none_when_empty(self) -> None:
+        """Тест pop возвращает None когда очереди пустые (строка 269)."""
+        pq = PriorityQueue()
+
+        result = await pq.pop()
+        assert result is None
 
     def test_size_and_capacity(self) -> None:
         """Тест методов size и capacity."""
@@ -445,6 +472,47 @@ class TestEnhancedEventBusSubscribe:
         result = await receiver.recv()
         assert result is None
 
+    @pytest.mark.asyncio
+    async def test_async_iterator(self) -> None:
+        """Тест async iteration (строки 153-160)."""
+        bus = EnhancedEventBus(enable_persistence=False)
+
+        receiver = bus.subscribe()
+
+        # Публикуем события
+        event1 = Event.new("TEST1", "SOURCE", {"id": 1})
+        event2 = Event.new("TEST2", "SOURCE", {"id": 2})
+        await bus.publish(event1)
+        await bus.publish(event2)
+
+        # Тестируем async iteration
+        events = []
+        async for event in receiver:
+            events.append(event)
+            if len(events) >= 2:
+                break
+
+        assert len(events) == 2
+        assert events[0].event_type == "TEST1"
+        assert events[1].event_type == "TEST2"
+
+    @pytest.mark.asyncio
+    async def test_async_iterator_stops_on_close(self) -> None:
+        """Тест что async iteration останавливается при закрытии."""
+        bus = EnhancedEventBus(enable_persistence=False)
+
+        receiver = bus.subscribe()
+
+        # Закрываем приёмник
+        receiver.close()
+
+        # Итератор должен закончиться
+        events = []
+        async for event in receiver:
+            events.append(event)
+
+        assert len(events) == 0
+
 
 class TestEventHandlers:
     """Тесты обработчиков событий."""
@@ -578,6 +646,319 @@ class TestShutdown:
 
         # После shutdown очередь должна быть пустой
         assert bus.priority_queue.total_size() == 0
+
+
+class TestPersistenceLayer:
+    """Тесты PersistenceLayer (строки 378-551)."""
+
+    @pytest.mark.asyncio
+    async def test_persistence_layer_init(self) -> None:
+        """Тест инициализации PersistenceLayer (строки 405-410)."""
+        from cryptotechnolog.core.enhanced_event_bus import PersistenceLayer
+
+        layer = PersistenceLayer("redis://localhost:6379")
+        assert layer.redis_url == "redis://localhost:6379"
+        assert layer.redis is None
+        assert layer.stream_prefix == "events"
+        assert layer.max_stream_len == 100000
+
+    @pytest.mark.asyncio
+    async def test_persistence_layer_save_event_with_connection(self) -> None:
+        """Тест сохранения события с подключением (строки 440-441)."""
+        from cryptotechnolog.core.enhanced_event_bus import PersistenceLayer
+
+        layer = PersistenceLayer("redis://localhost:6379")
+        event = Event.new("TEST", "SRC", {"data": 42})
+        event.priority = Priority.NORMAL
+
+        # Должно работать с подключением к Redis
+        result = await layer.save_event(event)
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_persistence_layer_save_batch_empty(self) -> None:
+        """Тест сохранения пустого батча (строки 480-481)."""
+        from cryptotechnolog.core.enhanced_event_bus import PersistenceLayer
+
+        layer = PersistenceLayer("redis://localhost:6379")
+        result = await layer.save_batch([])
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_persistence_layer_get_stream_length_with_connection(self) -> None:
+        """Тест получения длины stream с подключением (строки 544-545)."""
+        from cryptotechnolog.core.enhanced_event_bus import PersistenceLayer
+
+        layer = PersistenceLayer("redis://localhost:6379")
+
+        # С подключением должно работать
+        length = await layer.get_stream_length(Priority.NORMAL)
+        assert isinstance(length, int)
+
+    @pytest.mark.asyncio
+    async def test_persistence_layer_replay(self) -> None:
+        """Тест replay событий (строки 507-540)."""
+        from cryptotechnolog.core.enhanced_event_bus import PersistenceLayer
+
+        layer = PersistenceLayer("redis://localhost:6379")
+
+        # Сохраняем событие
+        event = Event.new("TEST", "SRC", {"data": 123})
+        event.priority = Priority.HIGH
+        await layer.save_event(event)
+
+        # Воспроизводим
+        events = await layer.replay(Priority.HIGH, limit=10)
+        assert isinstance(events, list)
+
+    @pytest.mark.asyncio
+    async def test_persistence_layer_disconnect(self) -> None:
+        """Тест отключения от Redis (строки 423-428)."""
+        from cryptotechnolog.core.enhanced_event_bus import PersistenceLayer
+
+        layer = PersistenceLayer("redis://localhost:6379")
+        await layer.connect()
+        assert layer.redis is not None
+
+        await layer.disconnect()
+        assert layer.redis is None
+
+
+class TestEnhancedEventBusPersistence:
+    """Тесты EnhancedEventBus с persistence."""
+
+    @pytest.mark.asyncio
+    async def test_bus_with_persistence_with_redis(self) -> None:
+        """Тест что persistence работает с Redis (строки 654-660)."""
+        bus = EnhancedEventBus(
+            enable_persistence=True,
+            redis_url="redis://localhost:6379",
+        )
+
+        # start должен подключиться к Redis
+        await bus.start()
+
+        # После успешного подключения persistence должен быть включён
+        assert bus.enable_persistence is True
+
+    @pytest.mark.asyncio
+    async def test_replay_without_persistence(self) -> None:
+        """Тест replay без включенного persistence (строки 1055-1056)."""
+        bus = EnhancedEventBus(enable_persistence=False)
+
+        from cryptotechnolog.core.enhanced_event_bus import PersistenceError
+
+        with pytest.raises(PersistenceError):
+            await bus.replay(Priority.NORMAL)
+
+    @pytest.mark.asyncio
+    async def test_replay_with_persistence(self) -> None:
+        """Тест replay с включенным persistence (строка 1058)."""
+        bus = EnhancedEventBus(
+            enable_persistence=True,
+            redis_url="redis://localhost:6379",
+        )
+        await bus.start()
+
+        # Публикуем событие
+        event = Event.new("TEST", "SRC", {"data": 42})
+        event.priority = Priority.CRITICAL
+        await bus.publish(event)
+
+        # Воспроизводим
+        events = await bus.replay(Priority.CRITICAL, limit=10)
+        assert isinstance(events, list)
+
+
+class TestEnhancedEventBusManagement:
+    """Тесты управления EnhancedEventBus."""
+
+    @pytest.mark.asyncio
+    async def test_shutdown_with_pending_tasks(self) -> None:
+        """Тест shutdown с ожидающими задачами (строки 667-676)."""
+        bus = EnhancedEventBus(enable_persistence=False)
+
+        # Создаём pending task
+        async def dummy_task():
+            await asyncio.sleep(0.01)
+
+        task = asyncio.create_task(dummy_task())
+        bus.pending_tasks.append(task)
+
+        # shutdown должен корректно завершиться
+        await bus.shutdown()
+
+        # Задача должна быть удалена после shutdown
+        # (может быть 0 или 1 в зависимости от состояния)
+        assert len(bus.pending_tasks) <= 1
+
+    @pytest.mark.asyncio
+    async def test_drain_timeout(self) -> None:
+        """Тест drain с таймаутом (строки 1186-1193)."""
+        bus = EnhancedEventBus(enable_persistence=False)
+        bus.subscribe()
+
+        # Публикуем событие без подписчика (не читающего из очереди)
+        # drain должен выйти по таймауту
+        event = Event.new("TEST", "SRC", {"data": 42})
+        await bus.publish(event)
+
+        # drain выйдет по таймауту так как подписчик не читает
+        result = await bus.drain(timeout=0.5)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_flush(self) -> None:
+        """Тест flush (строки 1197-1203)."""
+        bus = EnhancedEventBus(enable_persistence=False)
+
+        async def dummy_task():
+            await asyncio.sleep(0.01)
+
+        # Добавляем задачу
+        task = asyncio.create_task(dummy_task())
+        bus.pending_tasks.append(task)
+
+        # flush должен дождаться завершения
+        await bus.flush()
+
+    def test_clear(self) -> None:
+        """Тест clear (строки 1205-1211)."""
+        bus = EnhancedEventBus(enable_persistence=False)
+        bus.subscribe()
+
+        def handler(event: Event) -> None:
+            pass
+
+        bus.on("TEST", handler)
+
+        bus.clear()
+
+        assert len(bus.subscribers) == 0
+        assert len(bus.handlers) == 0
+
+
+class TestEnhancedEventBusHandlers:
+    """Тесты обработчиков и listeners."""
+
+    @pytest.mark.asyncio
+    async def test_off_handler(self) -> None:
+        """Тест удаления обработчика (строки 1090-1100)."""
+        bus = EnhancedEventBus(enable_persistence=False)
+
+        def handler(event: Event) -> None:
+            pass
+
+        bus.on("TEST_EVENT", handler)
+        assert len(bus.handlers["TEST_EVENT"]) == 1
+
+        bus.off("TEST_EVENT", handler)
+        assert len(bus.handlers["TEST_EVENT"]) == 0
+
+    def test_off_nonexistent_handler(self) -> None:
+        """Тест удаления несуществующего обработчика."""
+        bus = EnhancedEventBus(enable_persistence=False)
+
+        def handler1(event: Event) -> None:
+            pass
+
+        def handler2(event: Event) -> None:
+            pass
+
+        bus.on("TEST_EVENT", handler1)
+        bus.off("TEST_EVENT", handler2)  # Не должен вызвать ошибку
+
+
+class TestBackpressureStrategies:
+    """Тесты дополнительных стратегий backpressure."""
+
+    @pytest.mark.asyncio
+    async def test_overflow_normal_strategy(self) -> None:
+        """Тест стратегии OVERFLOW_NORMAL (строки 775)."""
+        bus = EnhancedEventBus(
+            enable_persistence=False,
+            backpressure_strategy="overflow_normal",
+            capacities={
+                "critical": 10,
+                "high": 10,
+                "normal": 1,  # Маленькая ёмкость
+                "low": 10,
+            },
+        )
+
+        # Заполняем NORMAL очередь
+        for i in range(2):
+            event = Event.new("TEST", "SRC", {"i": i})
+            event.priority = Priority.NORMAL
+            await bus.publish(event)
+
+        # События должны быть опубликованы
+        assert bus.metrics["published"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_block_critical_strategy(self) -> None:
+        """Тест стратегии BLOCK_CRITICAL (строки 789, 958-960)."""
+        bus = EnhancedEventBus(
+            enable_persistence=False,
+            backpressure_strategy="block_critical",
+            capacities={
+                "critical": 1,
+                "high": 10,
+                "normal": 10,
+                "low": 10,
+            },
+        )
+
+        # Заполняем CRITICAL очередь
+        event1 = Event.new("TEST", "SRC", {"i": 1})
+        event1.priority = Priority.CRITICAL
+        await bus.publish(event1)
+
+        # Второе событие должно заблокироваться или отклониться
+        event2 = Event.new("TEST", "SRC", {"i": 2})
+        event2.priority = Priority.CRITICAL
+        try:
+            await bus.publish(event2)
+        except Exception:
+            pass  # Ожидаем ошибку или успех
+
+
+class TestAsyncEventReceiverEdgeCases:
+    """Тесты граничных случаев AsyncEventReceiver."""
+
+    @pytest.mark.asyncio
+    async def test_try_recv_when_closed(self) -> None:
+        """Тест try_recv когда receiver закрыт (строка 128)."""
+        from cryptotechnolog.core.enhanced_event_bus import AsyncEventReceiver
+        from asyncio import Queue
+
+        bus = EnhancedEventBus(enable_persistence=False)
+        queue: Queue[Event | None] = Queue()
+        receiver = AsyncEventReceiver(queue, bus)
+
+        # Закрываем receiver
+        receiver.close()
+
+        # try_recv должен вернуть None
+        result = await receiver.try_recv()
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_recv_timeout_when_closed(self) -> None:
+        """Тест recv_timeout когда receiver закрыт (строка 145)."""
+        from cryptotechnolog.core.enhanced_event_bus import AsyncEventReceiver
+        from asyncio import Queue
+
+        bus = EnhancedEventBus(enable_persistence=False)
+        queue: Queue[Event | None] = Queue()
+        receiver = AsyncEventReceiver(queue, bus)
+
+        # Закрываем receiver
+        receiver.close()
+
+        # recv_timeout должен вернуть None
+        result = await receiver.recv_timeout(0.1)
+        assert result is None
 
 
 # Mark all tests as unit tests

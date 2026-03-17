@@ -958,6 +958,19 @@ class EnhancedEventBus:
             success = await self.priority_queue.push_wait(event, timeout=5.0)
             if not success:
                 raise PublishError("Таймаут добавления CRITICAL события в очередь") from None
+        elif backpressure_action == BackpressureStrategy.OVERFLOW_NORMAL:
+            # Попробовать добавить в NORMAL, при переполнении - в LOW
+            success = await self.priority_queue.push(event)
+            if not success:
+                # NORMAL переполнена, пробуем LOW
+                original_priority = event.priority
+                event.priority = Priority.LOW
+                success = await self.priority_queue.push(event)
+                if not success:
+                    # Даже LOW переполнена
+                    event.priority = original_priority
+                    self.metrics["dropped"] += 1
+                    raise PublishError(f"Очереди переполнены (NORMAL -> LOW)") from None
         else:
             success = await self.priority_queue.push(event)
             if not success:
