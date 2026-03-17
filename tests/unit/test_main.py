@@ -1,6 +1,7 @@
 # ==================== Tests for main.py ====================
 
 import asyncio
+from contextlib import suppress
 import inspect
 from unittest.mock import Mock, patch
 
@@ -68,6 +69,24 @@ class TestMain:
 class TestMainIntegration:
     """Integration tests for main module."""
 
+    @pytest.fixture
+    def mock_settings(self):
+        """Mock settings for testing."""
+        with patch("cryptotechnolog.main.get_settings") as mock:
+            mock_settings = Mock()
+            mock_settings.environment = "test"
+            mock_settings.log_level = "INFO"
+            mock.return_value = mock_settings
+            yield mock_settings
+
+    @pytest.fixture
+    def mock_structlog(self):
+        """Mock structlog."""
+        with patch("cryptotechnolog.main.structlog") as mock:
+            mock.get_logger.return_value = Mock()
+            mock.configure.return_value = None
+            yield mock
+
     def test_main_module_dunder_name(self):
         """Test main module has __name__ attribute."""
         assert main_module.__name__ == "cryptotechnolog.main"
@@ -119,3 +138,59 @@ class TestMainIntegration:
         """Test main handles KeyboardInterrupt."""
         source = inspect.getsource(main_module)
         assert "KeyboardInterrupt" in source
+
+    @pytest.mark.asyncio
+    async def test_main_executes_successfully(self, mock_settings, mock_structlog):
+        """Test main() executes successfully with mocked dependencies."""
+        mock_logger = Mock()
+        mock_structlog.get_logger.return_value = mock_logger
+
+        # Run main() with a timeout to avoid infinite loop
+        async def run_with_timeout():
+            task = asyncio.create_task(main_module.main())
+            await asyncio.sleep(0.1)
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+
+        await run_with_timeout()
+
+        # Verify logger was called
+        assert mock_logger.info.called
+
+    @pytest.mark.asyncio
+    async def test_main_configures_structlog(self, mock_settings, mock_structlog):
+        """Test main() configures structlog."""
+        mock_logger = Mock()
+        mock_structlog.get_logger.return_value = mock_logger
+
+        async def run_with_timeout():
+            task = asyncio.create_task(main_module.main())
+            await asyncio.sleep(0.1)
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+
+        await run_with_timeout()
+
+        # Verify structlog.configure was called
+        mock_structlog.configure.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_main_logs_startup_message(self, mock_settings, mock_structlog):
+        """Test main() logs startup message."""
+        mock_logger = Mock()
+        mock_structlog.get_logger.return_value = mock_logger
+
+        async def run_with_timeout():
+            task = asyncio.create_task(main_module.main())
+            await asyncio.sleep(0.1)
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+
+        await run_with_timeout()
+
+        # Verify startup message was logged
+        call_args = mock_logger.info.call_args_list
+        assert any("CRYPTOTEHNOLOG" in str(call) for call in call_args)
