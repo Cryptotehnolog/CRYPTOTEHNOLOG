@@ -34,7 +34,7 @@ class TestFileConfigProvider:
     """Тесты для FileConfigProvider."""
 
     @pytest.fixture
-    def temp_dir(self) -> "Iterator[Path]":
+    def temp_dir(self) -> Iterator[Path]:
         """Создать временную директорию."""
         with tempfile.TemporaryDirectory() as tmpdir:
             yield Path(tmpdir)
