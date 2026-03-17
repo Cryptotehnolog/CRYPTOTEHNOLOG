@@ -281,7 +281,7 @@ class TestInfisicalConfigProvider:
                 http_client=mock_client,
                 environment="development"
             )
-            secrets = await provider._fetch_secrets()
+            await provider._fetch_secrets()
 
             # Должно быть 4 вызова (2 ключа x 2 пути)
             assert mock_client.get.call_count == 4
