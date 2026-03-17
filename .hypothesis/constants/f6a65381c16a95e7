@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\core\operator_gate.py
+# hypothesis_version: 6.151.9
+
+['Admin1', 'Admin2', 'HALT', 'OperatorGate запущен', 'RiskManager', 'Trader1', 'active_requests', 'admin_token_1', 'admin_token_2', 'request', 'request_approved', 'request_cancelled', 'request_created', 'request_expired', 'request_rejected', 'request_timeout', 'risk_token_1', 'running', 'subtype', 'total_approved', 'total_expired', 'total_rejected', 'total_requests', 'trader_token_1', 'Запрос истёк', 'Запрос не найден', 'Запрос отклонён', 'Запрос отменён', 'Запрос подтверждён']

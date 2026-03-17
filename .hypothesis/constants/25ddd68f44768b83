@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\core\database.py
+# hypothesis_version: 6.151.9
+
+['@', 'SELECT 1', 'SELECT version()', 'args', 'asyncpg.Connection', 'bool', 'circuit_breaker', 'connected', 'db_cache:*', 'degraded', 'disabled', 'error', 'healthy', 'int', 'list[dict[str, Any]]', 'pool_max_size', 'pool_size', 'postgresql', 'query', 'status', 'str | None', 'table_name', 'test_query_result', 'unhealthy', 'Кэш инвалидирован', 'Кэш найден', 'Нет подключения к БД', 'Ошибка закрытия пула', 'Уже подключено к БД']

@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\core\circuit_breaker.py
+# hypothesis_version: 6.151.9
+
+[0.0, 'T', 'closed', 'failure_count', 'failure_threshold', 'half_open', 'last_failure_time', 'name', 'open', 'recovery_timeout', 'state', 'success_count']

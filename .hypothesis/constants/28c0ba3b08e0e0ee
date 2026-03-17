@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\config\providers.py
+# hypothesis_version: 6.151.9
+
+[30.0, 200, 403, 404, '#', ',', '.', '.env.infisical', '.infisical', '/', '/staging/crypto', '=', 'Authorization', 'BINANCE_API_KEY', 'BINANCE_API_SECRET', 'BYBIT_API_KEY', 'BYBIT_API_SECRET', 'CT_', 'Content-Type', 'INFISICAL_CLIENT_ID', 'INFISICAL_PROJECT_ID', 'INFISICAL_TOKEN', 'INFISICAL_URL', 'OKX_API_KEY', 'OKX_API_SECRET', 'OKX_PASSPHRASE', 'TELEGRAM_BOT_TOKEN', '[', '_last_source', 'accessToken', 'application/json', 'clientId', 'clientSecret', 'credentials', 'default', 'development', 'environment', 'false', 'secret', 'secretPath', 'secretValue', 'token', 'true', 'utf-8', 'utf-8-sig', 'workspaceId', '{']

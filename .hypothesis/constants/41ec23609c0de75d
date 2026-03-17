@@ -1,0 +1,4 @@
+# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\config\models.py
+# hypothesis_version: 6.151.9
+
+[1200, '0.001', '0.005', '0.01', '0.02', '0.03', '0.05', '0.10', '0.20', '0.30', '0.5', '0.50', '0.7', '1.0', '1.0.0', 'BTC/USDT', 'ETH/USDT', 'api_key', 'api_secret', 'base_r_percent', 'bybit', 'correlation_limit', 'enabled', 'environment', 'examples', 'exchanges', 'extra', 'fast_period', 'forbid', 'json_schema_extra', 'max_drawdown_hard', 'max_drawdown_soft', 'max_r_per_trade', 'max_risk_r', 'name', 'orders_per_second', 'params', 'production', 'rate_limits', 'requests_per_minute', 'risk', 'slow_period', 'sma_cross', 'strategies', 'symbols', 'system', 'testnet', 'version', 'Включена ли биржа', 'Имя стратегии', 'Использовать testnet', 'Системные настройки', 'Торговые пары']
