@@ -246,6 +246,155 @@ class InfisicalConfigProvider(IConfigLoader):
 
     DEFAULT_LOCAL_URL = "http://127.0.0.1:8080"
 
+    def _resolve_secret_paths(
+        self,
+        secret_paths: list[str] | None,
+    ) -> list[str]:
+        """
+        Разрешить список путей к секретам.
+
+        Аргументы:
+            secret_paths: Переданный список путей
+
+        Returns:
+            Список путей к секретам
+        """
+        if secret_paths:
+            return secret_paths
+
+        paths_env = os.environ.get("INFISICAL_SECRET_PATHS", "")
+        if paths_env:
+            return [p.strip() for p in paths_env.split(",") if p.strip()]
+
+        # По умолчанию используем один путь для обратной совместимости
+        single_path = os.environ.get("INFISICAL_SECRET_PATH", "/staging/crypto")
+        return [single_path]
+
+    def _resolve_secret_keys(
+        self,
+        secret_keys: list[str] | None,
+    ) -> list[str]:
+        """
+        Разрешить список ключей секретов.
+
+        Аргументы:
+            secret_keys: Переданный список ключей
+
+        Returns:
+            Список имён секретов
+        """
+        if secret_keys:
+            return secret_keys
+
+        keys_env = os.environ.get("INFISICAL_SECRET_KEYS", "")
+        if keys_env:
+            return [k.strip() for k in keys_env.split(",") if k.strip()]
+
+        return []
+
+    def _resolve_credentials(
+        self,
+        use_machine_identity: bool,
+        client_id: str | None,
+        client_secret: str | None,
+        token: str | None,
+        fallback_to_env: bool,
+    ) -> None:
+        """
+        Разрешить и валидировать credentials для аутентификации.
+
+        Аргументы:
+            use_machine_identity: Использовать Machine Identity
+            client_id: Client ID
+            client_secret: Client Secret
+            token: Токен доступа
+            fallback_to_env: Fallback на .env файл
+
+        Raises:
+            ValueError: При отсутствии необходимых credentials
+        """
+        # Проверяем Machine Identity
+        if use_machine_identity or client_id:
+            self._resolve_machine_identity_credentials(client_id, client_secret)
+        else:
+            self._resolve_token_credentials(token, fallback_to_env)
+
+    def _resolve_machine_identity_credentials(
+        self,
+        client_id: str | None,
+        client_secret: str | None,
+    ) -> None:
+        """
+        Разрешить и валидировать Machine Identity credentials.
+
+        Raises:
+            ValueError: При отсутствии обязательных параметров
+        """
+        self._client_id = client_id or os.environ.get("INFISICAL_CLIENT_ID")
+        self._client_secret = client_secret or os.environ.get("INFISICAL_CLIENT_SECRET")
+
+        # Валидация обязательных параметров для Machine Identity
+        if not self._client_id:
+            raise ValueError(
+                "INFISICAL_CLIENT_ID не установлен. Укажите client_id или "
+                "установите переменную окружения INFISICAL_CLIENT_ID."
+            )
+        if not self._client_secret:
+            raise ValueError(
+                "INFISICAL_CLIENT_SECRET не установлен. Укажите client_secret или "
+                "установите переменную окружения INFISICAL_CLIENT_SECRET."
+            )
+
+        # Валидация project_id для Machine Identity
+        if not self._project_id:
+            raise ValueError(
+                "INFISICAL_PROJECT_ID не установлен. Укажите project_id или "
+                "установите переменную окружения INFISICAL_PROJECT_ID."
+            )
+
+        logger.debug(
+            "Machine Identity настроен: client_id=%s, project_id=%s, paths=%s",
+            self._client_id[:8] + "..." if self._client_id else None,
+            self._project_id,
+            self._secret_paths,
+        )
+
+        # Always load from .env.infisical to get secret keys and paths
+        self._load_token_from_env_file()
+
+        self._token = None  # Will be fetched dynamically
+
+    def _resolve_token_credentials(
+        self,
+        token: str | None,
+        fallback_to_env: bool,
+    ) -> None:
+        """
+        Разрешить token-based credentials.
+
+        Args:
+            token: Переданный токен
+            fallback_to_env: Fallback на .env файл
+
+        Raises:
+            ValueError: При отсутствии токена
+        """
+        self._client_id = None
+        self._client_secret = None
+
+        # Token-based auth
+        self._token = token or os.environ.get("INFISICAL_TOKEN")
+
+        if not self._token and fallback_to_env:
+            # Fallback to .env - load from .env.infisical
+            self._token = self._load_token_from_env_file()
+
+        if not self._token and not (self._client_id and self._client_secret):
+            raise ValueError(
+                "INFISICAL_TOKEN не установлен и не найден в .env.infisical. "
+                "Запустите scripts/setup_infisical.ps1 для инициализации."
+            )
+
     def __init__(
         self,
         token: str | None = None,
@@ -283,86 +432,24 @@ class InfisicalConfigProvider(IConfigLoader):
         self._cached_secrets: dict[str, Any] | None = None
         self._use_machine_identity = use_machine_identity
         self._fallback_to_env = fallback_to_env
-        self._secret_keys: list[str] = []
 
-        # Поддержка нескольких путей к секретам
-        # Можно передать список или получить из переменной окружения через запятую
-        if secret_paths:
-            self._secret_paths = secret_paths
-        else:
-            paths_env = os.environ.get("INFISICAL_SECRET_PATHS", "")
-            if paths_env:
-                self._secret_paths = [p.strip() for p in paths_env.split(",") if p.strip()]
-            else:
-                # По умолчанию используем один путь для обратной совместимости
-                single_path = os.environ.get("INFISICAL_SECRET_PATH", "/staging/crypto")
-                self._secret_paths = [single_path]
+        # Разрешаем пути к секретам
+        self._secret_paths = self._resolve_secret_paths(secret_paths)
 
-        # Поддержка списка ключей секретов
-        # Можно передать напрямую или получить из переменной окружения
-        if secret_keys:
-            self._secret_keys = secret_keys
-        else:
-            self._secret_keys = []
+        # Разрешаем ключи секретов
+        self._secret_keys = self._resolve_secret_keys(secret_keys)
 
         # Determine Infisical URL (local or cloud)
         self._infisical_url = local_url or os.environ.get("INFISICAL_URL", self.DEFAULT_LOCAL_URL)
 
-        # Get credentials
-        if use_machine_identity or client_id:
-            # Machine Identity - используем Client ID/Secret
-            self._client_id = client_id or os.environ.get("INFISICAL_CLIENT_ID")
-            self._client_secret = client_secret or os.environ.get("INFISICAL_CLIENT_SECRET")
-
-            # Валидация обязательных параметров для Machine Identity
-            if not self._client_id:
-                raise ValueError(
-                    "INFISICAL_CLIENT_ID не установлен. Укажите client_id или "
-                    "установите переменную окружения INFISICAL_CLIENT_ID."
-                )
-            if not self._client_secret:
-                raise ValueError(
-                    "INFISICAL_CLIENT_SECRET не установлен. Укажите client_secret или "
-                    "установите переменную окружения INFISICAL_CLIENT_SECRET."
-                )
-
-            # Валидация project_id для Machine Identity
-            if not self._project_id:
-                raise ValueError(
-                    "INFISICAL_PROJECT_ID не установлен. Укажите project_id или "
-                    "установите переменную окружения INFISICAL_PROJECT_ID."
-                )
-
-            logger.debug(
-                "Machine Identity настроен: client_id=%s, project_id=%s, paths=%s",
-                self._client_id[:8] + "..." if self._client_id else None,
-                self._project_id,
-                self._secret_paths,
-            )
-
-            # Always load from .env.infisical to get secret keys and paths
-            self._load_token_from_env_file()
-
-            self._token = None  # Will be fetched dynamically
-        else:
-            self._client_id = None
-            self._client_secret = None
-            # Token-based auth
-            if use_machine_identity:
-                # Machine Identity - читается из файла
-                self._token = self._load_machine_identity_token()
-            else:
-                self._token = token or os.environ.get("INFISICAL_TOKEN")
-
-            if not self._token and fallback_to_env:
-                # Fallback to .env - load from .env.infisical
-                self._token = self._load_token_from_env_file()
-
-            if not self._token and not (self._client_id and self._client_secret):
-                raise ValueError(
-                    "INFISICAL_TOKEN не установлен и не найден в .env.infisical. "
-                    "Запустите scripts/setup_infisical.ps1 для инициализации."
-                )
+        # Разрешаем и валидируем credentials
+        self._resolve_credentials(
+            use_machine_identity=use_machine_identity,
+            client_id=client_id,
+            client_secret=client_secret,
+            token=token,
+            fallback_to_env=fallback_to_env,
+        )
 
     def _load_machine_identity_token(self) -> str | None:
         """

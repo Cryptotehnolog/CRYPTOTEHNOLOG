@@ -15,8 +15,11 @@ import json
 import os
 from pathlib import Path
 import tempfile
-from typing import Iterator
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 import pytest
 
@@ -31,7 +34,7 @@ class TestFileConfigProvider:
     """Тесты для FileConfigProvider."""
 
     @pytest.fixture
-    def temp_dir(self) -> Iterator[Path]:
+    def temp_dir(self) -> "Iterator[Path]":
         """Создать временную директорию."""
         with tempfile.TemporaryDirectory() as tmpdir:
             yield Path(tmpdir)
