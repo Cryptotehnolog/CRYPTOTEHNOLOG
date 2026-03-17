@@ -1,4 +1,0 @@
-# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\core\system_controller.py
-# hypothesis_version: 6.151.9
-
-[5.0, 30.0, 1000, '=', 'OK', 'SHUTDOWN НАЧАТ', 'STARTUP НАЧАТ', 'Unhealthy', '_pool', 'circuit_breakers', 'close', 'closing_connections', 'completed', 'connect', 'connecting_database', 'connecting_redis', 'database', 'disconnect', 'failed', 'graceful_shutdown', 'health_check', 'health_checks', 'initialize', 'initializing', 'initiated', 'is_healthy', 'loading_config', 'not_shutting_down', 'not_started', 'ping', 'pool', 'ready', 'reason', 'redis', 'saving_state', 'start', 'state_machine', 'stop', 'stopping_components', 'timestamp', 'Компонент остановлен', 'Компонент удалён', 'Откат startup', 'Ошибка закрытия БД', 'Система не запущена', 'Система уже запущена', 'Состояние сохранено']

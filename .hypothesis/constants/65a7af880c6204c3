@@ -1,4 +1,0 @@
-# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\core\enhanced_event_bus.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.5, 0.7, 0.8, 0.9, 1.0, 5.0, 30.0, 100, 500, 1024, 10000, 50000, 100000, '*', '+', '0-0', 'Listeners disabled', 'Rate limit обновлён', 'Rate limit превышен', '__name__', 'block_critical', 'bus_metrics', 'delivered', 'drop_low', 'drop_normal', 'dropped', 'dropped_by_priority', 'enable_persistence', 'event', 'events', 'global_limit', 'global_rate', 'overflow_normal', 'persisted', 'published', 'queue_capacities', 'queue_metrics', 'queue_sizes', 'rate_limit', 'rate_limited', 'rate_limiter_metrics', 'source_limits', 'source_rates', 'subscriber_count', 'total_popped', 'total_pushed', 'Ошибка в listener', 'Подписчик удалён', 'Событие опубликовано']

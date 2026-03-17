@@ -1,4 +1,0 @@
-# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\backtest\examples.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.001, 0.01, 0.1, 0.5, 1.0, 10000.0, 100, 1000, 5000, 10000, 42000, './backtest_results', '1s', '2024-01-01', 'BTCUSDT', '__main__', 'ask', 'balance', 'bid', 'csv', 'dataframe', 'entry_price', 'float', 'last', 'size', 'symbol', 'timestamp', 'volume']

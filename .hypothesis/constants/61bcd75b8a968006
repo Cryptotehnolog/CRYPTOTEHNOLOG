@@ -1,4 +1,0 @@
-# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\config\validators\pydantic_validator.py
-# hypothesis_version: 6.151.9
-
-[100, '.', 'SystemConfig', 'T', 'input', 'loc', 'msg', 'type', 'type_error', 'unknown', 'Неизвестная ошибка']

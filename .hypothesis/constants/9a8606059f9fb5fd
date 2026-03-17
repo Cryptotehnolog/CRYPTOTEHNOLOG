@@ -1,4 +1,0 @@
-# file: D:\CRYPTOTEHNOLOG\src\core\listeners\state_machine.py
-# hypothesis_version: 6.151.9
-
-[100, 'ERROR', 'HEALTH_CHECK_FAILED', 'INFO', 'STATE_TRANSITION', 'SYSTEM_BOOT', 'SYSTEM_HALT', 'SYSTEM_READY', 'SYSTEM_SHUTDOWN', 'WARNING', 'WATCHDOG_ALERT', 'alert', 'circuit_breaker', 'closed', 'component', 'duration_ms', 'from_state', 'main', 'message', 'open', 'operator', 'reason', 'status', 'system', 'to_state', 'trigger', 'unhealthy', 'unknown', 'watchdog']

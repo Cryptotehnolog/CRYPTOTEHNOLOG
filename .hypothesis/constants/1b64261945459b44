@@ -1,4 +1,0 @@
-# file: d:\CRYPTOTEHNOLOG\src\core\health.py
-# hypothesis_version: 6.151.9
-
-[0.0, 1.0, 5.0, 30.0, 60.0, 1000, '1.1.0', 'Event Bus доступен', 'EventBus не настроен', 'component', 'components', 'connected', 'degraded', 'details', 'enabled', 'error', 'event_bus', 'get_metrics', 'healthy', 'latency_ms', 'max_connections', 'message', 'metrics', 'metrics_count', 'overall_status', 'pool_max_size', 'pool_size', 'postgresql', 'publish', 'redis', 'status', 'timestamp', 'unhealthy', 'unknown', 'version', 'Неизвестная ошибка', 'Проверка завершена']
