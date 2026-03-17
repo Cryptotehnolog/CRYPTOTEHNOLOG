@@ -342,9 +342,9 @@ class TestEventBusLoad:
                 subscriber.get_nowait()
                 delivered += 1
 
-            assert delivered == event_count, (
-                f"Subscriber {i} получил {delivered} событий, ожидалось {event_count}"
-            )
+            assert (
+                delivered == event_count
+            ), f"Subscriber {i} получил {delivered} событий, ожидалось {event_count}"
 
         logger.info(
             "Тест множественных подписчиков",
@@ -570,9 +570,9 @@ class TestEventBusRealWorldScenarios:
                 subscriber.get_nowait()
                 received += 1
 
-            assert received == total_events, (
-                f"{name} subscriber получил {received}, ожидалось {total_events}"
-            )
+            assert (
+                received == total_events
+            ), f"{name} subscriber получил {received}, ожидалось {total_events}"
 
         logger.info(
             "Симуляция торговых событий",
