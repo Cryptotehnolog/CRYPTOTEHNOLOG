@@ -23,6 +23,7 @@ from cryptotechnolog.config.protocols import IConfigLoader
 
 # Константы для HTTP статус-кодов
 HTTP_NOT_FOUND = 404
+HTTP_FORBIDDEN = 403
 HTTP_OK = 200
 
 
@@ -277,7 +278,7 @@ class InfisicalConfigProvider(IConfigLoader):
         self._use_machine_identity = use_machine_identity
         self._fallback_to_env = fallback_to_env
         self._secret_keys: list[str] = []
-        
+
         # Поддержка нескольких путей к секретам
         # Можно передать список или получить из переменной окружения через запятую
         if secret_paths:
@@ -299,10 +300,10 @@ class InfisicalConfigProvider(IConfigLoader):
             # Machine Identity - используем Client ID/Secret
             self._client_id = client_id or os.environ.get("INFISICAL_CLIENT_ID")
             self._client_secret = client_secret or os.environ.get("INFISICAL_CLIENT_SECRET")
-            
+
             # Always load from .env.infisical to get secret keys and paths
             self._load_token_from_env_file()
-            
+
             self._token = None  # Will be fetched dynamically
         else:
             self._client_id = None
@@ -380,7 +381,7 @@ class InfisicalConfigProvider(IConfigLoader):
         if "INFISICAL_SECRET_PATHS" in env_vars:
             paths = env_vars["INFISICAL_SECRET_PATHS"]
             self._secret_paths = [p.strip() for p in paths.split(",") if p.strip()]
-        
+
         # Load secret keys
         if "INFISICAL_SECRET_KEYS" in env_vars:
             keys = env_vars["INFISICAL_SECRET_KEYS"]
@@ -434,31 +435,31 @@ class InfisicalConfigProvider(IConfigLoader):
         # If using Machine Identity with Client ID/Secret, get token first
         if self._client_id and self._client_secret and not self._token:
             await self._authenticate_machine_identity()
-        
+
         secrets: dict[str, Any] = {}
-        
+
         # Получаем секреты из каждого пути
         for secret_path in self._secret_paths:
             path_secrets = await self._fetch_secrets_from_path(secret_path)
             secrets.update(path_secrets)
-        
+
         return secrets
 
     async def _fetch_secrets_from_path(self, secret_path: str) -> dict[str, Any]:
         """
         Получить секреты из указанного пути.
-        
+
         Args:
             secret_path: Путь к папке с секретами (например /staging/crypto)
-            
+
         Returns:
             Словарь с секретами из этого пути
         """
         # Определяем список ключей которые нужно получить
         secret_keys = self._get_secret_keys()
-        
+
         secrets: dict[str, Any] = {}
-        
+
         # Infisical API v3: получаем каждый секрет отдельно
         for key in secret_keys:
             try:
@@ -468,85 +469,85 @@ class InfisicalConfigProvider(IConfigLoader):
             except Exception:
                 # Пропускаем секрет который не найден
                 continue
-        
+
         return secrets
 
     def _get_secret_keys(self) -> list[str]:
         """
         Получить список ключей секретов для загрузки.
-        
+
         Returns:
             Список имён секретов
         """
         # Если ключи уже загружены из .env.infisical - используем их
         if self._secret_keys:
             return self._secret_keys
-        
+
         # Иначе пробуем из переменной окружения
         keys_env = os.environ.get("INFISICAL_SECRET_KEYS", "")
         if keys_env:
             return [k.strip() for k in keys_env.split(",") if k.strip()]
-        
+
         # Если не указано - возвращаем пустой список
         return []
 
     async def _fetch_single_secret(self, key: str, secret_path: str = "/") -> str | None:
         """
         Получить один секрет по имени.
-        
+
         Args:
             key: Имя секрета
             secret_path: Путь к папке с секретами
-            
+
         Returns:
             Значение секрета или None если не найден
         """
         base_url = self._infisical_url
-        
+
         # Используем endpoint для получения конкретного секрета
         url = f"{base_url}/api/v3/secrets/raw/{key}"
-        
+
         params = {
             "workspaceId": self._project_id,
             "environment": self._environment,
         }
-        
+
         # Add path if specified (for folder-based secrets)
         if secret_path:
             params["secretPath"] = secret_path
-        
+
         headers = {
             "Authorization": f"Bearer {self._token}",
             "Content-Type": "application/json",
         }
-        
+
         try:
             if self._http_client:
                 response = await self._http_client.get(url, headers=headers, params=params)
             else:
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.get(url, headers=headers, params=params)
-            
+
             if response.status_code == HTTP_NOT_FOUND:
                 # Секрет не найден - это нормально
                 return None
-            
-            if response.status_code == 403:
+
+            if response.status_code == HTTP_FORBIDDEN:
                 # Нет доступа к секрету
                 return None
-            
+
             if response.status_code != HTTP_OK:
                 # Другая ошибка - логируем но продолжаем
                 return None
-            
+
             data = response.json()
-            
+
             # Извлекаем значение из ответа
             if "secret" in data:
                 return data["secret"].get("secretValue", "")
-            
+
             return None
-            
+
         except httpx.RequestError:
             return None
 
