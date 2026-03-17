@@ -8,10 +8,10 @@
 """
 
 from pathlib import Path
+import subprocess
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-import subprocess
 
 from cryptotechnolog.config.signers import GPGSigner, SignatureError
 
