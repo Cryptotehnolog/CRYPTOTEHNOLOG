@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import subprocess
 
-from cryptotechnolog.config.signers import GPGSigner, SignatureError, SubprocessRunner
+from cryptotechnolog.config.signers import GPGSigner, SignatureError
 
 
 class TestGPGSigner:
