@@ -104,7 +104,9 @@ class TestInfisicalConfigProvider:
 
     def test_missing_credentials_raises_error(self) -> None:
         """Тест ошибки при отсутствии INFISICAL_TOKEN и без Machine Identity."""
+        # Мокаем отсутствие файла .env.infisical
         with (
+            patch("pathlib.Path.exists", return_value=False),
             patch.dict(os.environ, {}, clear=True),
             pytest.raises(ValueError, match="INFISICAL_TOKEN"),
         ):
@@ -148,20 +150,24 @@ class TestInfisicalConfigProvider:
 
     def test_machine_identity_valid_credentials(self) -> None:
         """Тест успешной инициализации с Machine Identity."""
-        env = {
-            "INFISICAL_CLIENT_ID": "test_client_id",
-            "INFISICAL_CLIENT_SECRET": "test_secret",
-            "INFISICAL_PROJECT_ID": "test_project",
-            "INFISICAL_SECRET_KEYS": "API_KEY,API_SECRET",
-        }
-        with patch.dict(os.environ, env, clear=True):
+        # Мокаем чтобы не читать реальный .env.infisical
+        with (
+            patch("pathlib.Path.exists", return_value=False),
+            patch.dict(os.environ, {
+                "INFISICAL_CLIENT_ID": "test_client_id",
+                "INFISICAL_CLIENT_SECRET": "test_secret",
+                "INFISICAL_PROJECT_ID": "test_project",
+            }, clear=True),
+        ):
             provider = InfisicalConfigProvider(
                 use_machine_identity=True,
-                secret_paths=["/staging/crypto"]
+                secret_paths=["/staging/crypto"],
+                secret_keys=["API_KEY", "API_SECRET"],
             )
             assert provider._client_id == "test_client_id"
             assert provider._client_secret == "test_secret"
             assert provider._project_id == "test_project"
+            assert provider._secret_paths == ["/staging/crypto"]
             assert provider._secret_keys == ["API_KEY", "API_SECRET"]
 
     @pytest.mark.asyncio

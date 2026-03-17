@@ -258,6 +258,7 @@ class InfisicalConfigProvider(IConfigLoader):
         local_url: str | None = None,
         fallback_to_env: bool = True,
         secret_paths: list[str] | None = None,
+        secret_keys: list[str] | None = None,
     ) -> None:
         """
         Инициализировать провайдер.
@@ -273,6 +274,7 @@ class InfisicalConfigProvider(IConfigLoader):
             local_url: URL локального Infisical (по умолчанию http://127.0.0.1:8080)
             fallback_to_env: Использовать .env если Infisical недоступен
             secret_paths: Список путей к папкам с секретами (например: ["/production/crypto", "/staging/telegram"])
+            secret_keys: Список имён секретов для загрузки (например: ["API_KEY", "API_SECRET"])
         """
         self._project_id = project_id or os.environ.get("INFISICAL_PROJECT_ID")
         self._environment = environment
@@ -295,6 +297,13 @@ class InfisicalConfigProvider(IConfigLoader):
                 # По умолчанию используем один путь для обратной совместимости
                 single_path = os.environ.get("INFISICAL_SECRET_PATH", "/staging/crypto")
                 self._secret_paths = [single_path]
+
+        # Поддержка списка ключей секретов
+        # Можно передать напрямую или получить из переменной окружения
+        if secret_keys:
+            self._secret_keys = secret_keys
+        else:
+            self._secret_keys = []
 
         # Determine Infisical URL (local or cloud)
         self._infisical_url = local_url or os.environ.get("INFISICAL_URL", self.DEFAULT_LOCAL_URL)
