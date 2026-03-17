@@ -76,7 +76,7 @@ async def ensure_test_database() -> None:
         if not db_exists:
             # Create database
             await conn.execute(
-                f"CREATE DATABASE {settings.postgres_test_db} " f"OWNER {settings.postgres_user}"
+                f"CREATE DATABASE {settings.postgres_test_db} OWNER {settings.postgres_user}"
             )
             logging.info(f"Created test database: {settings.postgres_test_db}")
         else:
