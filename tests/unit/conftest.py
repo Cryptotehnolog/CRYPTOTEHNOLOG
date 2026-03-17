@@ -2,12 +2,13 @@
 # Minimal conftest for unit tests - no database required
 
 import asyncio
-import logging
 import os
 import sys
 from typing import TYPE_CHECKING
 
 import pytest
+
+from cryptotechnolog.config.settings import Settings
 
 # Windows asyncio fix
 if sys.platform == "win32":
@@ -60,6 +61,4 @@ def test_env(monkeypatch: pytest.MonkeyPatch) -> "Generator[dict[str, str], None
 @pytest.fixture
 def test_settings(test_env: dict[str, str]):
     """Return test settings instance."""
-    from cryptotechnolog.config.settings import Settings
-
     return Settings()
