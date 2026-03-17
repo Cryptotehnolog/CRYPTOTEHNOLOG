@@ -12,13 +12,18 @@ Unit тесты для Enhanced Event Bus.
 from __future__ import annotations
 
 import asyncio
+from asyncio import Queue
+import contextlib
 import uuid
 
 import pytest
 
 from cryptotechnolog.core.enhanced_event_bus import (
+    AsyncEventReceiver,
     BackpressureStrategy,
     EnhancedEventBus,
+    PersistenceError,
+    PersistenceLayer,
     PriorityQueue,
     PublishError,
     RateLimiter,
@@ -654,8 +659,6 @@ class TestPersistenceLayer:
     @pytest.mark.asyncio
     async def test_persistence_layer_init(self) -> None:
         """Тест инициализации PersistenceLayer (строки 405-410)."""
-        from cryptotechnolog.core.enhanced_event_bus import PersistenceLayer
-
         layer = PersistenceLayer("redis://localhost:6379")
         assert layer.redis_url == "redis://localhost:6379"
         assert layer.redis is None
@@ -665,8 +668,6 @@ class TestPersistenceLayer:
     @pytest.mark.asyncio
     async def test_persistence_layer_save_event_with_connection(self) -> None:
         """Тест сохранения события с подключением (строки 440-441)."""
-        from cryptotechnolog.core.enhanced_event_bus import PersistenceLayer
-
         layer = PersistenceLayer("redis://localhost:6379")
         event = Event.new("TEST", "SRC", {"data": 42})
         event.priority = Priority.NORMAL
@@ -678,8 +679,6 @@ class TestPersistenceLayer:
     @pytest.mark.asyncio
     async def test_persistence_layer_save_batch_empty(self) -> None:
         """Тест сохранения пустого батча (строки 480-481)."""
-        from cryptotechnolog.core.enhanced_event_bus import PersistenceLayer
-
         layer = PersistenceLayer("redis://localhost:6379")
         result = await layer.save_batch([])
         assert result == []
@@ -687,8 +686,6 @@ class TestPersistenceLayer:
     @pytest.mark.asyncio
     async def test_persistence_layer_get_stream_length_with_connection(self) -> None:
         """Тест получения длины stream с подключением (строки 544-545)."""
-        from cryptotechnolog.core.enhanced_event_bus import PersistenceLayer
-
         layer = PersistenceLayer("redis://localhost:6379")
 
         # С подключением должно работать
@@ -698,8 +695,6 @@ class TestPersistenceLayer:
     @pytest.mark.asyncio
     async def test_persistence_layer_replay(self) -> None:
         """Тест replay событий (строки 507-540)."""
-        from cryptotechnolog.core.enhanced_event_bus import PersistenceLayer
-
         layer = PersistenceLayer("redis://localhost:6379")
 
         # Сохраняем событие
@@ -714,8 +709,6 @@ class TestPersistenceLayer:
     @pytest.mark.asyncio
     async def test_persistence_layer_disconnect(self) -> None:
         """Тест отключения от Redis (строки 423-428)."""
-        from cryptotechnolog.core.enhanced_event_bus import PersistenceLayer
-
         layer = PersistenceLayer("redis://localhost:6379")
         await layer.connect()
         assert layer.redis is not None
@@ -745,8 +738,6 @@ class TestEnhancedEventBusPersistence:
     async def test_replay_without_persistence(self) -> None:
         """Тест replay без включенного persistence (строки 1055-1056)."""
         bus = EnhancedEventBus(enable_persistence=False)
-
-        from cryptotechnolog.core.enhanced_event_bus import PersistenceError
 
         with pytest.raises(PersistenceError):
             await bus.replay(Priority.NORMAL)
@@ -917,10 +908,8 @@ class TestBackpressureStrategies:
         # Второе событие должно заблокироваться или отклониться
         event2 = Event.new("TEST", "SRC", {"i": 2})
         event2.priority = Priority.CRITICAL
-        try:
+        with contextlib.suppress(Exception):
             await bus.publish(event2)
-        except Exception:
-            pass  # Ожидаем ошибку или успех
 
 
 class TestAsyncEventReceiverEdgeCases:
@@ -929,9 +918,6 @@ class TestAsyncEventReceiverEdgeCases:
     @pytest.mark.asyncio
     async def test_try_recv_when_closed(self) -> None:
         """Тест try_recv когда receiver закрыт (строка 128)."""
-        from cryptotechnolog.core.enhanced_event_bus import AsyncEventReceiver
-        from asyncio import Queue
-
         bus = EnhancedEventBus(enable_persistence=False)
         queue: Queue[Event | None] = Queue()
         receiver = AsyncEventReceiver(queue, bus)
@@ -946,9 +932,6 @@ class TestAsyncEventReceiverEdgeCases:
     @pytest.mark.asyncio
     async def test_recv_timeout_when_closed(self) -> None:
         """Тест recv_timeout когда receiver закрыт (строка 145)."""
-        from cryptotechnolog.core.enhanced_event_bus import AsyncEventReceiver
-        from asyncio import Queue
-
         bus = EnhancedEventBus(enable_persistence=False)
         queue: Queue[Event | None] = Queue()
         receiver = AsyncEventReceiver(queue, bus)
