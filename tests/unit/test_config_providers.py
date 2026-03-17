@@ -15,7 +15,8 @@ import json
 import os
 from pathlib import Path
 import tempfile
-from unittest.mock import patch
+from typing import Generator
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -30,7 +31,7 @@ class TestFileConfigProvider:
     """Тесты для FileConfigProvider."""
 
     @pytest.fixture
-    def temp_dir(self) -> Path:
+    def temp_dir(self) -> Generator[Path, None, None]:
         """Создать временную директорию."""
         with tempfile.TemporaryDirectory() as tmpdir:
             yield Path(tmpdir)
@@ -101,27 +102,189 @@ class TestFileConfigProvider:
 class TestInfisicalConfigProvider:
     """Тесты для InfisicalConfigProvider."""
 
-    def test_missing_token(self) -> None:
-        """Тест ошибки при отсутствии INFISICAL_TOKEN."""
+    def test_missing_credentials_raises_error(self) -> None:
+        """Тест ошибки при отсутствии INFISICAL_TOKEN и без Machine Identity."""
         with (
             patch.dict(os.environ, {}, clear=True),
             pytest.raises(ValueError, match="INFISICAL_TOKEN"),
         ):
             InfisicalConfigProvider()
 
+    def test_machine_identity_missing_client_id(self) -> None:
+        """Тест ошибки при использовании Machine Identity без client_id."""
+        env = {
+            "INFISICAL_CLIENT_SECRET": "test_secret",
+            "INFISICAL_PROJECT_ID": "test_project",
+        }
+        with (
+            patch.dict(os.environ, env, clear=True),
+            pytest.raises(ValueError, match="INFISICAL_CLIENT_ID"),
+        ):
+            InfisicalConfigProvider(use_machine_identity=True)
+
+    def test_machine_identity_missing_client_secret(self) -> None:
+        """Тест ошибки при использовании Machine Identity без client_secret."""
+        env = {
+            "INFISICAL_CLIENT_ID": "test_client_id",
+            "INFISICAL_PROJECT_ID": "test_project",
+        }
+        with (
+            patch.dict(os.environ, env, clear=True),
+            pytest.raises(ValueError, match="INFISICAL_CLIENT_SECRET"),
+        ):
+            InfisicalConfigProvider(use_machine_identity=True)
+
+    def test_machine_identity_missing_project_id(self) -> None:
+        """Тест ошибки при использовании Machine Identity без project_id."""
+        env = {
+            "INFISICAL_CLIENT_ID": "test_client_id",
+            "INFISICAL_CLIENT_SECRET": "test_secret",
+        }
+        with (
+            patch.dict(os.environ, env, clear=True),
+            pytest.raises(ValueError, match="INFISICAL_PROJECT_ID"),
+        ):
+            InfisicalConfigProvider(use_machine_identity=True)
+
+    def test_machine_identity_valid_credentials(self) -> None:
+        """Тест успешной инициализации с Machine Identity."""
+        env = {
+            "INFISICAL_CLIENT_ID": "test_client_id",
+            "INFISICAL_CLIENT_SECRET": "test_secret",
+            "INFISICAL_PROJECT_ID": "test_project",
+            "INFISICAL_SECRET_KEYS": "API_KEY,API_SECRET",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            provider = InfisicalConfigProvider(
+                use_machine_identity=True,
+                secret_paths=["/staging/crypto"]
+            )
+            assert provider._client_id == "test_client_id"
+            assert provider._client_secret == "test_secret"
+            assert provider._project_id == "test_project"
+            assert provider._secret_keys == ["API_KEY", "API_SECRET"]
+
     @pytest.mark.asyncio
-    async def test_load_secrets(self) -> None:
-        """Тест загрузки секретов."""
+    async def test_load_secrets_with_token(self) -> None:
+        """Тест загрузки секретов с токеном."""
         with patch.dict(
             os.environ,
             {"INFISICAL_TOKEN": "test_token", "INFISICAL_PROJECT_ID": "test_project"},
         ):
             provider = InfisicalConfigProvider()
 
-            # Note: В реальном тесте нужно мокать HTTP клиент
-            # Здесь просто проверяем что провайдер создаётся
             assert provider._token == "test_token"
             assert provider._project_id == "test_project"
+
+    @pytest.mark.asyncio
+    async def test_fetch_single_secret_success(self) -> None:
+        """Тест успешного получения одного секрета."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "secret": {"secretValue": "my_secret_value"}
+        }
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        with patch.dict(
+            os.environ,
+            {
+                "INFISICAL_TOKEN": "test_token",
+                "INFISICAL_PROJECT_ID": "test_project",
+                "INFISICAL_SECRET_KEYS": "API_KEY",
+            },
+        ):
+            provider = InfisicalConfigProvider(
+                http_client=mock_client,
+                environment="development"
+            )
+            result = await provider._fetch_single_secret("API_KEY", "/staging/crypto")
+
+            assert result == "my_secret_value"
+            mock_client.get.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_fetch_single_secret_not_found(self) -> None:
+        """Тест получения несуществующего секрета."""
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        with patch.dict(
+            os.environ,
+            {
+                "INFISICAL_TOKEN": "test_token",
+                "INFISICAL_PROJECT_ID": "test_project",
+                "INFISICAL_SECRET_KEYS": "NONEXISTENT_KEY",
+            },
+        ):
+            provider = InfisicalConfigProvider(
+                http_client=mock_client,
+                environment="development"
+            )
+            result = await provider._fetch_single_secret("NONEXISTENT_KEY", "/staging/crypto")
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_authenticate_machine_identity_success(self) -> None:
+        """Тест успешной аутентификации Machine Identity."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"accessToken": "test_access_token"}
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch.dict(
+            os.environ,
+            {
+                "INFISICAL_CLIENT_ID": "test_client_id",
+                "INFISICAL_CLIENT_SECRET": "test_secret",
+                "INFISICAL_PROJECT_ID": "test_project",
+            },
+        ):
+            provider = InfisicalConfigProvider(
+                http_client=mock_client,
+                use_machine_identity=True
+            )
+            await provider._authenticate_machine_identity()
+
+            assert provider._token == "test_access_token"
+
+    @pytest.mark.asyncio
+    async def test_fetch_secrets_from_multiple_paths(self) -> None:
+        """Тест получения секретов из нескольких путей."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "secret": {"secretValue": "secret_value"}
+        }
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        with patch.dict(
+            os.environ,
+            {
+                "INFISICAL_TOKEN": "test_token",
+                "INFISICAL_PROJECT_ID": "test_project",
+                "INFISICAL_SECRET_KEYS": "KEY1,KEY2",
+                "INFISICAL_SECRET_PATHS": "/path1,/path2",
+            },
+        ):
+            provider = InfisicalConfigProvider(
+                http_client=mock_client,
+                environment="development"
+            )
+            secrets = await provider._fetch_secrets()
+
+            # Должно быть 4 вызова (2 ключа x 2 пути)
+            assert mock_client.get.call_count == 4
 
 
 class TestEnvConfigProvider:

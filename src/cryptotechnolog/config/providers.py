@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import configparser
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,9 @@ from cryptotechnolog.config.protocols import IConfigLoader
 HTTP_NOT_FOUND = 404
 HTTP_FORBIDDEN = 403
 HTTP_OK = 200
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
 
 
 class FileConfigProvider(IConfigLoader):
@@ -301,6 +305,32 @@ class InfisicalConfigProvider(IConfigLoader):
             self._client_id = client_id or os.environ.get("INFISICAL_CLIENT_ID")
             self._client_secret = client_secret or os.environ.get("INFISICAL_CLIENT_SECRET")
 
+            # Валидация обязательных параметров для Machine Identity
+            if not self._client_id:
+                raise ValueError(
+                    "INFISICAL_CLIENT_ID не установлен. Укажите client_id или "
+                    "установите переменную окружения INFISICAL_CLIENT_ID."
+                )
+            if not self._client_secret:
+                raise ValueError(
+                    "INFISICAL_CLIENT_SECRET не установлен. Укажите client_secret или "
+                    "установите переменную окружения INFISICAL_CLIENT_SECRET."
+                )
+
+            # Валидация project_id для Machine Identity
+            if not self._project_id:
+                raise ValueError(
+                    "INFISICAL_PROJECT_ID не установлен. Укажите project_id или "
+                    "установите переменную окружения INFISICAL_PROJECT_ID."
+                )
+
+            logger.debug(
+                "Machine Identity настроен: client_id=%s, project_id=%s, paths=%s",
+                self._client_id[:8] + "..." if self._client_id else None,
+                self._project_id,
+                self._secret_paths,
+            )
+
             # Always load from .env.infisical to get secret keys and paths
             self._load_token_from_env_file()
 
@@ -530,14 +560,23 @@ class InfisicalConfigProvider(IConfigLoader):
 
             if response.status_code == HTTP_NOT_FOUND:
                 # Секрет не найден - это нормально
+                logger.debug("Секрет '%s' не найден в path '%s'", key, secret_path)
                 return None
 
             if response.status_code == HTTP_FORBIDDEN:
                 # Нет доступа к секрету
+                logger.warning(
+                    "Нет доступа к секрету '%s' в path '%s': код %d",
+                    key, secret_path, response.status_code
+                )
                 return None
 
             if response.status_code != HTTP_OK:
-                # Другая ошибка - логируем но продолжаем
+                # Другая ошибка - логируем и продолжаем
+                logger.error(
+                    "Ошибка при получении секрета '%s' из path '%s': код %d, тело: %s",
+                    key, secret_path, response.status_code, response.text[:200]
+                )
                 return None
 
             data = response.json()
@@ -548,7 +587,11 @@ class InfisicalConfigProvider(IConfigLoader):
 
             return None
 
-        except httpx.RequestError:
+        except httpx.RequestError as e:
+            logger.error(
+                "Ошибка подключения к Infisical при получении '%s': %s",
+                key, str(e)
+            )
             return None
 
     async def _authenticate_machine_identity(self) -> None:
@@ -559,6 +602,8 @@ class InfisicalConfigProvider(IConfigLoader):
         """
         base_url = self._infisical_url
         url = f"{base_url}/api/v1/auth/universal-auth/login"
+
+        logger.debug("Аутентификация Machine Identity: url=%s", url)
 
         payload = {
             "clientId": self._client_id,
@@ -577,6 +622,10 @@ class InfisicalConfigProvider(IConfigLoader):
                     response = await client.post(url, json=payload, headers=headers)
 
             if response.status_code != HTTP_OK:
+                logger.error(
+                    "Ошибка аутентификации Machine Identity: код=%d, тело=%s",
+                    response.status_code, response.text[:200]
+                )
                 raise OSError(
                     f"Ошибка аутентификации Machine Identity: {response.status_code} - {response.text}"
                 )
@@ -587,7 +636,10 @@ class InfisicalConfigProvider(IConfigLoader):
             if not self._token:
                 raise OSError("Не получен accessToken от Infisical")
 
+            logger.info("Успешная аутентификация Machine Identity для project_id=%s", self._project_id)
+
         except httpx.RequestError as e:
+            logger.error("Ошибка подключения к Infisical: %s", str(e))
             raise OSError(f"Ошибка подключения к Infisical: {e}") from e
 
     def get_url(self) -> str:
