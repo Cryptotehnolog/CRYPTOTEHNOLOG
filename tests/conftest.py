@@ -1,6 +1,8 @@
 # ==================== CRYPTOTEHNOLOG Test Configuration ====================
 # Pytest configuration for unit tests (no DB required by default)
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -12,8 +14,6 @@ import pytest
 import redis.asyncio as redis
 from redis.asyncio import Redis as AsyncRedis
 
-from cryptotechnolog.config.settings import Settings
-
 # Windows asyncio fix
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -21,7 +21,11 @@ if sys.platform == "win32":
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-# Set test environment
+    from cryptotechnolog.config.settings import Settings
+
+# Set test environment before importing project settings.
+# Иначе глобальный Settings() в config/settings.py успевает прочитать внешнее
+# окружение процесса и тесты падают ещё на этапе импорта conftest.
 os.environ["ENVIRONMENT"] = "test"
 os.environ["DEBUG"] = "true"
 
@@ -30,7 +34,7 @@ os.environ["DEBUG"] = "true"
 
 
 @pytest.fixture(scope="function")
-def event_loop() -> "Generator[asyncio.AbstractEventLoop, None, None]":
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Создать новый event loop для каждого теста.
 
     Это предотвращает ошибки 'Event loop is closed' между тестами.
@@ -61,6 +65,8 @@ async def ensure_test_database() -> None:
     when PostgreSQL is not available. Tests that need DB must
     explicitly request this fixture.
     """
+    from cryptotechnolog.config.settings import Settings  # noqa: PLC0415
+
     settings = Settings()
 
     # Skip if no PostgreSQL configured
@@ -108,6 +114,8 @@ async def test_db_setup() -> None:
     with multiple workers, conflicts may occur. For tests with DB,
     use sequential execution (-n 0).
     """
+    from cryptotechnolog.config.settings import Settings  # noqa: PLC0415
+
     settings = Settings()
 
     # Connect to TEST DB
@@ -306,6 +314,8 @@ def db_connection_factory():
         @staticmethod
         async def create() -> asyncpg.Connection:
             """Create new test DB connection."""
+            from cryptotechnolog.config.settings import Settings  # noqa: PLC0415
+
             settings = Settings()
 
             conn = await asyncpg.connect(
@@ -322,7 +332,7 @@ def db_connection_factory():
 
 
 @pytest.fixture
-def test_env(monkeypatch: pytest.MonkeyPatch) -> "Generator[dict[str, str], None, None]":
+def test_env(monkeypatch: pytest.MonkeyPatch) -> Generator[dict[str, str], None, None]:
     """Set test environment."""
     env_vars = {
         "ENVIRONMENT": "test",
@@ -334,7 +344,7 @@ def test_env(monkeypatch: pytest.MonkeyPatch) -> "Generator[dict[str, str], None
 
 
 @pytest.fixture
-def test_settings(test_env: dict[str, str]) -> "Settings":
+def test_settings(test_env: dict[str, str]) -> Settings:
     """Return test settings instance."""
     from cryptotechnolog.config.settings import Settings  # noqa: PLC0415
 
@@ -360,6 +370,8 @@ async def redis_clean_state() -> None:
 
     Executes once before all tests in session.
     """
+    from cryptotechnolog.config.settings import Settings  # noqa: PLC0415
+
     settings = Settings()
     client = redis.from_url(
         settings.redis_url,
@@ -388,6 +400,8 @@ def redis_client_factory():
         async def create() -> AsyncRedis:
             """Create new async Redis client."""
             try:
+                from cryptotechnolog.config.settings import Settings  # noqa: PLC0415
+
                 settings = Settings()
                 logger.debug(f"Creating Redis client for URL: {settings.redis_url}")
 
