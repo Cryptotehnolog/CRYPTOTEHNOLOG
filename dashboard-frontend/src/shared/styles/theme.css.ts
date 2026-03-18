@@ -1,0 +1,65 @@
+import { createGlobalTheme } from "@vanilla-extract/css";
+
+export const vars = createGlobalTheme(":root", {
+  color: {
+    canvas: "#f3f1eb",
+    surface: "#fbfaf7",
+    surfaceSidebar: "#ebe6d8",
+    surfaceInteractive: "#f0ece0",
+    border: "#d3cbbb",
+    borderStrong: "#8a7d67",
+    textPrimary: "#1f2430",
+    textMuted: "#646b73",
+    textInverse: "#f8f6f0",
+    accent: "#0c6d62",
+    accentSoft: "#d9efeb",
+    warning: "#b56a10",
+    warningSoft: "#f7e6cf",
+    danger: "#aa2f2f",
+    dangerSoft: "#f9dddd",
+    neutral: "#4f5965",
+    neutralSoft: "#e4e8ee",
+    success: "#23764c",
+    successSoft: "#d9ede2",
+  },
+  space: {
+    1: "4px",
+    2: "8px",
+    3: "12px",
+    4: "16px",
+    5: "20px",
+    6: "24px",
+    7: "32px",
+    8: "40px",
+  },
+  radius: {
+    pill: "999px",
+    panel: "14px",
+    card: "18px",
+  },
+  font: {
+    family: {
+      base: '"IBM Plex Sans", "Segoe UI", "Helvetica Neue", sans-serif',
+      mono: '"IBM Plex Mono", "Cascadia Code", "SFMono-Regular", monospace',
+    },
+    size: {
+      1: "0.75rem",
+      2: "0.875rem",
+      3: "0.95rem",
+      4: "1rem",
+      5: "1.2rem",
+      6: "1.5rem",
+      7: "2rem",
+    },
+    weight: {
+      regular: "400",
+      medium: "500",
+      semibold: "600",
+      bold: "700",
+    },
+  },
+  shadow: {
+    card: "0 16px 32px rgba(31, 36, 48, 0.08)",
+    focus: "0 0 0 1px #8a7d67, 0 0 0 4px rgba(12, 109, 98, 0.14)",
+  },
+});
