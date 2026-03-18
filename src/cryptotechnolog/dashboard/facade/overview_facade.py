@@ -35,7 +35,9 @@ class OverviewFacade:
         """Получить полный overview snapshot."""
         system_status = await self._composition_root.system_status_source.get_system_status()
         health = await self._get_health_snapshot(system_status.components)
-        approvals = await self._composition_root.pending_approvals_source.get_pending_approvals_summary()
+        approvals = (
+            await self._composition_root.pending_approvals_source.get_pending_approvals_summary()
+        )
         event_summary = await self._composition_root.event_summary_source.get_event_summary()
         module_availability = (
             await self._composition_root.module_availability_source.get_module_availability()
