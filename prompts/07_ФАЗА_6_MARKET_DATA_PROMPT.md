@@ -21,6 +21,18 @@ WebSocket handling, time-series databases и dynamic universe management.
 3. **SymbolMetricsCollector** — сбор ликвидностных метрик (spread, depth, funding, latency)
 4. **UniverseConfidenceMonitor** — оценка качества вселенной, интеграция со State Machine
 
+## НОРМАЛИЗАЦИЯ ДЛЯ ТЕКУЩЕЙ АРХИТЕКТУРЫ ПРОЕКТА
+
+Для фактической closure-реализации `P_6` этот prompt должен читаться через текущую архитектуру проекта:
+
+- release/version line фазы: `v1.6.0`;
+- реальный package path: `src/cryptotechnolog/market_data/...`, а не `src/market_data/...`;
+- manager-style language в этом prompt является историческим описанием intent, а не обязательным буквальным именем классов;
+- фактический runtime entrypoint текущей фазы: `MarketDataRuntime`;
+- фактический universe orchestration path текущей фазы: `UniversePolicy` + `MarketDataRuntime.refresh_universe(...)`;
+- websocket/feed manager и persistence/storage runtime не считаются обязательной частью closure `P_6`, если они не подтверждены реальным кодом;
+- ranked universe остаётся contract-ready/future-ready слоем, а не обязательным full opportunity engine.
+
 ---
 
 ## ⚠️ КРИТИЧЕСКИ ВАЖНО: РУССКИЙ ЯЗЫК

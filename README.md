@@ -1,4 +1,4 @@
-# CRYPTOTEHNOLOG v1.5.1
+# CRYPTOTEHNOLOG v1.6.0
 
 ## Institutional-Grade Crypto Trading Platform
 
@@ -82,7 +82,7 @@ CRYPTOTEHNOLOG Platform
 | 4 | Config Manager | ✅ Done | v1.4.0 |
 | 5 | Risk Engine | ✅ Done | v1.5.0 |
 | 5.1 | Production Alignment | ✅ Done | v1.5.1 |
-| 6 | Market Data Layer + Universe Engine | ⏳ Planned | v1.6.0 |
+| 6 | Market Data Layer + Universe Engine | ✅ Done | v1.6.0 |
 | 7-11 | Intelligence / Strategy / Execution Expansion | ⏳ Planned | v1.7.0-v2.0.0 |
 | 12-18 | Protection & Testing | ⏳ Planned | v2.1.0-v2.3.0 |
 | 19 | Deployment | ⏳ Planned | v3.0.0 |
@@ -129,6 +129,35 @@ Controlled coexistence after `v1.5.1`:
 - The new Phase 5 risk contour is the only production risk path
 - Legacy `core.listeners.risk` remains in the repository only as non-production compatibility / test-only path
 - Full physical removal of legacy code is not part of `v1.5.1`; production bootstrap excludes it explicitly
+
+---
+
+## Phase 6 Market Data Layer + Universe Engine Foundation
+
+Phase 6 on the current `v1.6.0` line adds a contract-first Market Data Layer that is
+integrated into the production runtime discipline introduced in `P_5_1`.
+
+Implemented scope in `P_6`:
+
+- Typed contracts for ticks, bars, orderbook snapshots, symbol metrics, universe snapshots and confidence semantics
+- Foundation processing modules for tick normalization, bar building, L2 orderbook handling and market data quality validation
+- `SymbolMetricsCollector` and `UniversePolicy` for deterministic admissibility filtering
+- Explicit `MarketDataRuntime` as the Phase 6 runtime entrypoint inside the existing Event Bus / bootstrap discipline
+- Identity-aware multi-exchange semantics across runtime state, admissibility and universe event payloads
+- Market data readiness, degraded and blocked semantics integrated into operator-facing health/runtime diagnostics
+
+Honest current limits of `P_6`:
+
+- The implemented runtime entrypoint is `MarketDataRuntime`, not a separate websocket-driven `MarketDataManager`
+- Universe orchestration is implemented through `UniversePolicy` plus `MarketDataRuntime.refresh_universe(...)`, not through a separate scheduler-style `UniverseEngine` service
+- Real websocket/feed connectivity and persistence/storage paths are not part of the completed Phase 6 scope yet and remain future follow-up lines
+- Ranked universe stays contract-ready and event-ready, but is not yet a full opportunity/ranking engine
+
+Deferred trigger-based extensions:
+
+- A live websocket/feed manager should be introduced only when the platform moves from Phase 6 runtime foundation to real exchange connectivity as a required capability
+- A dedicated market data persistence/history runtime should be introduced only when replay, backfill, historical analytics or incident reconstruction become an explicit project need
+- A full ranked/opportunity engine should be introduced only when the next intelligence/strategy line requires real ranking-driven instrument selection rather than contract-ready universe snapshots
 
 ---
 
@@ -320,5 +349,5 @@ For issues and questions, see [docs/runbooks/](docs/runbooks/) or create an issu
 
 ---
 
-**Version**: 1.5.1
+**Version**: 1.6.0
 **Last Updated**: 2026-03-19

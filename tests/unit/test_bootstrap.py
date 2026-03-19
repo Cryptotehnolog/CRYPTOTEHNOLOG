@@ -85,10 +85,13 @@ class TestProductionBootstrap:
         assert (
             runtime.get_runtime_diagnostics()["config_revision"] == runtime.identity.config_revision
         )
+        assert runtime.get_runtime_diagnostics()["market_data_runtime"]["started"] is False
+        assert runtime.get_runtime_diagnostics()["market_data_runtime"]["ready"] is False
         controller_component = runtime.controller.get_component("event_bus")
         assert controller_component is not None
         assert controller_component is runtime.event_bus
         assert runtime.controller.get_component("phase5_risk_runtime") is runtime.risk_runtime
+        assert runtime.controller.get_component("phase6_market_data_runtime") is runtime.market_data_runtime
 
         listener_names = [listener.name for listener in runtime.listener_registry.all_listeners]
         assert "risk_check_listener" not in listener_names
@@ -129,6 +132,13 @@ class TestProductionBootstrap:
         runtime.redis_manager._redis = Mock()
         runtime.event_bus.register_listener(runtime.risk_runtime.risk_listener)
         runtime.risk_runtime._listener_registered = True
+        runtime.market_data_runtime._started = True
+        runtime.market_data_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         result = await runtime.startup()
 
@@ -141,6 +151,7 @@ class TestProductionBootstrap:
         assert diagnostics["active_risk_path"] == PHASE5_RISK_PATH
         assert diagnostics["config_identity"] == runtime.identity.config_identity
         assert diagnostics["config_revision"] == runtime.identity.config_revision
+        assert diagnostics["market_data_runtime"]["ready"] is True
 
     @pytest.mark.asyncio
     async def test_runtime_startup_fail_fast_exposes_block_reason_in_diagnostics(self) -> None:
@@ -177,6 +188,65 @@ class TestProductionBootstrap:
         health = await runtime.health_checker.check_system()
         assert health.readiness_status == "not_ready"
         assert any(reason.startswith("startup_failed:") for reason in health.readiness_reasons)
+
+    @pytest.mark.asyncio
+    async def test_runtime_startup_exposes_market_data_not_ready_as_degraded(self) -> None:
+        """Production startup не должен маскировать неготовый market data слой как ready."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.controller.startup = AsyncMock(  # type: ignore[method-assign]
+            return_value=StartupResult(
+                success=True,
+                duration_ms=5,
+                phase_reached=StartupPhase.READY,
+                components_initialized=[
+                    "database",
+                    "redis",
+                    "event_bus",
+                    "phase5_risk_runtime",
+                    "phase6_market_data_runtime",
+                ],
+                components_failed=[],
+            )
+        )
+        runtime.health_checker.check_system = AsyncMock(  # type: ignore[method-assign]
+            return_value=SystemHealth(
+                overall_status=HealthStatus.HEALTHY,
+                components={},
+                runtime_identity=runtime.identity,
+                diagnostics={"market_data_runtime": runtime.market_data_runtime.get_runtime_diagnostics()},
+            )
+        )
+        runtime.db_manager._connected = True
+        runtime.db_manager._pool = Mock()
+        runtime.redis_manager._connected = True
+        runtime.redis_manager._redis = Mock()
+        runtime.event_bus.register_listener(runtime.risk_runtime.risk_listener)
+        runtime.risk_runtime._listener_registered = True
+        runtime.market_data_runtime._started = True
+        runtime.market_data_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=False,
+            lifecycle_state="not_ready",
+            readiness_reasons=("no_raw_universe_snapshot", "no_universe_quality_assessment"),
+            degraded_reasons=(),
+        )
+
+        await runtime.startup()
+
+        diagnostics = runtime.get_runtime_diagnostics()
+        assert diagnostics["runtime_started"] is True
+        assert diagnostics["runtime_ready"] is False
+        assert diagnostics["startup_state"] == "degraded"
+        assert "phase6_market_data:not_ready" in diagnostics["degraded_reasons"]
+        assert diagnostics["market_data_runtime"]["ready"] is False
 
     @pytest.mark.asyncio
     async def test_runtime_startup_exposes_degraded_readiness_when_health_is_degraded(self) -> None:

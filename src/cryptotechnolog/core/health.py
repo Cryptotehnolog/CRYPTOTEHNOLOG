@@ -759,6 +759,20 @@ class HealthChecker:
         if expected_risk_path is not None and active_risk_path != expected_risk_path:
             reasons.append("active_risk_path_mismatch")
 
+        market_data_runtime = diagnostics.get("market_data_runtime")
+        if isinstance(market_data_runtime, dict):
+            if not market_data_runtime.get("started", False):
+                reasons.append("market_data_runtime_not_started")
+            if not market_data_runtime.get("ready", False):
+                reasons.append("market_data_runtime_not_ready")
+            reasons.extend(
+                str(reason) for reason in market_data_runtime.get("readiness_reasons", [])
+            )
+            reasons.extend(
+                f"market_data:{reason}"
+                for reason in market_data_runtime.get("degraded_reasons", [])
+            )
+
         for component_name, component_health in components.items():
             if component_health.status != HealthStatus.HEALTHY:
                 reasons.append(f"{component_name}:{component_health.status.value}")

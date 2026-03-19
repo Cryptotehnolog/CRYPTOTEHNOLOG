@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from cryptotechnolog.config.logging import configure_logging, get_logger
 from cryptotechnolog.config.settings import Settings, get_settings, validate_settings
@@ -32,6 +32,7 @@ from cryptotechnolog.core.listeners.base import ListenerRegistry
 from cryptotechnolog.core.metrics import MetricsCollector, init_metrics
 from cryptotechnolog.core.redis_manager import RedisManager, set_redis_manager
 from cryptotechnolog.core.system_controller import ShutdownResult, StartupResult, SystemController
+from cryptotechnolog.market_data.runtime import MarketDataRuntime, create_market_data_runtime
 from cryptotechnolog.risk.runtime import RiskRuntime, create_risk_runtime
 from cryptotechnolog.runtime_identity import RuntimeIdentity, build_runtime_identity
 
@@ -66,6 +67,7 @@ class ProductionRuntime:
     listener_registry: ListenerRegistry
     controller: SystemController
     risk_runtime: RiskRuntime
+    market_data_runtime: MarketDataRuntime
     startup_result: StartupResult | None = None
     shutdown_result: ShutdownResult | None = None
     last_health: SystemHealth | None = None
@@ -302,6 +304,27 @@ class ProductionRuntime:
             for name, component in health.components.items()
             if component.status != HealthStatus.HEALTHY
         ]
+        market_data_runtime = self.market_data_runtime.get_runtime_diagnostics()
+        if not market_data_runtime.get("started", False):
+            reasons.append("phase6_market_data:not_started")
+        if not market_data_runtime.get("ready", False):
+            reasons.append("phase6_market_data:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            market_data_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(
+            f"phase6_market_data:{reason}"
+            for reason in readiness_reason_values
+        )
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            market_data_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(
+            f"phase6_market_data:{reason}"
+            for reason in degraded_reason_values
+        )
         return reasons
 
 
@@ -407,6 +430,22 @@ async def build_production_runtime(
         shutdown_timeout=15.0,
     )
 
+    def update_market_data_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(market_data_runtime=diagnostics)
+
+    market_data_runtime = create_market_data_runtime(
+        event_bus=event_bus,
+        controller=controller,
+        diagnostics_sink=update_market_data_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase6_market_data_runtime",
+        component=market_data_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+
     runtime = ProductionRuntime(
         settings=runtime_settings,
         policy=runtime_policy,
@@ -425,6 +464,7 @@ async def build_production_runtime(
         listener_registry=listener_registry,
         controller=controller,
         risk_runtime=risk_runtime,
+        market_data_runtime=market_data_runtime,
     )
     runtime._update_runtime_diagnostics(
         composition_root_built=True,

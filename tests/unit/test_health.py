@@ -665,6 +665,36 @@ class TestHealthChecker:
         )
 
     @pytest.mark.asyncio
+    async def test_check_system_exposes_market_data_runtime_readiness_truth(self) -> None:
+        """Readiness должен учитывать nested diagnostics Market Data runtime."""
+        identity = build_runtime_identity(
+            bootstrap_module="cryptotechnolog.bootstrap",
+            bootstrap_mode="production",
+            active_risk_path="phase5_risk_engine",
+        )
+        checker = HealthChecker(runtime_identity=identity)
+        checker.set_runtime_diagnostics(
+            composition_root_built=True,
+            runtime_started=True,
+            runtime_ready=False,
+            active_risk_path="phase5_risk_engine",
+            market_data_runtime={
+                "started": True,
+                "ready": False,
+                "lifecycle_state": "blocked",
+                "readiness_reasons": ["universe_confidence_blocked"],
+                "degraded_reasons": ["universe_empty"],
+            },
+        )
+
+        result = await checker.check_system()
+
+        assert result.readiness_status == "not_ready"
+        assert "market_data_runtime_not_ready" in result.readiness_reasons
+        assert "universe_confidence_blocked" in result.readiness_reasons
+        assert "market_data:universe_empty" in result.readiness_reasons
+
+    @pytest.mark.asyncio
     async def test_check_and_wait_uses_readiness_truth_when_runtime_context_present(self) -> None:
         """check_and_wait должен ждать readiness, а не только overall health."""
         identity = build_runtime_identity(
