@@ -82,7 +82,8 @@ CRYPTOTEHNOLOG Platform
 | 4 | Config Manager | ✅ Done | v1.4.0 |
 | 5 | Risk Engine | ✅ Done | v1.5.0 |
 | 5.1 | Production Alignment | ✅ Done | v1.5.1 |
-| 6-11 | Trading Layers | ⏳ Planned | v1.6.0-v2.0.0 |
+| 6 | Market Data Layer + Universe Engine | ⏳ Planned | v1.6.0 |
+| 7-11 | Intelligence / Strategy / Execution Expansion | ⏳ Planned | v1.7.0-v2.0.0 |
 | 12-18 | Protection & Testing | ⏳ Planned | v2.1.0-v2.3.0 |
 | 19 | Deployment | ⏳ Planned | v3.0.0 |
 
@@ -167,8 +168,8 @@ docker-compose up -d
 # Run tests
 pytest tests/
 
-# Start development server (when ready)
-python -m src.main
+# Start development runtime (when ready)
+python -m cryptotechnolog.main
 ```
 
 ### Development
@@ -319,5 +320,5 @@ For issues and questions, see [docs/runbooks/](docs/runbooks/) or create an issu
 
 ---
 
-**Version**: 1.4.0
-**Last Updated**: 2026-03-11
+**Version**: 1.5.1
+**Last Updated**: 2026-03-19
