@@ -7,6 +7,7 @@ Unit Tests for Operator Gate.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 import uuid
 
 from hypothesis import given
@@ -20,7 +21,23 @@ from cryptotechnolog.core.dual_control import (
     OperatorRole,
     RequestStatus,
 )
+from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
+from cryptotechnolog.core.global_instances import reset_event_bus, set_event_bus
 from cryptotechnolog.core.operator_gate import OperatorGate, TokenAuthenticator
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+
+@pytest.fixture(autouse=True)
+def configured_test_event_bus() -> Generator[EnhancedEventBus, None, None]:
+    """Явно подключить test EventBus для unit-сценариев operator gate."""
+    bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
+    set_event_bus(bus)
+    try:
+        yield bus
+    finally:
+        reset_event_bus()
 
 
 class TestTokenAuthenticator:

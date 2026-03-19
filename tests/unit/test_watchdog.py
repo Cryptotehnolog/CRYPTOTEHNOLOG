@@ -9,10 +9,13 @@ from __future__ import annotations
 import asyncio
 from contextlib import suppress
 import time
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
+from cryptotechnolog.core.global_instances import reset_event_bus, set_event_bus
 from cryptotechnolog.core.watchdog import (
     ComponentChecker,
     ComponentStatus,
@@ -21,6 +24,20 @@ from cryptotechnolog.core.watchdog import (
     WatchdogAlert,
     WatchdogAlertLevel,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+
+@pytest.fixture(autouse=True)
+def configured_test_event_bus() -> Generator[EnhancedEventBus, None, None]:
+    """Явно подключить test EventBus для unit-сценариев watchdog."""
+    bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
+    set_event_bus(bus)
+    try:
+        yield bus
+    finally:
+        reset_event_bus()
 
 
 class TestRecoveryStrategy:
