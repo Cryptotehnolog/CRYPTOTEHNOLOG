@@ -1,19 +1,17 @@
 # ==================== CRYPTOTEHNOLOG ====================
 # Institutional-Grade Crypto Trading Platform
-# Version: 1.5.0
+# Version: 1.5.1
 
 from __future__ import annotations
 
-__version__ = "1.5.0"
+from .runtime_identity import PACKAGE_VERSION
+
+__version__ = PACKAGE_VERSION
 __author__ = "CRYPTOTEHNOLOG Team"
 __license__ = "Proprietary - All Rights Reserved"
 
-# Subpackages
-from cryptotechnolog import backtest, config, data, rust_bridge
-
 __all__ = [
-    "backtest",
-    "config",
-    "data",
-    "rust_bridge",
+    "__author__",
+    "__license__",
+    "__version__",
 ]

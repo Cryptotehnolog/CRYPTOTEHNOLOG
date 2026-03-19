@@ -414,6 +414,10 @@ class RedisManager:
             self._connected = False
             logger.info("Отключение от Redis выполнено")
 
+    async def close(self) -> None:
+        """Совместимый alias для graceful shutdown orchestration."""
+        await self.disconnect()
+
     async def health_check(self) -> dict[str, Any]:
         """
         Проверить здоровье подключения к Redis.
@@ -721,6 +725,12 @@ def get_redis() -> RedisManager:
     if _redis_manager is None:
         _redis_manager = RedisManager()
     return _redis_manager
+
+
+def set_redis_manager(redis_manager: RedisManager) -> None:
+    """Явно установить глобальный экземпляр RedisManager."""
+    global _redis_manager  # noqa: PLW0603
+    _redis_manager = redis_manager
 
 
 async def init_redis() -> RedisManager:

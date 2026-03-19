@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
     from .listeners.base import BaseListener, ListenerRegistry
 
-from .listeners import get_listener_registry
+from .listeners import get_listener_registry, get_risk_path_for_listener_name
 
 logger = get_logger(__name__)
 
@@ -628,9 +628,12 @@ class EnhancedEventBus:
         self.handlers: dict[str, list[Callable[[Event], Any]]] = defaultdict(list)
 
         # Listener registry integration
-        self.listener_registry: ListenerRegistry | None = None
+        self._listener_registry: ListenerRegistry | None = None
         self.wildcard_listeners: list[BaseListener] = []
         self.pending_tasks: list[asyncio.Task] = []
+        self.active_risk_path: str | None = None
+        self.enforce_single_risk_path: bool = False
+        self._risk_path_policy_sealed: bool = False
 
         # Statistics
         self.metrics = {
@@ -676,6 +679,20 @@ class EnhancedEventBus:
             await self.persistence.disconnect()
 
         logger.info("EnhancedEventBus завершен")
+
+    async def stop(self) -> None:
+        """Совместимый alias для lifecycle orchestration."""
+        await self.shutdown()
+
+    @property
+    def listener_registry(self) -> ListenerRegistry | None:
+        """Получить текущий ListenerRegistry."""
+        return self._listener_registry
+
+    @listener_registry.setter
+    def listener_registry(self, registry: ListenerRegistry | None) -> None:
+        """Безопасно установить ListenerRegistry с учётом risk-path policy."""
+        self.set_listener_registry(registry, source="direct_assignment")
 
     def subscribe(self) -> AsyncEventReceiver:
         """
@@ -1088,6 +1105,9 @@ class EnhancedEventBus:
             "enable_persistence": self.enable_persistence,
             "backpressure_strategy": self.backpressure_strategy.value,
             "rate_limit": self.rate_limit,
+            "active_risk_path": self.active_risk_path,
+            "enforce_single_risk_path": self.enforce_single_risk_path,
+            "risk_path_policy_sealed": self._risk_path_policy_sealed,
         }
 
     def on(self, event_type: str, handler: Callable[[Event], Any]) -> None:
@@ -1120,8 +1140,11 @@ class EnhancedEventBus:
             listener: Listener для регистрации
         """
         if self.listener_registry is None:
-            self.listener_registry = get_listener_registry()
+            self.set_listener_registry(get_listener_registry(), source="register_listener")
+        if self.listener_registry is None:
+            raise ValueError("ListenerRegistry не инициализирован")
 
+        self._validate_risk_listener_registration(listener.name)
         self.listener_registry.register(listener)
         logger.info(
             "Listener зарегистрирован в EnhancedEventBus",
@@ -1151,18 +1174,138 @@ class EnhancedEventBus:
     def enable_listeners(self) -> None:
         """Включить listeners для Event Bus."""
         registry = get_listener_registry()
-        self.listener_registry = registry
+        self.set_listener_registry(registry, source="enable_listeners")
 
         logger.info(
             "Listeners enabled для EnhancedEventBus",
             listener_count=len(registry.all_listeners),
         )
 
+    def configure_risk_path_policy(
+        self,
+        *,
+        active_risk_path: str,
+        enforce_single: bool = True,
+    ) -> None:
+        """Зафиксировать policy единственного risk path для текущего runtime."""
+        self.active_risk_path = active_risk_path
+        self.enforce_single_risk_path = enforce_single
+        logger.info(
+            "Risk path policy настроена для EnhancedEventBus",
+            active_risk_path=active_risk_path,
+            enforce_single=enforce_single,
+        )
+
+    def seal_risk_path_policy(self) -> None:
+        """Запретить несовместимую подмену registry после успешного startup."""
+        if self.active_risk_path is None:
+            raise ValueError("Нельзя запечатать risk path policy без active_risk_path")
+        self._validate_listener_registry(
+            self.listener_registry,
+            source="seal_risk_path_policy",
+        )
+        self._risk_path_policy_sealed = True
+        logger.info(
+            "Risk path policy запечатана",
+            active_risk_path=self.active_risk_path,
+        )
+
     def disable_listeners(self) -> None:
         """Выключить listeners."""
-        self.listener_registry = None
+        self.set_listener_registry(None, source="disable_listeners")
         self.wildcard_listeners = []
         logger.info("Listeners disabled")
+
+    def set_listener_registry(
+        self,
+        registry: ListenerRegistry | None,
+        *,
+        source: str = "explicit",
+    ) -> None:
+        """Безопасно установить registry с валидацией risk-path policy."""
+        self._validate_listener_registry(registry, source=source)
+        self._listener_registry = registry
+
+    def _validate_listener_registry(
+        self,
+        registry: ListenerRegistry | None,
+        *,
+        source: str,
+    ) -> None:
+        """Проверить совместимость целого registry с current risk-path policy."""
+        if not self.enforce_single_risk_path:
+            return
+
+        if registry is None:
+            if self._risk_path_policy_sealed:
+                raise ValueError(
+                    "Нельзя отключить listener registry после запечатывания production risk path policy"
+                )
+            return
+
+        registered_risk_paths = {
+            resolved_path
+            for listener in registry.all_listeners
+            if (resolved_path := get_risk_path_for_listener_name(listener.name)) is not None
+        }
+
+        if len(registered_risk_paths) > 1:
+            raise ValueError(
+                "Listener registry содержит mixed risk paths и не может быть подключён: "
+                f"{sorted(registered_risk_paths)}"
+            )
+
+        if (
+            self.active_risk_path is not None
+            and registered_risk_paths
+            and registered_risk_paths != {self.active_risk_path}
+        ):
+            raise ValueError(
+                "Listener registry содержит чужой risk path для текущего runtime: "
+                f"{sorted(registered_risk_paths)} вместо [{self.active_risk_path}]"
+            )
+
+        if self._risk_path_policy_sealed and registered_risk_paths != {self.active_risk_path}:
+            raise ValueError(
+                "После startup production runtime registry replacement должен сохранять "
+                f"ровно один active risk path [{self.active_risk_path}], "
+                f"но источник {source} пытается установить {sorted(registered_risk_paths)}"
+            )
+
+    def _validate_risk_listener_registration(self, listener_name: str) -> None:
+        """Проверить, что регистрация listener не нарушает single-risk-path policy."""
+        listener_risk_path = get_risk_path_for_listener_name(listener_name)
+        if listener_risk_path is None:
+            return
+
+        if (
+            self.enforce_single_risk_path
+            and self.active_risk_path is not None
+            and listener_risk_path != self.active_risk_path
+        ):
+            raise ValueError(
+                "Регистрация listener нарушает production risk path policy: "
+                f"{listener_name} принадлежит path {listener_risk_path}, "
+                f"но активен {self.active_risk_path}"
+            )
+
+        if self.listener_registry is None:
+            return
+
+        conflicting_listener_names = [
+            registered_listener.name
+            for registered_listener in self.listener_registry.all_listeners
+            if (
+                get_risk_path_for_listener_name(registered_listener.name) is not None
+                and get_risk_path_for_listener_name(registered_listener.name) != listener_risk_path
+            )
+        ]
+        if conflicting_listener_names:
+            joined_conflicts = ", ".join(sorted(conflicting_listener_names))
+            raise ValueError(
+                "Обнаружена попытка двойного risk wiring: "
+                f"{listener_name} конфликтует с уже зарегистрированными [{joined_conflicts}]"
+            )
 
     async def drain(self, timeout: float = 30.0) -> bool:
         """

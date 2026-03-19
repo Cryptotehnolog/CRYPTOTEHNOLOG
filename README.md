@@ -1,4 +1,4 @@
-# CRYPTOTEHNOLOG v1.5.0
+# CRYPTOTEHNOLOG v1.5.1
 
 ## Institutional-Grade Crypto Trading Platform
 
@@ -81,13 +81,14 @@ CRYPTOTEHNOLOG Platform
 | 3 | Event Bus (Enhanced) | ✅ Done | v1.3.0 |
 | 4 | Config Manager | ✅ Done | v1.4.0 |
 | 5 | Risk Engine | ✅ Done | v1.5.0 |
+| 5.1 | Production Alignment | ✅ Done | v1.5.1 |
 | 6-11 | Trading Layers | ⏳ Planned | v1.6.0-v2.0.0 |
 | 12-18 | Protection & Testing | ⏳ Planned | v2.1.0-v2.3.0 |
 | 19 | Deployment | ⏳ Planned | v3.0.0 |
 
 ---
 
-## Phase 5 Risk Engine
+## Phase 5 Risk Engine + v1.5.1 Production Alignment
 
 Phase 5 introduces a new Python-based Risk Engine contour built as a modern,
 typed domain layer and integrated into the event-driven runtime without
@@ -113,11 +114,20 @@ Implemented in v1.5.0:
   - `trailing_stop_movements`
 - Runtime composition via `create_risk_runtime(...)` with explicit listener registration
 
-Controlled coexistence in v1.5.0:
+Production alignment completed in `v1.5.1`:
 
-- The new Phase 5 risk contour is wired as a separate modern path
-- Legacy `core.listeners.risk` is not used as the implementation base for the new engine
-- Full project-wide replacement of the legacy path is intentionally left for controlled adoption in a later step
+- Official production bootstrap via `src/cryptotechnolog/bootstrap.py`
+- One authoritative runtime identity for version, bootstrap mode, active risk path and config truth
+- Production runtime enforces a single active risk path: `phase5_risk_engine`
+- Startup, readiness, health, shutdown and fail-fast semantics are centralized and operator-visible
+- Risk event vocabulary is aligned across runtime publication, audit and metrics listeners
+- Integration/bootstrap tests cover the real production composition root
+
+Controlled coexistence after `v1.5.1`:
+
+- The new Phase 5 risk contour is the only production risk path
+- Legacy `core.listeners.risk` remains in the repository only as non-production compatibility / test-only path
+- Full physical removal of legacy code is not part of `v1.5.1`; production bootstrap excludes it explicitly
 
 ---
 

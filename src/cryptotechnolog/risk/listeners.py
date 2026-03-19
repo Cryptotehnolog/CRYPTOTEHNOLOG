@@ -22,11 +22,12 @@ from .engine import (
     BarCompletedInput,
     ClosedPositionInput,
     FilledPositionInput,
+    PreTradeContext,
     RiskEngine,
     RiskEngineEventType,
     StateTransitionInput,
 )
-from .models import MarketSnapshot, PositionSide
+from .models import MarketSnapshot, Order, OrderSide, PositionSide, RejectReason, RiskCheckResult
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -66,6 +67,7 @@ class RiskEngineListener(BaseListener):
             ListenerConfig(
                 name=listener_config.name,
                 event_types=[
+                    SystemEventType.ORDER_SUBMITTED,
                     SystemEventType.ORDER_FILLED,
                     "POSITION_CLOSED",
                     "BAR_COMPLETED",
@@ -81,6 +83,15 @@ class RiskEngineListener(BaseListener):
 
     async def _process_event(self, event: Event) -> None:
         """Обработать входящее событие через соответствующий доменный path RiskEngine."""
+        if event.event_type == SystemEventType.ORDER_SUBMITTED:
+            result = await self._risk_engine.check_trade_with_audit(
+                self._parse_order_submitted(event.payload),
+                self._parse_pre_trade_context(event.payload),
+            )
+            if not result.allowed:
+                await self._publish_pre_trade_reject_events(result=result, source_event=event)
+            return
+
         if event.event_type == SystemEventType.ORDER_FILLED:
             register_result = await self._risk_engine.handle_order_filled(
                 self._parse_order_filled(event.payload)
@@ -118,9 +129,8 @@ class RiskEngineListener(BaseListener):
             return
 
         if event.event_type == "BAR_COMPLETED":
-            bar_result = await self._risk_engine.handle_bar_completed(
-                self._parse_bar_completed(event.payload)
-            )
+            bar_input = self._parse_bar_completed(event.payload)
+            bar_result = await self._risk_engine.handle_bar_completed(bar_input)
             for update in bar_result.updates:
                 await self._publish_result_event(
                     event_type=(
@@ -130,6 +140,7 @@ class RiskEngineListener(BaseListener):
                     ),
                     payload={
                         "position_id": update.position_id,
+                        "symbol": bar_input.symbol,
                         "old_stop": str(update.old_stop),
                         "new_stop": str(update.new_stop),
                         "pnl_r": str(update.pnl_r),
@@ -140,6 +151,7 @@ class RiskEngineListener(BaseListener):
                         "risk_before": str(update.risk_before),
                         "risk_after": str(update.risk_after),
                         "reason": update.reason,
+                        "should_execute": update.should_execute,
                     },
                     priority=Priority.HIGH if not update.should_execute else Priority.NORMAL,
                     source_event=event,
@@ -159,6 +171,7 @@ class RiskEngineListener(BaseListener):
                         else None
                     ),
                     "to_state": transition_result.to_state.value,
+                    "risk_engine_state": transition_result.to_state.value,
                 },
                 priority=Priority.NORMAL,
                 source_event=event,
@@ -185,6 +198,104 @@ class RiskEngineListener(BaseListener):
         if source_event.correlation_id is not None:
             published.correlation_id = source_event.correlation_id
         await self._publisher(published)
+
+    async def _publish_pre_trade_reject_events(
+        self,
+        *,
+        result: RiskCheckResult,
+        source_event: Event,
+    ) -> None:
+        """Опубликовать стабильный reject/violation contract для production risk path."""
+        order_payload = source_event.payload
+        reject_reason = (
+            result.reason.value if isinstance(result.reason, RejectReason) else str(result.reason)
+        )
+        violation_priority = self._get_violation_priority(result)
+        reject_payload = {
+            "order_id": order_payload.get("order_id"),
+            "symbol": order_payload.get("symbol"),
+            "side": order_payload.get("side"),
+            "price": str(order_payload.get("entry_price") or order_payload.get("price") or ""),
+            "stop_loss": str(order_payload.get("stop_loss") or ""),
+            "reason": reject_reason,
+            "reject_reason": reject_reason,
+            "system_state": str(
+                order_payload.get("system_state")
+                or order_payload.get("current_state")
+                or self._risk_engine.current_system_state.value
+            ),
+            "current_equity": str(
+                order_payload.get("current_equity")
+                or order_payload.get("equity")
+                or self._risk_engine._drawdown_monitor.get_current_equity()
+            ),
+            "current_total_r": str(result.current_total_r),
+            "max_total_r": str(result.max_total_r),
+            "check_duration_ms": result.check_duration_ms,
+            "details": result.details,
+        }
+        await self._publish_result_event(
+            event_type=RiskEngineEventType.ORDER_REJECTED,
+            payload=reject_payload,
+            priority=violation_priority,
+            source_event=source_event,
+        )
+
+        current_value, max_value = self._extract_violation_values(result)
+        await self._publish_result_event(
+            event_type=RiskEngineEventType.RISK_VIOLATION,
+            payload={
+                "order_id": order_payload.get("order_id"),
+                "symbol": order_payload.get("symbol"),
+                "side": order_payload.get("side"),
+                "price": str(order_payload.get("entry_price") or order_payload.get("price") or ""),
+                "reason": reject_reason,
+                "limit_type": self._map_reject_reason_to_limit_type(result),
+                "current_value": current_value,
+                "max_value": max_value,
+                "current_total_r": str(result.current_total_r),
+                "max_total_r": str(result.max_total_r),
+                "violation_type": reject_reason,
+                "details": result.details,
+            },
+            priority=violation_priority,
+            source_event=source_event,
+        )
+
+        if result.reason is RejectReason.DRAWDOWN_HARD_LIMIT_EXCEEDED:
+            await self._publish_result_event(
+                event_type=RiskEngineEventType.DRAWDOWN_ALERT,
+                payload={
+                    "order_id": order_payload.get("order_id"),
+                    "symbol": order_payload.get("symbol"),
+                    "reason": reject_reason,
+                    "drawdown_level": result.details.get("level"),
+                    "drawdown_percent": result.details.get("drawdown_percent"),
+                    "hard_limit": result.details.get("hard_limit"),
+                    "current_total_r": str(result.current_total_r),
+                    "max_total_r": str(result.max_total_r),
+                },
+                priority=Priority.HIGH,
+                source_event=source_event,
+            )
+
+        if result.reason is RejectReason.VELOCITY_DRAWDOWN_TRIGGERED:
+            await self._publish_result_event(
+                event_type=RiskEngineEventType.VELOCITY_KILLSWITCH_TRIGGERED,
+                payload={
+                    "order_id": order_payload.get("order_id"),
+                    "symbol": order_payload.get("symbol"),
+                    "reason": reject_reason,
+                    "drawdown_level": "velocity",
+                    "recent_losses_r": result.details.get("recent_losses_r"),
+                    "velocity_limit_r": result.details.get("velocity_limit_r"),
+                    "window_trades": result.details.get("window_trades"),
+                    "current_total_r": str(result.current_total_r),
+                    "max_total_r": str(result.max_total_r),
+                },
+                priority=Priority.CRITICAL,
+                source_event=source_event,
+            )
 
     @staticmethod
     def _parse_order_filled(payload: dict[str, Any]) -> FilledPositionInput:
@@ -280,6 +391,123 @@ class RiskEngineListener(BaseListener):
                 raise RiskEngineListenerError(
                     f"Неизвестное системное состояние: {raw_value}"
                 ) from error
+
+    @staticmethod
+    def _parse_order_submitted(payload: dict[str, Any]) -> Order:
+        """Преобразовать payload ORDER_SUBMITTED в типизированный pre-trade order."""
+        return Order(
+            order_id=RiskEngineListener._require_str(payload, "order_id"),
+            symbol=RiskEngineListener._require_str(payload, "symbol"),
+            side=RiskEngineListener._parse_order_side(RiskEngineListener._require_str(payload, "side")),
+            entry_price=RiskEngineListener._require_decimal(payload, "entry_price", "price"),
+            stop_loss=RiskEngineListener._require_decimal(payload, "stop_loss"),
+            take_profit=RiskEngineListener._optional_decimal(payload, "take_profit"),
+            quantity=RiskEngineListener._optional_decimal(payload, "quantity"),
+            risk_usd=RiskEngineListener._optional_decimal(payload, "risk_usd"),
+            strategy_id=RiskEngineListener._optional_str(payload, "strategy_id"),
+            exchange_id=RiskEngineListener._optional_str(payload, "exchange_id") or "bybit",
+        )
+
+    def _parse_pre_trade_context(self, payload: dict[str, Any]) -> PreTradeContext:
+        """Преобразовать payload ORDER_SUBMITTED в типизированный pre-trade context."""
+        raw_state = payload.get("system_state") or payload.get("current_state")
+        current_state = (
+            self._parse_system_state(raw_state)
+            if raw_state is not None
+            else self._risk_engine.current_system_state
+        )
+        current_equity = (
+            self._optional_decimal(payload, "current_equity")
+            or self._optional_decimal(payload, "equity")
+            or self._risk_engine._drawdown_monitor.get_current_equity()
+        )
+        return PreTradeContext(
+            system_state=current_state,
+            current_equity=current_equity,
+        )
+
+    @staticmethod
+    def _parse_order_side(raw_value: str) -> OrderSide:
+        """Нормализовать сторону pre-trade ордера в OrderSide."""
+        normalized = raw_value.strip().lower()
+        mapping = {
+            "buy": OrderSide.BUY,
+            "long": OrderSide.BUY,
+            "sell": OrderSide.SELL,
+            "short": OrderSide.SELL,
+        }
+        side = mapping.get(normalized)
+        if side is None:
+            raise RiskEngineListenerError(f"Неизвестное направление ордера: {raw_value}")
+        return side
+
+    @staticmethod
+    def _optional_str(payload: dict[str, Any], key: str) -> str | None:
+        """Извлечь необязательную строку из payload."""
+        value = payload.get(key)
+        if value is None:
+            return None
+        if not isinstance(value, str) or not value.strip():
+            raise RiskEngineListenerError(f"Поле {key} должно быть непустой строкой")
+        return value
+
+    @staticmethod
+    def _map_reject_reason_to_limit_type(result: RiskCheckResult) -> str:
+        """Стабилизировать тип нарушения для downstream listeners и audit semantics."""
+        mapping = {
+            RejectReason.DRAWDOWN_HARD_LIMIT_EXCEEDED: "drawdown_hard_limit",
+            RejectReason.VELOCITY_DRAWDOWN_TRIGGERED: "velocity_drawdown",
+            RejectReason.MAX_TOTAL_R_EXCEEDED: "max_total_r",
+            RejectReason.MAX_TOTAL_EXPOSURE_EXCEEDED: "max_total_exposure",
+            RejectReason.MAX_R_PER_TRADE_EXCEEDED: "max_r_per_trade",
+            RejectReason.MAX_POSITION_SIZE_EXCEEDED: "max_position_size",
+            RejectReason.CORRELATION_LIMIT_EXCEEDED: "correlation_limit",
+            RejectReason.CORRELATION_GROUP_LIMIT_EXCEEDED: "correlation_limit",
+            RejectReason.STATE_MACHINE_NOT_TRADING: "system_state",
+        }
+        if isinstance(result.reason, RejectReason):
+            return mapping.get(result.reason, "risk_check")
+        return "risk_check"
+
+    @staticmethod
+    def _extract_violation_values(result: RiskCheckResult) -> tuple[str, str]:
+        """Извлечь current/max значения нарушения в предсказуемом текстовом виде."""
+        if result.reason is RejectReason.DRAWDOWN_HARD_LIMIT_EXCEEDED:
+            return (
+                str(result.details.get("drawdown_percent", "")),
+                str(result.details.get("hard_limit", "")),
+            )
+        if result.reason is RejectReason.VELOCITY_DRAWDOWN_TRIGGERED:
+            return (
+                str(result.details.get("recent_losses_r", "")),
+                str(result.details.get("velocity_limit_r", "")),
+            )
+        if result.reason is RejectReason.MAX_TOTAL_EXPOSURE_EXCEEDED:
+            return (
+                str(result.details.get("projected_total_exposure_usd", "")),
+                str(result.details.get("max_total_exposure_usd", "")),
+            )
+        if result.reason is RejectReason.MAX_TOTAL_R_EXCEEDED:
+            return (
+                str(result.details.get("projected_total_r", result.current_total_r)),
+                str(result.max_total_r),
+            )
+        return (str(result.current_total_r), str(result.max_total_r))
+
+    @staticmethod
+    def _get_violation_priority(result: RiskCheckResult) -> Priority:
+        """Определить severity-level приоритет для reject/violation signals."""
+        if result.reason is RejectReason.VELOCITY_DRAWDOWN_TRIGGERED:
+            return Priority.CRITICAL
+        if result.reason in {
+            RejectReason.DRAWDOWN_HARD_LIMIT_EXCEEDED,
+            RejectReason.MAX_TOTAL_R_EXCEEDED,
+            RejectReason.MAX_TOTAL_EXPOSURE_EXCEEDED,
+            RejectReason.CORRELATION_LIMIT_EXCEEDED,
+            RejectReason.CORRELATION_GROUP_LIMIT_EXCEEDED,
+        }:
+            return Priority.HIGH
+        return Priority.NORMAL
 
     @staticmethod
     def _require_str(payload: dict[str, Any], key: str) -> str:

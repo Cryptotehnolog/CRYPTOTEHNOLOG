@@ -240,6 +240,10 @@ class DatabaseManager:
             self._loop_id = None
             logger.info("Отключение от PostgreSQL выполнено")
 
+    async def close(self) -> None:
+        """Совместимый alias для graceful shutdown orchestration."""
+        await self.disconnect()
+
     @asynccontextmanager
     async def connection(self) -> AsyncIterator[asyncpg.Connection]:
         """
@@ -708,6 +712,12 @@ def get_database() -> DatabaseManager:
     if _db_manager is None:
         _db_manager = DatabaseManager()
     return _db_manager
+
+
+def set_database(db_manager: DatabaseManager) -> None:
+    """Явно установить глобальный экземпляр DatabaseManager."""
+    global _db_manager  # noqa: PLW0603
+    _db_manager = db_manager
 
 
 async def init_database() -> DatabaseManager:

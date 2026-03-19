@@ -245,6 +245,12 @@ class InfisicalConfigProvider(IConfigLoader):
     """
 
     DEFAULT_LOCAL_URL = "http://127.0.0.1:8080"
+    _client_id: str | None
+    _client_secret: str | None
+    _token: str | None
+    _project_id: str | None
+    _secret_paths: list[str]
+    _secret_keys: list[str]
 
     def _resolve_secret_paths(
         self,
@@ -425,6 +431,9 @@ class InfisicalConfigProvider(IConfigLoader):
             secret_paths: Список путей к папкам с секретами (например: ["/production/crypto", "/staging/telegram"])
             secret_keys: Список имён секретов для загрузки (например: ["API_KEY", "API_SECRET"])
         """
+        self._client_id = None
+        self._client_secret = None
+        self._token = None
         self._project_id = project_id or os.environ.get("INFISICAL_PROJECT_ID")
         self._environment = environment
         self._last_source: str | None = None
@@ -684,7 +693,10 @@ class InfisicalConfigProvider(IConfigLoader):
 
             # Извлекаем значение из ответа
             if "secret" in data:
-                return data["secret"].get("secretValue", "")
+                secret_payload = data["secret"]
+                if isinstance(secret_payload, dict):
+                    secret_value = secret_payload.get("secretValue")
+                    return secret_value if isinstance(secret_value, str) else None
 
             return None
 

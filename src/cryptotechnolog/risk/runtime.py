@@ -16,8 +16,8 @@ from importlib import import_module
 from typing import TYPE_CHECKING, cast
 
 from cryptotechnolog.config import get_logger, get_settings
-from cryptotechnolog.core import SystemController, get_event_bus
 from cryptotechnolog.core.database import get_db_pool
+from cryptotechnolog.core.global_instances import get_event_bus
 from cryptotechnolog.core.state_machine_enums import SystemState
 
 from .correlation import CorrelationConfig, CorrelationEvaluator
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 
     from cryptotechnolog.config.settings import Settings
     from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
+    from cryptotechnolog.core.system_controller import SystemController
 
     from .persistence_contracts import IRiskPersistenceRepository
 
@@ -98,6 +99,11 @@ class RiskRuntime:
     config: RiskRuntimeConfig
     controller: SystemController | None = None
     _listener_registered: bool = False
+
+    @property
+    def is_started(self) -> bool:
+        """Проверить подключён ли runtime к Event Bus."""
+        return self._listener_registered
 
     async def start(self) -> None:
         """

@@ -20,6 +20,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from cryptotechnolog.config import get_logger
+from cryptotechnolog.runtime_identity import RuntimeIdentity, get_release_identity
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -70,7 +71,15 @@ class SystemHealth:
     overall_status: HealthStatus
     components: dict[str, ComponentHealth]
     timestamp: float = field(default_factory=time.time)
-    version: str = "1.4.0"
+    runtime_identity: RuntimeIdentity = field(default_factory=get_release_identity)
+    readiness_status: str = "not_ready"
+    readiness_reasons: list[str] = field(default_factory=list)
+    diagnostics: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def version(self) -> str:
+        """Вернуть canonical runtime version для compatibility-слоя."""
+        return self.runtime_identity.version
 
     def is_healthy(self) -> bool:
         """Проверить здорова ли вся система."""
@@ -91,6 +100,12 @@ class SystemHealth:
             "components": {k: v.to_dict() for k, v in self.components.items()},
             "timestamp": self.timestamp,
             "version": self.version,
+            "runtime_identity": self.runtime_identity.to_dict(),
+            "readiness": {
+                "status": self.readiness_status,
+                "reasons": list(self.readiness_reasons),
+            },
+            "diagnostics": self.diagnostics,
         }
 
 
@@ -338,10 +353,14 @@ class EventBusHealthCheck(HealthCheck):
         try:
             # Пробуем получить метрики Event Bus
             if hasattr(self._event_bus, "get_metrics"):
-                metrics = await asyncio.wait_for(
-                    self._event_bus.get_metrics(),
-                    timeout=self.timeout,
-                )
+                metrics_result = self._event_bus.get_metrics()
+                if asyncio.iscoroutine(metrics_result):
+                    metrics = await asyncio.wait_for(
+                        metrics_result,
+                        timeout=self.timeout,
+                    )
+                else:
+                    metrics = metrics_result
 
                 # Проверяем отмену после await
                 if current_task and current_task.cancelled():
@@ -498,7 +517,7 @@ class HealthChecker:
         >>> print(system_health.overall_status)
     """
 
-    def __init__(self) -> None:
+    def __init__(self, runtime_identity: RuntimeIdentity | None = None) -> None:
         """Инициализировать проверяльщик."""
         self._checks: dict[str, HealthCheck] = {}
         self._last_health: SystemHealth | None = None
@@ -506,11 +525,42 @@ class HealthChecker:
         self._check_interval: float = 60.0  # Интервал автоматической проверки
         self._running: bool = False
         self._monitor_task: asyncio.Task | None = None
+        self._runtime_identity = runtime_identity or get_release_identity()
+        self._runtime_diagnostics: dict[str, Any] = {
+            "composition_root_built": False,
+            "runtime_started": False,
+            "runtime_ready": False,
+            "startup_state": "not_started",
+            "shutdown_state": "not_shutting_down",
+            "bootstrap_module": self._runtime_identity.bootstrap_module,
+            "bootstrap_mode": self._runtime_identity.bootstrap_mode,
+            "active_risk_path": self._runtime_identity.active_risk_path,
+            "config_identity": self._runtime_identity.config_identity,
+            "config_revision": self._runtime_identity.config_revision,
+            "failure_reason": None,
+            "degraded_reasons": [],
+        }
 
         logger.info(
             "Инициализирован HealthChecker",
             checks_registered=0,
+            version=self._runtime_identity.version,
         )
+
+    def set_runtime_diagnostics(self, **updates: Any) -> dict[str, Any]:
+        """Обновить operator-facing runtime diagnostics."""
+        if "degraded_reasons" in updates and updates["degraded_reasons"] is not None:
+            updates["degraded_reasons"] = list(updates["degraded_reasons"])
+        self._runtime_diagnostics.update(updates)
+        return self.get_runtime_diagnostics()
+
+    def get_runtime_diagnostics(self) -> dict[str, Any]:
+        """Вернуть текущие runtime diagnostics."""
+        diagnostics = dict(self._runtime_diagnostics)
+        diagnostics["degraded_reasons"] = list(
+            diagnostics.get("degraded_reasons") or []
+        )
+        return diagnostics
 
     def register_check(self, check: HealthCheck) -> None:
         """
@@ -665,11 +715,18 @@ class HealthChecker:
 
         # Определяем общий статус
         overall_status = self._determine_overall_status(components)
+        readiness_status, readiness_reasons = self._build_readiness(
+            overall_status,
+            components,
+        )
 
         system_health = SystemHealth(
             overall_status=overall_status,
             components=components,
-            version="1.4.0",
+            runtime_identity=self._runtime_identity,
+            readiness_status=readiness_status,
+            readiness_reasons=readiness_reasons,
+            diagnostics=self.get_runtime_diagnostics(),
         )
 
         # Уведомляем об изменении статуса
@@ -682,6 +739,43 @@ class HealthChecker:
         )
 
         return system_health
+
+    def _build_readiness(
+        self,
+        overall_status: HealthStatus,
+        components: dict[str, ComponentHealth],
+    ) -> tuple[str, list[str]]:
+        """Собрать readiness truth на основе runtime diagnostics и health."""
+        diagnostics = self.get_runtime_diagnostics()
+        reasons: list[str] = []
+
+        if not diagnostics.get("composition_root_built", False):
+            reasons.append("composition_root_not_built")
+        if not diagnostics.get("runtime_started", False):
+            reasons.append("runtime_not_started")
+        if diagnostics.get("failure_reason"):
+            reasons.append(f"startup_failed:{diagnostics['failure_reason']}")
+
+        active_risk_path = diagnostics.get("active_risk_path")
+        expected_risk_path = self._runtime_identity.active_risk_path
+        if expected_risk_path is not None and active_risk_path != expected_risk_path:
+            reasons.append("active_risk_path_mismatch")
+
+        for component_name, component_health in components.items():
+            if component_health.status != HealthStatus.HEALTHY:
+                reasons.append(
+                    f"{component_name}:{component_health.status.value}"
+                )
+
+        reasons.extend(diagnostics.get("degraded_reasons") or [])
+
+        runtime_ready = (
+            diagnostics.get("runtime_ready", False)
+            and diagnostics.get("runtime_started", False)
+            and overall_status == HealthStatus.HEALTHY
+        )
+        status = "ready" if runtime_ready and not reasons else "not_ready"
+        return status, reasons
 
     def _determine_overall_status(
         self,
@@ -752,7 +846,8 @@ class HealthChecker:
         """
         Проверить систему и ждать готовности.
 
-        Ждет пока все компоненты не станут здоровыми или не истечет таймаут.
+        Ждет пока runtime станет готовым по readiness truth или,
+        для generic health-only usage, пока система не станет healthy.
 
         Аргументы:
             timeout: Максимальное время ожидания в секундах
@@ -765,7 +860,7 @@ class HealthChecker:
         while time.time() - start_time < timeout:
             health = await self.check_system()
 
-            if health.is_healthy():
+            if self._is_wait_condition_satisfied(health):
                 return health
 
             await asyncio.sleep(1.0)
@@ -773,9 +868,33 @@ class HealthChecker:
         # Вернуть последний результат
         return await self.check_system()
 
+    def _is_wait_condition_satisfied(self, health: SystemHealth) -> bool:
+        """Определить, достигнуто ли условие готовности для wait-helper."""
+        diagnostics = health.diagnostics
+        readiness_context_present = any(
+            [
+                diagnostics.get("composition_root_built", False),
+                diagnostics.get("runtime_started", False),
+                diagnostics.get("runtime_ready", False),
+                diagnostics.get("startup_state") not in (None, "not_started"),
+                diagnostics.get("bootstrap_module") is not None,
+                diagnostics.get("bootstrap_mode") is not None,
+                diagnostics.get("active_risk_path") is not None,
+                diagnostics.get("failure_reason") is not None,
+                bool(diagnostics.get("degraded_reasons")),
+            ]
+        )
+        if readiness_context_present:
+            return health.readiness_status == "ready"
+        return health.is_healthy()
+
     def get_last_health(self) -> SystemHealth | None:
         """Получить последнее известное состояние системы."""
         return self._last_health
+
+    def get_runtime_identity(self) -> RuntimeIdentity:
+        """Вернуть runtime identity, которую HealthChecker публикует наружу."""
+        return self._runtime_identity
 
 
 # Глобальный экземпляр
@@ -800,6 +919,7 @@ def init_health_checker(
     redis_manager: Any | None = None,
     event_bus: Any | None = None,
     metrics_collector: Any | None = None,
+    runtime_identity: RuntimeIdentity | None = None,
 ) -> HealthChecker:
     """
     Инициализировать HealthChecker с компонентами.
@@ -814,7 +934,7 @@ def init_health_checker(
         Инициализированный экземпляр
     """
     global _health_checker  # noqa: PLW0603
-    checker = HealthChecker()
+    checker = HealthChecker(runtime_identity=runtime_identity)
 
     # Регистрируем проверки
     if db_manager is not None:
