@@ -198,7 +198,9 @@ async def test_market_data_runtime_publishes_stale_and_source_degraded_signals()
 
 
 @pytest.mark.asyncio
-async def test_market_data_runtime_keeps_exchange_specific_metrics_quality_and_admissibility() -> None:
+async def test_market_data_runtime_keeps_exchange_specific_metrics_quality_and_admissibility() -> (
+    None
+):
     event_bus = EnhancedEventBus(enable_persistence=False)
     runtime = create_market_data_runtime(
         event_bus=event_bus,

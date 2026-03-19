@@ -101,7 +101,9 @@ class DataQualityValidator:
                         detected_at=current_time,
                         feed="trades",
                         gap_duration_ms=int(gap_duration.total_seconds() * 1000),
-                        details={"threshold_ms": int(self._config.gap_threshold.total_seconds() * 1000)},
+                        details={
+                            "threshold_ms": int(self._config.gap_threshold.total_seconds() * 1000)
+                        },
                     )
                 )
 
@@ -186,8 +188,8 @@ class DataQualityValidator:
                     )
                 )
 
-        self._last_source_heartbeat[(snapshot.symbol, snapshot.exchange, feed)] = ensure_utc_timestamp(
-            snapshot.timestamp
+        self._last_source_heartbeat[(snapshot.symbol, snapshot.exchange, feed)] = (
+            ensure_utc_timestamp(snapshot.timestamp)
         )
         return tuple(signals)
 

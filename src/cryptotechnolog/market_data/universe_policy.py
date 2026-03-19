@@ -74,7 +74,8 @@ class UniversePolicy:
         *,
         raw_snapshot: RawUniverseSnapshot,
         metrics_by_identity: dict[SymbolIdentity, SymbolMetricsContract],
-        quality_signals_by_identity: dict[SymbolIdentity, tuple[DataQualitySignal, ...]] | None = None,
+        quality_signals_by_identity: dict[SymbolIdentity, tuple[DataQualitySignal, ...]]
+        | None = None,
         measured_at: datetime | None = None,
     ) -> UniversePolicyResult:
         """Преобразовать raw universe в admissible snapshot и quality assessment."""
@@ -233,7 +234,9 @@ class UniversePolicy:
 
         worst_symbols = tuple(
             item.symbol.symbol
-            for item in sorted(snapshot.symbols, key=lambda admitted: admitted.metrics.quality_score)[:3]
+            for item in sorted(
+                snapshot.symbols, key=lambda admitted: admitted.metrics.quality_score
+            )[:3]
         )
         return UniverseQualityAssessment(
             version=raw_snapshot.version,

@@ -313,18 +313,12 @@ class ProductionRuntime:
             "list[str] | tuple[str, ...]",
             market_data_runtime.get("readiness_reasons", []),
         )
-        reasons.extend(
-            f"phase6_market_data:{reason}"
-            for reason in readiness_reason_values
-        )
+        reasons.extend(f"phase6_market_data:{reason}" for reason in readiness_reason_values)
         degraded_reason_values = cast(
             "list[str] | tuple[str, ...]",
             market_data_runtime.get("degraded_reasons", []),
         )
-        reasons.extend(
-            f"phase6_market_data:{reason}"
-            for reason in degraded_reason_values
-        )
+        reasons.extend(f"phase6_market_data:{reason}" for reason in degraded_reason_values)
         return reasons
 
 

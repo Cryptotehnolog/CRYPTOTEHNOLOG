@@ -71,7 +71,9 @@ class TickHandler:
             is_buyer_maker=is_buyer_maker,
         )
 
-    def process_tick(self, tick: TickContract, *, now: datetime | None = None) -> TickProcessingResult:
+    def process_tick(
+        self, tick: TickContract, *, now: datetime | None = None
+    ) -> TickProcessingResult:
         """Обработать tick через quality foundation."""
         signals = self._quality_validator.validate_tick(tick, now=now)
         return TickProcessingResult(tick=tick, quality_signals=signals)

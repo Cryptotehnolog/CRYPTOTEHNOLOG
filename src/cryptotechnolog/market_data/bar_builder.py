@@ -103,7 +103,9 @@ class BarBuilder:
             is_closed=True,
             is_gap_affected=existing_bar.is_gap_affected or gap_affected,
         )
-        next_bar = self._build_new_bar(tick, bar_open_time, bar_close_time, is_gap_affected=gap_affected)
+        next_bar = self._build_new_bar(
+            tick, bar_open_time, bar_close_time, is_gap_affected=gap_affected
+        )
         self._active_bars[key] = next_bar
         return BarUpdateResult(active_bar=next_bar, completed_bar=completed_bar)
 

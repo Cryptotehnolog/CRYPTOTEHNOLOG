@@ -208,11 +208,12 @@ def test_universe_policy_excludes_symbols_with_quality_and_metrics_failures() ->
 
     assert result.snapshot.symbols == ()
     assert any(
-        excluded.identity == ("BAD/USDT", "bybit")
-        for excluded in result.snapshot.excluded_symbols
+        excluded.identity == ("BAD/USDT", "bybit") for excluded in result.snapshot.excluded_symbols
     )
     assert result.assessment.state == UniverseConfidenceState.BLOCKED
-    assert UniverseExclusionReason.SPREAD_TOO_WIDE in result.exclusion_reasons[("BAD/USDT", "bybit")]
+    assert (
+        UniverseExclusionReason.SPREAD_TOO_WIDE in result.exclusion_reasons[("BAD/USDT", "bybit")]
+    )
     assert UniverseExclusionReason.DATA_GAP in result.exclusion_reasons[("BAD/USDT", "bybit")]
 
 
