@@ -458,6 +458,17 @@ class SystemController:
                 self._startup_phase = StartupPhase.INITIALIZING_STATE_MACHINE
                 await self._initialize_state_machine()
                 components_initialized.append("state_machine")
+                if self._state_machine.current_state == SystemState.BOOT:
+                    init_result = await self._state_machine.transition(
+                        to_state=SystemState.INIT,
+                        trigger=TriggerType.SYSTEM_STARTUP,
+                        metadata={"startup_phase": self._startup_phase.value},
+                    )
+                    if not init_result.success:
+                        raise StartupError(
+                            "Не удалось перейти в INIT: "
+                            f"{init_result.error}"
+                        )
 
                 # Фаза 6: Инициализация Circuit Breakers
                 self._startup_phase = StartupPhase.INITIALIZING_CIRCUIT_BREAKERS
@@ -468,6 +479,16 @@ class SystemController:
                 self._startup_phase = StartupPhase.INITIALIZING_HEALTH_CHECKS
                 await self._initialize_health_checks()
                 components_initialized.append("health_checks")
+
+                await self._publish_lifecycle_event(
+                    SystemEventType.SYSTEM_BOOT,
+                    {
+                        "startup_phase": self._startup_phase.value,
+                        "current_state": self._state_machine.current_state.value,
+                        "components_registered": list(self._components.keys()),
+                        "test_mode": self._test_mode,
+                    },
+                )
 
                 # Фаза 8: Инициализация компонентов
                 self._startup_phase = StartupPhase.INITIALIZING_COMPONENTS
@@ -493,6 +514,17 @@ class SystemController:
 
                 duration_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
                 self._startup_duration_ms = duration_ms
+
+                await self._publish_lifecycle_event(
+                    SystemEventType.SYSTEM_READY,
+                    {
+                        "duration_ms": duration_ms,
+                        "startup_phase": self._startup_phase.value,
+                        "current_state": self._state_machine.current_state.value,
+                        "components_initialized": list(components_initialized),
+                        "components_failed": list(components_failed),
+                    },
+                )
 
                 # Запускаем мониторинг health (только не в test_mode)
                 if not self._test_mode:
@@ -524,6 +556,16 @@ class SystemController:
 
                 self._startup_phase = StartupPhase.FAILED
                 self._last_error = error_msg
+
+                await self._publish_lifecycle_event(
+                    SystemEventType.SYSTEM_HALT,
+                    {
+                        "reason": "startup_failed",
+                        "startup_phase": self._startup_phase.value,
+                        "current_state": self._state_machine.current_state.value,
+                        "error": str(e),
+                    },
+                )
 
                 # Пытаемся откатить startup
                 await self._rollback_startup(components_initialized)
@@ -796,6 +838,26 @@ class SystemController:
                 self._shutdown_phase = ShutdownPhase.INITIATED
                 logger.info("Фаза 1: Переход в HALT")
 
+                shutdown_reason = "forced_shutdown" if force else "graceful_shutdown"
+                await self._publish_lifecycle_event(
+                    SystemEventType.SYSTEM_HALT,
+                    {
+                        "reason": shutdown_reason,
+                        "shutdown_phase": self._shutdown_phase.value,
+                        "current_state": self._state_machine.current_state.value,
+                        "force": force,
+                    },
+                )
+                await self._publish_lifecycle_event(
+                    SystemEventType.SYSTEM_SHUTDOWN,
+                    {
+                        "reason": shutdown_reason,
+                        "shutdown_phase": self._shutdown_phase.value,
+                        "current_state": self._state_machine.current_state.value,
+                        "force": force,
+                    },
+                )
+
                 if not force:
                     await self._state_machine.transition(
                         to_state=SystemState.HALT,
@@ -938,23 +1000,36 @@ class SystemController:
         except Exception as e:
             logger.error("Ошибка создания checkpoint", error=str(e))
 
-        # 2. Отправляем событие SHUTDOWN всем компонентам
-        if self._event_bus:
-            try:
-                shutdown_event = Event.new(
-                    event_type=SystemEventType.SYSTEM_SHUTDOWN,
-                    source=SystemEventSource.SYSTEM_CONTROLLER,
-                    payload={
-                        "reason": "graceful_shutdown",
-                        "timestamp": datetime.now(UTC).isoformat(),
-                    },
-                )
-                self._event_bus.publish(shutdown_event)
-                logger.info("Shutdown event опубликован")
-            except Exception as e:
-                logger.warning("Не удалось опубликовать shutdown event", error=str(e))
-
         logger.info("Состояние сохранено")
+
+    async def _publish_lifecycle_event(
+        self,
+        event_type: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """Опубликовать lifecycle event как часть runtime audit trail."""
+        if self._event_bus is None:
+            return
+
+        lifecycle_payload = {
+            **payload,
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+        event = Event.new(
+            event_type=event_type,
+            source=SystemEventSource.SYSTEM_CONTROLLER,
+            payload=lifecycle_payload,
+        )
+
+        try:
+            await self._event_bus.publish(event)
+            logger.info("Lifecycle event опубликован", event_type=event_type)
+        except Exception as e:
+            logger.warning(
+                "Не удалось опубликовать lifecycle event",
+                event_type=event_type,
+                error=str(e),
+            )
 
     # ==================== Health Monitor ====================
 

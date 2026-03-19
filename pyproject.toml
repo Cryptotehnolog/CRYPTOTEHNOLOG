@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cryptotechnolog"
-version = "1.5.0"
+dynamic = ["version"]
 description = "Institutional-Grade Crypto Trading Platform"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
@@ -111,6 +111,9 @@ include = ["cryptotechnolog*"]
 
 [tool.setuptools.package-data]
 cryptotechnolog = ["py.typed", "**/*.pyi"]
+
+[tool.setuptools.dynamic]
+version = {attr = "cryptotechnolog.runtime_identity.PACKAGE_VERSION"}
 
 [tool.black]
 line-length = 100
@@ -312,4 +315,3 @@ directory = "htmlcov"
 [tool.bandit]
 exclude_dirs = ["tests", "venv", "env"]
 skips = ["B101", "B601"]
-

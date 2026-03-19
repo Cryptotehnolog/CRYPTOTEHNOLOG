@@ -12,6 +12,7 @@
 """
 
 import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -27,6 +28,7 @@ from cryptotechnolog.core.health import (
     get_health_checker,
     init_health_checker,
 )
+from cryptotechnolog.runtime_identity import build_runtime_identity, get_release_identity
 
 
 class TestComponentHealth:
@@ -95,7 +97,7 @@ class TestSystemHealth:
 
         assert health.overall_status == HealthStatus.HEALTHY
         assert len(health.components) == 1
-        assert health.version == "1.4.0"
+        assert health.version == get_release_identity().version
 
     def test_is_healthy(self) -> None:
         """Проверка метода is_healthy()."""
@@ -148,13 +150,44 @@ class TestSystemHealth:
                     status=HealthStatus.HEALTHY,
                 ),
             },
+            readiness_status="ready",
+            diagnostics={"runtime_started": True},
         )
 
         result = health.to_dict()
 
         assert result["overall_status"] == "healthy"
         assert "test" in result["components"]
-        assert result["version"] == "1.4.0"
+        assert result["version"] == get_release_identity().version
+        assert result["runtime_identity"]["version"] == get_release_identity().version
+        assert result["readiness"]["status"] == "ready"
+        assert result["diagnostics"]["runtime_started"] is True
+
+    def test_to_dict_includes_runtime_config_truth(self) -> None:
+        """runtime_identity должен сохранять config truth в operator-facing payload."""
+        identity = build_runtime_identity(
+            bootstrap_module="cryptotechnolog.bootstrap",
+            bootstrap_mode="production",
+            active_risk_path="phase5_risk_engine",
+            config_identity="settings:test:d:\\CRYPTOTEHNOLOG\\config",
+            config_revision="abc123",
+        )
+        health = SystemHealth(
+            overall_status=HealthStatus.HEALTHY,
+            components={},
+            runtime_identity=identity,
+            diagnostics={
+                "config_identity": identity.config_identity,
+                "config_revision": identity.config_revision,
+            },
+        )
+
+        result = health.to_dict()
+
+        assert result["runtime_identity"]["config_identity"] == identity.config_identity
+        assert result["runtime_identity"]["config_revision"] == identity.config_revision
+        assert result["diagnostics"]["config_identity"] == identity.config_identity
+        assert result["diagnostics"]["config_revision"] == identity.config_revision
 
 
 class TestDatabaseHealthCheck:
@@ -400,6 +433,7 @@ class TestHealthChecker:
         """Инициализация проверяльщика."""
         checker = HealthChecker()
         assert len(checker.get_registered_checks()) == 0
+        assert checker.get_runtime_identity().version == get_release_identity().version
 
     def test_register_check(self) -> None:
         """Регистрация проверки."""
@@ -571,6 +605,144 @@ class TestHealthChecker:
 
         assert last is not None
         assert last.overall_status == HealthStatus.HEALTHY
+
+    @pytest.mark.asyncio
+    async def test_check_system_builds_ready_readiness_truth(self) -> None:
+        """Readiness должен отражать фактическую готовность runtime."""
+
+        class HealthyDB:
+            async def health_check(self):
+                return {"status": "healthy", "connected": True}
+
+        identity = build_runtime_identity(
+            bootstrap_module="cryptotechnolog.bootstrap",
+            bootstrap_mode="production",
+            active_risk_path="phase5_risk_engine",
+        )
+        checker = HealthChecker(runtime_identity=identity)
+        checker.set_runtime_diagnostics(
+            composition_root_built=True,
+            runtime_started=True,
+            runtime_ready=True,
+            active_risk_path="phase5_risk_engine",
+            config_identity="settings:test:d:\\CRYPTOTEHNOLOG\\config",
+            config_revision="rev-123",
+        )
+        checker.register_check(DatabaseHealthCheck(HealthyDB()))
+
+        result = await checker.check_system()
+
+        assert result.readiness_status == "ready"
+        assert result.readiness_reasons == []
+        assert result.diagnostics["active_risk_path"] == "phase5_risk_engine"
+        assert result.diagnostics["config_identity"] == "settings:test:d:\\CRYPTOTEHNOLOG\\config"
+        assert result.diagnostics["config_revision"] == "rev-123"
+
+    @pytest.mark.asyncio
+    async def test_check_system_exposes_blocked_startup_reason(self) -> None:
+        """Readiness должен показывать причину заблокированного startup."""
+        identity = build_runtime_identity(
+            bootstrap_module="cryptotechnolog.bootstrap",
+            bootstrap_mode="production",
+            active_risk_path="phase5_risk_engine",
+        )
+        checker = HealthChecker(runtime_identity=identity)
+        checker.set_runtime_diagnostics(
+            composition_root_built=True,
+            runtime_started=False,
+            runtime_ready=False,
+            active_risk_path="phase5_risk_engine",
+            failure_reason="Production bootstrap не поднял подключение к БД",
+        )
+
+        result = await checker.check_system()
+
+        assert result.readiness_status == "not_ready"
+        assert "runtime_not_started" in result.readiness_reasons
+        assert any(
+            reason.startswith("startup_failed:Production bootstrap не поднял подключение к БД")
+            for reason in result.readiness_reasons
+        )
+
+    @pytest.mark.asyncio
+    async def test_check_and_wait_uses_readiness_truth_when_runtime_context_present(self) -> None:
+        """check_and_wait должен ждать readiness, а не только overall health."""
+        identity = build_runtime_identity(
+            bootstrap_module="cryptotechnolog.bootstrap",
+            bootstrap_mode="production",
+            active_risk_path="phase5_risk_engine",
+        )
+        checker = HealthChecker(runtime_identity=identity)
+        not_ready = SystemHealth(
+            overall_status=HealthStatus.HEALTHY,
+            components={},
+            runtime_identity=identity,
+            readiness_status="not_ready",
+            diagnostics={
+                "composition_root_built": True,
+                "runtime_started": True,
+                "runtime_ready": False,
+                "startup_state": "starting",
+                "shutdown_state": "not_shutting_down",
+                "bootstrap_module": identity.bootstrap_module,
+                "bootstrap_mode": identity.bootstrap_mode,
+                "active_risk_path": identity.active_risk_path,
+                "failure_reason": None,
+                "degraded_reasons": [],
+            },
+        )
+        ready = SystemHealth(
+            overall_status=HealthStatus.HEALTHY,
+            components={},
+            runtime_identity=identity,
+            readiness_status="ready",
+            diagnostics={
+                "composition_root_built": True,
+                "runtime_started": True,
+                "runtime_ready": True,
+                "startup_state": "ready",
+                "shutdown_state": "not_shutting_down",
+                "bootstrap_module": identity.bootstrap_module,
+                "bootstrap_mode": identity.bootstrap_mode,
+                "active_risk_path": identity.active_risk_path,
+                "failure_reason": None,
+                "degraded_reasons": [],
+            },
+        )
+        checker.check_system = AsyncMock(side_effect=[not_ready, ready])  # type: ignore[method-assign]
+
+        result = await checker.check_and_wait(timeout=2.0)
+
+        assert result.readiness_status == "ready"
+        assert checker.check_system.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_check_and_wait_falls_back_to_health_for_generic_usage(self) -> None:
+        """Без runtime context helper должен оставаться совместимым с health-only usage."""
+        checker = HealthChecker()
+        healthy = SystemHealth(
+            overall_status=HealthStatus.HEALTHY,
+            components={},
+            readiness_status="not_ready",
+            diagnostics={
+                "composition_root_built": False,
+                "runtime_started": False,
+                "runtime_ready": False,
+                "startup_state": "not_started",
+                "shutdown_state": "not_shutting_down",
+                "bootstrap_module": None,
+                "bootstrap_mode": None,
+                "active_risk_path": None,
+                "failure_reason": None,
+                "degraded_reasons": [],
+            },
+        )
+        checker.check_system = AsyncMock(return_value=healthy)  # type: ignore[method-assign]
+
+        result = await checker.check_and_wait(timeout=0.1)
+
+        assert result.overall_status == HealthStatus.HEALTHY
+        assert checker.check_system.await_count == 1
 
 
 class TestHealthCheckerGlobal:
