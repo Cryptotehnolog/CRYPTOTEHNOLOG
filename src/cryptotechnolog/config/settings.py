@@ -141,8 +141,14 @@ class Settings(BaseSettings):
     # Maximum portfolio R exposure
     max_portfolio_r: float = 5.0
 
+    # Maximum aggregate exposure for Risk Engine portfolio checks (USD)
+    risk_max_total_exposure_usd: float = 50000.0
+
     # Maximum position size (USD)
     max_position_size: float = 10000.0
+
+    # Starting equity baseline for DrawdownMonitor runtime
+    risk_starting_equity: float = 10000.0
 
     # ==================== Trading Settings ====================
     # Default leverage
