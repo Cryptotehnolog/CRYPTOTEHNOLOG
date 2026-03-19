@@ -167,15 +167,17 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert runtime.event_bus.listener_registry is runtime.listener_registry
     assert runtime.risk_runtime.is_started is True
     assert diagnostics["runtime_started"] is True
-    assert diagnostics["runtime_ready"] is True
+    assert diagnostics["runtime_ready"] is False
     assert diagnostics["config_identity"] == runtime.identity.config_identity
     assert diagnostics["config_revision"] == runtime.identity.config_revision
+    assert "phase6_market_data:not_ready" in diagnostics["degraded_reasons"]
     assert health.overall_status == HealthStatus.HEALTHY
-    assert health.readiness_status == "ready"
+    assert health.readiness_status == "not_ready"
     assert health.runtime_identity == runtime.identity
     assert health.diagnostics["active_risk_path"] == PHASE5_RISK_PATH
     assert health.diagnostics["config_identity"] == runtime.identity.config_identity
     assert health.diagnostics["config_revision"] == runtime.identity.config_revision
+    assert "market_data_runtime_not_ready" in health.readiness_reasons
     assert SystemEventType.SYSTEM_BOOT in lifecycle_events
     assert SystemEventType.SYSTEM_READY in lifecycle_events
 
