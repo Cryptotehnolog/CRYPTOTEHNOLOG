@@ -182,6 +182,4 @@ class TestRiskLedger:
     def test_register_rejects_invalid_domain_position(self) -> None:
         """Регистрация невалидной доменной позиции должна падать явно."""
         with pytest.raises(InvalidLedgerOperationError, match="Количество позиции"):
-            self.ledger.register_position(
-                make_position(quantity=Decimal("0"))
-            )
+            self.ledger.register_position(make_position(quantity=Decimal("0")))

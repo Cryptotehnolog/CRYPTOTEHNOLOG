@@ -506,7 +506,9 @@ class RiskEngine:
                 continue
             previous_record = record
 
-            pnl_r = self._calculate_unrealized_pnl_r(record=record, mark_price=data.market.mark_price)
+            pnl_r = self._calculate_unrealized_pnl_r(
+                record=record, mark_price=data.market.mark_price
+            )
             effective_pnl_r = max(pnl_r, Decimal("0"))
 
             if self._current_system_state in {
@@ -530,7 +532,9 @@ class RiskEngine:
             refreshed = self._risk_ledger.get_position_record(record.position_id)
             self._portfolio_state.sync_position_from_ledger(refreshed)
             self._portfolio_state.assert_position_matches_ledger(refreshed)
-            self._portfolio_state.assert_total_risk_matches_ledger(self._risk_ledger.get_total_risk_r())
+            self._portfolio_state.assert_total_risk_matches_ledger(
+                self._risk_ledger.get_total_risk_r()
+            )
             await self._persist_trailing_update_if_enabled(
                 symbol=data.symbol,
                 previous_record=previous_record,
@@ -672,7 +676,9 @@ class RiskEngine:
             )
         )
         await self._persistence_repository.delete_position_risk_record(released_record.position_id)
-        await self._persistence_repository.delete_trailing_stop_snapshot(released_record.position_id)
+        await self._persistence_repository.delete_trailing_stop_snapshot(
+            released_record.position_id
+        )
 
     async def _persist_position_termination_if_enabled(
         self,
@@ -736,7 +742,11 @@ class RiskEngine:
             or previous_record.current_risk_r != refreshed_record.current_risk_r
             or previous_record.trailing_state != refreshed_record.trailing_state
         ):
-            operation = "UPDATE" if previous_record.current_stop != refreshed_record.current_stop else "STATE_SYNC"
+            operation = (
+                "UPDATE"
+                if previous_record.current_stop != refreshed_record.current_stop
+                else "STATE_SYNC"
+            )
             reason = (
                 "Движение стопа синхронизировано с RiskLedger"
                 if update.should_execute
