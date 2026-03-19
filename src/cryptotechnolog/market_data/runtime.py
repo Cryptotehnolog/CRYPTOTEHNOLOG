@@ -536,9 +536,7 @@ class MarketDataRuntime:
                     exchange=admitted.symbol.exchange,
                     version=current_snapshot.version,
                     changed_at=changed_at.isoformat(),
-                    reasons=tuple(
-                        reason.value for reason in admitted.admission_reasons
-                    ),
+                    reasons=tuple(reason.value for reason in admitted.admission_reasons),
                 ),
                 source=SystemEventSource.UNIVERSE_ENGINE,
                 correlation_id=correlation_id,
@@ -678,9 +676,7 @@ class MarketDataRuntime:
                 len(admissible_snapshot.symbols) if admissible_snapshot is not None else 0
             ),
             universe_confidence_state=assessment.state.value if assessment is not None else None,
-            universe_confidence=(
-                str(assessment.confidence) if assessment is not None else None
-            ),
+            universe_confidence=(str(assessment.confidence) if assessment is not None else None),
             last_universe_update_at=(
                 raw_snapshot.created_at.astimezone(UTC).isoformat()
                 if raw_snapshot is not None

@@ -304,8 +304,7 @@ class AdmissibleUniverseSnapshot:
         if exchange is None:
             return any(item.symbol.symbol == symbol for item in self.symbols)
         return any(
-            item.symbol.identity == build_symbol_identity(symbol, exchange)
-            for item in self.symbols
+            item.symbol.identity == build_symbol_identity(symbol, exchange) for item in self.symbols
         )
 
 

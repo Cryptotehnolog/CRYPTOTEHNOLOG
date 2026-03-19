@@ -28,7 +28,7 @@ class TestImportTimeCleanup:
 
         reloaded_package = importlib.reload(cryptotechnolog)
 
-        assert reloaded_package.__version__ == "1.5.1"
+        assert reloaded_package.__version__ == "1.6.0"
 
     def test_settings_module_reload_is_safe_until_explicit_access(
         self,

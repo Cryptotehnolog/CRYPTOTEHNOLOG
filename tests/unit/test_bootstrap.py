@@ -91,7 +91,10 @@ class TestProductionBootstrap:
         assert controller_component is not None
         assert controller_component is runtime.event_bus
         assert runtime.controller.get_component("phase5_risk_runtime") is runtime.risk_runtime
-        assert runtime.controller.get_component("phase6_market_data_runtime") is runtime.market_data_runtime
+        assert (
+            runtime.controller.get_component("phase6_market_data_runtime")
+            is runtime.market_data_runtime
+        )
 
         listener_names = [listener.name for listener in runtime.listener_registry.all_listeners]
         assert "risk_check_listener" not in listener_names
@@ -222,7 +225,9 @@ class TestProductionBootstrap:
                 overall_status=HealthStatus.HEALTHY,
                 components={},
                 runtime_identity=runtime.identity,
-                diagnostics={"market_data_runtime": runtime.market_data_runtime.get_runtime_diagnostics()},
+                diagnostics={
+                    "market_data_runtime": runtime.market_data_runtime.get_runtime_diagnostics()
+                },
             )
         )
         runtime.db_manager._connected = True

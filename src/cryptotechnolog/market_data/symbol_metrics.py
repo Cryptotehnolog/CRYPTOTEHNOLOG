@@ -166,9 +166,7 @@ class SymbolMetricsCollector:
         latency_ms: Decimal,
         coverage_ratio: Decimal,
     ) -> Decimal:
-        freshness_target_ms = Decimal(
-            str(int(self._config.max_freshness.total_seconds() * 1000))
-        )
+        freshness_target_ms = Decimal(str(int(self._config.max_freshness.total_seconds() * 1000)))
         spread_score = clamp_decimal(
             Decimal("1") - decimal_ratio(spread_bps, self._config.target_spread_bps),
             Decimal("0"),

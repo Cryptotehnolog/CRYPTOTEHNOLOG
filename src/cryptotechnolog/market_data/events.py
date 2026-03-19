@@ -241,9 +241,7 @@ class SymbolMetricsUpdatedPayload:
                 str(metrics.volume_24h_usd) if metrics.volume_24h_usd is not None else None
             ),
             open_interest_usd=(
-                str(metrics.open_interest_usd)
-                if metrics.open_interest_usd is not None
-                else None
+                str(metrics.open_interest_usd) if metrics.open_interest_usd is not None else None
             ),
             metadata=metrics.metadata.copy(),
         )
@@ -288,13 +286,9 @@ class UniverseSnapshotPayload:
             version=snapshot.version,
             snapshot_type="admissible",
             created_at=snapshot.created_at.isoformat(),
-            symbols=tuple(
-                (item.symbol.symbol, item.symbol.exchange) for item in snapshot.symbols
-            ),
+            symbols=tuple((item.symbol.symbol, item.symbol.exchange) for item in snapshot.symbols),
             symbols_count=len(snapshot.symbols),
-            confidence=(
-                str(snapshot.confidence) if snapshot.confidence is not None else None
-            ),
+            confidence=(str(snapshot.confidence) if snapshot.confidence is not None else None),
             excluded_symbols=tuple(
                 (excluded.symbol, excluded.exchange) for excluded in snapshot.excluded_symbols
             ),
@@ -307,7 +301,9 @@ class UniverseSnapshotPayload:
             version=snapshot.version,
             snapshot_type="ranked",
             created_at=snapshot.created_at.isoformat(),
-            symbols=tuple((entry.symbol.symbol, entry.symbol.exchange) for entry in snapshot.entries),
+            symbols=tuple(
+                (entry.symbol.symbol, entry.symbol.exchange) for entry in snapshot.entries
+            ),
             symbols_count=len(snapshot.entries),
             upstream_admissible_version=snapshot.upstream_admissible_version,
             ranking_model=snapshot.ranking_model,
@@ -394,9 +390,7 @@ class DataQualitySignalPayload:
             feed=signal.feed,
             gap_duration_ms=signal.gap_duration_ms,
             staleness_ms=signal.staleness_ms,
-            outlier_score=(
-                str(signal.outlier_score) if signal.outlier_score is not None else None
-            ),
+            outlier_score=(str(signal.outlier_score) if signal.outlier_score is not None else None),
             details=signal.details.copy(),
         )
 
