@@ -1,4 +1,4 @@
-# CRYPTOTEHNOLOG v1.4.0
+# CRYPTOTEHNOLOG v1.5.0
 
 ## Institutional-Grade Crypto Trading Platform
 
@@ -11,7 +11,7 @@ Multi-exchange algorithmic trading platform designed for small prop firm / crypt
 CRYPTOTEHNOLOG is an autonomous, self-healing trading platform that provides:
 
 - **Multi-exchange execution** across major crypto exchanges (Bybit, OKX, Binance)
-- **Institutional-grade risk management** with double-entry risk ledger
+- **Institutional-grade risk management** with Phase 5 Risk Engine foundation
 - **Autonomous operation** for weeks without human intervention
 - **Self-healing architecture** with multi-level degradation modes
 - **Cryptographic audit trail** for full compliance
@@ -29,13 +29,13 @@ CRYPTOTEHNOLOG Platform
 ├── Control Plane (Python)
 │   ├── State Machine
 │   ├── Config Manager
-│   ├── Risk Engine (orchestration)
+│   ├── Risk Engine (Phase 5 orchestration)
 │   ├── Portfolio Governor
 │   └── Kill Switch
 │
 ├── Data Plane
 │   ├── Event Bus (Rust) ← high-performance messaging
-│   ├── Risk Ledger (Rust) ← atomic operations
+│   ├── Rust Risk Ledger (legacy/high-performance path)
 │   ├── Audit Chain (Rust) ← cryptographic hashing
 │   ├── Market Data Layer (Python)
 │   ├── Intelligence Layer (Python)
@@ -80,10 +80,44 @@ CRYPTOTEHNOLOG Platform
 | 2 | Control Plane | ✅ Done | v1.2.0 |
 | 3 | Event Bus (Enhanced) | ✅ Done | v1.3.0 |
 | 4 | Config Manager | ✅ Done | v1.4.0 |
-| 5 | Risk Engine | ⏳ Planned | v1.5.0 |
+| 5 | Risk Engine | ✅ Done | v1.5.0 |
 | 6-11 | Trading Layers | ⏳ Planned | v1.6.0-v2.0.0 |
 | 12-18 | Protection & Testing | ⏳ Planned | v2.1.0-v2.3.0 |
 | 19 | Deployment | ⏳ Planned | v3.0.0 |
+
+---
+
+## Phase 5 Risk Engine
+
+Phase 5 introduces a new Python-based Risk Engine contour built as a modern,
+typed domain layer and integrated into the event-driven runtime without
+reusing the legacy listener-based risk path as its implementation base.
+
+Implemented in v1.5.0:
+
+- Domain models for orders, positions, risk records, trailing updates and funding snapshots
+- `PositionSizer` with Decimal-only R-unit sizing and hard invariants
+- Position-oriented `RiskLedger` as the source of truth for open-position risk
+- `TrailingPolicy` with tiered trailing, emergency mode and mandatory ledger sync
+- `PortfolioState`, `DrawdownMonitor`, `CorrelationEvaluator` and `FundingManager`
+- `RiskEngine` pre-trade orchestration and event-driven handlers for:
+  - `ORDER_FILLED`
+  - `POSITION_CLOSED`
+  - `BAR_COMPLETED`
+  - `STATE_TRANSITION`
+- Optional persistence foundation for:
+  - `risk_checks`
+  - `position_risk_ledger`
+  - `position_risk_ledger_audit`
+  - `trailing_stops`
+  - `trailing_stop_movements`
+- Runtime composition via `create_risk_runtime(...)` with explicit listener registration
+
+Controlled coexistence in v1.5.0:
+
+- The new Phase 5 risk contour is wired as a separate modern path
+- Legacy `core.listeners.risk` is not used as the implementation base for the new engine
+- Full project-wide replacement of the legacy path is intentionally left for controlled adoption in a later step
 
 ---
 
