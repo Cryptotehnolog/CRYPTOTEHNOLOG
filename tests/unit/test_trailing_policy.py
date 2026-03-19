@@ -324,7 +324,9 @@ class TestTrailingPolicy:
         update = self.policy.force_emergency(
             position_id="pos-1",
             pnl_r=Decimal("2.0"),
-            market=make_market(mark_price=Decimal("110"), atr=Decimal("4"), best_bid=Decimal("109")),
+            market=make_market(
+                mark_price=Decimal("110"), atr=Decimal("4"), best_bid=Decimal("109")
+            ),
             system_state=SystemState.DEGRADED,
         )
 

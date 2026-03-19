@@ -321,7 +321,11 @@ class TrailingPolicy:
         if mode is TrailingMode.EMERGENCY:
             return TrailingState.EMERGENCY
         if pnl_r < self._config.arm_at_pnl_r:
-            return current_state if current_state is not TrailingState.INACTIVE else TrailingState.INACTIVE
+            return (
+                current_state
+                if current_state is not TrailingState.INACTIVE
+                else TrailingState.INACTIVE
+            )
         if pnl_r < self._config.t2_at_pnl_r:
             return TrailingState.ARMED
         return TrailingState.ACTIVE
@@ -367,9 +371,7 @@ class TrailingPolicy:
         market: MarketSnapshot,
     ) -> Decimal:
         """Рассчитать более жёсткий стоп в EMERGENCY режиме."""
-        buffer_multiplier = Decimal("1") + (
-            self._config.emergency_buffer_bps / Decimal("10000")
-        )
+        buffer_multiplier = Decimal("1") + (self._config.emergency_buffer_bps / Decimal("10000"))
         inverse_buffer_multiplier = Decimal("1") - (
             self._config.emergency_buffer_bps / Decimal("10000")
         )

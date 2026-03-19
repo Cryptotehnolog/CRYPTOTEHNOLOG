@@ -165,7 +165,9 @@ async def create_risk_runtime(
         db_pool=db_pool,
     )
 
-    initial_system_state = controller.current_state if controller is not None else SystemState.TRADING
+    initial_system_state = (
+        controller.current_state if controller is not None else SystemState.TRADING
+    )
     risk_engine = RiskEngine(
         config=runtime_config.engine,
         correlation_evaluator=correlation_evaluator,

@@ -135,7 +135,9 @@ class PositionRiskLedgerAuditRecord:
             trailing_state=(
                 next_record.trailing_state.value
                 if next_record is not None
-                else current_record.trailing_state.value if current_record is not None else None
+                else current_record.trailing_state.value
+                if current_record is not None
+                else None
             ),
             reason=reason,
         )

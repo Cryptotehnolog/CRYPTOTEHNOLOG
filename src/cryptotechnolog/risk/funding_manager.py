@@ -264,8 +264,7 @@ class FundingManager:
         типизированный доменный контракт на границе manager.
         """
         quotes = tuple(
-            FundingRateQuote(exchange=exchange, rate=rate)
-            for exchange, rate in rates.items()
+            FundingRateQuote(exchange=exchange, rate=rate) for exchange, rate in rates.items()
         )
         if recorded_at is None:
             return FundingRateSnapshot(symbol=symbol, quotes=quotes)

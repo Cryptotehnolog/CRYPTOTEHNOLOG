@@ -86,9 +86,7 @@ class TestFundingManager:
 
     def test_does_not_switch_when_improvement_is_below_threshold(self) -> None:
         """Смена биржи не нужна, если улучшение funding недостаточно велико."""
-        manager = FundingManager(
-            FundingManagerConfig(min_exchange_improvement=Decimal("0.0005"))
-        )
+        manager = FundingManager(FundingManagerConfig(min_exchange_improvement=Decimal("0.0005")))
         manager.update_snapshot(
             make_snapshot(
                 quotes=(
@@ -110,9 +108,7 @@ class TestFundingManager:
 
     def test_blocks_long_entry_when_best_rate_is_too_expensive(self) -> None:
         """Для LONG даже лучшая биржа не должна проходить при слишком дорогом funding."""
-        manager = FundingManager(
-            FundingManagerConfig(max_acceptable_funding=Decimal("0.003"))
-        )
+        manager = FundingManager(FundingManagerConfig(max_acceptable_funding=Decimal("0.003")))
         manager.update_snapshot(
             make_snapshot(
                 quotes=(
@@ -134,9 +130,7 @@ class TestFundingManager:
 
     def test_blocks_short_entry_when_best_rate_is_too_negative(self) -> None:
         """Для SHORT слишком отрицательный funding должен блокировать новую позицию."""
-        manager = FundingManager(
-            FundingManagerConfig(max_acceptable_funding=Decimal("0.003"))
-        )
+        manager = FundingManager(FundingManagerConfig(max_acceptable_funding=Decimal("0.003")))
         manager.update_snapshot(
             make_snapshot(
                 quotes=(
@@ -177,9 +171,7 @@ class TestFundingManager:
 
     def test_ignores_snapshot_with_insufficient_spread(self) -> None:
         """Недостаточный funding spread не должен давать arbitrage opportunity."""
-        manager = FundingManager(
-            FundingManagerConfig(min_arbitrage_spread=Decimal("0.002"))
-        )
+        manager = FundingManager(FundingManagerConfig(min_arbitrage_spread=Decimal("0.002")))
 
         opportunities = manager.update_snapshot(
             make_snapshot(

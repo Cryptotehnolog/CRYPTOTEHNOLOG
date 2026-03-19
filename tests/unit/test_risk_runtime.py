@@ -49,7 +49,9 @@ class TestRiskRuntime:
     """Integration-тесты runtime/bootstrap integration нового Risk Engine."""
 
     @pytest.mark.asyncio
-    async def test_builds_phase5_runtime_without_persistence(self, isolated_listener_registry) -> None:
+    async def test_builds_phase5_runtime_without_persistence(
+        self, isolated_listener_registry
+    ) -> None:
         bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
         controller = SystemController(event_bus=bus, test_mode=True)
 
