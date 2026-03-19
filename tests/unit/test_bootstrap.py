@@ -79,8 +79,12 @@ class TestProductionBootstrap:
         assert runtime.health_checker.get_runtime_identity() == runtime.identity
         assert runtime.get_runtime_diagnostics()["composition_root_built"] is True
         assert runtime.get_runtime_diagnostics()["runtime_ready"] is False
-        assert runtime.get_runtime_diagnostics()["config_identity"] == runtime.identity.config_identity
-        assert runtime.get_runtime_diagnostics()["config_revision"] == runtime.identity.config_revision
+        assert (
+            runtime.get_runtime_diagnostics()["config_identity"] == runtime.identity.config_identity
+        )
+        assert (
+            runtime.get_runtime_diagnostics()["config_revision"] == runtime.identity.config_revision
+        )
         controller_component = runtime.controller.get_component("event_bus")
         assert controller_component is not None
         assert controller_component is runtime.event_bus

@@ -398,7 +398,9 @@ class RiskEngineListener(BaseListener):
         return Order(
             order_id=RiskEngineListener._require_str(payload, "order_id"),
             symbol=RiskEngineListener._require_str(payload, "symbol"),
-            side=RiskEngineListener._parse_order_side(RiskEngineListener._require_str(payload, "side")),
+            side=RiskEngineListener._parse_order_side(
+                RiskEngineListener._require_str(payload, "side")
+            ),
             entry_price=RiskEngineListener._require_decimal(payload, "entry_price", "price"),
             stop_loss=RiskEngineListener._require_decimal(payload, "stop_loss"),
             take_profit=RiskEngineListener._optional_decimal(payload, "take_profit"),

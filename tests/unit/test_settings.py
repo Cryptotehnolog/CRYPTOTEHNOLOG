@@ -231,9 +231,7 @@ class TestSettingsValidation:
         """Test that valid settings pass validation."""
         temp_root = Path.cwd() / ".tmp-test-settings"
         temp_root.mkdir(exist_ok=True)
-        temp_dir = Path(
-            tempfile.mkdtemp(prefix="cryptotechnolog-settings-", dir=temp_root)
-        )
+        temp_dir = Path(tempfile.mkdtemp(prefix="cryptotechnolog-settings-", dir=temp_root))
         try:
             # Override paths to use temp directory
             test_settings.data_dir = temp_dir / "data"

@@ -465,10 +465,7 @@ class SystemController:
                         metadata={"startup_phase": self._startup_phase.value},
                     )
                     if not init_result.success:
-                        raise StartupError(
-                            "Не удалось перейти в INIT: "
-                            f"{init_result.error}"
-                        )
+                        raise StartupError(f"Не удалось перейти в INIT: {init_result.error}")
 
                 # Фаза 6: Инициализация Circuit Breakers
                 self._startup_phase = StartupPhase.INITIALIZING_CIRCUIT_BREAKERS

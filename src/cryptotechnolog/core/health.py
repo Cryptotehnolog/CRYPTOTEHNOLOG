@@ -557,9 +557,7 @@ class HealthChecker:
     def get_runtime_diagnostics(self) -> dict[str, Any]:
         """Вернуть текущие runtime diagnostics."""
         diagnostics = dict(self._runtime_diagnostics)
-        diagnostics["degraded_reasons"] = list(
-            diagnostics.get("degraded_reasons") or []
-        )
+        diagnostics["degraded_reasons"] = list(diagnostics.get("degraded_reasons") or [])
         return diagnostics
 
     def register_check(self, check: HealthCheck) -> None:
@@ -763,9 +761,7 @@ class HealthChecker:
 
         for component_name, component_health in components.items():
             if component_health.status != HealthStatus.HEALTHY:
-                reasons.append(
-                    f"{component_name}:{component_health.status.value}"
-                )
+                reasons.append(f"{component_name}:{component_health.status.value}")
 
         reasons.extend(diagnostics.get("degraded_reasons") or [])
 

@@ -114,14 +114,14 @@ class ProductionRuntime:
                     failure_reason=reason,
                 )
                 logger.error(
-                "Production runtime startup заблокирован",
-                bootstrap_module=self.identity.bootstrap_module,
-                startup_phase=result.phase_reached.value,
-                failure_reason=reason,
-                config_identity=self.identity.config_identity,
-                config_revision=self.identity.config_revision,
-                active_risk_path=self.identity.active_risk_path,
-            )
+                    "Production runtime startup заблокирован",
+                    bootstrap_module=self.identity.bootstrap_module,
+                    startup_phase=result.phase_reached.value,
+                    failure_reason=reason,
+                    config_identity=self.identity.config_identity,
+                    config_revision=self.identity.config_revision,
+                    active_risk_path=self.identity.active_risk_path,
+                )
                 raise ProductionBootstrapError(reason)
 
             if self.redis_manager.redis is not None:
@@ -250,15 +250,11 @@ class ProductionRuntime:
         if not self.redis_manager.is_connected:
             raise ProductionBootstrapError("Production bootstrap не поднял подключение к Redis")
         if self.event_bus.listener_registry is not self.listener_registry:
-            raise ProductionBootstrapError(
-                "Production bootstrap потерял явный ListenerRegistry"
-            )
+            raise ProductionBootstrapError("Production bootstrap потерял явный ListenerRegistry")
         if not self.risk_runtime.is_started:
             raise ProductionBootstrapError("Phase 5 risk runtime не подключён к Event Bus")
         if self.policy.enable_event_bus_persistence and not self.event_bus.enable_persistence:
-            raise ProductionBootstrapError(
-                "Event Bus persistence выключилась во время startup"
-            )
+            raise ProductionBootstrapError("Event Bus persistence выключилась во время startup")
         if self.policy.enable_risk_persistence and self.risk_runtime.persistence_repository is None:
             raise ProductionBootstrapError(
                 "Risk runtime persistence не была подключена в production bootstrap"
@@ -274,9 +270,7 @@ class ProductionRuntime:
                 f"{sorted(registered_risk_paths)}"
             )
         if self.event_bus.active_risk_path != self.identity.active_risk_path:
-            raise ProductionBootstrapError(
-                "Event Bus настроен на неверный active risk path"
-            )
+            raise ProductionBootstrapError("Event Bus настроен на неверный active risk path")
         if not self.event_bus.enforce_single_risk_path:
             raise ProductionBootstrapError(
                 "Production Event Bus не форсирует single-risk-path policy"
