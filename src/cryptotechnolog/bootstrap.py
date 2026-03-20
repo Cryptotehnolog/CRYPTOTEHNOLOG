@@ -35,10 +35,17 @@ from cryptotechnolog.core.metrics import MetricsCollector, init_metrics
 from cryptotechnolog.core.redis_manager import RedisManager, set_redis_manager
 from cryptotechnolog.core.system_controller import ShutdownResult, StartupResult, SystemController
 from cryptotechnolog.intelligence.runtime import IntelligenceRuntime, create_intelligence_runtime
+from cryptotechnolog.market_data import MarketDataTimeframe
 from cryptotechnolog.market_data.events import BarCompletedPayload
 from cryptotechnolog.market_data.runtime import MarketDataRuntime, create_market_data_runtime
 from cryptotechnolog.risk.runtime import RiskRuntime, create_risk_runtime
 from cryptotechnolog.runtime_identity import RuntimeIdentity, build_runtime_identity
+from cryptotechnolog.signals import (
+    SignalEventSource,
+    SignalRuntime,
+    build_signal_event,
+    create_signal_runtime,
+)
 
 if TYPE_CHECKING:
     from cryptotechnolog.analysis import RiskDerivedInputsSnapshot
@@ -78,6 +85,7 @@ class ProductionRuntime:
     market_data_runtime: MarketDataRuntime
     shared_analysis_runtime: SharedAnalysisRuntime
     intelligence_runtime: IntelligenceRuntime
+    signal_runtime: SignalRuntime
     startup_result: StartupResult | None = None
     shutdown_result: ShutdownResult | None = None
     last_health: SystemHealth | None = None
@@ -296,6 +304,9 @@ class ProductionRuntime:
         if self.shared_analysis_runtime.is_started:
             with contextlib.suppress(Exception):
                 await self.shared_analysis_runtime.stop()
+        if self.signal_runtime.is_started:
+            with contextlib.suppress(Exception):
+                await self.signal_runtime.stop()
         if getattr(self.event_bus, "pending_tasks", None):
             with contextlib.suppress(Exception):
                 await self.event_bus.shutdown()
@@ -362,6 +373,21 @@ class ProductionRuntime:
             intelligence_runtime.get("degraded_reasons", []),
         )
         reasons.extend(f"phase7_intelligence:{reason}" for reason in degraded_reason_values)
+        signal_runtime = self.signal_runtime.get_runtime_diagnostics()
+        if not signal_runtime.get("started", False):
+            reasons.append("phase8_signal:not_started")
+        if not signal_runtime.get("ready", False):
+            reasons.append("phase8_signal:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            signal_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"phase8_signal:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            signal_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"phase8_signal:{reason}" for reason in degraded_reason_values)
         return reasons
 
 
@@ -489,6 +515,9 @@ async def build_production_runtime(  # noqa: PLR0915
     def update_shared_analysis_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
         health_checker.set_runtime_diagnostics(shared_analysis_runtime=diagnostics)
 
+    def update_signal_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(signal_runtime=diagnostics)
+
     intelligence_runtime = create_intelligence_runtime(
         diagnostics_sink=update_intelligence_runtime_diagnostics,
     )
@@ -506,6 +535,17 @@ async def build_production_runtime(  # noqa: PLR0915
     controller.register_component(
         name="c7r_shared_analysis_runtime",
         component=shared_analysis_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+
+    signal_runtime = create_signal_runtime(
+        diagnostics_sink=update_signal_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase8_signal_runtime",
+        component=signal_runtime,
         required=False,
         health_check_enabled=False,
         shutdown_timeout=15.0,
@@ -539,11 +579,48 @@ async def build_production_runtime(  # noqa: PLR0915
             shared_analysis_runtime.mark_degraded(f"bar_ingest_failed:{exc}")
             raise RuntimeError(f"shared_analysis_bar_ingest_failed:{exc}") from exc
 
+    async def handle_market_data_bar_completed_for_signal(event: Event) -> None:
+        try:
+            payload = BarCompletedPayload(**event.payload)
+            timeframe = MarketDataTimeframe(payload.timeframe)
+            orderbook_snapshot = market_data_runtime.orderbook_manager.get_snapshot(
+                payload.symbol,
+                payload.exchange,
+            )
+            derived_inputs = shared_analysis_runtime.get_risk_derived_inputs(
+                exchange=payload.exchange,
+                symbol=payload.symbol,
+                timeframe=timeframe,
+            )
+            derya = intelligence_runtime.get_derya_assessment(
+                exchange=payload.exchange,
+                symbol=payload.symbol,
+                timeframe=timeframe,
+            )
+            update = signal_runtime.ingest_bar_completed_payload(
+                payload,
+                orderbook=orderbook_snapshot,
+                derived_inputs=derived_inputs,
+                derya=derya,
+            )
+            if update.event_type is not None and update.emitted_payload is not None:
+                await event_bus.publish(
+                    build_signal_event(
+                        event_type=update.event_type,
+                        payload=update.emitted_payload,
+                        source=SignalEventSource.SIGNAL_RUNTIME.value,
+                    )
+                )
+        except Exception as exc:
+            signal_runtime.mark_degraded(f"bar_ingest_failed:{exc}")
+            raise RuntimeError(f"signal_bar_ingest_failed:{exc}") from exc
+
     event_bus.on(SystemEventType.BAR_COMPLETED, handle_market_data_bar_completed_for_intelligence)
     event_bus.on(
         SystemEventType.BAR_COMPLETED,
         handle_market_data_bar_completed_for_shared_analysis,
     )
+    event_bus.on(SystemEventType.BAR_COMPLETED, handle_market_data_bar_completed_for_signal)
 
     runtime = ProductionRuntime(
         settings=runtime_settings,
@@ -566,6 +643,7 @@ async def build_production_runtime(  # noqa: PLR0915
         market_data_runtime=market_data_runtime,
         shared_analysis_runtime=shared_analysis_runtime,
         intelligence_runtime=intelligence_runtime,
+        signal_runtime=signal_runtime,
     )
     runtime._update_runtime_diagnostics(
         composition_root_built=True,
