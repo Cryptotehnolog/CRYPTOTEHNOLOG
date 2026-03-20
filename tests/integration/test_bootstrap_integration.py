@@ -6,6 +6,13 @@ from decimal import Decimal
 
 import pytest
 
+from cryptotechnolog.analysis import (
+    AdxSnapshot,
+    AtrSnapshot,
+    DerivedInputStatus,
+    DerivedInputValidity,
+    RiskDerivedInputsSnapshot,
+)
 from cryptotechnolog.bootstrap import (
     PHASE5_RISK_PATH,
     ProductionBootstrapPolicy,
@@ -14,7 +21,15 @@ from cryptotechnolog.bootstrap import (
 from cryptotechnolog.config.settings import Settings
 from cryptotechnolog.core.event import Event, SystemEventSource, SystemEventType
 from cryptotechnolog.core.health import HealthStatus
-from cryptotechnolog.intelligence import IntelligenceEventType
+from cryptotechnolog.intelligence import (
+    DEFAULT_DERYA_CLASSIFICATION_BASIS,
+    DeryaAssessment,
+    DeryaRegime,
+    DeryaResolutionState,
+    IndicatorValidity,
+    IndicatorValueStatus,
+    IntelligenceEventType,
+)
 from cryptotechnolog.market_data import (
     MarketDataTimeframe,
     OHLCVBarContract,
@@ -27,6 +42,7 @@ from cryptotechnolog.market_data.events import (
     build_market_data_event,
 )
 from cryptotechnolog.risk.engine import RiskEngineEventType
+from cryptotechnolog.signals import SignalEventType
 
 
 class _FakeConnection:
@@ -205,6 +221,64 @@ def _make_orderbook_snapshot() -> OrderBookSnapshotContract:
     )
 
 
+def _make_ready_derived_inputs() -> RiskDerivedInputsSnapshot:
+    updated_at = datetime(2026, 3, 20, 12, 27, tzinfo=UTC)
+    validity = DerivedInputValidity(
+        status=DerivedInputStatus.VALID,
+        observed_bars=20,
+        required_bars=14,
+    )
+    return RiskDerivedInputsSnapshot(
+        symbol="BTC/USDT",
+        exchange="bybit",
+        timeframe=MarketDataTimeframe.M1,
+        updated_at=updated_at,
+        atr=AtrSnapshot(
+            symbol="BTC/USDT",
+            exchange="bybit",
+            timeframe=MarketDataTimeframe.M1,
+            updated_at=updated_at,
+            period=14,
+            value=Decimal("2"),
+            validity=validity,
+        ),
+        adx=AdxSnapshot(
+            symbol="BTC/USDT",
+            exchange="bybit",
+            timeframe=MarketDataTimeframe.M1,
+            updated_at=updated_at,
+            period=14,
+            value=Decimal("30"),
+            validity=validity,
+        ),
+    )
+
+
+def _make_ready_derya() -> DeryaAssessment:
+    updated_at = datetime(2026, 3, 20, 12, 27, tzinfo=UTC)
+    return DeryaAssessment(
+        symbol="BTC/USDT",
+        exchange="bybit",
+        timeframe=MarketDataTimeframe.M1,
+        updated_at=updated_at,
+        validity=IndicatorValidity(
+            status=IndicatorValueStatus.VALID,
+            observed_bars=10,
+            required_bars=4,
+        ),
+        confidence=Decimal("0.7000"),
+        raw_efficiency=Decimal("0.8"),
+        smoothed_efficiency=Decimal("0.75"),
+        efficiency_slope=Decimal("0.03"),
+        current_regime=DeryaRegime.EXPANSION,
+        previous_regime=DeryaRegime.EXHAUSTION,
+        resolution_state=DeryaResolutionState.STABLE,
+        regime_duration_bars=4,
+        regime_persistence_ratio=Decimal("1"),
+        classification_basis=DEFAULT_DERYA_CLASSIFICATION_BASIS,
+    )
+
+
 def _make_order_filled_event() -> Event:
     return Event.new(
         SystemEventType.ORDER_FILLED,
@@ -258,6 +332,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "phase6_market_data:not_ready" in diagnostics["degraded_reasons"]
     assert "c7r_shared_analysis:not_ready" in diagnostics["degraded_reasons"]
     assert "phase7_intelligence:not_ready" in diagnostics["degraded_reasons"]
+    assert "phase8_signal:not_ready" in diagnostics["degraded_reasons"]
     assert health.overall_status == HealthStatus.HEALTHY
     assert health.readiness_status == "not_ready"
     assert health.runtime_identity == runtime.identity
@@ -267,8 +342,209 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "market_data_runtime_not_ready" in health.readiness_reasons
     assert "shared_analysis_runtime_not_ready" in health.readiness_reasons
     assert "intelligence_runtime_not_ready" in health.readiness_reasons
+    assert "signal_runtime_not_ready" in health.readiness_reasons
     assert SystemEventType.SYSTEM_BOOT in lifecycle_events
     assert SystemEventType.SYSTEM_READY in lifecycle_events
+
+    await runtime.shutdown(force=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> None:
+    """Phase 8 runtime должен получать existing truths через composition-root wiring."""
+    runtime = await build_production_runtime(
+        settings=_make_settings(),
+        policy=ProductionBootstrapPolicy(
+            test_mode=True,
+            enable_event_bus_persistence=False,
+            enable_risk_persistence=False,
+        ),
+    )
+
+    fake_pool = _FakePool()
+    _install_fake_database(runtime, fake_pool)
+    _install_fake_redis(runtime)
+    _install_fake_metrics(runtime)
+
+    captured_signal_events: list[Event] = []
+    runtime.event_bus.on(
+        SignalEventType.SIGNAL_SNAPSHOT_UPDATED.value,
+        captured_signal_events.append,
+    )
+
+    await runtime.startup()
+    await runtime.market_data_runtime.ingest_orderbook_snapshot(_make_orderbook_snapshot())
+
+    for index in range(28):
+        bar = _make_completed_bar(index)
+        event = build_market_data_event(
+            event_type=MarketDataEventType.BAR_COMPLETED,
+            payload=BarCompletedPayload.from_contract(bar),
+        )
+        await runtime.event_bus.publish(event)
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    signal_diagnostics = diagnostics["signal_runtime"]
+    signal = runtime.signal_runtime.get_signal(
+        exchange="bybit",
+        symbol="BTC/USDT",
+        timeframe=MarketDataTimeframe.M1,
+    )
+    context = runtime.signal_runtime.get_signal_context(
+        exchange="bybit",
+        symbol="BTC/USDT",
+        timeframe=MarketDataTimeframe.M1,
+    )
+
+    assert runtime.signal_runtime.is_started is True
+    assert signal_diagnostics["started"] is True
+    assert signal_diagnostics["ready"] is True
+    assert signal_diagnostics["tracked_signal_keys"] == 1
+    assert signal_diagnostics["last_context_at"] is not None
+    assert signal_diagnostics["last_event_type"] == SignalEventType.SIGNAL_SNAPSHOT_UPDATED.value
+    assert context is not None
+    assert context.derived_inputs is not None
+    assert context.derya is not None
+    assert signal is not None
+    assert signal.status.value == "suppressed"
+    assert captured_signal_events
+
+    await runtime.shutdown(force=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtime_path() -> None:
+    """Integrated signal wiring должен публиковать SIGNAL_EMITTED из existing truths."""
+    runtime = await build_production_runtime(
+        settings=_make_settings(),
+        policy=ProductionBootstrapPolicy(
+            test_mode=True,
+            enable_event_bus_persistence=False,
+            enable_risk_persistence=False,
+        ),
+    )
+
+    fake_pool = _FakePool()
+    _install_fake_database(runtime, fake_pool)
+    _install_fake_redis(runtime)
+    _install_fake_metrics(runtime)
+
+    captured_signal_events: list[Event] = []
+    runtime.event_bus.on(
+        SignalEventType.SIGNAL_EMITTED.value,
+        captured_signal_events.append,
+    )
+
+    await runtime.startup()
+    await runtime.market_data_runtime.ingest_orderbook_snapshot(_make_orderbook_snapshot())
+    runtime.shared_analysis_runtime.get_risk_derived_inputs = lambda **_kwargs: (
+        _make_ready_derived_inputs()
+    )  # type: ignore[method-assign]
+    runtime.intelligence_runtime.get_derya_assessment = lambda **_kwargs: _make_ready_derya()  # type: ignore[method-assign]
+
+    bar = _make_completed_bar(0)
+    event = build_market_data_event(
+        event_type=MarketDataEventType.BAR_COMPLETED,
+        payload=BarCompletedPayload.from_contract(bar),
+    )
+    await runtime.event_bus.publish(event)
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    signal_diagnostics = diagnostics["signal_runtime"]
+    signal = runtime.signal_runtime.get_signal(
+        exchange="bybit",
+        symbol="BTC/USDT",
+        timeframe=MarketDataTimeframe.M1,
+    )
+
+    assert signal is not None
+    assert signal.status.value == "active"
+    assert signal.direction is not None
+    assert signal_diagnostics["ready"] is True
+    assert signal_diagnostics["active_signal_keys"] == 1
+    assert signal_diagnostics["last_event_type"] == SignalEventType.SIGNAL_EMITTED.value
+    assert captured_signal_events
+    assert captured_signal_events[-1].payload["status"] == "active"
+    assert captured_signal_events[-1].payload["direction"] == "BUY"
+    assert captured_signal_events[-1].payload["symbol"] == "BTC/USDT"
+
+    await runtime.shutdown(force=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_disappears() -> None:
+    """Integrated signal wiring не должен маскировать invalidation как обычный update."""
+    runtime = await build_production_runtime(
+        settings=_make_settings(),
+        policy=ProductionBootstrapPolicy(
+            test_mode=True,
+            enable_event_bus_persistence=False,
+            enable_risk_persistence=False,
+        ),
+    )
+
+    fake_pool = _FakePool()
+    _install_fake_database(runtime, fake_pool)
+    _install_fake_redis(runtime)
+    _install_fake_metrics(runtime)
+
+    captured_invalidations: list[Event] = []
+    runtime.event_bus.on(
+        SignalEventType.SIGNAL_INVALIDATED.value,
+        captured_invalidations.append,
+    )
+
+    await runtime.startup()
+    await runtime.market_data_runtime.ingest_orderbook_snapshot(_make_orderbook_snapshot())
+    runtime.shared_analysis_runtime.get_risk_derived_inputs = lambda **_kwargs: (
+        _make_ready_derived_inputs()
+    )  # type: ignore[method-assign]
+    runtime.intelligence_runtime.get_derya_assessment = lambda **_kwargs: _make_ready_derya()  # type: ignore[method-assign]
+
+    first_bar = _make_completed_bar(0)
+    first_event = build_market_data_event(
+        event_type=MarketDataEventType.BAR_COMPLETED,
+        payload=BarCompletedPayload.from_contract(first_bar),
+    )
+    await runtime.event_bus.publish(first_event)
+
+    active = runtime.signal_runtime.get_signal(
+        exchange="bybit",
+        symbol="BTC/USDT",
+        timeframe=MarketDataTimeframe.M1,
+    )
+    assert active is not None
+    assert active.status.value == "active"
+
+    runtime.shared_analysis_runtime.get_risk_derived_inputs = lambda **_kwargs: None  # type: ignore[method-assign]
+    second_bar = _make_completed_bar(1)
+    second_event = build_market_data_event(
+        event_type=MarketDataEventType.BAR_COMPLETED,
+        payload=BarCompletedPayload.from_contract(second_bar),
+    )
+    await runtime.event_bus.publish(second_event)
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    signal_diagnostics = diagnostics["signal_runtime"]
+    invalidated = runtime.signal_runtime.get_signal(
+        exchange="bybit",
+        symbol="BTC/USDT",
+        timeframe=MarketDataTimeframe.M1,
+    )
+
+    assert invalidated is not None
+    assert invalidated.signal_id == active.signal_id
+    assert invalidated.status.value == "invalidated"
+    assert invalidated.validity.status.value == "warming"
+    assert signal_diagnostics["ready"] is False
+    assert signal_diagnostics["invalidated_signal_keys"] == 1
+    assert signal_diagnostics["last_event_type"] == SignalEventType.SIGNAL_INVALIDATED.value
+    assert captured_invalidations
+    assert captured_invalidations[-1].payload["status"] == "invalidated"
+    assert captured_invalidations[-1].payload["validity_status"] == "warming"
 
     await runtime.shutdown(force=True)
 
@@ -396,6 +672,49 @@ async def test_intelligence_runtime_ingest_failure_is_visible_in_runtime_truth()
 
 @pytest.mark.asyncio
 @pytest.mark.integration
+async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_runtime_truth() -> (
+    None
+):
+    """Signal runtime не должен маскировать incomplete context как ready."""
+    runtime = await build_production_runtime(
+        settings=_make_settings(),
+        policy=ProductionBootstrapPolicy(
+            test_mode=True,
+            enable_event_bus_persistence=False,
+            enable_risk_persistence=False,
+        ),
+    )
+
+    fake_pool = _FakePool()
+    _install_fake_database(runtime, fake_pool)
+    _install_fake_redis(runtime)
+    _install_fake_metrics(runtime)
+
+    await runtime.startup()
+
+    bar = _make_completed_bar(0)
+    event = build_market_data_event(
+        event_type=MarketDataEventType.BAR_COMPLETED,
+        payload=BarCompletedPayload.from_contract(bar),
+    )
+    await runtime.event_bus.publish(event)
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    signal_diagnostics = diagnostics["signal_runtime"]
+    health = await runtime.health_checker.check_system()
+
+    assert signal_diagnostics["started"] is True
+    assert signal_diagnostics["ready"] is False
+    assert signal_diagnostics["lifecycle_state"] == "warming"
+    assert signal_diagnostics["tracked_signal_keys"] == 1
+    assert signal_diagnostics["readiness_reasons"] == ["signal_context_warming"]
+    assert "signal_runtime_not_ready" in health.readiness_reasons
+
+    await runtime.shutdown(force=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
 async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None:
     """Shutdown должен оставлять operator-visible intelligence diagnostics в stopped state."""
     runtime = await build_production_runtime(
@@ -427,6 +746,7 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     diagnostics = runtime.get_runtime_diagnostics()
     intelligence_diagnostics = diagnostics["intelligence_runtime"]
     shared_analysis_diagnostics = diagnostics["shared_analysis_runtime"]
+    signal_diagnostics = diagnostics["signal_runtime"]
 
     assert intelligence_diagnostics["started"] is False
     assert intelligence_diagnostics["ready"] is False
@@ -441,6 +761,19 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     assert shared_analysis_diagnostics["lifecycle_state"] == "stopped"
     assert shared_analysis_diagnostics["tracked_keys"] == 0
     assert shared_analysis_diagnostics["readiness_reasons"] == ["runtime_stopped"]
+    assert signal_diagnostics["started"] is False
+    assert signal_diagnostics["ready"] is False
+    assert signal_diagnostics["lifecycle_state"] == "stopped"
+    assert signal_diagnostics["tracked_signal_keys"] == 0
+    assert signal_diagnostics["active_signal_keys"] == 0
+    assert signal_diagnostics["invalidated_signal_keys"] == 0
+    assert signal_diagnostics["expired_signal_keys"] == 0
+    assert signal_diagnostics["last_context_at"] is None
+    assert signal_diagnostics["last_signal_id"] is None
+    assert signal_diagnostics["last_event_type"] is None
+    assert signal_diagnostics["last_failure_reason"] is None
+    assert signal_diagnostics["readiness_reasons"] == ["runtime_stopped"]
+    assert signal_diagnostics["degraded_reasons"] == []
 
 
 @pytest.mark.asyncio

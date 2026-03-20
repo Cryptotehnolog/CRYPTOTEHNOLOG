@@ -78,6 +78,8 @@ def _fake_shutdown_with_component_stop(
 ):
     async def _shutdown(*, force: bool = False) -> ShutdownResult:
         _ = force
+        if runtime.signal_runtime.is_started:
+            await runtime.signal_runtime.stop()
         if runtime.intelligence_runtime.is_started:
             await runtime.intelligence_runtime.stop()
         if runtime.shared_analysis_runtime.is_started:
@@ -145,6 +147,8 @@ class TestProductionBootstrap:
         assert runtime.get_runtime_diagnostics()["shared_analysis_runtime"]["ready"] is False
         assert runtime.get_runtime_diagnostics()["intelligence_runtime"]["started"] is False
         assert runtime.get_runtime_diagnostics()["intelligence_runtime"]["ready"] is False
+        assert runtime.get_runtime_diagnostics()["signal_runtime"]["started"] is False
+        assert runtime.get_runtime_diagnostics()["signal_runtime"]["ready"] is False
         controller_component = runtime.controller.get_component("event_bus")
         assert controller_component is not None
         assert controller_component is runtime.event_bus
@@ -161,7 +165,9 @@ class TestProductionBootstrap:
             runtime.controller.get_component("c7r_shared_analysis_runtime")
             is runtime.shared_analysis_runtime
         )
+        assert runtime.controller.get_component("phase8_signal_runtime") is runtime.signal_runtime
         assert SystemEventType.BAR_COMPLETED in runtime.event_bus.handlers
+        assert len(runtime.event_bus.handlers[SystemEventType.BAR_COMPLETED]) == 3
         assert SystemEventType.BAR_COMPLETED not in runtime.risk_runtime.risk_listener.event_types
         assert SystemEventType.RISK_BAR_COMPLETED in runtime.risk_runtime.risk_listener.event_types
 
@@ -224,6 +230,13 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.signal_runtime._started = True
+        runtime.signal_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         result = await runtime.startup()
 
@@ -239,6 +252,7 @@ class TestProductionBootstrap:
         assert diagnostics["market_data_runtime"]["ready"] is True
         assert diagnostics["shared_analysis_runtime"]["ready"] is True
         assert diagnostics["intelligence_runtime"]["ready"] is True
+        assert diagnostics["signal_runtime"]["ready"] is True
 
     @pytest.mark.asyncio
     async def test_runtime_startup_fail_fast_exposes_block_reason_in_diagnostics(self) -> None:
@@ -342,6 +356,13 @@ class TestProductionBootstrap:
             readiness_reasons=("derya_history_warming",),
             degraded_reasons=(),
         )
+        runtime.signal_runtime._started = True
+        runtime.signal_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=False,
+            lifecycle_state="warming",
+            readiness_reasons=("no_signal_context_processed",),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
 
@@ -352,9 +373,11 @@ class TestProductionBootstrap:
         assert "phase6_market_data:not_ready" in diagnostics["degraded_reasons"]
         assert "c7r_shared_analysis:not_ready" in diagnostics["degraded_reasons"]
         assert "phase7_intelligence:not_ready" in diagnostics["degraded_reasons"]
+        assert "phase8_signal:not_ready" in diagnostics["degraded_reasons"]
         assert diagnostics["market_data_runtime"]["ready"] is False
         assert diagnostics["shared_analysis_runtime"]["ready"] is False
         assert diagnostics["intelligence_runtime"]["ready"] is False
+        assert diagnostics["signal_runtime"]["ready"] is False
 
     @pytest.mark.asyncio
     async def test_runtime_startup_exposes_degraded_readiness_when_health_is_degraded(self) -> None:
@@ -466,6 +489,13 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.signal_runtime._started = True
+        runtime.signal_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
         shutdown_result = await runtime.shutdown()
@@ -486,6 +516,11 @@ class TestProductionBootstrap:
         assert diagnostics["intelligence_runtime"]["lifecycle_state"] == "stopped"
         assert diagnostics["intelligence_runtime"]["readiness_reasons"] == ["runtime_stopped"]
         assert diagnostics["intelligence_runtime"]["degraded_reasons"] == []
+        assert diagnostics["signal_runtime"]["started"] is False
+        assert diagnostics["signal_runtime"]["ready"] is False
+        assert diagnostics["signal_runtime"]["lifecycle_state"] == "stopped"
+        assert diagnostics["signal_runtime"]["tracked_signal_keys"] == 0
+        assert diagnostics["signal_runtime"]["readiness_reasons"] == ["runtime_stopped"]
 
     @pytest.mark.asyncio
     async def test_start_production_runtime_preserves_fail_fast_truth_after_cleanup(self) -> None:
@@ -706,6 +741,72 @@ class TestProductionBootstrap:
         assert diagnostics["lifecycle_state"] == "degraded"
         assert diagnostics["last_failure_reason"] == "bar_ingest_failed:analysis_ingest_failure"
         assert diagnostics["degraded_reasons"] == ["bar_ingest_failed:analysis_ingest_failure"]
+
+    @pytest.mark.asyncio
+    async def test_bar_completed_wiring_marks_signal_runtime_degraded_on_ingest_failure(
+        self,
+    ) -> None:
+        """BAR_COMPLETED wiring должен честно переводить signal runtime в degraded."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.signal_runtime._started = True
+        runtime.signal_runtime.ingest_bar_completed_payload = Mock(  # type: ignore[method-assign]
+            side_effect=RuntimeError("signal_ingest_failure")
+        )
+        handler = runtime.event_bus.handlers[SystemEventType.BAR_COMPLETED][2]
+        event = build_market_data_event(
+            event_type=MarketDataEventType.BAR_COMPLETED,
+            payload=BarCompletedPayload.from_contract(make_completed_bar()),
+        )
+
+        with pytest.raises(RuntimeError, match="signal_bar_ingest_failed:signal_ingest_failure"):
+            await handler(event)
+
+        diagnostics = runtime.signal_runtime.get_runtime_diagnostics()
+        assert diagnostics["started"] is True
+        assert diagnostics["ready"] is False
+        assert diagnostics["lifecycle_state"] == "degraded"
+        assert diagnostics["last_failure_reason"] == "bar_ingest_failed:signal_ingest_failure"
+        assert diagnostics["degraded_reasons"] == ["bar_ingest_failed:signal_ingest_failure"]
+
+    @pytest.mark.asyncio
+    async def test_bar_completed_wiring_keeps_signal_context_assembly_inside_signal_runtime(
+        self,
+    ) -> None:
+        """Composition root должен передавать truths в SignalRuntime, а не собирать SignalContext."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.signal_runtime._started = True
+        runtime.signal_runtime.ingest_truths = Mock()  # type: ignore[method-assign]
+        runtime.signal_runtime.ingest_bar_completed_payload = Mock(  # type: ignore[method-assign]
+            side_effect=runtime.signal_runtime.ingest_bar_completed_payload
+        )
+        handler = runtime.event_bus.handlers[SystemEventType.BAR_COMPLETED][2]
+        event = build_market_data_event(
+            event_type=MarketDataEventType.BAR_COMPLETED,
+            payload=BarCompletedPayload.from_contract(make_completed_bar()),
+        )
+
+        await handler(event)
+
+        runtime.signal_runtime.ingest_bar_completed_payload.assert_called_once()
+        runtime.signal_runtime.ingest_truths.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_composition_root_keeps_market_data_bar_boundary_separate_from_risk_listener(
