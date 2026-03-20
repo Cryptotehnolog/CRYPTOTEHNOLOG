@@ -14,6 +14,7 @@ from cryptotechnolog.core.global_instances import (
     reset_event_bus,
     set_event_bus,
 )
+from cryptotechnolog.runtime_identity import PACKAGE_VERSION
 
 
 class TestImportTimeCleanup:
@@ -28,7 +29,7 @@ class TestImportTimeCleanup:
 
         reloaded_package = importlib.reload(cryptotechnolog)
 
-        assert reloaded_package.__version__ == "1.7.0"
+        assert reloaded_package.__version__ == PACKAGE_VERSION
 
     def test_settings_module_reload_is_safe_until_explicit_access(
         self,
