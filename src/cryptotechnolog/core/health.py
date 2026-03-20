@@ -738,7 +738,7 @@ class HealthChecker:
 
         return system_health
 
-    def _build_readiness(
+    def _build_readiness(  # noqa: PLR0912
         self,
         overall_status: HealthStatus,
         components: dict[str, ComponentHealth],
@@ -771,6 +771,34 @@ class HealthChecker:
             reasons.extend(
                 f"market_data:{reason}"
                 for reason in market_data_runtime.get("degraded_reasons", [])
+            )
+
+        shared_analysis_runtime = diagnostics.get("shared_analysis_runtime")
+        if isinstance(shared_analysis_runtime, dict):
+            if not shared_analysis_runtime.get("started", False):
+                reasons.append("shared_analysis_runtime_not_started")
+            if not shared_analysis_runtime.get("ready", False):
+                reasons.append("shared_analysis_runtime_not_ready")
+            reasons.extend(
+                str(reason) for reason in shared_analysis_runtime.get("readiness_reasons", [])
+            )
+            reasons.extend(
+                f"shared_analysis:{reason}"
+                for reason in shared_analysis_runtime.get("degraded_reasons", [])
+            )
+
+        intelligence_runtime = diagnostics.get("intelligence_runtime")
+        if isinstance(intelligence_runtime, dict):
+            if not intelligence_runtime.get("started", False):
+                reasons.append("intelligence_runtime_not_started")
+            if not intelligence_runtime.get("ready", False):
+                reasons.append("intelligence_runtime_not_ready")
+            reasons.extend(
+                str(reason) for reason in intelligence_runtime.get("readiness_reasons", [])
+            )
+            reasons.extend(
+                f"intelligence:{reason}"
+                for reason in intelligence_runtime.get("degraded_reasons", [])
             )
 
         for component_name, component_health in components.items():
@@ -881,19 +909,17 @@ class HealthChecker:
     def _is_wait_condition_satisfied(self, health: SystemHealth) -> bool:
         """Определить, достигнуто ли условие готовности для wait-helper."""
         diagnostics = health.diagnostics
-        readiness_context_present = any(
-            [
-                diagnostics.get("composition_root_built", False),
-                diagnostics.get("runtime_started", False),
-                diagnostics.get("runtime_ready", False),
-                diagnostics.get("startup_state") not in (None, "not_started"),
-                diagnostics.get("bootstrap_module") is not None,
-                diagnostics.get("bootstrap_mode") is not None,
-                diagnostics.get("active_risk_path") is not None,
-                diagnostics.get("failure_reason") is not None,
-                bool(diagnostics.get("degraded_reasons")),
-            ]
-        )
+        readiness_context_present = any([
+            diagnostics.get("composition_root_built", False),
+            diagnostics.get("runtime_started", False),
+            diagnostics.get("runtime_ready", False),
+            diagnostics.get("startup_state") not in (None, "not_started"),
+            diagnostics.get("bootstrap_module") is not None,
+            diagnostics.get("bootstrap_mode") is not None,
+            diagnostics.get("active_risk_path") is not None,
+            diagnostics.get("failure_reason") is not None,
+            bool(diagnostics.get("degraded_reasons")),
+        ])
         if readiness_context_present:
             return health.readiness_status == "ready"
         return health.is_healthy()

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from decimal import Decimal
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -13,6 +15,7 @@ from cryptotechnolog.bootstrap import (
     start_production_runtime,
 )
 from cryptotechnolog.config.settings import Settings
+from cryptotechnolog.core.event import SystemEventType
 from cryptotechnolog.core.health import HealthStatus, SystemHealth
 import cryptotechnolog.core.listeners.base as listeners_base_module
 from cryptotechnolog.core.listeners.base import ListenerRegistry
@@ -22,6 +25,12 @@ from cryptotechnolog.core.system_controller import (
     ShutdownResult,
     StartupPhase,
     StartupResult,
+)
+from cryptotechnolog.market_data import MarketDataTimeframe, OHLCVBarContract
+from cryptotechnolog.market_data.events import (
+    BarCompletedPayload,
+    MarketDataEventType,
+    build_market_data_event,
 )
 
 
@@ -38,6 +47,51 @@ def make_settings() -> Settings:
         risk_starting_equity=10000.0,
         event_bus_redis_url="redis://localhost:6379",
     )
+
+
+def make_completed_bar(index: int = 0) -> OHLCVBarContract:
+    """Собрать completed bar для узких runtime wiring тестов."""
+    open_time = datetime(2026, 3, 20, 12, index, tzinfo=UTC)
+    close_time = datetime(2026, 3, 20, 12, index + 1, tzinfo=UTC)
+    return OHLCVBarContract(
+        symbol="BTC/USDT",
+        exchange="bybit",
+        timeframe=MarketDataTimeframe.M1,
+        open_time=open_time,
+        close_time=close_time,
+        open=Decimal("100"),
+        high=Decimal("110"),
+        low=Decimal("100"),
+        close=Decimal("109"),
+        volume=Decimal("15"),
+        bid_volume=Decimal("5"),
+        ask_volume=Decimal("10"),
+        trades_count=3,
+        is_closed=True,
+    )
+
+
+def _fake_shutdown_with_component_stop(
+    runtime,
+    *,
+    components_stopped: list[str],
+):
+    async def _shutdown(*, force: bool = False) -> ShutdownResult:
+        _ = force
+        if runtime.intelligence_runtime.is_started:
+            await runtime.intelligence_runtime.stop()
+        if runtime.shared_analysis_runtime.is_started:
+            await runtime.shared_analysis_runtime.stop()
+        if runtime.market_data_runtime.is_started:
+            await runtime.market_data_runtime.stop()
+        return ShutdownResult(
+            success=True,
+            duration_ms=3,
+            phase_reached=ShutdownPhase.COMPLETED,
+            components_stopped=components_stopped,
+        )
+
+    return _shutdown
 
 
 @pytest.fixture
@@ -87,6 +141,10 @@ class TestProductionBootstrap:
         )
         assert runtime.get_runtime_diagnostics()["market_data_runtime"]["started"] is False
         assert runtime.get_runtime_diagnostics()["market_data_runtime"]["ready"] is False
+        assert runtime.get_runtime_diagnostics()["shared_analysis_runtime"]["started"] is False
+        assert runtime.get_runtime_diagnostics()["shared_analysis_runtime"]["ready"] is False
+        assert runtime.get_runtime_diagnostics()["intelligence_runtime"]["started"] is False
+        assert runtime.get_runtime_diagnostics()["intelligence_runtime"]["ready"] is False
         controller_component = runtime.controller.get_component("event_bus")
         assert controller_component is not None
         assert controller_component is runtime.event_bus
@@ -95,6 +153,17 @@ class TestProductionBootstrap:
             runtime.controller.get_component("phase6_market_data_runtime")
             is runtime.market_data_runtime
         )
+        assert (
+            runtime.controller.get_component("phase7_intelligence_runtime")
+            is runtime.intelligence_runtime
+        )
+        assert (
+            runtime.controller.get_component("c7r_shared_analysis_runtime")
+            is runtime.shared_analysis_runtime
+        )
+        assert SystemEventType.BAR_COMPLETED in runtime.event_bus.handlers
+        assert SystemEventType.BAR_COMPLETED not in runtime.risk_runtime.risk_listener.event_types
+        assert SystemEventType.RISK_BAR_COMPLETED in runtime.risk_runtime.risk_listener.event_types
 
         listener_names = [listener.name for listener in runtime.listener_registry.all_listeners]
         assert "risk_check_listener" not in listener_names
@@ -142,6 +211,19 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.shared_analysis_runtime._started = True
+        runtime.shared_analysis_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+        )
+        runtime.intelligence_runtime._started = True
+        runtime.intelligence_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         result = await runtime.startup()
 
@@ -155,6 +237,8 @@ class TestProductionBootstrap:
         assert diagnostics["config_identity"] == runtime.identity.config_identity
         assert diagnostics["config_revision"] == runtime.identity.config_revision
         assert diagnostics["market_data_runtime"]["ready"] is True
+        assert diagnostics["shared_analysis_runtime"]["ready"] is True
+        assert diagnostics["intelligence_runtime"]["ready"] is True
 
     @pytest.mark.asyncio
     async def test_runtime_startup_fail_fast_exposes_block_reason_in_diagnostics(self) -> None:
@@ -216,6 +300,8 @@ class TestProductionBootstrap:
                     "event_bus",
                     "phase5_risk_runtime",
                     "phase6_market_data_runtime",
+                    "c7r_shared_analysis_runtime",
+                    "phase7_intelligence_runtime",
                 ],
                 components_failed=[],
             )
@@ -243,6 +329,19 @@ class TestProductionBootstrap:
             readiness_reasons=("no_raw_universe_snapshot", "no_universe_quality_assessment"),
             degraded_reasons=(),
         )
+        runtime.shared_analysis_runtime._started = True
+        runtime.shared_analysis_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=False,
+            lifecycle_state="warming",
+            readiness_reasons=("derived_inputs_warming",),
+        )
+        runtime.intelligence_runtime._started = True
+        runtime.intelligence_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=False,
+            lifecycle_state="warming",
+            readiness_reasons=("derya_history_warming",),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
 
@@ -251,7 +350,11 @@ class TestProductionBootstrap:
         assert diagnostics["runtime_ready"] is False
         assert diagnostics["startup_state"] == "degraded"
         assert "phase6_market_data:not_ready" in diagnostics["degraded_reasons"]
+        assert "c7r_shared_analysis:not_ready" in diagnostics["degraded_reasons"]
+        assert "phase7_intelligence:not_ready" in diagnostics["degraded_reasons"]
         assert diagnostics["market_data_runtime"]["ready"] is False
+        assert diagnostics["shared_analysis_runtime"]["ready"] is False
+        assert diagnostics["intelligence_runtime"]["ready"] is False
 
     @pytest.mark.asyncio
     async def test_runtime_startup_exposes_degraded_readiness_when_health_is_degraded(self) -> None:
@@ -325,10 +428,8 @@ class TestProductionBootstrap:
             )
         )
         runtime.controller.shutdown = AsyncMock(  # type: ignore[method-assign]
-            return_value=ShutdownResult(
-                success=True,
-                duration_ms=3,
-                phase_reached=ShutdownPhase.COMPLETED,
+            side_effect=_fake_shutdown_with_component_stop(
+                runtime,
                 components_stopped=["phase5_risk_runtime", "event_bus"],
             )
         )
@@ -345,6 +446,26 @@ class TestProductionBootstrap:
         runtime.redis_manager._redis = Mock()
         runtime.event_bus.register_listener(runtime.risk_runtime.risk_listener)
         runtime.risk_runtime._listener_registered = True
+        runtime.market_data_runtime._started = True
+        runtime.market_data_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
+        runtime.shared_analysis_runtime._started = True
+        runtime.shared_analysis_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+        )
+        runtime.intelligence_runtime._started = True
+        runtime.intelligence_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
         shutdown_result = await runtime.shutdown()
@@ -356,6 +477,15 @@ class TestProductionBootstrap:
         assert diagnostics["runtime_ready"] is False
         assert diagnostics["shutdown_state"] == ShutdownPhase.COMPLETED.value
         assert "runtime_stopped" in diagnostics["degraded_reasons"]
+        assert diagnostics["shared_analysis_runtime"]["started"] is False
+        assert diagnostics["shared_analysis_runtime"]["ready"] is False
+        assert diagnostics["shared_analysis_runtime"]["lifecycle_state"] == "stopped"
+        assert diagnostics["shared_analysis_runtime"]["readiness_reasons"] == ["runtime_stopped"]
+        assert diagnostics["intelligence_runtime"]["started"] is False
+        assert diagnostics["intelligence_runtime"]["ready"] is False
+        assert diagnostics["intelligence_runtime"]["lifecycle_state"] == "stopped"
+        assert diagnostics["intelligence_runtime"]["readiness_reasons"] == ["runtime_stopped"]
+        assert diagnostics["intelligence_runtime"]["degraded_reasons"] == []
 
     @pytest.mark.asyncio
     async def test_start_production_runtime_preserves_fail_fast_truth_after_cleanup(self) -> None:
@@ -504,3 +634,94 @@ class TestProductionBootstrap:
             runtime.event_bus.register_listener(RiskListener())
 
         await runtime.risk_runtime.stop()
+
+    @pytest.mark.asyncio
+    async def test_bar_completed_wiring_marks_intelligence_runtime_degraded_on_ingest_failure(
+        self,
+    ) -> None:
+        """BAR_COMPLETED wiring должен честно переводить intelligence runtime в degraded."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.intelligence_runtime._started = True
+        runtime.intelligence_runtime.ingest_bar_completed_payload = Mock(  # type: ignore[method-assign]
+            side_effect=RuntimeError("derya_ingest_failure")
+        )
+        handler = runtime.event_bus.handlers[SystemEventType.BAR_COMPLETED][0]
+        event = build_market_data_event(
+            event_type=MarketDataEventType.BAR_COMPLETED,
+            payload=BarCompletedPayload.from_contract(make_completed_bar()),
+        )
+
+        with pytest.raises(RuntimeError, match="derya_ingest_failure"):
+            await handler(event)
+
+        diagnostics = runtime.intelligence_runtime.get_runtime_diagnostics()
+        assert diagnostics["started"] is True
+        assert diagnostics["ready"] is False
+        assert diagnostics["lifecycle_state"] == "degraded"
+        assert diagnostics["last_failure_reason"] == "bar_ingest_failed:derya_ingest_failure"
+        assert diagnostics["degraded_reasons"] == ["bar_ingest_failed:derya_ingest_failure"]
+
+    @pytest.mark.asyncio
+    async def test_bar_completed_wiring_marks_shared_analysis_runtime_degraded_on_ingest_failure(
+        self,
+    ) -> None:
+        """BAR_COMPLETED wiring должен честно переводить shared analysis runtime в degraded."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.shared_analysis_runtime._started = True
+        runtime.shared_analysis_runtime.ingest_bar_completed_payload = Mock(  # type: ignore[method-assign]
+            side_effect=RuntimeError("analysis_ingest_failure")
+        )
+        handler = runtime.event_bus.handlers[SystemEventType.BAR_COMPLETED][1]
+        event = build_market_data_event(
+            event_type=MarketDataEventType.BAR_COMPLETED,
+            payload=BarCompletedPayload.from_contract(make_completed_bar()),
+        )
+
+        with pytest.raises(
+            RuntimeError, match="shared_analysis_bar_ingest_failed:analysis_ingest_failure"
+        ):
+            await handler(event)
+
+        diagnostics = runtime.shared_analysis_runtime.get_runtime_diagnostics()
+        assert diagnostics["started"] is True
+        assert diagnostics["ready"] is False
+        assert diagnostics["lifecycle_state"] == "degraded"
+        assert diagnostics["last_failure_reason"] == "bar_ingest_failed:analysis_ingest_failure"
+        assert diagnostics["degraded_reasons"] == ["bar_ingest_failed:analysis_ingest_failure"]
+
+    @pytest.mark.asyncio
+    async def test_composition_root_keeps_market_data_bar_boundary_separate_from_risk_listener(
+        self,
+    ) -> None:
+        """Composition root не должен смешивать raw BAR_COMPLETED с risk-специфичным bar path."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        assert SystemEventType.BAR_COMPLETED in runtime.event_bus.handlers
+        assert SystemEventType.BAR_COMPLETED not in runtime.risk_runtime.risk_listener.event_types
+        assert SystemEventType.RISK_BAR_COMPLETED in runtime.risk_runtime.risk_listener.event_types

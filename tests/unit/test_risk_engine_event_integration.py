@@ -107,7 +107,7 @@ def make_bar_completed_event(
     structural_stop: str | None = None,
     is_stale: bool = False,
 ) -> Event:
-    """Создать BAR_COMPLETED с данными для trailing evaluation."""
+    """Создать RISK_BAR_COMPLETED с данными для trailing evaluation."""
     payload: dict[str, object] = {
         "symbol": "BTC/USDT",
         "mark_price": mark_price,
@@ -121,7 +121,7 @@ def make_bar_completed_event(
     }
     if structural_stop is not None:
         payload["structural_stop"] = structural_stop
-    return Event.new("BAR_COMPLETED", "MARKET_DATA", payload)
+    return Event.new(SystemEventType.RISK_BAR_COMPLETED, "RISK_ENGINE", payload)
 
 
 def make_state_transition_event(*, to_state: SystemState, from_state: SystemState) -> Event:
@@ -279,7 +279,7 @@ class TestRiskEngineEventIntegration:
         await bus.shutdown()
 
     async def test_bar_completed_triggers_trailing_and_publishes_stop_move(self) -> None:
-        """BAR_COMPLETED должен запускать trailing evaluation для открытой позиции."""
+        """RISK_BAR_COMPLETED должен запускать trailing evaluation для открытой позиции."""
         engine = make_engine()
         bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
         published_events: list[Event] = []
@@ -302,6 +302,44 @@ class TestRiskEngineEventIntegration:
         assert len(published_events) == 1
         assert published_events[0].payload["new_stop"] == "107.0"
         assert published_events[0].payload["mode"] == "NORMAL"
+
+        bus.unregister_listener(listener.name)
+        await bus.shutdown()
+
+    async def test_market_data_bar_completed_boundary_does_not_trigger_risk_listener(self) -> None:
+        """Сырой market-data BAR_COMPLETED не должен активировать risk trailing path."""
+        engine = make_engine()
+        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
+        published_events: list[Event] = []
+        bus.on(RiskEngineEventType.TRAILING_STOP_MOVED, published_events.append)
+        listener = RiskEngineListener(
+            risk_engine=engine,
+            publisher=bus.publish,
+            config=RiskEngineListenerConfig(name="risk_listener_market_data_boundary"),
+        )
+        bus.register_listener(listener)
+
+        await bus.publish(make_order_filled_event())
+        await bus.publish(
+            Event.new(
+                SystemEventType.BAR_COMPLETED,
+                "MARKET_DATA",
+                {
+                    "symbol": "BTC/USDT",
+                    "close": "110",
+                    "open": "108",
+                    "high": "111",
+                    "low": "107",
+                },
+            )
+        )
+
+        record = engine._risk_ledger.get_position_record("pos-1")
+        portfolio_record = engine._portfolio_state.get_position("pos-1")
+
+        assert record.current_stop == Decimal("95")
+        assert portfolio_record.current_stop == Decimal("95")
+        assert published_events == []
 
         bus.unregister_listener(listener.name)
         await bus.shutdown()

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 
@@ -10,8 +12,21 @@ from cryptotechnolog.bootstrap import (
     build_production_runtime,
 )
 from cryptotechnolog.config.settings import Settings
-from cryptotechnolog.core.event import SystemEventType
+from cryptotechnolog.core.event import Event, SystemEventSource, SystemEventType
 from cryptotechnolog.core.health import HealthStatus
+from cryptotechnolog.intelligence import IntelligenceEventType
+from cryptotechnolog.market_data import (
+    MarketDataTimeframe,
+    OHLCVBarContract,
+    OrderBookLevel,
+    OrderBookSnapshotContract,
+)
+from cryptotechnolog.market_data.events import (
+    BarCompletedPayload,
+    MarketDataEventType,
+    build_market_data_event,
+)
+from cryptotechnolog.risk.engine import RiskEngineEventType
 
 
 class _FakeConnection:
@@ -136,6 +151,76 @@ def _capture_lifecycle_events(runtime) -> list[str]:
     return lifecycle_events
 
 
+def _make_completed_bar(index: int) -> OHLCVBarContract:
+    open_time = datetime(2026, 3, 20, 12, index, tzinfo=UTC)
+    close_time = datetime(2026, 3, 20, 12, index + 1, tzinfo=UTC)
+    return OHLCVBarContract(
+        symbol="BTC/USDT",
+        exchange="bybit",
+        timeframe=MarketDataTimeframe.M1,
+        open_time=open_time,
+        close_time=close_time,
+        open=Decimal("100"),
+        high=Decimal("110"),
+        low=Decimal("100"),
+        close=Decimal("109"),
+        volume=Decimal("15"),
+        bid_volume=Decimal("5"),
+        ask_volume=Decimal("10"),
+        trades_count=3,
+        is_closed=True,
+    )
+
+
+def _make_trending_completed_bar(index: int) -> OHLCVBarContract:
+    open_time = datetime(2026, 3, 20, 13, index, tzinfo=UTC)
+    close_time = open_time + timedelta(minutes=1)
+    base = Decimal("100") + Decimal(index)
+    return OHLCVBarContract(
+        symbol="BTC/USDT",
+        exchange="bybit",
+        timeframe=MarketDataTimeframe.M1,
+        open_time=open_time,
+        close_time=close_time,
+        open=base,
+        high=base + Decimal("2"),
+        low=base - Decimal("1"),
+        close=base + Decimal("1"),
+        volume=Decimal("20"),
+        bid_volume=Decimal("8"),
+        ask_volume=Decimal("12"),
+        trades_count=5,
+        is_closed=True,
+    )
+
+
+def _make_orderbook_snapshot() -> OrderBookSnapshotContract:
+    return OrderBookSnapshotContract(
+        symbol="BTC/USDT",
+        exchange="bybit",
+        timestamp=datetime(2026, 3, 20, 12, 0, 30, tzinfo=UTC),
+        bids=(OrderBookLevel(price=Decimal("109.8"), quantity=Decimal("10")),),
+        asks=(OrderBookLevel(price=Decimal("110.2"), quantity=Decimal("12")),),
+        spread_bps=Decimal("3.6406"),
+    )
+
+
+def _make_order_filled_event() -> Event:
+    return Event.new(
+        SystemEventType.ORDER_FILLED,
+        SystemEventSource.EXECUTION_CORE,
+        {
+            "position_id": "pos-1",
+            "symbol": "BTC/USDT",
+            "side": "buy",
+            "filled_qty": "2",
+            "avg_price": "100",
+            "stop_loss": "95",
+            "risk_capital_usd": "10000",
+        },
+    )
+
+
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_production_composition_root_builds_and_starts_real_runtime_contract() -> None:
@@ -171,6 +256,8 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert diagnostics["config_identity"] == runtime.identity.config_identity
     assert diagnostics["config_revision"] == runtime.identity.config_revision
     assert "phase6_market_data:not_ready" in diagnostics["degraded_reasons"]
+    assert "c7r_shared_analysis:not_ready" in diagnostics["degraded_reasons"]
+    assert "phase7_intelligence:not_ready" in diagnostics["degraded_reasons"]
     assert health.overall_status == HealthStatus.HEALTHY
     assert health.readiness_status == "not_ready"
     assert health.runtime_identity == runtime.identity
@@ -178,7 +265,241 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert health.diagnostics["config_identity"] == runtime.identity.config_identity
     assert health.diagnostics["config_revision"] == runtime.identity.config_revision
     assert "market_data_runtime_not_ready" in health.readiness_reasons
+    assert "shared_analysis_runtime_not_ready" in health.readiness_reasons
+    assert "intelligence_runtime_not_ready" in health.readiness_reasons
     assert SystemEventType.SYSTEM_BOOT in lifecycle_events
     assert SystemEventType.SYSTEM_READY in lifecycle_events
+
+    await runtime.shutdown(force=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_intelligence_runtime_is_explicitly_wired_to_bar_completed_path() -> None:
+    """Phase 7 runtime должен получать BAR_COMPLETED через composition-root wiring."""
+    runtime = await build_production_runtime(
+        settings=_make_settings(),
+        policy=ProductionBootstrapPolicy(
+            test_mode=True,
+            enable_event_bus_persistence=False,
+            enable_risk_persistence=False,
+        ),
+    )
+
+    fake_pool = _FakePool()
+    _install_fake_database(runtime, fake_pool)
+    _install_fake_redis(runtime)
+    _install_fake_metrics(runtime)
+    captured_transitions: list[str] = []
+
+    def capture_transition(event) -> None:
+        captured_transitions.append(event.event_type)
+
+    runtime.event_bus.on(IntelligenceEventType.DERYA_REGIME_CHANGED.value, capture_transition)
+
+    await runtime.startup()
+
+    for index in range(4):
+        bar = _make_completed_bar(index)
+        event = build_market_data_event(
+            event_type=MarketDataEventType.BAR_COMPLETED,
+            payload=BarCompletedPayload.from_contract(bar),
+        )
+        await runtime.event_bus.publish(event)
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    intelligence_diagnostics = diagnostics["intelligence_runtime"]
+    shared_analysis_diagnostics = diagnostics["shared_analysis_runtime"]
+    assessment = runtime.intelligence_runtime.get_derya_assessment(
+        exchange="bybit",
+        symbol="BTC/USDT",
+        timeframe=MarketDataTimeframe.M1,
+    )
+    shared_inputs = runtime.shared_analysis_runtime.get_risk_derived_inputs(
+        exchange="bybit",
+        symbol="BTC/USDT",
+        timeframe=MarketDataTimeframe.M1,
+    )
+
+    assert runtime.intelligence_runtime.is_started is True
+    assert runtime.shared_analysis_runtime.is_started is True
+    assert intelligence_diagnostics["started"] is True
+    assert shared_analysis_diagnostics["started"] is True
+    assert intelligence_diagnostics["tracked_derya_keys"] == 1
+    assert shared_analysis_diagnostics["tracked_keys"] == 1
+    assert intelligence_diagnostics["last_bar_at"] is not None
+    assert shared_analysis_diagnostics["last_bar_at"] is not None
+    assert intelligence_diagnostics["ready"] is True
+    assert shared_analysis_diagnostics["ready"] is False
+    assert assessment is not None
+    assert shared_inputs is not None
+    assert shared_inputs.atr.value is None
+    assert assessment.current_regime is not None
+    assert IntelligenceEventType.DERYA_REGIME_CHANGED.value in captured_transitions
+
+    await runtime.shutdown(force=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_intelligence_runtime_ingest_failure_is_visible_in_runtime_truth() -> None:
+    """DERYA ingest failure не должен маскироваться внутри BAR_COMPLETED wiring."""
+    runtime = await build_production_runtime(
+        settings=_make_settings(),
+        policy=ProductionBootstrapPolicy(
+            test_mode=True,
+            enable_event_bus_persistence=False,
+            enable_risk_persistence=False,
+        ),
+    )
+
+    fake_pool = _FakePool()
+    _install_fake_database(runtime, fake_pool)
+    _install_fake_redis(runtime)
+    _install_fake_metrics(runtime)
+
+    await runtime.startup()
+
+    def raise_ingest_failure(_payload: BarCompletedPayload) -> None:
+        raise RuntimeError("derya_ingest_failure")
+
+    runtime.intelligence_runtime.ingest_bar_completed_payload = raise_ingest_failure  # type: ignore[method-assign]
+
+    bar = _make_completed_bar(0)
+    event = build_market_data_event(
+        event_type=MarketDataEventType.BAR_COMPLETED,
+        payload=BarCompletedPayload.from_contract(bar),
+    )
+
+    await runtime.event_bus.publish(event)
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    intelligence_diagnostics = diagnostics["intelligence_runtime"]
+    shared_analysis_diagnostics = diagnostics["shared_analysis_runtime"]
+    health = await runtime.health_checker.check_system()
+
+    assert intelligence_diagnostics["started"] is True
+    assert intelligence_diagnostics["ready"] is False
+    assert intelligence_diagnostics["lifecycle_state"] == "degraded"
+    assert (
+        intelligence_diagnostics["last_failure_reason"] == "bar_ingest_failed:derya_ingest_failure"
+    )
+    assert intelligence_diagnostics["degraded_reasons"] == [
+        "bar_ingest_failed:derya_ingest_failure"
+    ]
+    assert shared_analysis_diagnostics["started"] is True
+    assert "intelligence_runtime_not_ready" in health.readiness_reasons
+    assert "intelligence:bar_ingest_failed:derya_ingest_failure" in health.readiness_reasons
+
+    await runtime.shutdown(force=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None:
+    """Shutdown должен оставлять operator-visible intelligence diagnostics в stopped state."""
+    runtime = await build_production_runtime(
+        settings=_make_settings(),
+        policy=ProductionBootstrapPolicy(
+            test_mode=True,
+            enable_event_bus_persistence=False,
+            enable_risk_persistence=False,
+        ),
+    )
+
+    fake_pool = _FakePool()
+    _install_fake_database(runtime, fake_pool)
+    _install_fake_redis(runtime)
+    _install_fake_metrics(runtime)
+
+    await runtime.startup()
+
+    for index in range(4):
+        bar = _make_completed_bar(index)
+        event = build_market_data_event(
+            event_type=MarketDataEventType.BAR_COMPLETED,
+            payload=BarCompletedPayload.from_contract(bar),
+        )
+        await runtime.event_bus.publish(event)
+
+    await runtime.shutdown(force=True)
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    intelligence_diagnostics = diagnostics["intelligence_runtime"]
+    shared_analysis_diagnostics = diagnostics["shared_analysis_runtime"]
+
+    assert intelligence_diagnostics["started"] is False
+    assert intelligence_diagnostics["ready"] is False
+    assert intelligence_diagnostics["lifecycle_state"] == "stopped"
+    assert intelligence_diagnostics["last_bar_at"] is None
+    assert intelligence_diagnostics["last_derya_regime_event_type"] is None
+    assert intelligence_diagnostics["last_failure_reason"] is None
+    assert intelligence_diagnostics["readiness_reasons"] == ["runtime_stopped"]
+    assert intelligence_diagnostics["degraded_reasons"] == []
+    assert shared_analysis_diagnostics["started"] is False
+    assert shared_analysis_diagnostics["ready"] is False
+    assert shared_analysis_diagnostics["lifecycle_state"] == "stopped"
+    assert shared_analysis_diagnostics["tracked_keys"] == 0
+    assert shared_analysis_diagnostics["readiness_reasons"] == ["runtime_stopped"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_shared_analysis_runtime_publishes_honest_risk_bar_completed_for_active_risk_path() -> (
+    None
+):
+    """Production wiring должен публиковать RISK_BAR_COMPLETED только из полного набора truth sources."""
+    runtime = await build_production_runtime(
+        settings=_make_settings(),
+        policy=ProductionBootstrapPolicy(
+            test_mode=True,
+            enable_event_bus_persistence=False,
+            enable_risk_persistence=False,
+        ),
+    )
+
+    fake_pool = _FakePool()
+    _install_fake_database(runtime, fake_pool)
+    _install_fake_redis(runtime)
+    _install_fake_metrics(runtime)
+
+    captured_risk_bars: list[Event] = []
+    trailing_events: list[Event] = []
+
+    runtime.event_bus.on(SystemEventType.RISK_BAR_COMPLETED, captured_risk_bars.append)
+    runtime.event_bus.on(RiskEngineEventType.TRAILING_STOP_MOVED, trailing_events.append)
+
+    await runtime.startup()
+    await runtime.market_data_runtime.ingest_orderbook_snapshot(_make_orderbook_snapshot())
+    await runtime.event_bus.publish(_make_order_filled_event())
+
+    for index in range(28):
+        bar = _make_trending_completed_bar(index)
+        event = build_market_data_event(
+            event_type=MarketDataEventType.BAR_COMPLETED,
+            payload=BarCompletedPayload.from_contract(bar),
+        )
+        await runtime.event_bus.publish(event)
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    shared_analysis_diagnostics = diagnostics["shared_analysis_runtime"]
+    shared_inputs = runtime.shared_analysis_runtime.get_risk_derived_inputs(
+        exchange="bybit",
+        symbol="BTC/USDT",
+        timeframe=MarketDataTimeframe.M1,
+    )
+
+    assert shared_inputs is not None
+    assert shared_inputs.is_fully_ready is True
+    assert shared_inputs.atr.value is not None
+    assert shared_inputs.adx.value is not None
+    assert shared_analysis_diagnostics["ready"] is True
+    assert captured_risk_bars
+    assert captured_risk_bars[-1].payload["atr"] == str(shared_inputs.atr.value)
+    assert captured_risk_bars[-1].payload["adx"] == str(shared_inputs.adx.value)
+    assert captured_risk_bars[-1].payload["best_bid"] == "109.8"
+    assert captured_risk_bars[-1].payload["best_ask"] == "110.2"
+    assert trailing_events
+    assert trailing_events[-1].payload["position_id"] == "pos-1"
 
     await runtime.shutdown(force=True)
