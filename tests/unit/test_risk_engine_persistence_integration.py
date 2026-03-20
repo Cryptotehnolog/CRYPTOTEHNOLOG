@@ -147,10 +147,10 @@ def make_position_closed_event() -> Event:
 
 
 def make_bar_completed_event() -> Event:
-    """Создать BAR_COMPLETED для trailing evaluation."""
+    """Создать RISK_BAR_COMPLETED для trailing evaluation."""
     return Event.new(
-        "BAR_COMPLETED",
-        "MARKET_DATA",
+        SystemEventType.RISK_BAR_COMPLETED,
+        "RISK_ENGINE",
         {
             "symbol": "BTC/USDT",
             "mark_price": "110",
@@ -250,7 +250,7 @@ class TestRiskEnginePersistenceIntegration:
         await bus.shutdown()
 
     async def test_bar_completed_persists_successful_trailing_audit(self) -> None:
-        """Успешный trailing move должен писать movement, snapshot и ledger audit."""
+        """Успешный RISK_BAR_COMPLETED должен писать movement, snapshot и ledger audit."""
         repository = InMemoryRiskRepository()
         engine = make_engine(repository=repository)
         bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)

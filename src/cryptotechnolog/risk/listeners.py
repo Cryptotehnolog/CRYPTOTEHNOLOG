@@ -70,7 +70,7 @@ class RiskEngineListener(BaseListener):
                     SystemEventType.ORDER_SUBMITTED,
                     SystemEventType.ORDER_FILLED,
                     "POSITION_CLOSED",
-                    "BAR_COMPLETED",
+                    SystemEventType.RISK_BAR_COMPLETED,
                     SystemEventType.STATE_TRANSITION,
                 ],
                 priority=listener_config.priority,
@@ -128,7 +128,7 @@ class RiskEngineListener(BaseListener):
             )
             return
 
-        if event.event_type == "BAR_COMPLETED":
+        if event.event_type == SystemEventType.RISK_BAR_COMPLETED:
             bar_input = self._parse_bar_completed(event.payload)
             bar_result = await self._risk_engine.handle_bar_completed(bar_input)
             for update in bar_result.updates:
@@ -328,7 +328,7 @@ class RiskEngineListener(BaseListener):
 
     @staticmethod
     def _parse_bar_completed(payload: dict[str, Any]) -> BarCompletedInput:
-        """Преобразовать payload BAR_COMPLETED в типизированный вход."""
+        """Преобразовать payload RISK_BAR_COMPLETED в типизированный вход."""
         mark_price = RiskEngineListener._require_decimal(payload, "mark_price", "close")
         return BarCompletedInput(
             symbol=RiskEngineListener._require_str(payload, "symbol"),

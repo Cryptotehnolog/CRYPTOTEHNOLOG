@@ -10,12 +10,14 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
+from cryptotechnolog.analysis.runtime import SharedAnalysisRuntime, create_shared_analysis_runtime
 from cryptotechnolog.config.logging import configure_logging, get_logger
 from cryptotechnolog.config.settings import Settings, get_settings, validate_settings
 from cryptotechnolog.core.database import DatabaseManager, set_database
 from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
+from cryptotechnolog.core.event import Event, SystemEventType
 from cryptotechnolog.core.global_instances import set_event_bus
 from cryptotechnolog.core.health import (
     HealthChecker,
@@ -32,9 +34,15 @@ from cryptotechnolog.core.listeners.base import ListenerRegistry
 from cryptotechnolog.core.metrics import MetricsCollector, init_metrics
 from cryptotechnolog.core.redis_manager import RedisManager, set_redis_manager
 from cryptotechnolog.core.system_controller import ShutdownResult, StartupResult, SystemController
+from cryptotechnolog.intelligence.runtime import IntelligenceRuntime, create_intelligence_runtime
+from cryptotechnolog.market_data.events import BarCompletedPayload
 from cryptotechnolog.market_data.runtime import MarketDataRuntime, create_market_data_runtime
 from cryptotechnolog.risk.runtime import RiskRuntime, create_risk_runtime
 from cryptotechnolog.runtime_identity import RuntimeIdentity, build_runtime_identity
+
+if TYPE_CHECKING:
+    from cryptotechnolog.analysis import RiskDerivedInputsSnapshot
+    from cryptotechnolog.market_data import OrderBookSnapshotContract
 
 
 class ProductionBootstrapError(RuntimeError):
@@ -68,6 +76,8 @@ class ProductionRuntime:
     controller: SystemController
     risk_runtime: RiskRuntime
     market_data_runtime: MarketDataRuntime
+    shared_analysis_runtime: SharedAnalysisRuntime
+    intelligence_runtime: IntelligenceRuntime
     startup_result: StartupResult | None = None
     shutdown_result: ShutdownResult | None = None
     last_health: SystemHealth | None = None
@@ -283,6 +293,9 @@ class ProductionRuntime:
         if self.risk_runtime.is_started:
             with contextlib.suppress(Exception):
                 await self.risk_runtime.stop()
+        if self.shared_analysis_runtime.is_started:
+            with contextlib.suppress(Exception):
+                await self.shared_analysis_runtime.stop()
         if getattr(self.event_bus, "pending_tasks", None):
             with contextlib.suppress(Exception):
                 await self.event_bus.shutdown()
@@ -319,10 +332,40 @@ class ProductionRuntime:
             market_data_runtime.get("degraded_reasons", []),
         )
         reasons.extend(f"phase6_market_data:{reason}" for reason in degraded_reason_values)
+        shared_analysis_runtime = self.shared_analysis_runtime.get_runtime_diagnostics()
+        if not shared_analysis_runtime.get("started", False):
+            reasons.append("c7r_shared_analysis:not_started")
+        if not shared_analysis_runtime.get("ready", False):
+            reasons.append("c7r_shared_analysis:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            shared_analysis_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"c7r_shared_analysis:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            shared_analysis_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"c7r_shared_analysis:{reason}" for reason in degraded_reason_values)
+        intelligence_runtime = self.intelligence_runtime.get_runtime_diagnostics()
+        if not intelligence_runtime.get("started", False):
+            reasons.append("phase7_intelligence:not_started")
+        if not intelligence_runtime.get("ready", False):
+            reasons.append("phase7_intelligence:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            intelligence_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"phase7_intelligence:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            intelligence_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"phase7_intelligence:{reason}" for reason in degraded_reason_values)
         return reasons
 
 
-async def build_production_runtime(
+async def build_production_runtime(  # noqa: PLR0915
     *,
     settings: Settings | None = None,
     policy: ProductionBootstrapPolicy | None = None,
@@ -440,6 +483,68 @@ async def build_production_runtime(
         shutdown_timeout=15.0,
     )
 
+    def update_intelligence_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(intelligence_runtime=diagnostics)
+
+    def update_shared_analysis_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(shared_analysis_runtime=diagnostics)
+
+    intelligence_runtime = create_intelligence_runtime(
+        diagnostics_sink=update_intelligence_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase7_intelligence_runtime",
+        component=intelligence_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+
+    shared_analysis_runtime = create_shared_analysis_runtime(
+        diagnostics_sink=update_shared_analysis_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="c7r_shared_analysis_runtime",
+        component=shared_analysis_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+
+    async def handle_market_data_bar_completed_for_intelligence(event: Event) -> None:
+        try:
+            payload = BarCompletedPayload(**event.payload)
+            update = intelligence_runtime.ingest_bar_completed_payload(payload)
+            if update.regime_changed_event is not None:
+                await event_bus.publish(update.regime_changed_event)
+        except Exception as exc:
+            intelligence_runtime.mark_degraded(f"bar_ingest_failed:{exc}")
+            raise
+
+    async def handle_market_data_bar_completed_for_shared_analysis(event: Event) -> None:
+        try:
+            payload = BarCompletedPayload(**event.payload)
+            update = shared_analysis_runtime.ingest_bar_completed_payload(payload)
+            risk_event = _build_risk_bar_completed_event(
+                payload=payload,
+                derived_inputs=update.snapshot,
+                orderbook_snapshot=market_data_runtime.orderbook_manager.get_snapshot(
+                    payload.symbol,
+                    payload.exchange,
+                ),
+            )
+            if risk_event is not None:
+                await event_bus.publish(risk_event)
+        except Exception as exc:
+            shared_analysis_runtime.mark_degraded(f"bar_ingest_failed:{exc}")
+            raise RuntimeError(f"shared_analysis_bar_ingest_failed:{exc}") from exc
+
+    event_bus.on(SystemEventType.BAR_COMPLETED, handle_market_data_bar_completed_for_intelligence)
+    event_bus.on(
+        SystemEventType.BAR_COMPLETED,
+        handle_market_data_bar_completed_for_shared_analysis,
+    )
+
     runtime = ProductionRuntime(
         settings=runtime_settings,
         policy=runtime_policy,
@@ -459,6 +564,8 @@ async def build_production_runtime(
         controller=controller,
         risk_runtime=risk_runtime,
         market_data_runtime=market_data_runtime,
+        shared_analysis_runtime=shared_analysis_runtime,
+        intelligence_runtime=intelligence_runtime,
     )
     runtime._update_runtime_diagnostics(
         composition_root_built=True,
@@ -486,6 +593,40 @@ async def build_production_runtime(
         readiness_status="not_ready",
     )
     return runtime
+
+
+def _build_risk_bar_completed_event(
+    *,
+    payload: BarCompletedPayload,
+    derived_inputs: RiskDerivedInputsSnapshot,
+    orderbook_snapshot: OrderBookSnapshotContract | None,
+) -> Event | None:
+    """Собрать честный RISK_BAR_COMPLETED только при наличии полного набора truth sources."""
+    if orderbook_snapshot is None or not orderbook_snapshot.bids or not orderbook_snapshot.asks:
+        return None
+    if not derived_inputs.is_fully_ready:
+        return None
+    if derived_inputs.atr.value is None or derived_inputs.adx.value is None:
+        return None
+
+    return Event.new(
+        SystemEventType.RISK_BAR_COMPLETED,
+        "SHARED_ANALYSIS_RUNTIME",
+        {
+            "symbol": payload.symbol,
+            "exchange": payload.exchange,
+            "timeframe": payload.timeframe,
+            "open_time": payload.open_time,
+            "close_time": payload.close_time,
+            "mark_price": payload.close,
+            "close": payload.close,
+            "atr": str(derived_inputs.atr.value),
+            "adx": str(derived_inputs.adx.value),
+            "best_bid": str(orderbook_snapshot.bids[0].price),
+            "best_ask": str(orderbook_snapshot.asks[0].price),
+            "is_stale": bool(payload.is_gap_affected or orderbook_snapshot.is_gap_affected),
+        },
+    )
 
 
 async def start_production_runtime(

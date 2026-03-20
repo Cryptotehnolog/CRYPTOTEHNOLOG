@@ -1,4 +1,4 @@
-# CRYPTOTEHNOLOG v1.6.0
+# CRYPTOTEHNOLOG
 
 ## Institutional-Grade Crypto Trading Platform
 
@@ -83,7 +83,8 @@ CRYPTOTEHNOLOG Platform
 | 5 | Risk Engine | ✅ Done | v1.5.0 |
 | 5.1 | Production Alignment | ✅ Done | v1.5.1 |
 | 6 | Market Data Layer + Universe Engine | ✅ Done | v1.6.0 |
-| 7-11 | Intelligence / Strategy / Execution Expansion | ⏳ Planned | v1.7.0-v2.0.0 |
+| 7 | Indicators + Intelligence Foundation | ✅ Done | v1.7.0 |
+| 8-11 | Signal / Strategy / Execution Expansion | ⏳ Planned | v1.8.0-v2.0.0 |
 | 12-18 | Protection & Testing | ⏳ Planned | v2.1.0-v2.3.0 |
 | 19 | Deployment | ⏳ Planned | v3.0.0 |
 
@@ -158,6 +159,34 @@ Deferred trigger-based extensions:
 - A live websocket/feed manager should be introduced only when the platform moves from Phase 6 runtime foundation to real exchange connectivity as a required capability
 - A dedicated market data persistence/history runtime should be introduced only when replay, backfill, historical analytics or incident reconstruction become an explicit project need
 - A full ranked/opportunity engine should be introduced only when the next intelligence/strategy line requires real ranking-driven instrument selection rather than contract-ready universe snapshots
+
+---
+
+## Phase 7 DERYA-first Intelligence Foundation
+
+Phase 7 is closed as the `v1.7.0` line in a narrow, production-compatible
+`DERYA-first intelligence foundation` form rather than a full signal/strategy phase.
+
+Implemented closure scope:
+
+- Typed `intelligence` contracts for indicator snapshots, intelligence assessments and DERYA-specific semantics
+- `DeryaEngine` as a deterministic, stateful `OHLCV bar-efficiency proxy` regime machine
+- Explicit `IntelligenceRuntime` with typed `BAR_COMPLETED` ingest, query surface and operator-facing diagnostics
+- Raw market-data `BAR_COMPLETED` remains an OHLCV event for market-data/intelligence consumers; risk trailing uses a separate risk-specific bar event boundary
+- Narrow composition-root integration into the existing runtime/health/readiness discipline
+- Corrective line `C_7R` introduces a shared analysis layer in `src/cryptotechnolog/analysis` as the source of truth for derived `ATR/ADX`
+- `SharedAnalysisRuntime` restores a production-compatible path to `RISK_BAR_COMPLETED` using:
+  - `mark_price` from completed bars
+  - `best_bid` / `best_ask` from orderbook truth
+  - `ATR` / `ADX` from shared analysis truth
+- Redis-backed integration verification confirms the restored production path through bootstrap/runtime wiring
+
+Honest current limits after closure:
+
+- Full classical indicator runtime/library
+- Signal generation, opportunity ranking or strategy integration
+- Dashboard-led observability work
+- Config hot-reload for broader intelligence/indicator contours
 
 ---
 
@@ -349,5 +378,5 @@ For issues and questions, see [docs/runbooks/](docs/runbooks/) or create an issu
 
 ---
 
-**Version**: 1.6.0
-**Last Updated**: 2026-03-19
+**Version**: `v1.7.0`
+**Last Updated**: 2026-03-20
