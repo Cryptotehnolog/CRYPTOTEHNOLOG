@@ -42,6 +42,7 @@ from cryptotechnolog.market_data.events import (
     MarketDataEventType,
     build_market_data_event,
 )
+from cryptotechnolog.opportunity import OpportunityEventType
 from cryptotechnolog.risk.engine import RiskEngineEventType
 from cryptotechnolog.signals import SignalEventType
 from cryptotechnolog.strategy import StrategyEventType
@@ -349,6 +350,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "signal_runtime_not_ready" in health.readiness_reasons
     assert "strategy_runtime_not_ready" in health.readiness_reasons
     assert "execution_runtime_not_ready" in health.readiness_reasons
+    assert "opportunity_runtime_not_ready" in health.readiness_reasons
     assert SystemEventType.SYSTEM_BOOT in lifecycle_events
     assert SystemEventType.SYSTEM_READY in lifecycle_events
 
@@ -357,7 +359,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> None:
+async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> None:  # noqa: PLR0915
     """Phase 8 runtime должен получать existing truths через composition-root wiring."""
     runtime = await build_production_runtime(
         settings=_make_settings(),
@@ -399,6 +401,7 @@ async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> No
     signal_diagnostics = diagnostics["signal_runtime"]
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
+    opportunity_diagnostics = diagnostics["opportunity_runtime"]
     signal = runtime.signal_runtime.get_signal(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -430,6 +433,13 @@ async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> No
     assert (
         execution_diagnostics["last_event_type"]
         == ExecutionEventType.EXECUTION_INTENT_UPDATED.value
+    )
+    assert opportunity_diagnostics["started"] is True
+    assert opportunity_diagnostics["ready"] is False
+    assert opportunity_diagnostics["tracked_selection_keys"] == 1
+    assert (
+        opportunity_diagnostics["last_event_type"]
+        == OpportunityEventType.OPPORTUNITY_CANDIDATE_UPDATED.value
     )
     assert context is not None
     assert context.derived_inputs is not None
@@ -466,6 +476,7 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     captured_signal_events: list[Event] = []
     captured_strategy_events: list[Event] = []
     captured_execution_events: list[Event] = []
+    captured_opportunity_events: list[Event] = []
     runtime.event_bus.on(
         SignalEventType.SIGNAL_EMITTED.value,
         captured_signal_events.append,
@@ -477,6 +488,10 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     runtime.event_bus.on(
         ExecutionEventType.EXECUTION_REQUESTED.value,
         captured_execution_events.append,
+    )
+    runtime.event_bus.on(
+        OpportunityEventType.OPPORTUNITY_SELECTED.value,
+        captured_opportunity_events.append,
     )
 
     await runtime.startup()
@@ -497,6 +512,7 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     signal_diagnostics = diagnostics["signal_runtime"]
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
+    opportunity_diagnostics = diagnostics["opportunity_runtime"]
     signal = runtime.signal_runtime.get_signal(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -525,6 +541,12 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     assert execution_diagnostics["ready"] is True
     assert execution_diagnostics["executable_intent_keys"] == 1
     assert execution_diagnostics["last_event_type"] == ExecutionEventType.EXECUTION_REQUESTED.value
+    assert opportunity_diagnostics["ready"] is True
+    assert opportunity_diagnostics["selected_keys"] == 1
+    assert (
+        opportunity_diagnostics["last_event_type"]
+        == OpportunityEventType.OPPORTUNITY_SELECTED.value
+    )
     assert candidate is not None
     assert candidate.status.value == "actionable"
     assert intent is not None
@@ -541,6 +563,12 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     assert captured_execution_events[-1].payload["status"] == "executable"
     assert captured_execution_events[-1].payload["direction"] == "BUY"
     assert captured_execution_events[-1].payload["execution_name"] == "phase10_foundation_execution"
+    assert captured_opportunity_events
+    assert captured_opportunity_events[-1].payload["status"] == "selected"
+    assert captured_opportunity_events[-1].payload["direction"] == "LONG"
+    assert (
+        captured_opportunity_events[-1].payload["selection_name"] == "phase11_foundation_selection"
+    )
 
     await runtime.shutdown(force=True)
 
@@ -566,9 +594,14 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
     _install_fake_metrics(runtime)
 
     captured_execution_updates: list[Event] = []
+    captured_opportunity_updates: list[Event] = []
     runtime.event_bus.on(
         ExecutionEventType.EXECUTION_INTENT_UPDATED.value,
         captured_execution_updates.append,
+    )
+    runtime.event_bus.on(
+        OpportunityEventType.OPPORTUNITY_CANDIDATE_UPDATED.value,
+        captured_opportunity_updates.append,
     )
 
     await runtime.startup()
@@ -589,6 +622,7 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
     diagnostics = runtime.get_runtime_diagnostics()
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
+    opportunity_diagnostics = diagnostics["opportunity_runtime"]
     candidate = runtime.strategy_runtime.get_candidate(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -610,6 +644,13 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
         execution_diagnostics["last_event_type"]
         == ExecutionEventType.EXECUTION_INTENT_UPDATED.value
     )
+    assert opportunity_diagnostics["ready"] is False
+    assert opportunity_diagnostics["selected_keys"] == 0
+    assert opportunity_diagnostics["tracked_selection_keys"] == 1
+    assert (
+        opportunity_diagnostics["last_event_type"]
+        == OpportunityEventType.OPPORTUNITY_CANDIDATE_UPDATED.value
+    )
     assert intent is not None
     assert intent.status.value == "suppressed"
     assert intent.direction is None
@@ -618,6 +659,12 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
     assert captured_execution_updates[-1].payload["direction"] is None
     assert (
         captured_execution_updates[-1].payload["execution_name"] == "phase10_foundation_execution"
+    )
+    assert captured_opportunity_updates
+    assert captured_opportunity_updates[-1].payload["status"] == "candidate"
+    assert captured_opportunity_updates[-1].payload["direction"] is None
+    assert (
+        captured_opportunity_updates[-1].payload["selection_name"] == "phase11_foundation_selection"
     )
 
     await runtime.shutdown(force=True)
@@ -644,6 +691,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     captured_invalidations: list[Event] = []
     captured_strategy_invalidations: list[Event] = []
     captured_execution_invalidations: list[Event] = []
+    captured_opportunity_invalidations: list[Event] = []
     runtime.event_bus.on(
         SignalEventType.SIGNAL_INVALIDATED.value,
         captured_invalidations.append,
@@ -655,6 +703,10 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     runtime.event_bus.on(
         ExecutionEventType.EXECUTION_INVALIDATED.value,
         captured_execution_invalidations.append,
+    )
+    runtime.event_bus.on(
+        OpportunityEventType.OPPORTUNITY_INVALIDATED.value,
+        captured_opportunity_invalidations.append,
     )
 
     await runtime.startup()
@@ -691,6 +743,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     signal_diagnostics = diagnostics["signal_runtime"]
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
+    opportunity_diagnostics = diagnostics["opportunity_runtime"]
     invalidated = runtime.signal_runtime.get_signal(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -722,6 +775,12 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     assert (
         execution_diagnostics["last_event_type"] == ExecutionEventType.EXECUTION_INVALIDATED.value
     )
+    assert opportunity_diagnostics["ready"] is True
+    assert opportunity_diagnostics["invalidated_selection_keys"] == 1
+    assert (
+        opportunity_diagnostics["last_event_type"]
+        == OpportunityEventType.OPPORTUNITY_INVALIDATED.value
+    )
     assert candidate is not None
     assert candidate.status.value == "invalidated"
     assert intent is not None
@@ -737,6 +796,12 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     assert captured_execution_invalidations[-1].payload["status"] == "invalidated"
     assert captured_execution_invalidations[-1].payload["validity_status"] == "invalid"
     assert captured_execution_invalidations[-1].payload["reason_code"] == "execution_invalidated"
+    assert captured_opportunity_invalidations
+    assert captured_opportunity_invalidations[-1].payload["status"] == "invalidated"
+    assert captured_opportunity_invalidations[-1].payload["validity_status"] == "invalid"
+    assert (
+        captured_opportunity_invalidations[-1].payload["reason_code"] == "opportunity_invalidated"
+    )
 
     await runtime.shutdown(force=True)
 
@@ -895,6 +960,7 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
     signal_diagnostics = diagnostics["signal_runtime"]
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
+    opportunity_diagnostics = diagnostics["opportunity_runtime"]
     health = await runtime.health_checker.check_system()
 
     assert signal_diagnostics["started"] is True
@@ -913,6 +979,11 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
     assert execution_diagnostics["tracked_intent_keys"] == 1
     assert execution_diagnostics["readiness_reasons"] == ["execution_context_warming"]
     assert "execution_runtime_not_ready" in health.readiness_reasons
+    assert opportunity_diagnostics["started"] is True
+    assert opportunity_diagnostics["ready"] is False
+    assert opportunity_diagnostics["tracked_selection_keys"] == 1
+    assert opportunity_diagnostics["readiness_reasons"] == ["ready_intent"]
+    assert "opportunity_runtime_not_ready" in health.readiness_reasons
 
     await runtime.shutdown(force=True)
 
@@ -953,6 +1024,7 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     signal_diagnostics = diagnostics["signal_runtime"]
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
+    opportunity_diagnostics = diagnostics["opportunity_runtime"]
 
     assert intelligence_diagnostics["started"] is False
     assert intelligence_diagnostics["ready"] is False
@@ -1006,6 +1078,19 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     assert execution_diagnostics["last_failure_reason"] is None
     assert execution_diagnostics["readiness_reasons"] == ["runtime_stopped"]
     assert execution_diagnostics["degraded_reasons"] == []
+    assert opportunity_diagnostics["started"] is False
+    assert opportunity_diagnostics["ready"] is False
+    assert opportunity_diagnostics["lifecycle_state"] == "stopped"
+    assert opportunity_diagnostics["tracked_selection_keys"] == 0
+    assert opportunity_diagnostics["selected_keys"] == 0
+    assert opportunity_diagnostics["invalidated_selection_keys"] == 0
+    assert opportunity_diagnostics["expired_selection_keys"] == 0
+    assert opportunity_diagnostics["last_intent_id"] is None
+    assert opportunity_diagnostics["last_selection_id"] is None
+    assert opportunity_diagnostics["last_event_type"] is None
+    assert opportunity_diagnostics["last_failure_reason"] is None
+    assert opportunity_diagnostics["readiness_reasons"] == ["runtime_stopped"]
+    assert opportunity_diagnostics["degraded_reasons"] == []
 
 
 @pytest.mark.asyncio

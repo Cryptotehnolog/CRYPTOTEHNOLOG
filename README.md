@@ -88,10 +88,10 @@ CRYPTOTEHNOLOG Platform
 | 8 | Signal Generation Foundation | ✅ Done | v1.8.0 |
 | 9 | Strategy Foundation | ✅ Done | v1.9.0 |
 | 10 | Execution Foundation | ✅ Done | v1.10.0 |
-| 11 | Opportunity / Selection Foundation | ⏳ Planned | v2.1.0 |
-| 12 | Strategy Orchestration / Meta Layer | ⏳ Planned | v2.2.0 |
-| 13-18 | Position Expansion / Portfolio / Protection / Testing | ⏳ Planned | v2.3.0-v2.8.0 |
-| 19 | Deployment | ⏳ Planned | v3.0.0 |
+| 11 | Opportunity / Selection Foundation | ✅ Done | v1.11.0 |
+| 12 | Strategy Orchestration / Meta Layer | ⏳ Planned | v1.12.0 |
+| 13-18 | Position Expansion / Portfolio / Protection / Testing | ⏳ Planned | v1.13.0-v1.18.0 |
+| 19 | Deployment | ⏳ Planned | v1.19.0 |
 
 ---
 
@@ -353,12 +353,10 @@ cargo test
 
 ---
 
-## Ближайшие следующие линии после P_10
+## Ближайшие следующие линии после P_11
 
-После `v1.10.0` ближайшая нормализованная последовательность фаз такая:
+После `v1.11.0` ближайшая нормализованная последовательность фаз такая:
 
-- `P_10` — `Execution Foundation`
-- `P_11` — `Opportunity / Selection Foundation`
 - `P_12` — `Strategy Orchestration / Meta Layer`
 - `P_13+` — position expansion / portfolio / supervisor / broader execution lines
 
@@ -406,6 +404,41 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ---
 
+## Phase 11 Opportunity / Selection Foundation
+
+`Phase 11` закрыта как узкая, production-compatible линия:
+`Opportunity / Selection Foundation`.
+
+Реализованный closure scope:
+
+- typed opportunity / selection contracts;
+- opportunity validity / readiness semantics;
+- typed opportunity event vocabulary;
+- explicit `OpportunityRuntime`;
+- deterministic `OpportunityContext` assembly внутри opportunity layer;
+- один узкий deterministic selection contour;
+- narrow composition-root integration через existing execution truth;
+- operator-visible opportunity diagnostics / readiness / degraded truth;
+- lifecycle semantics для selection candidate truth:
+  - `CANDIDATE`
+  - `SELECTED`
+  - `SUPPRESSED`
+  - `INVALIDATED`
+  - `EXPIRED`
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения после closure:
+
+- это не OMS;
+- это не `MetaClassifier`;
+- это не `StrategyManager`;
+- это не multi-strategy orchestration;
+- это не portfolio / supervisor logic;
+- persistence-first line не входит в scope;
+- dashboard / UI line не входит в scope.
+
+---
+
 ## Структура проекта
 
 ```text
@@ -420,6 +453,7 @@ CRYPTOTEHNOLOG/
 │   ├── signals/                  # Signal generation foundation
 │   ├── execution/                # Order execution
 │   ├── strategy/                 # Strategy foundation (closure-ready)
+│   ├── opportunity/              # Opportunity / selection foundation (done)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -556,5 +590,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.10.0`  
+**Версия:** `v1.11.0`  
 **Последнее обновление:** `2026-03-21`
