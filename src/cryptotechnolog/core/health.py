@@ -738,7 +738,7 @@ class HealthChecker:
 
         return system_health
 
-    def _build_readiness(  # noqa: PLR0912
+    def _build_readiness(  # noqa: PLR0912,PLR0915
         self,
         overall_status: HealthStatus,
         components: dict[str, ComponentHealth],
@@ -810,6 +810,17 @@ class HealthChecker:
             reasons.extend(str(reason) for reason in signal_runtime.get("readiness_reasons", []))
             reasons.extend(
                 f"signal:{reason}" for reason in signal_runtime.get("degraded_reasons", [])
+            )
+
+        strategy_runtime = diagnostics.get("strategy_runtime")
+        if isinstance(strategy_runtime, dict):
+            if not strategy_runtime.get("started", False):
+                reasons.append("strategy_runtime_not_started")
+            if not strategy_runtime.get("ready", False):
+                reasons.append("strategy_runtime_not_ready")
+            reasons.extend(str(reason) for reason in strategy_runtime.get("readiness_reasons", []))
+            reasons.extend(
+                f"strategy:{reason}" for reason in strategy_runtime.get("degraded_reasons", [])
             )
 
         for component_name, component_health in components.items():
@@ -920,19 +931,17 @@ class HealthChecker:
     def _is_wait_condition_satisfied(self, health: SystemHealth) -> bool:
         """Определить, достигнуто ли условие готовности для wait-helper."""
         diagnostics = health.diagnostics
-        readiness_context_present = any(
-            [
-                diagnostics.get("composition_root_built", False),
-                diagnostics.get("runtime_started", False),
-                diagnostics.get("runtime_ready", False),
-                diagnostics.get("startup_state") not in (None, "not_started"),
-                diagnostics.get("bootstrap_module") is not None,
-                diagnostics.get("bootstrap_mode") is not None,
-                diagnostics.get("active_risk_path") is not None,
-                diagnostics.get("failure_reason") is not None,
-                bool(diagnostics.get("degraded_reasons")),
-            ]
-        )
+        readiness_context_present = any([
+            diagnostics.get("composition_root_built", False),
+            diagnostics.get("runtime_started", False),
+            diagnostics.get("runtime_ready", False),
+            diagnostics.get("startup_state") not in (None, "not_started"),
+            diagnostics.get("bootstrap_module") is not None,
+            diagnostics.get("bootstrap_mode") is not None,
+            diagnostics.get("active_risk_path") is not None,
+            diagnostics.get("failure_reason") is not None,
+            bool(diagnostics.get("degraded_reasons")),
+        ])
         if readiness_context_present:
             return health.readiness_status == "ready"
         return health.is_healthy()
