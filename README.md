@@ -86,9 +86,11 @@ CRYPTOTEHNOLOG Platform
 | 6 | Market Data Layer + Universe Engine | ✅ Done | v1.6.0 |
 | 7 | Indicators + Intelligence Foundation | ✅ Done | v1.7.0 |
 | 8 | Signal Generation Foundation | ✅ Done | v1.8.0 |
-| 9 | Strategy Foundation | ✅ Closure-Ready | v1.9.0 |
-| 10-11 | Opportunity / Execution Expansion | ⏳ Planned | v2.0.0-v2.1.0 |
-| 12-18 | Protection & Testing | ⏳ Planned | v2.2.0-v2.4.0 |
+| 9 | Strategy Foundation | ✅ Done | v1.9.0 |
+| 10 | Execution Foundation | ✅ Done | v1.10.0 |
+| 11 | Opportunity / Selection Foundation | ⏳ Planned | v2.1.0 |
+| 12 | Strategy Orchestration / Meta Layer | ⏳ Planned | v2.2.0 |
+| 13-18 | Position Expansion / Portfolio / Protection / Testing | ⏳ Planned | v2.3.0-v2.8.0 |
 | 19 | Deployment | ⏳ Planned | v3.0.0 |
 
 ---
@@ -244,7 +246,8 @@ Deferred follow-up lines после `P_8`:
 
 ## Phase 9 Strategy Foundation
 
-`Phase 9` доведена до closure-ready состояния как узкая `Strategy Foundation`.
+`Phase 9` закрыта как линия `v1.9.0` в узкой, production-compatible форме:
+`Strategy Foundation`.
 
 Реализованный closure scope:
 
@@ -347,6 +350,59 @@ pytest --cov=src --cov-report=html
 cargo build
 cargo test
 ```
+
+---
+
+## Ближайшие следующие линии после P_10
+
+После `v1.10.0` ближайшая нормализованная последовательность фаз такая:
+
+- `P_10` — `Execution Foundation`
+- `P_11` — `Opportunity / Selection Foundation`
+- `P_12` — `Strategy Orchestration / Meta Layer`
+- `P_13+` — position expansion / portfolio / supervisor / broader execution lines
+
+Это предварительная roadmap truth.
+Authoritative implementation truth для каждой из этих фаз должна открываться отдельно через
+`prompts/plan/P_X.md`.
+
+---
+
+## Phase 10 Execution Foundation
+
+`Phase 10` закрыта как линия `v1.10.0` в узкой, production-compatible форме:
+`Execution Foundation`.
+
+Реализованный closure scope:
+
+- typed execution contracts;
+- execution validity / readiness semantics;
+- typed execution event vocabulary;
+- explicit `ExecutionRuntime`;
+- deterministic `ExecutionContext` assembly внутри execution layer;
+- один узкий deterministic execution contour;
+- narrow composition-root integration через existing strategy truth;
+- operator-visible execution diagnostics / readiness / degraded truth;
+- lifecycle semantics для execution intent truth:
+  - `CANDIDATE`
+  - `EXECUTABLE`
+  - `SUPPRESSED`
+  - `INVALIDATED`
+  - `EXPIRED`
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения после closure:
+
+- это не OMS;
+- это не multi-exchange smart routing;
+- это не advanced execution algo line;
+- это не exchange adapter platform;
+- это не exchange failover / advanced reliability line;
+- это не portfolio governance;
+- это не `OpportunityEngine`, `MetaClassifier` или `StrategyManager`;
+- multi-strategy orchestration не входит в scope;
+- persistence-first line не входит в scope;
+- dashboard / UI line не входит в scope.
 
 ---
 
@@ -500,5 +556,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.8.0`  
+**Версия:** `v1.10.0`  
 **Последнее обновление:** `2026-03-21`

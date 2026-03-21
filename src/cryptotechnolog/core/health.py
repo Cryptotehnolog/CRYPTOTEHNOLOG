@@ -823,6 +823,17 @@ class HealthChecker:
                 f"strategy:{reason}" for reason in strategy_runtime.get("degraded_reasons", [])
             )
 
+        execution_runtime = diagnostics.get("execution_runtime")
+        if isinstance(execution_runtime, dict):
+            if not execution_runtime.get("started", False):
+                reasons.append("execution_runtime_not_started")
+            if not execution_runtime.get("ready", False):
+                reasons.append("execution_runtime_not_ready")
+            reasons.extend(str(reason) for reason in execution_runtime.get("readiness_reasons", []))
+            reasons.extend(
+                f"execution:{reason}" for reason in execution_runtime.get("degraded_reasons", [])
+            )
+
         for component_name, component_health in components.items():
             if component_health.status != HealthStatus.HEALTHY:
                 reasons.append(f"{component_name}:{component_health.status.value}")
