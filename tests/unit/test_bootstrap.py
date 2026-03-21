@@ -26,6 +26,16 @@ from cryptotechnolog.core.system_controller import (
     StartupPhase,
     StartupResult,
 )
+from cryptotechnolog.execution import (
+    ExecutionDirection,
+    ExecutionEventType,
+    ExecutionFreshness,
+    ExecutionOrderIntent,
+    ExecutionReasonCode,
+    ExecutionStatus,
+    ExecutionValidity,
+    ExecutionValidityStatus,
+)
 from cryptotechnolog.market_data import MarketDataTimeframe, OHLCVBarContract
 from cryptotechnolog.market_data.events import (
     BarCompletedPayload,
@@ -184,6 +194,52 @@ def make_actionable_strategy_candidate() -> StrategyActionCandidate:
     )
 
 
+def make_executable_execution_intent() -> ExecutionOrderIntent:
+    now = datetime(2026, 3, 20, 12, 1, tzinfo=UTC)
+    candidate = make_actionable_strategy_candidate()
+    return ExecutionOrderIntent(
+        intent_id=ExecutionOrderIntent.candidate(
+            contour_name="phase10_execution_contour",
+            execution_name="phase10_foundation_execution",
+            symbol="BTC/USDT",
+            exchange="bybit",
+            timeframe=MarketDataTimeframe.M1,
+            freshness=ExecutionFreshness(
+                generated_at=now,
+                expires_at=now.replace(minute=6),
+            ),
+            validity=ExecutionValidity(
+                status=ExecutionValidityStatus.VALID,
+                observed_inputs=1,
+                required_inputs=1,
+            ),
+            direction=ExecutionDirection.BUY,
+            originating_candidate_id=candidate.candidate_id,
+            confidence=Decimal("0.8"),
+            reason_code=ExecutionReasonCode.CONTEXT_READY,
+        ).intent_id,
+        contour_name="phase10_execution_contour",
+        execution_name="phase10_foundation_execution",
+        symbol="BTC/USDT",
+        exchange="bybit",
+        timeframe=MarketDataTimeframe.M1,
+        freshness=ExecutionFreshness(
+            generated_at=now,
+            expires_at=now.replace(minute=6),
+        ),
+        validity=ExecutionValidity(
+            status=ExecutionValidityStatus.VALID,
+            observed_inputs=1,
+            required_inputs=1,
+        ),
+        status=ExecutionStatus.EXECUTABLE,
+        direction=ExecutionDirection.BUY,
+        originating_candidate_id=candidate.candidate_id,
+        confidence=Decimal("0.8"),
+        reason_code=ExecutionReasonCode.CONTEXT_READY,
+    )
+
+
 def _fake_shutdown_with_component_stop(
     runtime,
     *,
@@ -193,6 +249,8 @@ def _fake_shutdown_with_component_stop(
         _ = force
         if runtime.execution_runtime.is_started:
             await runtime.execution_runtime.stop()
+        if runtime.opportunity_runtime.is_started:
+            await runtime.opportunity_runtime.stop()
         if runtime.strategy_runtime.is_started:
             await runtime.strategy_runtime.stop()
         if runtime.signal_runtime.is_started:
@@ -270,6 +328,8 @@ class TestProductionBootstrap:
         assert runtime.get_runtime_diagnostics()["strategy_runtime"]["ready"] is False
         assert runtime.get_runtime_diagnostics()["execution_runtime"]["started"] is False
         assert runtime.get_runtime_diagnostics()["execution_runtime"]["ready"] is False
+        assert runtime.get_runtime_diagnostics()["opportunity_runtime"]["started"] is False
+        assert runtime.get_runtime_diagnostics()["opportunity_runtime"]["ready"] is False
         controller_component = runtime.controller.get_component("event_bus")
         assert controller_component is not None
         assert controller_component is runtime.event_bus
@@ -294,6 +354,10 @@ class TestProductionBootstrap:
             runtime.controller.get_component("phase10_execution_runtime")
             is runtime.execution_runtime
         )
+        assert (
+            runtime.controller.get_component("phase11_opportunity_runtime")
+            is runtime.opportunity_runtime
+        )
         assert SystemEventType.BAR_COMPLETED in runtime.event_bus.handlers
         assert len(runtime.event_bus.handlers[SystemEventType.BAR_COMPLETED]) == 3
         assert len(runtime.event_bus.handlers[SignalEventType.SIGNAL_SNAPSHOT_UPDATED.value]) == 1
@@ -304,6 +368,11 @@ class TestProductionBootstrap:
         )
         assert len(runtime.event_bus.handlers[StrategyEventType.STRATEGY_ACTIONABLE.value]) == 1
         assert len(runtime.event_bus.handlers[StrategyEventType.STRATEGY_INVALIDATED.value]) == 1
+        assert (
+            len(runtime.event_bus.handlers[ExecutionEventType.EXECUTION_INTENT_UPDATED.value]) == 1
+        )
+        assert len(runtime.event_bus.handlers[ExecutionEventType.EXECUTION_REQUESTED.value]) == 1
+        assert len(runtime.event_bus.handlers[ExecutionEventType.EXECUTION_INVALIDATED.value]) == 1
         assert SystemEventType.BAR_COMPLETED not in runtime.risk_runtime.risk_listener.event_types
         assert SystemEventType.RISK_BAR_COMPLETED in runtime.risk_runtime.risk_listener.event_types
 
@@ -387,8 +456,8 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
-        runtime.execution_runtime._started = True
-        runtime.execution_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+        runtime.opportunity_runtime._started = True
+        runtime.opportunity_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
             ready=True,
             lifecycle_state="ready",
             readiness_reasons=(),
@@ -412,6 +481,7 @@ class TestProductionBootstrap:
         assert diagnostics["signal_runtime"]["ready"] is True
         assert diagnostics["strategy_runtime"]["ready"] is True
         assert diagnostics["execution_runtime"]["ready"] is True
+        assert diagnostics["opportunity_runtime"]["ready"] is True
 
     @pytest.mark.asyncio
     async def test_runtime_startup_fail_fast_exposes_block_reason_in_diagnostics(self) -> None:
@@ -536,6 +606,13 @@ class TestProductionBootstrap:
             readiness_reasons=("no_execution_context_processed",),
             degraded_reasons=(),
         )
+        runtime.opportunity_runtime._started = True
+        runtime.opportunity_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=False,
+            lifecycle_state="warming",
+            readiness_reasons=("no_selection_context_processed",),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
 
@@ -555,6 +632,7 @@ class TestProductionBootstrap:
         assert diagnostics["signal_runtime"]["ready"] is False
         assert diagnostics["strategy_runtime"]["ready"] is False
         assert diagnostics["execution_runtime"]["ready"] is False
+        assert diagnostics["opportunity_runtime"]["ready"] is False
 
     @pytest.mark.asyncio
     async def test_runtime_startup_exposes_degraded_readiness_when_health_is_degraded(self) -> None:
@@ -598,6 +676,7 @@ class TestProductionBootstrap:
         runtime.risk_runtime._listener_registered = True
         runtime.strategy_runtime._started = True
         runtime.execution_runtime._started = True
+        runtime.opportunity_runtime._started = True
 
         await runtime.startup()
 
@@ -689,6 +768,13 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.opportunity_runtime._started = True
+        runtime.opportunity_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
         shutdown_result = await runtime.shutdown()
@@ -724,6 +810,11 @@ class TestProductionBootstrap:
         assert diagnostics["execution_runtime"]["lifecycle_state"] == "stopped"
         assert diagnostics["execution_runtime"]["tracked_intent_keys"] == 0
         assert diagnostics["execution_runtime"]["readiness_reasons"] == ["runtime_stopped"]
+        assert diagnostics["opportunity_runtime"]["started"] is False
+        assert diagnostics["opportunity_runtime"]["ready"] is False
+        assert diagnostics["opportunity_runtime"]["lifecycle_state"] == "stopped"
+        assert diagnostics["opportunity_runtime"]["tracked_selection_keys"] == 0
+        assert diagnostics["opportunity_runtime"]["readiness_reasons"] == ["runtime_stopped"]
 
     @pytest.mark.asyncio
     async def test_start_production_runtime_preserves_fail_fast_truth_after_cleanup(self) -> None:
@@ -1211,6 +1302,106 @@ class TestProductionBootstrap:
 
         runtime.execution_runtime.ingest_candidate.assert_called_once()
         runtime.execution_runtime._assemble_execution_context.assert_called_once()  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_execution_event_wiring_marks_opportunity_runtime_degraded_on_ingest_failure(
+        self,
+    ) -> None:
+        """Execution-event wiring должен честно переводить opportunity runtime в degraded."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.opportunity_runtime._started = True
+        runtime.opportunity_runtime.ingest_intent = Mock(  # type: ignore[method-assign]
+            side_effect=RuntimeError("opportunity_ingest_failure")
+        )
+        handler = runtime.event_bus.handlers[ExecutionEventType.EXECUTION_REQUESTED.value][0]
+        execution_event = Event.new(
+            ExecutionEventType.EXECUTION_REQUESTED.value,
+            "EXECUTION_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="opportunity_intent_ingest_failed:opportunity_execution_truth_missing_for_event",
+        ):
+            await handler(execution_event)
+
+        runtime.execution_runtime.get_intent = Mock(  # type: ignore[method-assign]
+            return_value=make_executable_execution_intent()
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="opportunity_intent_ingest_failed:opportunity_ingest_failure",
+        ):
+            await handler(execution_event)
+
+        diagnostics = runtime.opportunity_runtime.get_runtime_diagnostics()
+        assert diagnostics["started"] is True
+        assert diagnostics["ready"] is False
+        assert diagnostics["lifecycle_state"] == "degraded"
+        assert (
+            diagnostics["last_failure_reason"] == "intent_ingest_failed:opportunity_ingest_failure"
+        )
+        assert diagnostics["degraded_reasons"] == [
+            "intent_ingest_failed:opportunity_ingest_failure"
+        ]
+
+    @pytest.mark.asyncio
+    async def test_execution_event_wiring_keeps_opportunity_context_assembly_inside_opportunity_runtime(
+        self,
+    ) -> None:
+        """Composition root должен передавать execution truth в OpportunityRuntime, а не собирать OpportunityContext."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.opportunity_runtime._started = True
+        runtime.opportunity_runtime._assemble_opportunity_context = Mock(  # type: ignore[attr-defined, method-assign]
+            wraps=runtime.opportunity_runtime._assemble_opportunity_context  # type: ignore[attr-defined]
+        )
+        runtime.opportunity_runtime.ingest_intent = Mock(  # type: ignore[method-assign]
+            side_effect=runtime.opportunity_runtime.ingest_intent
+        )
+        runtime.execution_runtime.get_intent = Mock(  # type: ignore[method-assign]
+            return_value=make_executable_execution_intent()
+        )
+        handler = runtime.event_bus.handlers[ExecutionEventType.EXECUTION_REQUESTED.value][0]
+        execution_event = Event.new(
+            ExecutionEventType.EXECUTION_REQUESTED.value,
+            "EXECUTION_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        await handler(execution_event)
+
+        runtime.opportunity_runtime.ingest_intent.assert_called_once()
+        runtime.opportunity_runtime._assemble_opportunity_context.assert_called_once()  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
     async def test_composition_root_keeps_market_data_bar_boundary_separate_from_risk_listener(

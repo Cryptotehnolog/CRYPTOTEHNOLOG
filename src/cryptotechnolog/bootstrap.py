@@ -37,6 +37,7 @@ from cryptotechnolog.core.redis_manager import RedisManager, set_redis_manager
 from cryptotechnolog.core.system_controller import ShutdownResult, StartupResult, SystemController
 from cryptotechnolog.execution import (
     ExecutionEventSource,
+    ExecutionEventType,
     ExecutionRuntime,
     build_execution_event,
     create_execution_runtime,
@@ -45,6 +46,12 @@ from cryptotechnolog.intelligence.runtime import IntelligenceRuntime, create_int
 from cryptotechnolog.market_data import MarketDataTimeframe
 from cryptotechnolog.market_data.events import BarCompletedPayload
 from cryptotechnolog.market_data.runtime import MarketDataRuntime, create_market_data_runtime
+from cryptotechnolog.opportunity import (
+    OpportunityEventSource,
+    OpportunityRuntime,
+    build_opportunity_event,
+    create_opportunity_runtime,
+)
 from cryptotechnolog.risk.runtime import RiskRuntime, create_risk_runtime
 from cryptotechnolog.runtime_identity import RuntimeIdentity, build_runtime_identity
 from cryptotechnolog.signals import (
@@ -103,6 +110,7 @@ class ProductionRuntime:
     signal_runtime: SignalRuntime
     strategy_runtime: StrategyRuntime
     execution_runtime: ExecutionRuntime
+    opportunity_runtime: OpportunityRuntime
     startup_result: StartupResult | None = None
     shutdown_result: ShutdownResult | None = None
     last_health: SystemHealth | None = None
@@ -300,6 +308,8 @@ class ProductionRuntime:
             raise ProductionBootstrapError("Phase 9 strategy runtime не подключён к Event Bus")
         if not self.execution_runtime.is_started:
             raise ProductionBootstrapError("Phase 10 execution runtime не подключён к Event Bus")
+        if not self.opportunity_runtime.is_started:
+            raise ProductionBootstrapError("Phase 11 opportunity runtime не подключён к Event Bus")
         registered_risk_paths = {
             resolved_path
             for listener in self.listener_registry.all_listeners
@@ -334,6 +344,9 @@ class ProductionRuntime:
         if self.execution_runtime.is_started:
             with contextlib.suppress(Exception):
                 await self.execution_runtime.stop()
+        if self.opportunity_runtime.is_started:
+            with contextlib.suppress(Exception):
+                await self.opportunity_runtime.stop()
         if getattr(self.event_bus, "pending_tasks", None):
             with contextlib.suppress(Exception):
                 await self.event_bus.shutdown()
@@ -348,7 +361,7 @@ class ProductionRuntime:
         """Синхронизировать runtime diagnostics с composition root."""
         return self.health_checker.set_runtime_diagnostics(**updates)
 
-    def _collect_degraded_reasons(self, health: SystemHealth) -> list[str]:  # noqa: PLR0915
+    def _collect_degraded_reasons(self, health: SystemHealth) -> list[str]:  # noqa: PLR0912,PLR0915
         """Собрать operator-facing причины деградации из health truth."""
         reasons = [
             f"{name}:{component.status.value}"
@@ -445,6 +458,21 @@ class ProductionRuntime:
             execution_runtime.get("degraded_reasons", []),
         )
         reasons.extend(f"phase10_execution:{reason}" for reason in degraded_reason_values)
+        opportunity_runtime = self.opportunity_runtime.get_runtime_diagnostics()
+        if not opportunity_runtime.get("started", False):
+            reasons.append("phase11_opportunity:not_started")
+        if not opportunity_runtime.get("ready", False):
+            reasons.append("phase11_opportunity:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            opportunity_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"phase11_opportunity:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            opportunity_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"phase11_opportunity:{reason}" for reason in degraded_reason_values)
         return reasons
 
 
@@ -581,6 +609,9 @@ async def build_production_runtime(  # noqa: PLR0915
     def update_execution_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
         health_checker.set_runtime_diagnostics(execution_runtime=diagnostics)
 
+    def update_opportunity_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(opportunity_runtime=diagnostics)
+
     intelligence_runtime = create_intelligence_runtime(
         diagnostics_sink=update_intelligence_runtime_diagnostics,
     )
@@ -631,6 +662,17 @@ async def build_production_runtime(  # noqa: PLR0915
     controller.register_component(
         name="phase10_execution_runtime",
         component=execution_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+
+    opportunity_runtime = create_opportunity_runtime(
+        diagnostics_sink=update_opportunity_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase11_opportunity_runtime",
+        component=opportunity_runtime,
         required=False,
         health_check_enabled=False,
         shutdown_timeout=15.0,
@@ -761,6 +803,36 @@ async def build_production_runtime(  # noqa: PLR0915
             execution_runtime.mark_degraded(f"candidate_ingest_failed:{exc}")
             raise RuntimeError(f"execution_candidate_ingest_failed:{exc}") from exc
 
+    async def handle_execution_event_for_opportunity(event: Event) -> None:
+        try:
+            payload = cast("dict[str, object]", event.payload)
+            symbol = cast("str", payload["symbol"])
+            exchange = cast("str", payload["exchange"])
+            timeframe = MarketDataTimeframe(cast("str", payload["timeframe"]))
+            generated_at = datetime.fromisoformat(cast("str", payload["generated_at"]))
+            intent = execution_runtime.get_intent(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            if intent is None:
+                raise RuntimeError("opportunity_execution_truth_missing_for_event")
+            update = opportunity_runtime.ingest_intent(
+                intent=intent,
+                reference_time=generated_at,
+            )
+            if update.event_type is not None and update.emitted_payload is not None:
+                await event_bus.publish(
+                    build_opportunity_event(
+                        event_type=update.event_type,
+                        payload=update.emitted_payload,
+                        source=OpportunityEventSource.OPPORTUNITY_RUNTIME.value,
+                    )
+                )
+        except Exception as exc:
+            opportunity_runtime.mark_degraded(f"intent_ingest_failed:{exc}")
+            raise RuntimeError(f"opportunity_intent_ingest_failed:{exc}") from exc
+
     event_bus.on(SystemEventType.BAR_COMPLETED, handle_market_data_bar_completed_for_intelligence)
     event_bus.on(
         SystemEventType.BAR_COMPLETED,
@@ -781,6 +853,18 @@ async def build_production_runtime(  # noqa: PLR0915
     event_bus.on(
         StrategyEventType.STRATEGY_INVALIDATED.value,
         handle_strategy_event_for_execution,
+    )
+    event_bus.on(
+        ExecutionEventType.EXECUTION_INTENT_UPDATED.value,
+        handle_execution_event_for_opportunity,
+    )
+    event_bus.on(
+        ExecutionEventType.EXECUTION_REQUESTED.value,
+        handle_execution_event_for_opportunity,
+    )
+    event_bus.on(
+        ExecutionEventType.EXECUTION_INVALIDATED.value,
+        handle_execution_event_for_opportunity,
     )
 
     runtime = ProductionRuntime(
@@ -807,6 +891,7 @@ async def build_production_runtime(  # noqa: PLR0915
         signal_runtime=signal_runtime,
         strategy_runtime=strategy_runtime,
         execution_runtime=execution_runtime,
+        opportunity_runtime=opportunity_runtime,
     )
     runtime._update_runtime_diagnostics(
         composition_root_built=True,
