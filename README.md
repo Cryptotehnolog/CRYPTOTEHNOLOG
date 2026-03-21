@@ -86,7 +86,8 @@ CRYPTOTEHNOLOG Platform
 | 6 | Market Data Layer + Universe Engine | ✅ Done | v1.6.0 |
 | 7 | Indicators + Intelligence Foundation | ✅ Done | v1.7.0 |
 | 8 | Signal Generation Foundation | ✅ Done | v1.8.0 |
-| 9-11 | Strategy / Opportunity / Execution Expansion | ⏳ Planned | v1.9.0-v2.1.0 |
+| 9 | Strategy Foundation | ✅ Closure-Ready | v1.9.0 |
+| 10-11 | Opportunity / Execution Expansion | ⏳ Planned | v2.0.0-v2.1.0 |
 | 12-18 | Protection & Testing | ⏳ Planned | v2.2.0-v2.4.0 |
 | 19 | Deployment | ⏳ Planned | v3.0.0 |
 
@@ -241,6 +242,54 @@ Deferred follow-up lines после `P_8`:
 
 ---
 
+## Phase 9 Strategy Foundation
+
+`Phase 9` доведена до closure-ready состояния как узкая `Strategy Foundation`.
+
+Реализованный closure scope:
+
+- typed strategy contracts;
+- strategy validity / readiness semantics;
+- typed strategy action candidate contract поверх signal truth;
+- typed strategy event vocabulary;
+- explicit `StrategyRuntime`;
+- deterministic strategy context assembly внутри strategy layer;
+- один узкий deterministic strategy contour;
+- narrow composition-root integration через existing signal truth;
+- operator-visible strategy diagnostics / readiness / degraded truth;
+- lifecycle semantics для strategy candidate truth:
+  - `CANDIDATE`
+  - `ACTIONABLE`
+  - `SUPPRESSED`
+  - `INVALIDATED`
+  - `EXPIRED`
+- Redis/DB-backed integration verification для relevant bootstrap/runtime subset.
+
+Честные ограничения после closure:
+
+- это не `Portfolio Governor`;
+- это не `CapitalManager`, `VelocityMonitor`, `ExposureLimits` или `DrawdownProtection`;
+- это не `OpportunityEngine`;
+- это не `MetaClassifier`;
+- это не `StrategyManager`;
+- multi-strategy orchestration не входит в scope;
+- portfolio / supervisor logic не входит в scope;
+- execution semantics beyond narrow strategy foundation не входят в scope;
+- persistence-first line не входит в scope;
+- dashboard / UI line не входит в scope;
+- broad analysis/intelligence expansion не входит в scope.
+
+Deferred follow-up lines после `P_9`:
+
+- opportunity / ranking line;
+- meta / selection line;
+- strategy manager / orchestration line;
+- portfolio / supervisor line;
+- execution expansion line;
+- persistence hardening line.
+
+---
+
 ## Быстрый старт
 
 ### Предварительные требования
@@ -314,7 +363,7 @@ CRYPTOTEHNOLOG/
 │   ├── intelligence/             # Intelligence layer
 │   ├── signals/                  # Signal generation foundation
 │   ├── execution/                # Order execution
-│   ├── strategy/                 # Future strategy layer
+│   ├── strategy/                 # Strategy foundation (closure-ready)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
