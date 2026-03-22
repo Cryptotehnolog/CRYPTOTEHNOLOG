@@ -64,6 +64,18 @@ from cryptotechnolog.orchestration import (
     OrchestrationValidity,
     OrchestrationValidityStatus,
 )
+from cryptotechnolog.position_expansion import (
+    ExpansionDecision,
+    ExpansionDirection,
+    ExpansionFreshness,
+    ExpansionReasonCode,
+    ExpansionSource,
+    ExpansionStatus,
+    ExpansionValidity,
+    ExpansionValidityStatus,
+    PositionExpansionCandidate,
+    PositionExpansionEventType,
+)
 from cryptotechnolog.signals import (
     SignalDirection,
     SignalEventType,
@@ -365,6 +377,59 @@ def make_forwarded_orchestration_decision() -> OrchestrationDecisionCandidate:
     )
 
 
+def make_expandable_position_expansion_candidate() -> PositionExpansionCandidate:
+    now = datetime(2026, 3, 20, 12, 1, tzinfo=UTC)
+    decision = make_forwarded_orchestration_decision()
+    return PositionExpansionCandidate(
+        expansion_id=PositionExpansionCandidate.candidate(
+            contour_name="phase13_position_expansion_contour",
+            expansion_name="phase13_position_expansion",
+            symbol="BTC/USDT",
+            exchange="bybit",
+            timeframe=MarketDataTimeframe.M1,
+            source=ExpansionSource.ORCHESTRATION_DECISION,
+            freshness=ExpansionFreshness(
+                generated_at=now,
+                expires_at=now.replace(minute=6),
+            ),
+            validity=ExpansionValidity(
+                status=ExpansionValidityStatus.VALID,
+                observed_inputs=1,
+                required_inputs=1,
+            ),
+            decision=ExpansionDecision.ADD,
+            status=ExpansionStatus.EXPANDABLE,
+            direction=ExpansionDirection.LONG,
+            originating_decision_id=decision.decision_id,
+            confidence=Decimal("0.8"),
+            priority_score=Decimal("0.8"),
+            reason_code=ExpansionReasonCode.CONTEXT_READY,
+        ).expansion_id,
+        contour_name="phase13_position_expansion_contour",
+        expansion_name="phase13_position_expansion",
+        symbol="BTC/USDT",
+        exchange="bybit",
+        timeframe=MarketDataTimeframe.M1,
+        source=ExpansionSource.ORCHESTRATION_DECISION,
+        freshness=ExpansionFreshness(
+            generated_at=now,
+            expires_at=now.replace(minute=6),
+        ),
+        validity=ExpansionValidity(
+            status=ExpansionValidityStatus.VALID,
+            observed_inputs=1,
+            required_inputs=1,
+        ),
+        status=ExpansionStatus.EXPANDABLE,
+        decision=ExpansionDecision.ADD,
+        direction=ExpansionDirection.LONG,
+        originating_decision_id=decision.decision_id,
+        confidence=Decimal("0.8"),
+        priority_score=Decimal("0.8"),
+        reason_code=ExpansionReasonCode.CONTEXT_READY,
+    )
+
+
 def _fake_shutdown_with_component_stop(
     runtime,
     *,
@@ -376,6 +441,8 @@ def _fake_shutdown_with_component_stop(
             await runtime.orchestration_runtime.stop()
         if runtime.position_expansion_runtime.is_started:
             await runtime.position_expansion_runtime.stop()
+        if runtime.portfolio_governor_runtime.is_started:
+            await runtime.portfolio_governor_runtime.stop()
         if runtime.execution_runtime.is_started:
             await runtime.execution_runtime.stop()
         if runtime.opportunity_runtime.is_started:
@@ -463,6 +530,8 @@ class TestProductionBootstrap:
         assert runtime.get_runtime_diagnostics()["orchestration_runtime"]["ready"] is False
         assert runtime.get_runtime_diagnostics()["position_expansion_runtime"]["started"] is False
         assert runtime.get_runtime_diagnostics()["position_expansion_runtime"]["ready"] is False
+        assert runtime.get_runtime_diagnostics()["portfolio_governor_runtime"]["started"] is False
+        assert runtime.get_runtime_diagnostics()["portfolio_governor_runtime"]["ready"] is False
         controller_component = runtime.controller.get_component("event_bus")
         assert controller_component is not None
         assert controller_component is runtime.event_bus
@@ -498,6 +567,10 @@ class TestProductionBootstrap:
         assert (
             runtime.controller.get_component("phase13_position_expansion_runtime")
             is runtime.position_expansion_runtime
+        )
+        assert (
+            runtime.controller.get_component("phase14_portfolio_governor_runtime")
+            is runtime.portfolio_governor_runtime
         )
         assert SystemEventType.BAR_COMPLETED in runtime.event_bus.handlers
         assert len(runtime.event_bus.handlers[SystemEventType.BAR_COMPLETED]) == 3
@@ -537,6 +610,30 @@ class TestProductionBootstrap:
         )
         assert (
             len(runtime.event_bus.handlers[OrchestrationEventType.ORCHESTRATION_INVALIDATED.value])
+            == 1
+        )
+        assert (
+            len(
+                runtime.event_bus.handlers[
+                    PositionExpansionEventType.POSITION_EXPANSION_CANDIDATE_UPDATED.value
+                ]
+            )
+            == 1
+        )
+        assert (
+            len(
+                runtime.event_bus.handlers[
+                    PositionExpansionEventType.POSITION_EXPANSION_APPROVED.value
+                ]
+            )
+            == 1
+        )
+        assert (
+            len(
+                runtime.event_bus.handlers[
+                    PositionExpansionEventType.POSITION_EXPANSION_INVALIDATED.value
+                ]
+            )
             == 1
         )
         assert SystemEventType.BAR_COMPLETED not in runtime.risk_runtime.risk_listener.event_types
@@ -643,6 +740,13 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.portfolio_governor_runtime._started = True
+        runtime.portfolio_governor_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         result = await runtime.startup()
 
@@ -664,6 +768,7 @@ class TestProductionBootstrap:
         assert diagnostics["opportunity_runtime"]["ready"] is True
         assert diagnostics["orchestration_runtime"]["ready"] is True
         assert diagnostics["position_expansion_runtime"]["ready"] is True
+        assert diagnostics["portfolio_governor_runtime"]["ready"] is True
 
     @pytest.mark.asyncio
     async def test_runtime_startup_fail_fast_exposes_block_reason_in_diagnostics(self) -> None:
@@ -702,7 +807,7 @@ class TestProductionBootstrap:
         assert any(reason.startswith("startup_failed:") for reason in health.readiness_reasons)
 
     @pytest.mark.asyncio
-    async def test_runtime_startup_exposes_market_data_not_ready_as_degraded(self) -> None:
+    async def test_runtime_startup_exposes_market_data_not_ready_as_degraded(self) -> None:  # noqa: PLR0915
         """Production startup не должен маскировать неготовый market data слой как ready."""
         runtime = await build_production_runtime(
             settings=make_settings(),
@@ -809,6 +914,13 @@ class TestProductionBootstrap:
             readiness_reasons=("no_position_expansion_context_processed",),
             degraded_reasons=(),
         )
+        runtime.portfolio_governor_runtime._started = True
+        runtime.portfolio_governor_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=False,
+            lifecycle_state="warming",
+            readiness_reasons=("no_portfolio_governor_context_processed",),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
 
@@ -831,6 +943,7 @@ class TestProductionBootstrap:
         assert diagnostics["opportunity_runtime"]["ready"] is False
         assert diagnostics["orchestration_runtime"]["ready"] is False
         assert diagnostics["position_expansion_runtime"]["ready"] is False
+        assert diagnostics["portfolio_governor_runtime"]["ready"] is False
 
     @pytest.mark.asyncio
     async def test_runtime_startup_exposes_degraded_readiness_when_health_is_degraded(self) -> None:
@@ -877,6 +990,7 @@ class TestProductionBootstrap:
         runtime.opportunity_runtime._started = True
         runtime.orchestration_runtime._started = True
         runtime.position_expansion_runtime._started = True
+        runtime.portfolio_governor_runtime._started = True
 
         await runtime.startup()
 
@@ -989,6 +1103,13 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.portfolio_governor_runtime._started = True
+        runtime.portfolio_governor_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
         shutdown_result = await runtime.shutdown()
@@ -1039,6 +1160,11 @@ class TestProductionBootstrap:
         assert diagnostics["position_expansion_runtime"]["lifecycle_state"] == "stopped"
         assert diagnostics["position_expansion_runtime"]["tracked_expansion_keys"] == 0
         assert diagnostics["position_expansion_runtime"]["readiness_reasons"] == ["runtime_stopped"]
+        assert diagnostics["portfolio_governor_runtime"]["started"] is False
+        assert diagnostics["portfolio_governor_runtime"]["ready"] is False
+        assert diagnostics["portfolio_governor_runtime"]["lifecycle_state"] == "stopped"
+        assert diagnostics["portfolio_governor_runtime"]["tracked_governor_keys"] == 0
+        assert diagnostics["portfolio_governor_runtime"]["readiness_reasons"] == ["runtime_stopped"]
 
     @pytest.mark.asyncio
     async def test_start_production_runtime_preserves_fail_fast_truth_after_cleanup(self) -> None:
@@ -1828,6 +1954,111 @@ class TestProductionBootstrap:
 
         runtime.position_expansion_runtime.ingest_decision.assert_called_once()
         runtime.position_expansion_runtime._assemble_expansion_context.assert_called_once()  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_position_expansion_event_wiring_marks_portfolio_governor_runtime_degraded_on_ingest_failure(
+        self,
+    ) -> None:
+        """Position-expansion wiring должен честно переводить portfolio-governor runtime в degraded."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.portfolio_governor_runtime._started = True
+        runtime.portfolio_governor_runtime.ingest_expansion = Mock(  # type: ignore[method-assign]
+            side_effect=RuntimeError("portfolio_governor_ingest_failure")
+        )
+        handler = runtime.event_bus.handlers[
+            PositionExpansionEventType.POSITION_EXPANSION_APPROVED.value
+        ][0]
+        expansion_event = Event.new(
+            PositionExpansionEventType.POSITION_EXPANSION_APPROVED.value,
+            "POSITION_EXPANSION_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="portfolio_governor_expansion_ingest_failed:portfolio_governor_expansion_truth_missing_for_event",
+        ):
+            await handler(expansion_event)
+
+        runtime.position_expansion_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_expandable_position_expansion_candidate()
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="portfolio_governor_expansion_ingest_failed:portfolio_governor_ingest_failure",
+        ):
+            await handler(expansion_event)
+
+        diagnostics = runtime.portfolio_governor_runtime.get_runtime_diagnostics()
+        assert diagnostics["started"] is True
+        assert diagnostics["ready"] is False
+        assert diagnostics["lifecycle_state"] == "degraded"
+        assert (
+            diagnostics["last_failure_reason"]
+            == "expansion_ingest_failed:portfolio_governor_ingest_failure"
+        )
+        assert diagnostics["degraded_reasons"] == [
+            "expansion_ingest_failed:portfolio_governor_ingest_failure"
+        ]
+
+    @pytest.mark.asyncio
+    async def test_position_expansion_event_wiring_keeps_governor_context_assembly_inside_portfolio_governor_runtime(
+        self,
+    ) -> None:
+        """Composition root должен передавать expansion truth в PortfolioGovernorRuntime, а не собирать GovernorContext."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.portfolio_governor_runtime._started = True
+        runtime.portfolio_governor_runtime._assemble_governor_context = Mock(  # type: ignore[attr-defined, method-assign]
+            wraps=runtime.portfolio_governor_runtime._assemble_governor_context  # type: ignore[attr-defined]
+        )
+        runtime.portfolio_governor_runtime.ingest_expansion = Mock(  # type: ignore[method-assign]
+            side_effect=runtime.portfolio_governor_runtime.ingest_expansion
+        )
+        runtime.position_expansion_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_expandable_position_expansion_candidate()
+        )
+        handler = runtime.event_bus.handlers[
+            PositionExpansionEventType.POSITION_EXPANSION_APPROVED.value
+        ][0]
+        expansion_event = Event.new(
+            PositionExpansionEventType.POSITION_EXPANSION_APPROVED.value,
+            "POSITION_EXPANSION_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        await handler(expansion_event)
+
+        runtime.portfolio_governor_runtime.ingest_expansion.assert_called_once()
+        runtime.portfolio_governor_runtime._assemble_governor_context.assert_called_once()  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
     async def test_composition_root_keeps_market_data_bar_boundary_separate_from_risk_listener(

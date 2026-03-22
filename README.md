@@ -23,8 +23,9 @@
 
 ### Мультиязычная архитектура
 
-Ниже показана честная current architecture truth после финализации `P_13`
-как `v1.13.0`, с отдельной пометкой для ближайших planned contours.
+Ниже показана честная current architecture truth после formal finalization `P_14`
+как линии `Portfolio Governor / Capital Governance Foundation`, с отдельной пометкой для
+следующих planned contours.
 
 ```text
 CRYPTOTEHNOLOG Platform
@@ -50,7 +51,8 @@ CRYPTOTEHNOLOG Platform
 │   ├── Execution Foundation
 │   ├── Opportunity / Selection Foundation
 │   ├── Strategy Orchestration / Meta Layer
-│   └── Position Expansion Foundation
+│   ├── Position Expansion Foundation
+│   └── Portfolio Governor / Capital Governance Foundation
 │
 ├── Observability (Python + Web)
 │   ├── Metrics Collector (Python)
@@ -96,7 +98,8 @@ CRYPTOTEHNOLOG Platform
 | 11 | Opportunity / Selection Foundation | ✅ Done | v1.11.0 |
 | 12 | Strategy Orchestration / Meta Layer | ✅ Done | v1.12.0 |
 | 13 | Position Expansion Foundation | ✅ Done | v1.13.0 |
-| 14-18 | Portfolio / Protection / OMS / Testing | ⏳ Planned | v1.14.0-v1.18.0 |
+| 14 | Portfolio Governor / Capital Governance Foundation | ✅ Done | v1.14.0 |
+| 15-18 | Protection / OMS / Manager / Testing | ⏳ Planned | v1.15.0-v1.18.0 |
 | 19 | Deployment | ⏳ Planned | v1.19.0 |
 
 ---
@@ -359,11 +362,11 @@ cargo test
 
 ---
 
-## Ближайшие следующие линии после P_13
+## Ближайшие следующие линии после P_14
 
-После финализации `P_13` ближайшая нормализованная последовательность фаз выглядит так:
+После formal finalization `P_14` ближайшая нормализованная последовательность фаз выглядит так:
 
-- `P_14+` — portfolio / protection / OMS / broader validation-supporting lines
+- `P_15+` — protection / `OMS` / broader manager / validation-supporting lines
 
 Это предварительная roadmap truth.
 Authoritative implementation truth для каждой из этих фаз должна открываться отдельно через
@@ -515,6 +518,40 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ---
 
+## Phase 14 Portfolio Governor / Capital Governance Foundation
+
+`Phase 14` закрыта как узкая, production-compatible линия:
+`Portfolio Governor / Capital Governance Foundation`.
+
+В реализованный scope `P_14` входят:
+
+- typed portfolio-governor contracts;
+- capital-governance / portfolio-admission semantics;
+- typed portfolio-governor event vocabulary;
+- explicit `PortfolioGovernorRuntime`;
+- deterministic `GovernorContext` assembly внутри portfolio-governor layer;
+- один узкий deterministic governor contour с явными `APPROVE` / `ABSTAIN` / `REJECT`;
+- narrow composition-root integration через existing position-expansion truth;
+- operator-visible portfolio-governor diagnostics / readiness / degraded truth;
+- lifecycle semantics для governor candidate truth:
+  - `CANDIDATE`
+  - `APPROVED`
+  - `ABSTAINED`
+  - `REJECTED`
+  - `INVALIDATED`
+  - `EXPIRED`
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения закрытой `P_14`:
+
+- это не protection / `Kill Switch` line;
+- это не `OMS`;
+- это не full `StrategyManager`;
+- это не notifications / analytics / validation line;
+- dashboard / UI line не входит в scope.
+
+---
+
 ## Структура проекта
 
 ```text
@@ -532,6 +569,7 @@ CRYPTOTEHNOLOG/
 │   ├── opportunity/              # Opportunity / selection foundation (done)
 │   ├── orchestration/            # Strategy orchestration / meta foundation (done)
 │   ├── position_expansion/       # Position expansion foundation (done)
+│   ├── portfolio_governor/       # Portfolio governor / capital governance foundation (done)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -668,5 +706,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.13.0`  
+**Версия:** `v1.14.0`  
 **Последнее обновление:** `2026-03-22`
