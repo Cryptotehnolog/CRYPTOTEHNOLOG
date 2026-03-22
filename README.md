@@ -23,6 +23,9 @@
 
 ### Мультиязычная архитектура
 
+Ниже показана честная current architecture truth после финализации `P_13`
+как `v1.13.0`, с отдельной пометкой для ближайших planned contours.
+
 ```text
 CRYPTOTEHNOLOG Platform
 │
@@ -30,8 +33,8 @@ CRYPTOTEHNOLOG Platform
 │   ├── State Machine
 │   ├── Config Manager
 │   ├── Risk Engine (Phase 5 orchestration)
-│   ├── Portfolio Governor
-│   └── Kill Switch
+│   ├── Operator Gate / Watchdog / Health truth
+│   └── [Planned] Portfolio / Protection contours
 │
 ├── Data Plane
 │   ├── Event Bus (Rust) ← high-performance messaging
@@ -42,14 +45,16 @@ CRYPTOTEHNOLOG Platform
 │   ├── Intelligence Layer (Python)
 │   └── Signal Layer (Python)
 │
-├── Execution Layer (Rust + Python)
-│   ├── Order Execution Core (Rust) ← low-latency
-│   ├── Smart Order Router (Python)
-│   └── Exchange Adapters (Python)
+├── Trading Runtime Layers (Python + Rust)
+│   ├── Order Execution Core / bridge contours (Rust + Python)
+│   ├── Execution Foundation
+│   ├── Opportunity / Selection Foundation
+│   ├── Strategy Orchestration / Meta Layer
+│   └── Position Expansion Foundation
 │
 ├── Observability (Python + Web)
 │   ├── Metrics Collector (Python)
-│   ├── Web Dashboard (React + TypeScript)
+│   ├── [Planned/Parallel] Web Dashboard (React + TypeScript)
 │   └── Grafana/Prometheus Integration
 │
 └── Storage
@@ -89,8 +94,9 @@ CRYPTOTEHNOLOG Platform
 | 9 | Strategy Foundation | ✅ Done | v1.9.0 |
 | 10 | Execution Foundation | ✅ Done | v1.10.0 |
 | 11 | Opportunity / Selection Foundation | ✅ Done | v1.11.0 |
-| 12 | Strategy Orchestration / Meta Layer | ✅ Closure-Ready | v1.12.0 |
-| 13-18 | Position Expansion / Portfolio / Protection / Testing | ⏳ Planned | v1.13.0-v1.18.0 |
+| 12 | Strategy Orchestration / Meta Layer | ✅ Done | v1.12.0 |
+| 13 | Position Expansion Foundation | ✅ Done | v1.13.0 |
+| 14-18 | Portfolio / Protection / OMS / Testing | ⏳ Planned | v1.14.0-v1.18.0 |
 | 19 | Deployment | ⏳ Planned | v1.19.0 |
 
 ---
@@ -353,11 +359,11 @@ cargo test
 
 ---
 
-## Ближайшие следующие линии после P_12
+## Ближайшие следующие линии после P_13
 
-После `P_12` ближайшая нормализованная последовательность фаз такая:
+После финализации `P_13` ближайшая нормализованная последовательность фаз выглядит так:
 
-- `P_13+` — position expansion / portfolio / supervisor / broader execution lines
+- `P_14+` — portfolio / protection / OMS / broader validation-supporting lines
 
 Это предварительная roadmap truth.
 Authoritative implementation truth для каждой из этих фаз должна открываться отдельно через
@@ -440,7 +446,7 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ## Phase 12 Strategy Orchestration / Meta Layer
 
-`Phase 12` доведена до closure-ready состояния как узкая, production-compatible линия:
+`Phase 12` закрыта как линия `v1.12.0` в узкой, production-compatible форме:
 `Strategy Orchestration / Meta Layer`.
 
 Реализованный closure scope:
@@ -473,6 +479,42 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ---
 
+## Phase 13 Position Expansion Foundation
+
+`Phase 13` закрыта как линия `v1.13.0` в узкой, production-compatible форме:
+`Position Expansion Foundation`.
+
+Реализованный closure scope:
+
+- typed position-expansion contracts;
+- add-to-position eligibility / validity / readiness semantics;
+- typed position-expansion event vocabulary;
+- explicit `PositionExpansionRuntime`;
+- deterministic `ExpansionContext` assembly внутри position-expansion layer;
+- один узкий deterministic add-to-position contour с явными `ADD` / `ABSTAIN` / `REJECT`;
+- narrow composition-root integration через existing orchestration truth;
+- operator-visible position-expansion diagnostics / readiness / degraded truth;
+- lifecycle semantics для expansion candidate truth:
+  - `CANDIDATE`
+  - `EXPANDABLE`
+  - `ABSTAINED`
+  - `REJECTED`
+  - `INVALIDATED`
+  - `EXPIRED`
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения после closure:
+
+- это не portfolio-wide governance;
+- это не exposure supervisor semantics;
+- это не `Kill Switch` / protection line;
+- это не `OMS`;
+- это не full `StrategyManager`;
+- это не analytics / validation / notifications line;
+- dashboard / UI line не входит в scope.
+
+---
+
 ## Структура проекта
 
 ```text
@@ -486,9 +528,10 @@ CRYPTOTEHNOLOG/
 │   ├── intelligence/             # Intelligence layer
 │   ├── signals/                  # Signal generation foundation
 │   ├── execution/                # Order execution
-│   ├── strategy/                 # Strategy foundation (closure-ready)
+│   ├── strategy/                 # Strategy foundation (done)
 │   ├── opportunity/              # Opportunity / selection foundation (done)
-│   ├── orchestration/            # Strategy orchestration / meta foundation (in progress)
+│   ├── orchestration/            # Strategy orchestration / meta foundation (done)
+│   ├── position_expansion/       # Position expansion foundation (done)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -625,5 +668,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.12.0`  
+**Версия:** `v1.13.0`  
 **Последнее обновление:** `2026-03-22`

@@ -1,6 +1,6 @@
 # ==================== CRYPTOTEHNOLOG ====================
 # Institutional-Grade Crypto Trading Platform
-# Version: 1.12.0
+# Version: 1.13.0
 
 from __future__ import annotations
 
