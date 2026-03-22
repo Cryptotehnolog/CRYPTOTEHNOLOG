@@ -537,6 +537,8 @@ def _fake_shutdown_with_component_stop(
 ):
     async def _shutdown(*, force: bool = False) -> ShutdownResult:
         _ = force
+        if runtime.oms_runtime.is_started:
+            await runtime.oms_runtime.stop()
         if runtime.orchestration_runtime.is_started:
             await runtime.orchestration_runtime.stop()
         if runtime.position_expansion_runtime.is_started:
@@ -854,6 +856,13 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.oms_runtime._started = True
+        runtime.oms_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
         runtime.opportunity_runtime._started = True
         runtime.opportunity_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
             ready=True,
@@ -909,6 +918,8 @@ class TestProductionBootstrap:
         assert diagnostics["signal_runtime"]["ready"] is True
         assert diagnostics["strategy_runtime"]["ready"] is True
         assert diagnostics["execution_runtime"]["ready"] is True
+        assert diagnostics["oms_runtime"]["started"] is True
+        assert diagnostics["oms_runtime"]["ready"] is True
         assert diagnostics["opportunity_runtime"]["ready"] is True
         assert diagnostics["orchestration_runtime"]["ready"] is True
         assert diagnostics["position_expansion_runtime"]["ready"] is True
@@ -1037,6 +1048,13 @@ class TestProductionBootstrap:
             readiness_reasons=("no_execution_context_processed",),
             degraded_reasons=(),
         )
+        runtime.oms_runtime._started = True
+        runtime.oms_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=False,
+            lifecycle_state="warming",
+            readiness_reasons=("no_execution_intent_processed",),
+            degraded_reasons=(),
+        )
         runtime.opportunity_runtime._started = True
         runtime.opportunity_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
             ready=False,
@@ -1091,11 +1109,13 @@ class TestProductionBootstrap:
         assert diagnostics["signal_runtime"]["ready"] is False
         assert diagnostics["strategy_runtime"]["ready"] is False
         assert diagnostics["execution_runtime"]["ready"] is False
+        assert diagnostics["oms_runtime"]["ready"] is False
         assert diagnostics["opportunity_runtime"]["ready"] is False
         assert diagnostics["orchestration_runtime"]["ready"] is False
         assert diagnostics["position_expansion_runtime"]["ready"] is False
         assert diagnostics["portfolio_governor_runtime"]["ready"] is False
         assert diagnostics["protection_runtime"]["ready"] is False
+        assert "phase16_oms:not_ready" in diagnostics["degraded_reasons"]
         assert "phase15_protection:not_ready" in diagnostics["degraded_reasons"]
 
     @pytest.mark.asyncio
@@ -1140,6 +1160,7 @@ class TestProductionBootstrap:
         runtime.risk_runtime._listener_registered = True
         runtime.strategy_runtime._started = True
         runtime.execution_runtime._started = True
+        runtime.oms_runtime._started = True
         runtime.opportunity_runtime._started = True
         runtime.orchestration_runtime._started = True
         runtime.position_expansion_runtime._started = True
@@ -1236,6 +1257,13 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.oms_runtime._started = True
+        runtime.oms_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
         runtime.opportunity_runtime._started = True
         runtime.opportunity_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
             ready=True,
@@ -1306,6 +1334,13 @@ class TestProductionBootstrap:
         assert diagnostics["execution_runtime"]["lifecycle_state"] == "stopped"
         assert diagnostics["execution_runtime"]["tracked_intent_keys"] == 0
         assert diagnostics["execution_runtime"]["readiness_reasons"] == ["runtime_stopped"]
+        assert diagnostics["oms_runtime"]["started"] is False
+        assert diagnostics["oms_runtime"]["ready"] is False
+        assert diagnostics["oms_runtime"]["lifecycle_state"] == "stopped"
+        assert diagnostics["oms_runtime"]["tracked_contexts"] == 0
+        assert diagnostics["oms_runtime"]["tracked_active_orders"] == 0
+        assert diagnostics["oms_runtime"]["tracked_historical_orders"] == 0
+        assert diagnostics["oms_runtime"]["readiness_reasons"] == ["runtime_stopped"]
         assert diagnostics["opportunity_runtime"]["started"] is False
         assert diagnostics["opportunity_runtime"]["ready"] is False
         assert diagnostics["opportunity_runtime"]["lifecycle_state"] == "stopped"
