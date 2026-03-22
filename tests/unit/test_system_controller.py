@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from cryptotechnolog.core.event import SystemEventType
 from cryptotechnolog.core.system_controller import (
     ShutdownPhase,
     StartupError,
@@ -103,6 +104,14 @@ def mock_component():
         return_value=MagicMock(component="test", status="healthy", message="OK")
     )
     return component
+
+
+@pytest.fixture
+def mock_event_bus():
+    """Создать мок Event Bus для lifecycle publication."""
+    bus = AsyncMock()
+    bus.publish = AsyncMock(return_value=True)
+    return bus
 
 
 # ============================================================================
@@ -318,6 +327,57 @@ class TestStartup:
         assert result.success is True
         assert "optional_component" in result.components_failed
 
+    @pytest.mark.asyncio
+    async def test_startup_publishes_boot_and_ready_lifecycle_events(
+        self,
+        mock_state_machine,
+        mock_event_bus,
+    ):
+        """Успешный startup должен публиковать lifecycle audit trail."""
+        controller = SystemController(
+            state_machine=mock_state_machine,
+            event_bus=mock_event_bus,
+            test_mode=True,
+        )
+
+        result = await controller.startup()
+
+        published_event_types = [
+            call.args[0].event_type for call in mock_event_bus.publish.await_args_list
+        ]
+
+        assert result.success is True
+        assert SystemEventType.SYSTEM_BOOT in published_event_types
+        assert SystemEventType.SYSTEM_READY in published_event_types
+
+    @pytest.mark.asyncio
+    async def test_startup_failure_publishes_halt_lifecycle_event(
+        self,
+        mock_state_machine,
+        mock_event_bus,
+    ):
+        """Fail-fast startup должен оставлять lifecycle halt signal."""
+        mock_state_machine.transition = AsyncMock(
+            return_value=MagicMock(success=False, error="transition failed")
+        )
+        controller = SystemController(
+            state_machine=mock_state_machine,
+            event_bus=mock_event_bus,
+            test_mode=True,
+        )
+
+        result = await controller.startup()
+
+        halt_events = [
+            call.args[0]
+            for call in mock_event_bus.publish.await_args_list
+            if call.args[0].event_type == SystemEventType.SYSTEM_HALT
+        ]
+
+        assert result.success is False
+        assert len(halt_events) == 1
+        assert halt_events[0].payload["reason"] == "startup_failed"
+
 
 # ============================================================================
 # Тесты Shutdown
@@ -372,6 +432,30 @@ class TestShutdown:
         assert result1.success is True
         assert result2.success is True
         assert not controller.is_running
+
+    @pytest.mark.asyncio
+    async def test_shutdown_publishes_halt_and_shutdown_lifecycle_events(
+        self,
+        mock_state_machine,
+        mock_event_bus,
+    ):
+        """Shutdown должен публиковать halt и shutdown с awaited delivery."""
+        controller = SystemController(
+            state_machine=mock_state_machine,
+            event_bus=mock_event_bus,
+            test_mode=True,
+        )
+
+        await controller.startup()
+        result = await controller.shutdown()
+
+        published_event_types = [
+            call.args[0].event_type for call in mock_event_bus.publish.await_args_list
+        ]
+
+        assert result.success is True
+        assert SystemEventType.SYSTEM_HALT in published_event_types
+        assert SystemEventType.SYSTEM_SHUTDOWN in published_event_types
 
 
 # ============================================================================

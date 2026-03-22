@@ -1165,7 +1165,16 @@ class TestCheckpointWithDB:
     async def test_checkpoint_with_db_success(self) -> None:
         """Тест checkpoint с БД успех."""
         mock_db = AsyncMock()
-        mock_db.execute = AsyncMock()
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                "BEGIN",
+                "INSERT 0 1",
+                "UPDATE 1",
+                "COMMIT",
+                "INSERT 0 1",
+                "COMMIT",
+            ]
+        )
 
         sm = StateMachine(db_manager=mock_db)
         await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
@@ -1245,7 +1254,14 @@ class TestSaveTransitionToDB:
     async def test_save_transition_to_db(self) -> None:
         """Тест сохранения перехода в БД."""
         mock_db = AsyncMock()
-        mock_db.execute = AsyncMock()
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                "BEGIN",
+                "INSERT 0 1",
+                "UPDATE 1",
+                "COMMIT",
+            ]
+        )
 
         sm = StateMachine(db_manager=mock_db)
         await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)

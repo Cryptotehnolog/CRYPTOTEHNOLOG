@@ -30,6 +30,15 @@ os.environ["DEBUG"] = "true"
 _TEST_DB_INIT_LOCK_ID = 1234567890
 
 
+def _should_skip_external_integration_setup() -> bool:
+    """Определить, нужно ли пропустить внешний integration setup."""
+    return os.environ.get("SKIP_EXTERNAL_INTEGRATION_SETUP", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
+
 # ==================== Event Loop Fixture ====================
 
 
@@ -109,6 +118,10 @@ async def test_db_setup() -> AsyncGenerator[None, None]:
     - Schema always matches migrations (not hardcoded SQL)
     - No duplication between init-db.sql and conftest.py
     """
+    if _should_skip_external_integration_setup():
+        yield
+        return
+
     settings = Settings()
 
     conn = await asyncpg.connect(
@@ -269,6 +282,9 @@ def pytest_configure(config: pytest.Config) -> None:
 @pytest.fixture(scope="session", autouse=True)
 async def redis_clean_state() -> None:
     """Clean Redis before all tests."""
+    if _should_skip_external_integration_setup():
+        return
+
     settings = Settings()
     client = redis.from_url(
         settings.redis_url,
@@ -277,6 +293,8 @@ async def redis_clean_state() -> None:
     )
     try:
         await client.flushdb()
+    except (TimeoutError, redis.RedisError) as exc:
+        pytest.skip(f"Redis integration setup unavailable: {exc}")
     finally:
         await client.close()
 

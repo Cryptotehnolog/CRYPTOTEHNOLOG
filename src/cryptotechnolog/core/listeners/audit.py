@@ -51,14 +51,15 @@ class AuditListener(BaseListener):
         """
         # Определяем severity на основе типа события
         severity = self._determine_severity(event)
+        old_state, new_state = self._extract_state_transition(event)
 
         # Запись в audit_events
         await self._record_audit_event(
             event_type=event.event_type,
             entity_type=self._extract_entity_type(event),
             entity_id=self._extract_entity_id(event),
-            old_state=event.payload.get("old_state"),
-            new_state=event.payload.get("new_state"),
+            old_state=old_state,
+            new_state=new_state,
             operator=event.payload.get("operator", "system"),
             metadata={
                 **event.metadata,
@@ -68,6 +69,28 @@ class AuditListener(BaseListener):
             },
             severity=severity,
         )
+
+    def _extract_state_transition(
+        self,
+        event: Event,
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+        """Синхронизировать legacy audit-state поля с новым runtime state-sync contract."""
+        payload = event.payload
+        old_state = payload.get("old_state")
+        new_state = payload.get("new_state")
+
+        if event.event_type != "RISK_ENGINE_STATE_UPDATED":
+            return old_state, new_state
+
+        if old_state is None and payload.get("from_state") is not None:
+            old_state = {
+                "risk_engine_state": payload.get("from_state"),
+            }
+        if new_state is None and payload.get("to_state") is not None:
+            new_state = {
+                "risk_engine_state": payload.get("to_state"),
+            }
+        return old_state, new_state
 
     def _determine_severity(self, event: Event) -> str:
         """
@@ -90,6 +113,7 @@ class AuditListener(BaseListener):
             "ORDER_REJECTED",
             "EXECUTION_ERROR",
             "RISK_VIOLATION",
+            "DRAWDOWN_ALERT",
             "POSITION_SIZE_EXCEEDED",
             "DRAWDOWN_EXCEEDED",
             "HEALTH_CHECK_FAILED",
@@ -100,6 +124,20 @@ class AuditListener(BaseListener):
             "ORDER_CANCELLED",
             "CIRCUIT_BREAKER_CLOSED",
             "DAILY_LOSS_LIMIT",
+            "TRAILING_STOP_BLOCKED",
+            "RISK_ENGINE_STATE_UPDATED",
+        }
+
+        critical_events.update(
+            {
+                "VELOCITY_KILLSWITCH_TRIGGERED",
+            }
+        )
+
+        info_events = {
+            "TRAILING_STOP_MOVED",
+            "RISK_POSITION_REGISTERED",
+            "RISK_POSITION_RELEASED",
         }
 
         if event.event_type in critical_events:
@@ -108,6 +146,8 @@ class AuditListener(BaseListener):
             return "ERROR"
         elif event.event_type in warning_events:
             return "WARNING"
+        elif event.event_type in info_events:
+            return "INFO"
         else:
             return "INFO"
 
@@ -137,6 +177,13 @@ class AuditListener(BaseListener):
             "SYSTEM_HALT": "system",
             "SYSTEM_SHUTDOWN": "system",
             "RISK_VIOLATION": "risk",
+            "DRAWDOWN_ALERT": "risk",
+            "VELOCITY_KILLSWITCH_TRIGGERED": "risk",
+            "RISK_ENGINE_STATE_UPDATED": "risk",
+            "TRAILING_STOP_MOVED": "risk",
+            "TRAILING_STOP_BLOCKED": "risk",
+            "RISK_POSITION_REGISTERED": "risk",
+            "RISK_POSITION_RELEASED": "risk",
             "HEALTH_CHECK_FAILED": "health",
             "WATCHDOG_ALERT": "watchdog",
             "CIRCUIT_BREAKER_OPENED": "circuit_breaker",

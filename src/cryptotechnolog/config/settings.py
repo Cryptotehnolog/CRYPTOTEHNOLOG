@@ -1,10 +1,16 @@
 # ==================== CRYPTOTEHNOLOG Configuration Settings ====================
 # Centralized configuration management using Pydantic Settings
 
+import hashlib
+import json
 from pathlib import Path
+import threading
+from typing import Any
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from cryptotechnolog.runtime_identity import get_project_name, get_runtime_version
 
 
 class Settings(BaseSettings):
@@ -16,8 +22,8 @@ class Settings(BaseSettings):
     """
 
     # ==================== Project Settings ====================
-    project_name: str = "CRYPTOTEHNOLOG"
-    project_version: str = "1.0.0"
+    project_name: str = Field(default_factory=get_project_name)
+    project_version: str = Field(default_factory=get_runtime_version)
     environment: str = "development"
     debug: bool = True
 
@@ -141,8 +147,14 @@ class Settings(BaseSettings):
     # Maximum portfolio R exposure
     max_portfolio_r: float = 5.0
 
+    # Maximum aggregate exposure for Risk Engine portfolio checks (USD)
+    risk_max_total_exposure_usd: float = 50000.0
+
     # Maximum position size (USD)
     max_position_size: float = 10000.0
+
+    # Starting equity baseline for DrawdownMonitor runtime
+    risk_starting_equity: float = 10000.0
 
     # ==================== Trading Settings ====================
     # Default leverage
@@ -303,9 +315,40 @@ class Settings(BaseSettings):
             f"secrets=***)"
         )
 
+    def get_config_identity(self) -> str:
+        """Вернуть operator-facing identity текущего settings-based config path."""
+        return f"settings:{self.environment}:{self.config_dir.resolve()}"
 
-# Global settings instance
-settings = Settings()
+    def get_config_revision(self) -> str:
+        """Вернуть стабильный revision marker для текущего runtime config."""
+        normalized = _normalize_config_value(self.model_dump(mode="python"))
+        payload = json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+_settings: Settings | None = None
+_settings_lock = threading.Lock()
+
+
+def _normalize_config_value(value: Any) -> Any:
+    """Подготовить settings value к безопасному детерминированному hashing."""
+    normalized_value = value
+    if isinstance(value, SecretStr):
+        normalized_value = {
+            "secret_configured": bool(value.get_secret_value()),
+        }
+    elif isinstance(value, Path):
+        normalized_value = str(value.resolve())
+    elif isinstance(value, dict):
+        normalized_value = {
+            str(key): _normalize_config_value(nested_value)
+            for key, nested_value in sorted(value.items(), key=lambda item: str(item[0]))
+        }
+    elif isinstance(value, (list, tuple)):
+        normalized_value = [_normalize_config_value(item) for item in value]
+    elif isinstance(value, set):
+        normalized_value = sorted(str(_normalize_config_value(item)) for item in value)
+    return normalized_value
 
 
 # ==================== Settings Validation ====================
@@ -325,8 +368,8 @@ def validate_settings(
     """
     validation_errors: list[str] = []
 
-    # Use provided settings or global settings
-    s = settings_to_validate if settings_to_validate is not None else settings
+    # Use provided settings or lazily initialized cached settings
+    s = settings_to_validate if settings_to_validate is not None else get_settings()
 
     # Validate paths exist or can be created
     if create_dirs:
@@ -383,7 +426,11 @@ def get_settings() -> Settings:
     Returns:
         Settings: The global settings instance.
     """
-    return settings
+    global _settings  # noqa: PLW0603 - Required for cached singleton access
+    with _settings_lock:
+        if _settings is None:
+            _settings = Settings()
+        return _settings
 
 
 def reload_settings() -> Settings:
@@ -393,29 +440,39 @@ def reload_settings() -> Settings:
     Returns:
         Settings: The reloaded settings instance.
     """
-    global settings  # noqa: PLW0603 - Required for singleton pattern
-    settings = Settings()
+    global _settings  # noqa: PLW0603 - Required for singleton pattern
+    with _settings_lock:
+        _settings = Settings()
     # Note: validate_settings() is NOT called here to avoid expensive directory creation
     # during tests. Call validate_settings() explicitly when needed.
-    return settings
+    return _settings
+
+
+def __getattr__(name: str) -> Settings:
+    """Ленивая compatibility-точка для старого `settings` API."""
+    if name == "settings":
+        return get_settings()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 # ==================== Main ====================
 if __name__ == "__main__":
+    current_settings = get_settings()
+
     # Print current settings (excluding secrets)
     print("CRYPTOTEHNOLOG Settings")
     print("=" * 50)
-    print(f"Project Name: {settings.project_name}")
-    print(f"Version: {settings.project_version}")
-    print(f"Environment: {settings.environment}")
-    print(f"Debug: {settings.debug}")
-    print(f"PostgreSQL URL: {settings.postgres_url}")
-    print(f"Redis URL: {settings.redis_url}")
-    print(f"Log Level: {settings.log_level}")
-    print(f"Base R%: {settings.base_r_percent}")
-    print(f"Max R per Trade: {settings.max_r_per_trade}")
-    print(f"Max Portfolio R: {settings.max_portfolio_r}")
-    print(f"Default Leverage: {settings.default_leverage}")
+    print(f"Project Name: {current_settings.project_name}")
+    print(f"Version: {current_settings.project_version}")
+    print(f"Environment: {current_settings.environment}")
+    print(f"Debug: {current_settings.debug}")
+    print(f"PostgreSQL URL: {current_settings.postgres_url}")
+    print(f"Redis URL: {current_settings.redis_url}")
+    print(f"Log Level: {current_settings.log_level}")
+    print(f"Base R%: {current_settings.base_r_percent}")
+    print(f"Max R per Trade: {current_settings.max_r_per_trade}")
+    print(f"Max Portfolio R: {current_settings.max_portfolio_r}")
+    print(f"Default Leverage: {current_settings.default_leverage}")
     print("=" * 50)
 
     # Validate settings

@@ -2,7 +2,8 @@
 Global instances for CRYPTOTEHNOLOG core components.
 
 Вынесено в отдельный модуль для избежания циклических зависимостей.
-Содержит синглтоны для Event Bus и других глобальных компонентов.
+Содержит compatibility-accessors для уже явно собранных runtime-компонентов,
+но не должен выполнять скрытый bootstrap на import-time или при обычном getter-access.
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING
 
-from cryptotechnolog.config import get_logger, get_settings
+from cryptotechnolog.config import get_logger
 
 if TYPE_CHECKING:
     from .enhanced_event_bus import EnhancedEventBus
@@ -27,37 +28,12 @@ class _GlobalEventBusInstance:
 
     @classmethod
     def get_instance(cls) -> EnhancedEventBus | None:
-        """Get global EnhancedEventBus instance."""
-        # Import here to avoid circular dependency
-        EnhancedEventBus = __import__(
-            "cryptotechnolog.core.enhanced_event_bus", fromlist=["EnhancedEventBus"]
-        ).EnhancedEventBus
-
+        """Get already configured global EnhancedEventBus instance."""
         with cls._lock:
-            if cls._instance is None:
-                settings = get_settings()
-                try:
-                    cls._instance = EnhancedEventBus(
-                        enable_persistence=True,
-                        redis_url=settings.event_bus_redis_url,
-                        rate_limit=settings.event_bus_rate_limit,
-                        backpressure_strategy=settings.event_bus_backpressure_strategy,
-                    )
-                except Exception as e:
-                    logger.error(
-                        "Error creating EnhancedEventBus, using fallback config",
-                        error=str(e),
-                    )
-                    cls._instance = EnhancedEventBus(
-                        enable_persistence=False,
-                        redis_url=None,
-                        rate_limit=10000,
-                        backpressure_strategy="drop_low",
-                    )
             return cls._instance
 
     @classmethod
-    def set_instance(cls, bus: EnhancedEventBus) -> None:
+    def set_instance(cls, bus: EnhancedEventBus | None) -> None:
         """Set global EnhancedEventBus instance."""
         with cls._lock:
             cls._instance = bus
@@ -73,13 +49,17 @@ class _GlobalEventBusInstance:
 
 # Convenience functions
 def get_event_bus() -> EnhancedEventBus:
-    """Get global EventBus instance."""
+    """Get explicitly configured global EventBus instance."""
     bus = _GlobalEventBusInstance.get_instance()
-    assert bus is not None, "EventBus instance should always be initialized"
+    if bus is None:
+        raise RuntimeError(
+            "Global EventBus is not configured. "
+            "Соберите runtime через composition root или явно вызовите set_event_bus()."
+        )
     return bus
 
 
-def set_event_bus(bus: EnhancedEventBus) -> None:
+def set_event_bus(bus: EnhancedEventBus | None) -> None:
     """Set global EventBus instance."""
     _GlobalEventBusInstance.set_instance(bus)
 
@@ -91,13 +71,11 @@ def reset_event_bus() -> None:
 
 # Aliases for compatibility
 def get_enhanced_event_bus() -> EnhancedEventBus:
-    """Get global EnhancedEventBus instance."""
-    bus = _GlobalEventBusInstance.get_instance()
-    assert bus is not None, "EventBus instance should always be initialized"
-    return bus
+    """Get explicitly configured global EnhancedEventBus instance."""
+    return get_event_bus()
 
 
-def set_enhanced_event_bus(bus: EnhancedEventBus) -> None:
+def set_enhanced_event_bus(bus: EnhancedEventBus | None) -> None:
     """Set global EnhancedEventBus instance."""
     _GlobalEventBusInstance.set_instance(bus)
 

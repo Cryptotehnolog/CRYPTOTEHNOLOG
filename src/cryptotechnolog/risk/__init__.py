@@ -1,2 +1,178 @@
-# ==================== CRYPTOTEHNOLOG Risk Module ====================
-# Risk management module placeholder
+"""
+Risk Engine foundation CRYPTOTEHNOLOG.
+
+Содержит доменные модели и базовую денежную математику
+для следующих шагов `RiskLedger` и `TrailingPolicy`.
+"""
+
+from .correlation import (
+    CorrelationAssessment,
+    CorrelationConfig,
+    CorrelationEvaluator,
+    CorrelationGroup,
+    CorrelationViolation,
+)
+from .drawdown_monitor import (
+    DrawdownAssessment,
+    DrawdownLevel,
+    DrawdownMonitor,
+    DrawdownMonitorConfig,
+    DrawdownMonitorError,
+)
+from .engine import (
+    BarCompletedInput,
+    BarProcessedResult,
+    ClosedPositionInput,
+    FilledPositionInput,
+    PositionRegisteredResult,
+    PositionReleasedResult,
+    PreTradeContext,
+    RiskEngine,
+    RiskEngineConfig,
+    RiskEngineError,
+    RiskEngineEventType,
+    StateTransitionInput,
+    StateTransitionResult,
+)
+from .funding_manager import (
+    FundingManager,
+    FundingManagerConfig,
+    FundingManagerError,
+)
+from .listeners import (
+    RiskEngineListener,
+    RiskEngineListenerConfig,
+    RiskEngineListenerError,
+)
+from .models import (
+    FundingExchangeRecommendation,
+    FundingOpportunity,
+    FundingRateQuote,
+    FundingRateSnapshot,
+    MarketSnapshot,
+    Order,
+    OrderSide,
+    Position,
+    PositionRiskRecord,
+    PositionSide,
+    PositionSize,
+    RejectReason,
+    RiskCheckResult,
+    StopUpdate,
+    TrailingEvaluationType,
+    TrailingMode,
+    TrailingState,
+    TrailingTier,
+)
+from .persistence_contracts import (
+    IRiskPersistenceRepository,
+    PositionRiskLedgerAuditRecord,
+    RiskCheckAuditRecord,
+    TrailingStopMovementRecord,
+    TrailingStopSnapshotRecord,
+)
+from .portfolio_state import (
+    PortfolioPositionNotFoundError,
+    PortfolioSnapshot,
+    PortfolioState,
+    PortfolioStateError,
+)
+from .position_sizing import (
+    PositionSizer,
+    PositionSizingError,
+    PositionSizingParams,
+)
+from .risk_ledger import (
+    InvalidLedgerOperationError,
+    PositionAlreadyRegisteredError,
+    PositionNotFoundError,
+    RiskIncreaseNotAllowedError,
+    RiskLedger,
+    RiskLedgerError,
+)
+from .runtime import (
+    RiskRuntime,
+    RiskRuntimeConfig,
+    create_risk_runtime,
+)
+from .trailing_policy import (
+    TrailingInputError,
+    TrailingPolicy,
+    TrailingPolicyConfig,
+    TrailingPolicyError,
+)
+
+__all__ = [
+    "BarCompletedInput",
+    "BarProcessedResult",
+    "ClosedPositionInput",
+    "CorrelationAssessment",
+    "CorrelationConfig",
+    "CorrelationEvaluator",
+    "CorrelationGroup",
+    "CorrelationViolation",
+    "DrawdownAssessment",
+    "DrawdownLevel",
+    "DrawdownMonitor",
+    "DrawdownMonitorConfig",
+    "DrawdownMonitorError",
+    "FilledPositionInput",
+    "FundingExchangeRecommendation",
+    "FundingManager",
+    "FundingManagerConfig",
+    "FundingManagerError",
+    "FundingOpportunity",
+    "FundingRateQuote",
+    "FundingRateSnapshot",
+    "IRiskPersistenceRepository",
+    "InvalidLedgerOperationError",
+    "MarketSnapshot",
+    "Order",
+    "OrderSide",
+    "PortfolioPositionNotFoundError",
+    "PortfolioSnapshot",
+    "PortfolioState",
+    "PortfolioStateError",
+    "Position",
+    "PositionAlreadyRegisteredError",
+    "PositionNotFoundError",
+    "PositionRegisteredResult",
+    "PositionReleasedResult",
+    "PositionRiskLedgerAuditRecord",
+    "PositionRiskRecord",
+    "PositionSide",
+    "PositionSize",
+    "PositionSizer",
+    "PositionSizingError",
+    "PositionSizingParams",
+    "PreTradeContext",
+    "RejectReason",
+    "RiskCheckAuditRecord",
+    "RiskCheckResult",
+    "RiskEngine",
+    "RiskEngineConfig",
+    "RiskEngineError",
+    "RiskEngineEventType",
+    "RiskEngineListener",
+    "RiskEngineListenerConfig",
+    "RiskEngineListenerError",
+    "RiskIncreaseNotAllowedError",
+    "RiskLedger",
+    "RiskLedgerError",
+    "RiskRuntime",
+    "RiskRuntimeConfig",
+    "StateTransitionInput",
+    "StateTransitionResult",
+    "StopUpdate",
+    "TrailingEvaluationType",
+    "TrailingInputError",
+    "TrailingMode",
+    "TrailingPolicy",
+    "TrailingPolicyConfig",
+    "TrailingPolicyError",
+    "TrailingState",
+    "TrailingStopMovementRecord",
+    "TrailingStopSnapshotRecord",
+    "TrailingTier",
+    "create_risk_runtime",
+]

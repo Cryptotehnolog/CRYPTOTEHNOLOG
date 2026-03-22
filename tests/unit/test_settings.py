@@ -2,9 +2,13 @@
 # Unit tests for configuration settings
 
 import os
+from pathlib import Path
+import shutil
+import tempfile
 
 import pytest
 
+from cryptotechnolog import __version__
 from cryptotechnolog.config.settings import (
     Settings,
     get_settings,
@@ -23,7 +27,7 @@ class TestSettings:
 
         # Check project settings
         assert settings.project_name == "CRYPTOTEHNOLOG"
-        assert settings.project_version == "1.0.0"
+        assert settings.project_version == __version__
         assert settings.environment == "test"  # test_env sets ENVIRONMENT=test
         assert settings.debug is True
 
@@ -223,18 +227,24 @@ class TestSettings:
 class TestSettingsValidation:
     """Test cases for settings validation."""
 
-    def test_validate_settings_success(self, test_settings, tmp_path):
+    def test_validate_settings_success(self, test_settings):
         """Test that valid settings pass validation."""
-        # Override paths to use temp directory
-        test_settings.data_dir = tmp_path / "data"
-        test_settings.logs_dir = tmp_path / "logs"
-        test_settings.config_dir = tmp_path / "config"
+        temp_root = Path.cwd() / ".tmp-test-settings"
+        temp_root.mkdir(exist_ok=True)
+        temp_dir = Path(tempfile.mkdtemp(prefix="cryptotechnolog-settings-", dir=temp_root))
+        try:
+            # Override paths to use temp directory
+            test_settings.data_dir = temp_dir / "data"
+            test_settings.logs_dir = temp_dir / "logs"
+            test_settings.config_dir = temp_dir / "config"
 
-        # Ensure environment is set to test (not production)
-        test_settings.environment = "test"
+            # Ensure environment is set to test (not production)
+            test_settings.environment = "test"
 
-        # Validate should succeed
-        assert validate_settings(test_settings) is True
+            # Validate should succeed
+            assert validate_settings(test_settings) is True
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
     def test_validate_settings_invalid_base_r_percent(self):
         """Test that invalid base_r_percent fails validation."""

@@ -1,0 +1,143 @@
+"""
+Contract-first и foundation-oriented package для Phase 6 Market Data Layer.
+
+Здесь находятся:
+- typed contracts и event vocabulary;
+- foundation-модули обработки tick/bar/orderbook/data quality;
+- metrics/admissibility слой;
+- runtime integration path без hidden bootstrap.
+"""
+
+from .bar_builder import BarBuilder, BarUpdateResult, align_timestamp_to_timeframe
+from .data_quality import (
+    DataQualityConfig,
+    DataQualityValidator,
+    MarketDataValidationError,
+    calculate_price_deviation_bps,
+    ensure_utc_timestamp,
+)
+from .events import (
+    BarCompletedPayload,
+    DataQualitySignalPayload,
+    MarketDataEventType,
+    OrderBookUpdatedPayload,
+    SymbolMetricsUpdatedPayload,
+    SymbolUniverseChangePayload,
+    TickReceivedPayload,
+    UniverseQualityPayload,
+    UniverseSnapshotPayload,
+    build_market_data_event,
+    default_priority_for_market_data_event,
+)
+from .models import (
+    AdmissibleSymbolContract,
+    AdmissibleUniverseSnapshot,
+    DataQualityIssueType,
+    DataQualitySeverity,
+    DataQualitySignal,
+    ExcludedUniverseSymbol,
+    InstrumentType,
+    MarketDataSide,
+    MarketDataTimeframe,
+    OHLCVBarContract,
+    OrderBookLevel,
+    OrderBookSnapshotContract,
+    RankedUniverseEntry,
+    RankedUniverseSnapshot,
+    RawUniverseSnapshot,
+    SymbolContract,
+    SymbolIdentity,
+    SymbolMetricsContract,
+    TickContract,
+    UniverseAdmissionReason,
+    UniverseConfidenceState,
+    UniverseExclusionReason,
+    UniverseMembershipLevel,
+    UniverseQualityAssessment,
+    build_symbol_identity,
+)
+from .orderbook_manager import OrderBookManager, OrderBookUpdateResult
+from .runtime import (
+    MarketDataRuntime,
+    MarketDataRuntimeConfig,
+    MarketDataRuntimeState,
+    TickRuntimeUpdate,
+    UniverseRuntimeUpdate,
+    create_market_data_runtime,
+)
+from .symbol_metrics import (
+    SymbolMetricsCollector,
+    SymbolMetricsConfig,
+    SymbolMetricsInput,
+    calculate_depth_within_bps,
+    calculate_top_of_book_depth,
+    clamp_decimal,
+)
+from .tick_handler import TickHandler, TickProcessingResult
+from .universe_policy import UniversePolicy, UniversePolicyConfig, UniversePolicyResult
+
+__all__ = [
+    "AdmissibleSymbolContract",
+    "AdmissibleUniverseSnapshot",
+    "BarBuilder",
+    "BarCompletedPayload",
+    "BarUpdateResult",
+    "DataQualityConfig",
+    "DataQualityIssueType",
+    "DataQualitySeverity",
+    "DataQualitySignal",
+    "DataQualitySignalPayload",
+    "DataQualityValidator",
+    "ExcludedUniverseSymbol",
+    "InstrumentType",
+    "MarketDataEventType",
+    "MarketDataRuntime",
+    "MarketDataRuntimeConfig",
+    "MarketDataRuntimeState",
+    "MarketDataSide",
+    "MarketDataTimeframe",
+    "MarketDataValidationError",
+    "OHLCVBarContract",
+    "OrderBookLevel",
+    "OrderBookManager",
+    "OrderBookSnapshotContract",
+    "OrderBookUpdateResult",
+    "OrderBookUpdatedPayload",
+    "RankedUniverseEntry",
+    "RankedUniverseSnapshot",
+    "RawUniverseSnapshot",
+    "SymbolContract",
+    "SymbolIdentity",
+    "SymbolMetricsCollector",
+    "SymbolMetricsConfig",
+    "SymbolMetricsContract",
+    "SymbolMetricsInput",
+    "SymbolMetricsUpdatedPayload",
+    "SymbolUniverseChangePayload",
+    "TickContract",
+    "TickHandler",
+    "TickProcessingResult",
+    "TickReceivedPayload",
+    "TickRuntimeUpdate",
+    "UniverseAdmissionReason",
+    "UniverseConfidenceState",
+    "UniverseExclusionReason",
+    "UniverseMembershipLevel",
+    "UniversePolicy",
+    "UniversePolicyConfig",
+    "UniversePolicyResult",
+    "UniverseQualityAssessment",
+    "UniverseQualityPayload",
+    "UniverseRuntimeUpdate",
+    "UniverseSnapshotPayload",
+    "align_timestamp_to_timeframe",
+    "build_market_data_event",
+    "build_symbol_identity",
+    "calculate_depth_within_bps",
+    "calculate_price_deviation_bps",
+    "calculate_top_of_book_depth",
+    "clamp_decimal",
+    "create_market_data_runtime",
+    "default_priority_for_market_data_event",
+    "ensure_utc_timestamp",
+]
