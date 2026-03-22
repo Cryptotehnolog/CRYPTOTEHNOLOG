@@ -131,12 +131,12 @@ Orchestration layer различает:
 
 ## 8. Короткий вывод
 
-По содержанию кода, verification и release/doc truth `P_12` доведена до closure-ready состояния как узкая
+По содержанию кода, verification и release/doc truth `P_12` закрыта как узкая
 `Strategy Orchestration / Meta Layer`.
 
-Следующий корректный шаг после этой release/doc normalization:
+Следующий корректный шаг после этой formal finalization:
 
-- formal finalization `P_12` как `v1.12.0`.
+- отдельный audit и phase-truth normalization перед `P_13`.
 
 Но сама эта фаза не должна трактоваться как:
 

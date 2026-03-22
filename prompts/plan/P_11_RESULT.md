@@ -135,7 +135,7 @@ Opportunity layer различает:
 
 Следующий корректный шаг после этой formal finalization:
 
-- formal finalization `P_11` как `v1.11.0`.
+- отдельная нормализация следующей authoritative phase truth после `v1.11.0`.
 
 Но сама эта фаза не должна трактоваться как:
 

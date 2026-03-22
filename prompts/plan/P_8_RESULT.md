@@ -4,7 +4,7 @@
 
 - Версия: `v1.8.0`
 - Фаза: `P_8`
-- Итоговый статус: `closure-ready`
+- Итоговый статус: `closed`
 - Реализация: узкая `Signal Generation Foundation`
 
 ---
