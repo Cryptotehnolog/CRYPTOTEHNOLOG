@@ -64,6 +64,18 @@ from cryptotechnolog.orchestration import (
     OrchestrationValidity,
     OrchestrationValidityStatus,
 )
+from cryptotechnolog.portfolio_governor import (
+    GovernorDecision,
+    GovernorDirection,
+    GovernorFreshness,
+    GovernorReasonCode,
+    GovernorSource,
+    GovernorStatus,
+    GovernorValidity,
+    GovernorValidityStatus,
+    PortfolioGovernorCandidate,
+    PortfolioGovernorEventType,
+)
 from cryptotechnolog.position_expansion import (
     ExpansionDecision,
     ExpansionDirection,
@@ -430,6 +442,94 @@ def make_expandable_position_expansion_candidate() -> PositionExpansionCandidate
     )
 
 
+def make_approved_portfolio_governor_candidate() -> PortfolioGovernorCandidate:
+    now = datetime(2026, 3, 20, 12, 1, tzinfo=UTC)
+    expansion = make_expandable_position_expansion_candidate()
+    return PortfolioGovernorCandidate(
+        governor_id=PortfolioGovernorCandidate.candidate(
+            contour_name="phase14_portfolio_governor_contour",
+            governor_name="phase14_portfolio_governor",
+            symbol="BTC/USDT",
+            exchange="bybit",
+            timeframe=MarketDataTimeframe.M1,
+            source=GovernorSource.POSITION_EXPANSION,
+            freshness=GovernorFreshness(
+                generated_at=now,
+                expires_at=now.replace(minute=6),
+            ),
+            validity=GovernorValidity(
+                status=GovernorValidityStatus.VALID,
+                observed_inputs=1,
+                required_inputs=1,
+            ),
+            status=GovernorStatus.APPROVED,
+            decision=GovernorDecision.APPROVE,
+            direction=GovernorDirection.LONG,
+            originating_expansion_id=expansion.expansion_id,
+            confidence=Decimal("0.8"),
+            priority_score=Decimal("0.8"),
+            capital_fraction=Decimal("0.1"),
+            reason_code=GovernorReasonCode.CONTEXT_READY,
+        ).governor_id,
+        contour_name="phase14_portfolio_governor_contour",
+        governor_name="phase14_portfolio_governor",
+        symbol="BTC/USDT",
+        exchange="bybit",
+        timeframe=MarketDataTimeframe.M1,
+        source=GovernorSource.POSITION_EXPANSION,
+        freshness=GovernorFreshness(
+            generated_at=now,
+            expires_at=now.replace(minute=6),
+        ),
+        validity=GovernorValidity(
+            status=GovernorValidityStatus.VALID,
+            observed_inputs=1,
+            required_inputs=1,
+        ),
+        status=GovernorStatus.APPROVED,
+        decision=GovernorDecision.APPROVE,
+        direction=GovernorDirection.LONG,
+        originating_expansion_id=expansion.expansion_id,
+        confidence=Decimal("0.8"),
+        priority_score=Decimal("0.8"),
+        capital_fraction=Decimal("0.1"),
+        reason_code=GovernorReasonCode.CONTEXT_READY,
+    )
+
+
+def make_non_approved_portfolio_governor_candidate() -> PortfolioGovernorCandidate:
+    now = datetime(2026, 3, 20, 12, 2, tzinfo=UTC)
+    expansion = make_expandable_position_expansion_candidate()
+    approved = make_approved_portfolio_governor_candidate()
+    return PortfolioGovernorCandidate(
+        governor_id=approved.governor_id,
+        contour_name=approved.contour_name,
+        governor_name=approved.governor_name,
+        symbol=approved.symbol,
+        exchange=approved.exchange,
+        timeframe=approved.timeframe,
+        source=approved.source,
+        freshness=GovernorFreshness(
+            generated_at=now,
+            expires_at=now.replace(minute=7),
+        ),
+        validity=GovernorValidity(
+            status=GovernorValidityStatus.INVALID,
+            observed_inputs=1,
+            required_inputs=1,
+            invalid_reason="governor_not_approved",
+        ),
+        status=GovernorStatus.REJECTED,
+        decision=GovernorDecision.REJECT,
+        direction=None,
+        originating_expansion_id=expansion.expansion_id,
+        confidence=Decimal("0.4"),
+        priority_score=Decimal("0.8"),
+        capital_fraction=Decimal("0.1"),
+        reason_code=GovernorReasonCode.CONTEXT_INCOMPLETE,
+    )
+
+
 def _fake_shutdown_with_component_stop(
     runtime,
     *,
@@ -443,6 +543,8 @@ def _fake_shutdown_with_component_stop(
             await runtime.position_expansion_runtime.stop()
         if runtime.portfolio_governor_runtime.is_started:
             await runtime.portfolio_governor_runtime.stop()
+        if runtime.protection_runtime.is_started:
+            await runtime.protection_runtime.stop()
         if runtime.execution_runtime.is_started:
             await runtime.execution_runtime.stop()
         if runtime.opportunity_runtime.is_started:
@@ -532,6 +634,8 @@ class TestProductionBootstrap:
         assert runtime.get_runtime_diagnostics()["position_expansion_runtime"]["ready"] is False
         assert runtime.get_runtime_diagnostics()["portfolio_governor_runtime"]["started"] is False
         assert runtime.get_runtime_diagnostics()["portfolio_governor_runtime"]["ready"] is False
+        assert runtime.get_runtime_diagnostics()["protection_runtime"]["started"] is False
+        assert runtime.get_runtime_diagnostics()["protection_runtime"]["ready"] is False
         controller_component = runtime.controller.get_component("event_bus")
         assert controller_component is not None
         assert controller_component is runtime.event_bus
@@ -571,6 +675,10 @@ class TestProductionBootstrap:
         assert (
             runtime.controller.get_component("phase14_portfolio_governor_runtime")
             is runtime.portfolio_governor_runtime
+        )
+        assert (
+            runtime.controller.get_component("phase15_protection_runtime")
+            is runtime.protection_runtime
         )
         assert SystemEventType.BAR_COMPLETED in runtime.event_bus.handlers
         assert len(runtime.event_bus.handlers[SystemEventType.BAR_COMPLETED]) == 3
@@ -636,6 +744,30 @@ class TestProductionBootstrap:
             )
             == 1
         )
+        assert (
+            len(
+                runtime.event_bus.handlers[
+                    PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_CANDIDATE_UPDATED.value
+                ]
+            )
+            == 1
+        )
+        assert (
+            len(
+                runtime.event_bus.handlers[
+                    PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_APPROVED.value
+                ]
+            )
+            == 1
+        )
+        assert (
+            len(
+                runtime.event_bus.handlers[
+                    PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_INVALIDATED.value
+                ]
+            )
+            == 1
+        )
         assert SystemEventType.BAR_COMPLETED not in runtime.risk_runtime.risk_listener.event_types
         assert SystemEventType.RISK_BAR_COMPLETED in runtime.risk_runtime.risk_listener.event_types
 
@@ -644,7 +776,7 @@ class TestProductionBootstrap:
         assert "risk_engine_listener" not in listener_names
 
     @pytest.mark.asyncio
-    async def test_runtime_startup_validates_started_runtime_contract(self) -> None:
+    async def test_runtime_startup_validates_started_runtime_contract(self) -> None:  # noqa: PLR0915
         """startup() должен проверять обязательный runtime contract composition root."""
         runtime = await build_production_runtime(
             settings=make_settings(),
@@ -747,6 +879,13 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.protection_runtime._started = True
+        runtime.protection_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         result = await runtime.startup()
 
@@ -759,6 +898,8 @@ class TestProductionBootstrap:
         assert diagnostics["active_risk_path"] == PHASE5_RISK_PATH
         assert diagnostics["config_identity"] == runtime.identity.config_identity
         assert diagnostics["config_revision"] == runtime.identity.config_revision
+        assert diagnostics["protection_runtime"]["started"] is True
+        assert diagnostics["protection_runtime"]["ready"] is True
         assert diagnostics["market_data_runtime"]["ready"] is True
         assert diagnostics["shared_analysis_runtime"]["ready"] is True
         assert diagnostics["intelligence_runtime"]["ready"] is True
@@ -921,6 +1062,13 @@ class TestProductionBootstrap:
             readiness_reasons=("no_portfolio_governor_context_processed",),
             degraded_reasons=(),
         )
+        runtime.protection_runtime._started = True
+        runtime.protection_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=False,
+            lifecycle_state="warming",
+            readiness_reasons=("no_protection_context_processed",),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
 
@@ -944,6 +1092,8 @@ class TestProductionBootstrap:
         assert diagnostics["orchestration_runtime"]["ready"] is False
         assert diagnostics["position_expansion_runtime"]["ready"] is False
         assert diagnostics["portfolio_governor_runtime"]["ready"] is False
+        assert diagnostics["protection_runtime"]["ready"] is False
+        assert "phase15_protection:not_ready" in diagnostics["degraded_reasons"]
 
     @pytest.mark.asyncio
     async def test_runtime_startup_exposes_degraded_readiness_when_health_is_degraded(self) -> None:
@@ -991,6 +1141,7 @@ class TestProductionBootstrap:
         runtime.orchestration_runtime._started = True
         runtime.position_expansion_runtime._started = True
         runtime.portfolio_governor_runtime._started = True
+        runtime.protection_runtime._started = True
 
         await runtime.startup()
 
@@ -1110,6 +1261,13 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.protection_runtime._started = True
+        runtime.protection_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
         shutdown_result = await runtime.shutdown()
@@ -1165,6 +1323,11 @@ class TestProductionBootstrap:
         assert diagnostics["portfolio_governor_runtime"]["lifecycle_state"] == "stopped"
         assert diagnostics["portfolio_governor_runtime"]["tracked_governor_keys"] == 0
         assert diagnostics["portfolio_governor_runtime"]["readiness_reasons"] == ["runtime_stopped"]
+        assert diagnostics["protection_runtime"]["started"] is False
+        assert diagnostics["protection_runtime"]["ready"] is False
+        assert diagnostics["protection_runtime"]["lifecycle_state"] == "stopped"
+        assert diagnostics["protection_runtime"]["tracked_protection_keys"] == 0
+        assert diagnostics["protection_runtime"]["readiness_reasons"] == ["runtime_stopped"]
 
     @pytest.mark.asyncio
     async def test_start_production_runtime_preserves_fail_fast_truth_after_cleanup(self) -> None:
@@ -2059,6 +2222,167 @@ class TestProductionBootstrap:
 
         runtime.portfolio_governor_runtime.ingest_expansion.assert_called_once()
         runtime.portfolio_governor_runtime._assemble_governor_context.assert_called_once()  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_portfolio_governor_event_wiring_marks_protection_runtime_degraded_on_ingest_failure(
+        self,
+    ) -> None:
+        """Portfolio-governor wiring должен честно переводить protection runtime в degraded."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.protection_runtime._started = True
+        runtime.protection_runtime.ingest_governor = Mock(  # type: ignore[method-assign]
+            side_effect=RuntimeError("protection_ingest_failure")
+        )
+        handler = runtime.event_bus.handlers[
+            PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_APPROVED.value
+        ][0]
+        governor_event = Event.new(
+            PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_APPROVED.value,
+            "PORTFOLIO_GOVERNOR_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="protection_governor_ingest_failed:protection_governor_truth_missing_for_event",
+        ):
+            await handler(governor_event)
+
+        runtime.portfolio_governor_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_approved_portfolio_governor_candidate()
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="protection_governor_ingest_failed:protection_ingest_failure",
+        ):
+            await handler(governor_event)
+
+        diagnostics = runtime.protection_runtime.get_runtime_diagnostics()
+        assert diagnostics["started"] is True
+        assert diagnostics["ready"] is False
+        assert diagnostics["lifecycle_state"] == "degraded"
+        assert (
+            diagnostics["last_failure_reason"] == "governor_ingest_failed:protection_ingest_failure"
+        )
+        assert diagnostics["degraded_reasons"] == [
+            "governor_ingest_failed:protection_ingest_failure"
+        ]
+
+    @pytest.mark.asyncio
+    async def test_portfolio_governor_event_wiring_keeps_protection_context_assembly_inside_protection_runtime(
+        self,
+    ) -> None:
+        """Composition root должен передавать governor truth в ProtectionRuntime, а не собирать ProtectionContext."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.protection_runtime._started = True
+        runtime.protection_runtime._assemble_protection_context = Mock(  # type: ignore[attr-defined, method-assign]
+            wraps=runtime.protection_runtime._assemble_protection_context  # type: ignore[attr-defined]
+        )
+        runtime.protection_runtime.ingest_governor = Mock(  # type: ignore[method-assign]
+            side_effect=runtime.protection_runtime.ingest_governor
+        )
+        runtime.portfolio_governor_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_approved_portfolio_governor_candidate()
+        )
+        handler = runtime.event_bus.handlers[
+            PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_APPROVED.value
+        ][0]
+        governor_event = Event.new(
+            PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_APPROVED.value,
+            "PORTFOLIO_GOVERNOR_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        await handler(governor_event)
+
+        runtime.protection_runtime.ingest_governor.assert_called_once()
+        runtime.protection_runtime._assemble_protection_context.assert_called_once()  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_portfolio_governor_candidate_event_publishes_protection_candidate_update(
+        self,
+    ) -> None:
+        """Candidate governor truth должна публиковать узкий PROTECTION_CANDIDATE_UPDATED path."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        await runtime.protection_runtime.start()
+        runtime.portfolio_governor_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_non_approved_portfolio_governor_candidate()
+        )
+        captured_protection_events: list[Event] = []
+        runtime.event_bus.on(
+            "PROTECTION_CANDIDATE_UPDATED",
+            captured_protection_events.append,
+        )
+        handler = runtime.event_bus.handlers[
+            PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_CANDIDATE_UPDATED.value
+        ][0]
+        governor_event = Event.new(
+            PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_CANDIDATE_UPDATED.value,
+            "PORTFOLIO_GOVERNOR_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        await handler(governor_event)
+
+        candidate = runtime.protection_runtime.get_candidate(
+            exchange="bybit",
+            symbol="BTC/USDT",
+            timeframe=MarketDataTimeframe.M1,
+        )
+        diagnostics = runtime.protection_runtime.get_runtime_diagnostics()
+
+        assert candidate is not None
+        assert candidate.status.value == "candidate"
+        assert candidate.decision.value == "protect"
+        assert diagnostics["tracked_protection_keys"] == 1
+        assert diagnostics["last_event_type"] == "PROTECTION_CANDIDATE_UPDATED"
+        assert captured_protection_events
+        assert captured_protection_events[-1].payload["status"] == "candidate"
+        assert captured_protection_events[-1].payload["decision"] == "protect"
+        assert captured_protection_events[-1].payload["reason_code"] == "governor_not_approved"
 
     @pytest.mark.asyncio
     async def test_composition_root_keeps_market_data_bar_boundary_separate_from_risk_listener(
