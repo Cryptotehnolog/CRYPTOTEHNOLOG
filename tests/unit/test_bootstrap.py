@@ -53,6 +53,17 @@ from cryptotechnolog.opportunity import (
     OpportunityValidity,
     OpportunityValidityStatus,
 )
+from cryptotechnolog.orchestration import (
+    OrchestrationDecision,
+    OrchestrationDecisionCandidate,
+    OrchestrationEventType,
+    OrchestrationFreshness,
+    OrchestrationReasonCode,
+    OrchestrationSource,
+    OrchestrationStatus,
+    OrchestrationValidity,
+    OrchestrationValidityStatus,
+)
 from cryptotechnolog.signals import (
     SignalDirection,
     SignalEventType,
@@ -301,6 +312,59 @@ def make_selected_opportunity_candidate() -> OpportunitySelectionCandidate:
     )
 
 
+def make_forwarded_orchestration_decision() -> OrchestrationDecisionCandidate:
+    now = datetime(2026, 3, 20, 12, 1, tzinfo=UTC)
+    selection = make_selected_opportunity_candidate()
+    return OrchestrationDecisionCandidate(
+        decision_id=OrchestrationDecisionCandidate.candidate(
+            contour_name="phase12_orchestration_contour",
+            orchestration_name="phase12_meta_orchestration",
+            symbol="BTC/USDT",
+            exchange="bybit",
+            timeframe=MarketDataTimeframe.M1,
+            source=OrchestrationSource.OPPORTUNITY_SELECTION,
+            freshness=OrchestrationFreshness(
+                generated_at=now,
+                expires_at=now.replace(minute=6),
+            ),
+            validity=OrchestrationValidity(
+                status=OrchestrationValidityStatus.VALID,
+                observed_inputs=1,
+                required_inputs=1,
+            ),
+            decision=OrchestrationDecision.FORWARD,
+            confidence=Decimal("0.8"),
+            priority_score=Decimal("0.8"),
+            reason_code=OrchestrationReasonCode.CONTEXT_READY,
+            status=OrchestrationStatus.ORCHESTRATED,
+            direction=OpportunityDirection.LONG,
+            originating_selection_id=selection.selection_id,
+        ).decision_id,
+        contour_name="phase12_orchestration_contour",
+        orchestration_name="phase12_meta_orchestration",
+        symbol="BTC/USDT",
+        exchange="bybit",
+        timeframe=MarketDataTimeframe.M1,
+        source=OrchestrationSource.OPPORTUNITY_SELECTION,
+        freshness=OrchestrationFreshness(
+            generated_at=now,
+            expires_at=now.replace(minute=6),
+        ),
+        validity=OrchestrationValidity(
+            status=OrchestrationValidityStatus.VALID,
+            observed_inputs=1,
+            required_inputs=1,
+        ),
+        status=OrchestrationStatus.ORCHESTRATED,
+        decision=OrchestrationDecision.FORWARD,
+        direction=OpportunityDirection.LONG,
+        originating_selection_id=selection.selection_id,
+        confidence=Decimal("0.8"),
+        priority_score=Decimal("0.8"),
+        reason_code=OrchestrationReasonCode.CONTEXT_READY,
+    )
+
+
 def _fake_shutdown_with_component_stop(
     runtime,
     *,
@@ -310,6 +374,8 @@ def _fake_shutdown_with_component_stop(
         _ = force
         if runtime.orchestration_runtime.is_started:
             await runtime.orchestration_runtime.stop()
+        if runtime.position_expansion_runtime.is_started:
+            await runtime.position_expansion_runtime.stop()
         if runtime.execution_runtime.is_started:
             await runtime.execution_runtime.stop()
         if runtime.opportunity_runtime.is_started:
@@ -395,6 +461,8 @@ class TestProductionBootstrap:
         assert runtime.get_runtime_diagnostics()["opportunity_runtime"]["ready"] is False
         assert runtime.get_runtime_diagnostics()["orchestration_runtime"]["started"] is False
         assert runtime.get_runtime_diagnostics()["orchestration_runtime"]["ready"] is False
+        assert runtime.get_runtime_diagnostics()["position_expansion_runtime"]["started"] is False
+        assert runtime.get_runtime_diagnostics()["position_expansion_runtime"]["ready"] is False
         controller_component = runtime.controller.get_component("event_bus")
         assert controller_component is not None
         assert controller_component is runtime.event_bus
@@ -427,6 +495,10 @@ class TestProductionBootstrap:
             runtime.controller.get_component("phase12_orchestration_runtime")
             is runtime.orchestration_runtime
         )
+        assert (
+            runtime.controller.get_component("phase13_position_expansion_runtime")
+            is runtime.position_expansion_runtime
+        )
         assert SystemEventType.BAR_COMPLETED in runtime.event_bus.handlers
         assert len(runtime.event_bus.handlers[SystemEventType.BAR_COMPLETED]) == 3
         assert len(runtime.event_bus.handlers[SignalEventType.SIGNAL_SNAPSHOT_UPDATED.value]) == 1
@@ -451,6 +523,21 @@ class TestProductionBootstrap:
         assert len(runtime.event_bus.handlers[OpportunityEventType.OPPORTUNITY_SELECTED.value]) == 1
         assert (
             len(runtime.event_bus.handlers[OpportunityEventType.OPPORTUNITY_INVALIDATED.value]) == 1
+        )
+        assert (
+            len(
+                runtime.event_bus.handlers[
+                    OrchestrationEventType.ORCHESTRATION_CANDIDATE_UPDATED.value
+                ]
+            )
+            == 1
+        )
+        assert (
+            len(runtime.event_bus.handlers[OrchestrationEventType.ORCHESTRATION_DECIDED.value]) == 1
+        )
+        assert (
+            len(runtime.event_bus.handlers[OrchestrationEventType.ORCHESTRATION_INVALIDATED.value])
+            == 1
         )
         assert SystemEventType.BAR_COMPLETED not in runtime.risk_runtime.risk_listener.event_types
         assert SystemEventType.RISK_BAR_COMPLETED in runtime.risk_runtime.risk_listener.event_types
@@ -549,6 +636,13 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.position_expansion_runtime._started = True
+        runtime.position_expansion_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         result = await runtime.startup()
 
@@ -569,6 +663,7 @@ class TestProductionBootstrap:
         assert diagnostics["execution_runtime"]["ready"] is True
         assert diagnostics["opportunity_runtime"]["ready"] is True
         assert diagnostics["orchestration_runtime"]["ready"] is True
+        assert diagnostics["position_expansion_runtime"]["ready"] is True
 
     @pytest.mark.asyncio
     async def test_runtime_startup_fail_fast_exposes_block_reason_in_diagnostics(self) -> None:
@@ -707,6 +802,13 @@ class TestProductionBootstrap:
             readiness_reasons=("no_orchestration_context_processed",),
             degraded_reasons=(),
         )
+        runtime.position_expansion_runtime._started = True
+        runtime.position_expansion_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=False,
+            lifecycle_state="warming",
+            readiness_reasons=("no_position_expansion_context_processed",),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
 
@@ -728,6 +830,7 @@ class TestProductionBootstrap:
         assert diagnostics["execution_runtime"]["ready"] is False
         assert diagnostics["opportunity_runtime"]["ready"] is False
         assert diagnostics["orchestration_runtime"]["ready"] is False
+        assert diagnostics["position_expansion_runtime"]["ready"] is False
 
     @pytest.mark.asyncio
     async def test_runtime_startup_exposes_degraded_readiness_when_health_is_degraded(self) -> None:
@@ -773,6 +876,7 @@ class TestProductionBootstrap:
         runtime.execution_runtime._started = True
         runtime.opportunity_runtime._started = True
         runtime.orchestration_runtime._started = True
+        runtime.position_expansion_runtime._started = True
 
         await runtime.startup()
 
@@ -878,6 +982,13 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.position_expansion_runtime._started = True
+        runtime.position_expansion_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
         shutdown_result = await runtime.shutdown()
@@ -923,6 +1034,11 @@ class TestProductionBootstrap:
         assert diagnostics["orchestration_runtime"]["lifecycle_state"] == "stopped"
         assert diagnostics["orchestration_runtime"]["tracked_decision_keys"] == 0
         assert diagnostics["orchestration_runtime"]["readiness_reasons"] == ["runtime_stopped"]
+        assert diagnostics["position_expansion_runtime"]["started"] is False
+        assert diagnostics["position_expansion_runtime"]["ready"] is False
+        assert diagnostics["position_expansion_runtime"]["lifecycle_state"] == "stopped"
+        assert diagnostics["position_expansion_runtime"]["tracked_expansion_keys"] == 0
+        assert diagnostics["position_expansion_runtime"]["readiness_reasons"] == ["runtime_stopped"]
 
     @pytest.mark.asyncio
     async def test_start_production_runtime_preserves_fail_fast_truth_after_cleanup(self) -> None:
@@ -1611,6 +1727,107 @@ class TestProductionBootstrap:
 
         runtime.orchestration_runtime.ingest_selection.assert_called_once()
         runtime.orchestration_runtime._assemble_orchestration_context.assert_called_once()  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_orchestration_event_wiring_marks_position_expansion_runtime_degraded_on_ingest_failure(
+        self,
+    ) -> None:
+        """Orchestration-event wiring должен честно переводить position-expansion runtime в degraded."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.position_expansion_runtime._started = True
+        runtime.position_expansion_runtime.ingest_decision = Mock(  # type: ignore[method-assign]
+            side_effect=RuntimeError("position_expansion_ingest_failure")
+        )
+        handler = runtime.event_bus.handlers[OrchestrationEventType.ORCHESTRATION_DECIDED.value][0]
+        orchestration_event = Event.new(
+            OrchestrationEventType.ORCHESTRATION_DECIDED.value,
+            "ORCHESTRATION_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="position_expansion_decision_ingest_failed:position_expansion_orchestration_truth_missing_for_event",
+        ):
+            await handler(orchestration_event)
+
+        runtime.orchestration_runtime.get_decision = Mock(  # type: ignore[method-assign]
+            return_value=make_forwarded_orchestration_decision()
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="position_expansion_decision_ingest_failed:position_expansion_ingest_failure",
+        ):
+            await handler(orchestration_event)
+
+        diagnostics = runtime.position_expansion_runtime.get_runtime_diagnostics()
+        assert diagnostics["started"] is True
+        assert diagnostics["ready"] is False
+        assert diagnostics["lifecycle_state"] == "degraded"
+        assert (
+            diagnostics["last_failure_reason"]
+            == "decision_ingest_failed:position_expansion_ingest_failure"
+        )
+        assert diagnostics["degraded_reasons"] == [
+            "decision_ingest_failed:position_expansion_ingest_failure"
+        ]
+
+    @pytest.mark.asyncio
+    async def test_orchestration_event_wiring_keeps_expansion_context_assembly_inside_position_expansion_runtime(
+        self,
+    ) -> None:
+        """Composition root должен передавать orchestration truth в PositionExpansionRuntime, а не собирать ExpansionContext."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.position_expansion_runtime._started = True
+        runtime.position_expansion_runtime._assemble_expansion_context = Mock(  # type: ignore[attr-defined, method-assign]
+            wraps=runtime.position_expansion_runtime._assemble_expansion_context  # type: ignore[attr-defined]
+        )
+        runtime.position_expansion_runtime.ingest_decision = Mock(  # type: ignore[method-assign]
+            side_effect=runtime.position_expansion_runtime.ingest_decision
+        )
+        runtime.orchestration_runtime.get_decision = Mock(  # type: ignore[method-assign]
+            return_value=make_forwarded_orchestration_decision()
+        )
+        handler = runtime.event_bus.handlers[OrchestrationEventType.ORCHESTRATION_DECIDED.value][0]
+        orchestration_event = Event.new(
+            OrchestrationEventType.ORCHESTRATION_DECIDED.value,
+            "ORCHESTRATION_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        await handler(orchestration_event)
+
+        runtime.position_expansion_runtime.ingest_decision.assert_called_once()
+        runtime.position_expansion_runtime._assemble_expansion_context.assert_called_once()  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
     async def test_composition_root_keeps_market_data_bar_boundary_separate_from_risk_listener(

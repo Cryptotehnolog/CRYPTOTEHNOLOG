@@ -44,6 +44,7 @@ from cryptotechnolog.market_data.events import (
 )
 from cryptotechnolog.opportunity import OpportunityEventType
 from cryptotechnolog.orchestration import OrchestrationEventType
+from cryptotechnolog.position_expansion import PositionExpansionEventType
 from cryptotechnolog.risk.engine import RiskEngineEventType
 from cryptotechnolog.signals import SignalEventType
 from cryptotechnolog.strategy import StrategyEventType
@@ -341,6 +342,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "phase10_execution:not_ready" in diagnostics["degraded_reasons"]
     assert "phase11_opportunity:not_ready" in diagnostics["degraded_reasons"]
     assert "phase12_orchestration:not_ready" in diagnostics["degraded_reasons"]
+    assert "phase13_position_expansion:not_ready" in diagnostics["degraded_reasons"]
     assert health.overall_status == HealthStatus.HEALTHY
     assert health.readiness_status == "not_ready"
     assert health.runtime_identity == runtime.identity
@@ -355,6 +357,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "execution_runtime_not_ready" in health.readiness_reasons
     assert "opportunity_runtime_not_ready" in health.readiness_reasons
     assert "orchestration_runtime_not_ready" in health.readiness_reasons
+    assert "position_expansion_runtime_not_ready" in health.readiness_reasons
     assert SystemEventType.SYSTEM_BOOT in lifecycle_events
     assert SystemEventType.SYSTEM_READY in lifecycle_events
 
@@ -407,6 +410,7 @@ async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> No
     execution_diagnostics = diagnostics["execution_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
+    position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
     signal = runtime.signal_runtime.get_signal(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -453,6 +457,13 @@ async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> No
         orchestration_diagnostics["last_event_type"]
         == OrchestrationEventType.ORCHESTRATION_CANDIDATE_UPDATED.value
     )
+    assert position_expansion_diagnostics["started"] is True
+    assert position_expansion_diagnostics["ready"] is False
+    assert position_expansion_diagnostics["tracked_expansion_keys"] == 1
+    assert (
+        position_expansion_diagnostics["last_event_type"]
+        == PositionExpansionEventType.POSITION_EXPANSION_CANDIDATE_UPDATED.value
+    )
     assert context is not None
     assert context.derived_inputs is not None
     assert context.derya is not None
@@ -490,6 +501,7 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     captured_execution_events: list[Event] = []
     captured_opportunity_events: list[Event] = []
     captured_orchestration_events: list[Event] = []
+    captured_position_expansion_events: list[Event] = []
     runtime.event_bus.on(
         SignalEventType.SIGNAL_EMITTED.value,
         captured_signal_events.append,
@@ -509,6 +521,10 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     runtime.event_bus.on(
         OrchestrationEventType.ORCHESTRATION_DECIDED.value,
         captured_orchestration_events.append,
+    )
+    runtime.event_bus.on(
+        PositionExpansionEventType.POSITION_EXPANSION_APPROVED.value,
+        captured_position_expansion_events.append,
     )
 
     await runtime.startup()
@@ -531,6 +547,7 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     execution_diagnostics = diagnostics["execution_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
+    position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
     signal = runtime.signal_runtime.get_signal(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -542,6 +559,11 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
         timeframe=MarketDataTimeframe.M1,
     )
     intent = runtime.execution_runtime.get_intent(
+        exchange="bybit",
+        symbol="BTC/USDT",
+        timeframe=MarketDataTimeframe.M1,
+    )
+    expansion_candidate = runtime.position_expansion_runtime.get_candidate(
         exchange="bybit",
         symbol="BTC/USDT",
         timeframe=MarketDataTimeframe.M1,
@@ -571,10 +593,18 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
         orchestration_diagnostics["last_event_type"]
         == OrchestrationEventType.ORCHESTRATION_DECIDED.value
     )
+    assert position_expansion_diagnostics["ready"] is True
+    assert position_expansion_diagnostics["expandable_keys"] == 1
+    assert (
+        position_expansion_diagnostics["last_event_type"]
+        == PositionExpansionEventType.POSITION_EXPANSION_APPROVED.value
+    )
     assert candidate is not None
     assert candidate.status.value == "actionable"
     assert intent is not None
     assert intent.status.value == "executable"
+    assert expansion_candidate is not None
+    assert expansion_candidate.status.value == "expandable"
     assert captured_signal_events
     assert captured_signal_events[-1].payload["status"] == "active"
     assert captured_signal_events[-1].payload["direction"] == "BUY"
@@ -599,6 +629,13 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     assert (
         captured_orchestration_events[-1].payload["orchestration_name"]
         == "phase12_meta_orchestration"
+    )
+    assert captured_position_expansion_events
+    assert captured_position_expansion_events[-1].payload["status"] == "expandable"
+    assert captured_position_expansion_events[-1].payload["decision"] == "add"
+    assert (
+        captured_position_expansion_events[-1].payload["expansion_name"]
+        == "phase13_position_expansion"
     )
 
     await runtime.shutdown(force=True)
@@ -744,6 +781,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     captured_execution_invalidations: list[Event] = []
     captured_opportunity_invalidations: list[Event] = []
     captured_orchestration_invalidations: list[Event] = []
+    captured_position_expansion_invalidations: list[Event] = []
     runtime.event_bus.on(
         SignalEventType.SIGNAL_INVALIDATED.value,
         captured_invalidations.append,
@@ -763,6 +801,10 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     runtime.event_bus.on(
         OrchestrationEventType.ORCHESTRATION_INVALIDATED.value,
         captured_orchestration_invalidations.append,
+    )
+    runtime.event_bus.on(
+        PositionExpansionEventType.POSITION_EXPANSION_INVALIDATED.value,
+        captured_position_expansion_invalidations.append,
     )
 
     await runtime.startup()
@@ -801,6 +843,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     execution_diagnostics = diagnostics["execution_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
+    position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
     invalidated = runtime.signal_runtime.get_signal(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -812,6 +855,11 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
         timeframe=MarketDataTimeframe.M1,
     )
     intent = runtime.execution_runtime.get_intent(
+        exchange="bybit",
+        symbol="BTC/USDT",
+        timeframe=MarketDataTimeframe.M1,
+    )
+    expansion_candidate = runtime.position_expansion_runtime.get_candidate(
         exchange="bybit",
         symbol="BTC/USDT",
         timeframe=MarketDataTimeframe.M1,
@@ -844,10 +892,18 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
         orchestration_diagnostics["last_event_type"]
         == OrchestrationEventType.ORCHESTRATION_INVALIDATED.value
     )
+    assert position_expansion_diagnostics["ready"] is True
+    assert position_expansion_diagnostics["invalidated_expansion_keys"] == 1
+    assert (
+        position_expansion_diagnostics["last_event_type"]
+        == PositionExpansionEventType.POSITION_EXPANSION_INVALIDATED.value
+    )
     assert candidate is not None
     assert candidate.status.value == "invalidated"
     assert intent is not None
     assert intent.status.value == "invalidated"
+    assert expansion_candidate is not None
+    assert expansion_candidate.status.value == "invalidated"
     assert captured_invalidations
     assert captured_invalidations[-1].payload["status"] == "invalidated"
     assert captured_invalidations[-1].payload["validity_status"] == "warming"
@@ -871,6 +927,13 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     assert (
         captured_orchestration_invalidations[-1].payload["reason_code"]
         == "orchestration_invalidated"
+    )
+    assert captured_position_expansion_invalidations
+    assert captured_position_expansion_invalidations[-1].payload["status"] == "invalidated"
+    assert captured_position_expansion_invalidations[-1].payload["validity_status"] == "invalid"
+    assert (
+        captured_position_expansion_invalidations[-1].payload["reason_code"]
+        == "expansion_invalidated"
     )
 
     await runtime.shutdown(force=True)
@@ -1032,6 +1095,7 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
     execution_diagnostics = diagnostics["execution_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
+    position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
     health = await runtime.health_checker.check_system()
 
     assert signal_diagnostics["started"] is True
@@ -1060,6 +1124,11 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
     assert orchestration_diagnostics["tracked_decision_keys"] == 1
     assert orchestration_diagnostics["readiness_reasons"] == ["ready_opportunity"]
     assert "orchestration_runtime_not_ready" in health.readiness_reasons
+    assert position_expansion_diagnostics["started"] is True
+    assert position_expansion_diagnostics["ready"] is False
+    assert position_expansion_diagnostics["tracked_expansion_keys"] == 1
+    assert position_expansion_diagnostics["readiness_reasons"] == ["forwardable_decision"]
+    assert "position_expansion_runtime_not_ready" in health.readiness_reasons
 
     await runtime.shutdown(force=True)
 
@@ -1102,6 +1171,7 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     execution_diagnostics = diagnostics["execution_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
+    position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
 
     assert intelligence_diagnostics["started"] is False
     assert intelligence_diagnostics["ready"] is False
@@ -1182,6 +1252,21 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     assert orchestration_diagnostics["last_failure_reason"] is None
     assert orchestration_diagnostics["readiness_reasons"] == ["runtime_stopped"]
     assert orchestration_diagnostics["degraded_reasons"] == []
+    assert position_expansion_diagnostics["started"] is False
+    assert position_expansion_diagnostics["ready"] is False
+    assert position_expansion_diagnostics["lifecycle_state"] == "stopped"
+    assert position_expansion_diagnostics["tracked_expansion_keys"] == 0
+    assert position_expansion_diagnostics["expandable_keys"] == 0
+    assert position_expansion_diagnostics["abstained_keys"] == 0
+    assert position_expansion_diagnostics["rejected_keys"] == 0
+    assert position_expansion_diagnostics["invalidated_expansion_keys"] == 0
+    assert position_expansion_diagnostics["expired_expansion_keys"] == 0
+    assert position_expansion_diagnostics["last_decision_id"] is None
+    assert position_expansion_diagnostics["last_expansion_id"] is None
+    assert position_expansion_diagnostics["last_event_type"] is None
+    assert position_expansion_diagnostics["last_failure_reason"] is None
+    assert position_expansion_diagnostics["readiness_reasons"] == ["runtime_stopped"]
+    assert position_expansion_diagnostics["degraded_reasons"] == []
 
 
 @pytest.mark.asyncio
