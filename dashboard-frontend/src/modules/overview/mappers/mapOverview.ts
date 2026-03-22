@@ -2,6 +2,7 @@ import type { OverviewSnapshotResponse } from "../../../shared/types/dashboard";
 import {
   formatHealthStatus,
   formatLifecyclePhase,
+  getModuleStateReason,
   formatSystemState,
   formatTradingState,
   getModuleCopy,
@@ -14,10 +15,43 @@ export type OverviewViewModel = {
   approvals: Array<{ label: string; value: string | number }>;
   events: Array<{ label: string; value: string | number }>;
   circuitBreakers: OverviewSnapshotResponse["circuit_breaker_summary"];
-  modules: OverviewSnapshotResponse["module_availability"];
+  modules: Array<
+    OverviewSnapshotResponse["module_availability"][number] & {
+      group: "core" | "runtime";
+      stateReason: string;
+    }
+  >;
   alertsPlaceholder: OverviewSnapshotResponse["alerts_summary"];
   unhealthyComponents: string[];
 };
+
+const moduleGroupOrder: Record<string, number> = {
+  overview: 0,
+  "control-plane": 1,
+  "health-observability": 2,
+  "operator-gate": 3,
+  "config-events": 4,
+  risk: 5,
+  signals: 10,
+  strategy: 11,
+  execution: 12,
+  opportunity: 13,
+  orchestration: 14,
+  "position-expansion": 15,
+  "portfolio-governor": 16,
+};
+
+function getModuleGroup(key: string): "core" | "runtime" {
+  return key === "signals" ||
+    key === "strategy" ||
+    key === "execution" ||
+    key === "opportunity" ||
+    key === "orchestration" ||
+    key === "position-expansion" ||
+    key === "portfolio-governor"
+    ? "runtime"
+    : "core";
+}
 
 export function mapOverview(
   snapshot: OverviewSnapshotResponse,
@@ -97,10 +131,21 @@ export function mapOverview(
       },
     ],
     circuitBreakers: snapshot.circuit_breaker_summary,
-    modules: snapshot.module_availability.map((module) => ({
-      ...module,
-      ...getModuleCopy(module.key, module.title, module.description),
-    })),
+    modules: snapshot.module_availability
+      .map((module) => {
+        const group = getModuleGroup(module.key);
+        return {
+          ...module,
+          ...getModuleCopy(module.key, module.title, module.description),
+          group,
+          stateReason: getModuleStateReason(module.status, module.status_reason, group),
+        };
+      })
+      .sort(
+        (left, right) =>
+          (moduleGroupOrder[left.key] ?? Number.MAX_SAFE_INTEGER) -
+          (moduleGroupOrder[right.key] ?? Number.MAX_SAFE_INTEGER),
+      ),
     alertsPlaceholder: snapshot.alerts_summary,
     unhealthyComponents: snapshot.health_summary.unhealthy_components,
   };

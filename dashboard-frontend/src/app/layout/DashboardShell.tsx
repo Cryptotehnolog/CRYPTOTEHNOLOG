@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 
 import { SideNavigation } from "./SideNavigation";
 import { TopStatusBar } from "./TopStatusBar";
@@ -10,15 +10,13 @@ import {
 } from "./DashboardShell.css";
 
 export function DashboardShell() {
-  const location = useLocation();
-
   return (
     <div className={shellLayout}>
       <aside className={sideRail}>
-        <SideNavigation currentPath={location.pathname} />
+        <SideNavigation />
       </aside>
       <div className={contentArea}>
-        <TopStatusBar currentPath={location.pathname} />
+        <TopStatusBar />
         <main className={contentViewport}>
           <Outlet />
         </main>

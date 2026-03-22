@@ -73,7 +73,7 @@ export function OverviewPage() {
       <div className={sectionGrid}>
         <Panel
           title="Состояние системы"
-          caption="Текущее состояние контура управления и снимок жизненного цикла."
+          caption="Текущее состояние control plane и runtime discipline платформы."
           aside={
             <Badge tone={overviewQuery.data.system_state.trade_allowed ? "success" : "danger"}>
               {overviewQuery.data.system_state.trade_allowed
@@ -85,12 +85,12 @@ export function OverviewPage() {
           <KeyValueList items={model.system} />
         </Panel>
 
-        <Panel
-          title="Сводка по здоровью"
-          caption="Агрегированное состояние серверного фундамента."
-        >
-          <KeyValueList items={model.health} />
-        </Panel>
+      <Panel
+        title="Сводка по здоровью"
+        caption="Агрегированное состояние backend foundation и serving truth после sync с mainline."
+      >
+        <KeyValueList items={model.health} />
+      </Panel>
 
         <Panel
           title="Ожидающие подтверждения"
@@ -109,7 +109,7 @@ export function OverviewPage() {
 
       <Panel
         title="Заглушка уведомлений"
-        caption="Здесь зарезервировано место под отдельный слой уведомлений."
+        caption="Уведомления остаются отдельной supporting line и не входят в текущий dashboard scope."
       >
         <KeyValueList
           items={[

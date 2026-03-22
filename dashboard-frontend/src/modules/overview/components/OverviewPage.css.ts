@@ -32,6 +32,25 @@ export const list = style({
   gap: vars.space[2],
 });
 
+export const listSection = style({
+  display: "flex",
+  flexDirection: "column",
+  gap: vars.space[3],
+});
+
+export const listHeader = style({
+  display: "flex",
+  justifyContent: "space-between",
+  gap: vars.space[3],
+  alignItems: "flex-start",
+});
+
+export const listCaption = style({
+  color: vars.color.textMuted,
+  fontSize: vars.font.size[2],
+  maxWidth: "70ch",
+});
+
 export const listItem = style({
   display: "flex",
   justifyContent: "space-between",
@@ -44,6 +63,19 @@ export const listItem = style({
 
 export const listLabel = style({
   color: vars.color.textMuted,
+});
+
+export const listReason = style({
+  color: vars.color.textPrimary,
+  fontSize: vars.font.size[2],
+  marginTop: vars.space[2],
+  maxWidth: "60ch",
+});
+
+export const listMeta = style({
+  color: vars.color.textMuted,
+  fontSize: vars.font.size[1],
+  marginTop: vars.space[1],
 });
 
 export const listValue = style({

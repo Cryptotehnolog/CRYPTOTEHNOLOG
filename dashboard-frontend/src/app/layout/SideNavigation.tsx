@@ -6,20 +6,62 @@ import {
   brandBlock,
   brandCaption,
   brandTitle,
+  groupCaption,
+  groupList,
+  groupTitle,
   itemBadge,
   navDescription,
   navItem,
   navLink,
-  navList,
   navSection,
+  navSectionHeader,
   sideFrame,
 } from "./SideNavigation.css";
 
-type SideNavigationProps = {
-  currentPath: string;
-};
+const navGroups = [
+  {
+    key: "overview",
+    title: "Обзор",
+    caption: "Главная read-only витрина текущего состояния платформы.",
+    items: navigationItems.filter((item) => item.key === "overview"),
+  },
+  {
+    key: "core",
+    title: "Системные поверхности",
+    caption: "Control-plane, observability и operator-facing поверхности без отдельного trading workflow.",
+    items: navigationItems.filter(
+      (item) =>
+        item.key !== "overview" &&
+        ![
+          "signals",
+          "strategy",
+          "execution",
+          "opportunity",
+          "orchestration",
+          "position-expansion",
+          "portfolio-governor",
+        ].includes(item.key),
+    ),
+  },
+  {
+    key: "runtime",
+    title: "Торговые runtime-контуры",
+    caption: "Current mainline contours, которые уже видны в navigation, но пока раскрываются через overview и placeholder routes.",
+    items: navigationItems.filter((item) =>
+      [
+        "signals",
+        "strategy",
+        "execution",
+        "opportunity",
+        "orchestration",
+        "position-expansion",
+        "portfolio-governor",
+      ].includes(item.key),
+    ),
+  },
+] as const;
 
-export function SideNavigation({ currentPath }: SideNavigationProps) {
+export function SideNavigation() {
   return (
     <div className={sideFrame}>
       <div className={brandBlock}>
@@ -28,32 +70,43 @@ export function SideNavigation({ currentPath }: SideNavigationProps) {
       </div>
 
       <nav className={navSection} aria-label="Разделы панели">
-        <ul className={navList}>
-          {navigationItems.map((item) => {
-            const isCurrent =
-              currentPath === item.route ||
-              (currentPath === "/" && item.route === "/overview");
-
-            return (
-              <li key={item.key} className={navItem}>
-                <NavLink
-                  className={navLink[isCurrent ? "active" : "inactive"]}
-                  to={item.route}
-                >
-                  <div>
-                    <div>{item.title}</div>
-                    <small className={navDescription}>{item.description}</small>
-                  </div>
-                  <span className={itemBadge}>
-                    <Badge tone={item.key === "overview" ? "accent" : "neutral"}>
-                      {item.phase}
-                    </Badge>
-                  </span>
-                </NavLink>
-              </li>
-            );
-          })}
-        </ul>
+        {navGroups.map((group) => (
+          <section key={group.key}>
+            <header className={navSectionHeader}>
+              <div className={groupTitle}>{group.title}</div>
+              <div className={groupCaption}>{group.caption}</div>
+            </header>
+            <ul className={groupList}>
+              {group.items.map((item) => (
+                <li key={item.key} className={navItem}>
+                  <NavLink
+                    className={({ isActive }) => navLink[isActive ? "active" : "inactive"]}
+                    end={item.key === "overview"}
+                    to={item.route}
+                  >
+                    <div>
+                      <div>{item.title}</div>
+                      <small className={navDescription}>{item.description}</small>
+                    </div>
+                    <span className={itemBadge}>
+                      <Badge
+                        tone={
+                          item.key === "overview"
+                            ? "accent"
+                            : group.key === "runtime"
+                              ? "warning"
+                              : "neutral"
+                        }
+                      >
+                        {item.phase}
+                      </Badge>
+                    </span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       </nav>
     </div>
   );

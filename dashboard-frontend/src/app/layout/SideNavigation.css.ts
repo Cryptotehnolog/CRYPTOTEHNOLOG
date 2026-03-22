@@ -33,9 +33,31 @@ export const brandTitle = style({
 export const navSection = style({
   display: "flex",
   flexDirection: "column",
+  gap: vars.space[4],
 });
 
-export const navList = style({
+export const navSectionHeader = style({
+  display: "flex",
+  flexDirection: "column",
+  gap: vars.space[1],
+  marginBottom: vars.space[2],
+});
+
+export const groupTitle = style({
+  fontSize: vars.font.size[2],
+  fontWeight: vars.font.weight.semibold,
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+  color: vars.color.textMuted,
+});
+
+export const groupCaption = style({
+  fontSize: vars.font.size[1],
+  color: vars.color.textMuted,
+  lineHeight: 1.4,
+});
+
+export const groupList = style({
   display: "flex",
   flexDirection: "column",
   gap: vars.space[2],
@@ -58,6 +80,7 @@ const navLinkBase = style({
   border: `1px solid ${vars.color.border}`,
   color: vars.color.textPrimary,
   background: vars.color.surface,
+  transition: "border-color 120ms ease, background 120ms ease, box-shadow 120ms ease",
 });
 
 export const navDescription = style({
@@ -82,4 +105,5 @@ export const navLink = styleVariants({
 export const itemBadge = style({
   display: "flex",
   alignItems: "flex-start",
+  flexShrink: 0,
 });

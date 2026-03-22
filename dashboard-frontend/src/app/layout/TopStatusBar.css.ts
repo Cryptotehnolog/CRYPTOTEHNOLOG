@@ -26,6 +26,7 @@ export const titleCluster = style({
   display: "flex",
   flexDirection: "column",
   gap: vars.space[1],
+  minWidth: 0,
 });
 
 export const barMeta = style({
@@ -40,6 +41,14 @@ export const barTitle = style({
   fontSize: vars.font.size[6],
   lineHeight: 1.1,
   color: vars.color.textPrimary,
+});
+
+export const barSubtitle = style({
+  margin: 0,
+  color: vars.color.textMuted,
+  fontSize: vars.font.size[3],
+  lineHeight: 1.5,
+  maxWidth: "68ch",
 });
 
 export const statusCluster = style({
