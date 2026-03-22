@@ -23,8 +23,8 @@
 
 ### Мультиязычная архитектура
 
-Ниже показана честная current architecture truth после formal finalization `P_14`
-как линии `Portfolio Governor / Capital Governance Foundation`, с отдельной пометкой для
+Ниже показана честная current architecture truth после closure-ready состояния `P_15`
+как линии `Protection / Supervisor Foundation`, с отдельной пометкой для
 следующих planned contours.
 
 ```text
@@ -35,7 +35,7 @@ CRYPTOTEHNOLOG Platform
 │   ├── Config Manager
 │   ├── Risk Engine (Phase 5 orchestration)
 │   ├── Operator Gate / Watchdog / Health truth
-│   └── [Planned] Portfolio / Protection contours
+│   └── Portfolio Governor / [Closure-Ready] Protection contour
 │
 ├── Data Plane
 │   ├── Event Bus (Rust) ← high-performance messaging
@@ -99,7 +99,8 @@ CRYPTOTEHNOLOG Platform
 | 12 | Strategy Orchestration / Meta Layer | ✅ Done | v1.12.0 |
 | 13 | Position Expansion Foundation | ✅ Done | v1.13.0 |
 | 14 | Portfolio Governor / Capital Governance Foundation | ✅ Done | v1.14.0 |
-| 15-18 | Protection / OMS / Manager / Testing | ⏳ Planned | v1.15.0-v1.18.0 |
+| 15 | Protection / Supervisor Foundation | ✅ Closure-Ready | v1.15.0 |
+| 16-18 | OMS / Manager / Validation lines | ⏳ Planned | v1.16.0-v1.18.0 |
 | 19 | Deployment | ⏳ Planned | v1.19.0 |
 
 ---
@@ -362,11 +363,11 @@ cargo test
 
 ---
 
-## Ближайшие следующие линии после P_14
+## Ближайшие следующие линии после P_15
 
-После formal finalization `P_14` ближайшая нормализованная последовательность фаз выглядит так:
+После closure-ready реализации `P_15` ближайшая нормализованная последовательность фаз выглядит так:
 
-- `P_15+` — protection / `OMS` / broader manager / validation-supporting lines
+- `P_16+` — `OMS` / broader manager / validation-supporting lines
 
 Это предварительная roadmap truth.
 Authoritative implementation truth для каждой из этих фаз должна открываться отдельно через
@@ -552,6 +553,42 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ---
 
+## Phase 15 Protection / Supervisor Foundation
+
+`Phase 15` доведена до closure-ready состояния как узкая, production-compatible линия:
+`Protection / Supervisor Foundation`.
+
+В реализованный scope `P_15` входят:
+
+- typed protection / supervisor contracts;
+- protection decision / status / validity semantics;
+- typed protection event vocabulary;
+- explicit `ProtectionRuntime`;
+- deterministic `ProtectionContext` assembly внутри protection layer;
+- один узкий deterministic contour с `PROTECT` / `HALT` / `FREEZE`;
+- narrow composition-root integration через existing portfolio-governor truth;
+- operator-visible protection diagnostics / readiness / degraded truth;
+- lifecycle semantics для protection candidate truth:
+  - `CANDIDATE`
+  - `PROTECTED`
+  - `HALTED`
+  - `FROZEN`
+  - `INVALIDATED`
+  - `EXPIRED`
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения closure-ready `P_15`:
+
+- это не `OMS`;
+- это не cancel / modify lifecycle;
+- это не broad close-all / liquidation engine;
+- это не notifications / approval workflow line;
+- это не broader `StrategyManager`;
+- это не analytics / validation line;
+- dashboard / UI line не входит в scope.
+
+---
+
 ## Структура проекта
 
 ```text
@@ -570,6 +607,7 @@ CRYPTOTEHNOLOG/
 │   ├── orchestration/            # Strategy orchestration / meta foundation (done)
 │   ├── position_expansion/       # Position expansion foundation (done)
 │   ├── portfolio_governor/       # Portfolio governor / capital governance foundation (done)
+│   ├── protection/               # Protection / supervisor foundation (closure-ready)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -706,5 +744,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.14.0`  
-**Последнее обновление:** `2026-03-22`
+**Версия:** `v1.15.0`  
+**Последнее обновление:** `2026-03-23`
