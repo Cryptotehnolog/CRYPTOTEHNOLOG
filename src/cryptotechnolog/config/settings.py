@@ -173,6 +173,18 @@ class Settings(BaseSettings):
     # Logging Level
     log_level: str = "INFO"
 
+    @field_validator("debug", mode="before")
+    @classmethod
+    def validate_debug(cls, v: Any) -> bool | Any:
+        """Нормализовать legacy debug/env truth к boolean."""
+        if isinstance(v, str):
+            normalized = v.strip().lower()
+            if normalized in {"release", "production", "prod", "off"}:
+                return False
+            if normalized in {"debug", "development", "dev", "on"}:
+                return True
+        return v
+
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:

@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, Mock
 
 from fastapi import FastAPI
+import pytest
 
 from cryptotechnolog.dashboard.app import create_dashboard_app
 from cryptotechnolog.dashboard.dto.overview import (
@@ -12,6 +13,7 @@ from cryptotechnolog.dashboard.dto.overview import (
     PendingApprovalsSummaryDTO,
     SystemStateSummaryDTO,
 )
+from cryptotechnolog.runtime_identity import get_runtime_version
 
 
 class _StubRuntime:
@@ -60,6 +62,30 @@ def test_create_dashboard_app_registers_runtime_and_router() -> None:
     app = create_dashboard_app(runtime=runtime)
 
     assert isinstance(app, FastAPI)
+    assert app.version == get_runtime_version()
     assert app.state.dashboard_runtime is runtime
     routes = {route.path for route in app.routes}
     assert "/dashboard/overview" in routes
+
+
+def test_create_dashboard_app_builds_local_runtime_without_global_event_bus() -> None:
+    app = create_dashboard_app()
+
+    assert isinstance(app, FastAPI)
+    assert app.version == get_runtime_version()
+    assert app.state.dashboard_runtime.event_bus is not None
+    assert app.state.dashboard_runtime.event_bus.enable_persistence is False
+    routes = {route.path for route in app.routes}
+    assert "/dashboard/overview" in routes
+
+
+@pytest.mark.asyncio
+async def test_create_dashboard_app_local_runtime_lifecycle_starts_and_stops() -> None:
+    app = create_dashboard_app()
+    runtime = app.state.dashboard_runtime
+
+    await runtime.start()
+    assert runtime.operator_gate._running is True
+
+    await runtime.stop()
+    assert runtime.operator_gate._running is False

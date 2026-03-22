@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 
-from cryptotechnolog.config import get_logger
-from cryptotechnolog.core import get_event_bus
+from cryptotechnolog.config import get_logger, get_settings
+from cryptotechnolog.core import EnhancedEventBus
+from cryptotechnolog.runtime_identity import get_runtime_version
 
 from .api.router import create_dashboard_router
 from .runtime import DashboardRuntime, create_dashboard_runtime
@@ -19,9 +20,20 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def _create_dashboard_event_bus() -> EnhancedEventBus:
+    """Собрать локальный event bus для standalone dashboard backend."""
+    settings = get_settings()
+    return EnhancedEventBus(
+        enable_persistence=False,
+        redis_url=None,
+        rate_limit=settings.event_bus_rate_limit,
+        backpressure_strategy=settings.event_bus_backpressure_strategy,
+    )
+
+
 def create_dashboard_app(runtime: DashboardRuntime | None = None) -> FastAPI:
     """Создать отдельное FastAPI-приложение для read-only dashboard foundation."""
-    dashboard_runtime = runtime or create_dashboard_runtime(event_bus=get_event_bus())
+    dashboard_runtime = runtime or create_dashboard_runtime(event_bus=_create_dashboard_event_bus())
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -33,7 +45,7 @@ def create_dashboard_app(runtime: DashboardRuntime | None = None) -> FastAPI:
 
     app = FastAPI(
         title="CRYPTOTEHNOLOG Dashboard API",
-        version="1.4.0",
+        version=get_runtime_version(),
         lifespan=lifespan,
     )
     app.state.dashboard_runtime = dashboard_runtime

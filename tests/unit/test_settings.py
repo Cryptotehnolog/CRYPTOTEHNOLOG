@@ -66,6 +66,18 @@ class TestSettings:
             os.environ.pop("DEBUG", None)
             os.environ.pop("BASE_R_PERCENT", None)
 
+    def test_settings_normalize_legacy_debug_mode_values(self):
+        """Legacy mode-like DEBUG values should map to boolean debug truth."""
+        os.environ["DEBUG"] = "release"
+
+        try:
+            settings = reload_settings()
+
+            assert settings.debug is False
+        finally:
+            os.environ.pop("DEBUG", None)
+            reload_settings()
+
     def test_settings_postgres_url_construction(self):
         """Test that PostgreSQL URL is constructed correctly."""
         settings = Settings()
