@@ -44,6 +44,7 @@ from cryptotechnolog.market_data.events import (
 )
 from cryptotechnolog.opportunity import OpportunityEventType
 from cryptotechnolog.orchestration import OrchestrationEventType
+from cryptotechnolog.portfolio_governor import PortfolioGovernorEventType
 from cryptotechnolog.position_expansion import PositionExpansionEventType
 from cryptotechnolog.risk.engine import RiskEngineEventType
 from cryptotechnolog.signals import SignalEventType
@@ -343,6 +344,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "phase11_opportunity:not_ready" in diagnostics["degraded_reasons"]
     assert "phase12_orchestration:not_ready" in diagnostics["degraded_reasons"]
     assert "phase13_position_expansion:not_ready" in diagnostics["degraded_reasons"]
+    assert "phase14_portfolio_governor:not_ready" in diagnostics["degraded_reasons"]
     assert health.overall_status == HealthStatus.HEALTHY
     assert health.readiness_status == "not_ready"
     assert health.runtime_identity == runtime.identity
@@ -358,6 +360,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "opportunity_runtime_not_ready" in health.readiness_reasons
     assert "orchestration_runtime_not_ready" in health.readiness_reasons
     assert "position_expansion_runtime_not_ready" in health.readiness_reasons
+    assert "portfolio_governor_runtime_not_ready" in health.readiness_reasons
     assert SystemEventType.SYSTEM_BOOT in lifecycle_events
     assert SystemEventType.SYSTEM_READY in lifecycle_events
 
@@ -411,6 +414,7 @@ async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> No
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
     position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
+    portfolio_governor_diagnostics = diagnostics["portfolio_governor_runtime"]
     signal = runtime.signal_runtime.get_signal(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -464,6 +468,13 @@ async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> No
         position_expansion_diagnostics["last_event_type"]
         == PositionExpansionEventType.POSITION_EXPANSION_CANDIDATE_UPDATED.value
     )
+    assert portfolio_governor_diagnostics["started"] is True
+    assert portfolio_governor_diagnostics["ready"] is False
+    assert portfolio_governor_diagnostics["tracked_governor_keys"] == 1
+    assert (
+        portfolio_governor_diagnostics["last_event_type"]
+        == PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_CANDIDATE_UPDATED.value
+    )
     assert context is not None
     assert context.derived_inputs is not None
     assert context.derya is not None
@@ -502,6 +513,7 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     captured_opportunity_events: list[Event] = []
     captured_orchestration_events: list[Event] = []
     captured_position_expansion_events: list[Event] = []
+    captured_portfolio_governor_events: list[Event] = []
     runtime.event_bus.on(
         SignalEventType.SIGNAL_EMITTED.value,
         captured_signal_events.append,
@@ -526,6 +538,10 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
         PositionExpansionEventType.POSITION_EXPANSION_APPROVED.value,
         captured_position_expansion_events.append,
     )
+    runtime.event_bus.on(
+        PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_APPROVED.value,
+        captured_portfolio_governor_events.append,
+    )
 
     await runtime.startup()
     await runtime.market_data_runtime.ingest_orderbook_snapshot(_make_orderbook_snapshot())
@@ -548,6 +564,7 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
     position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
+    portfolio_governor_diagnostics = diagnostics["portfolio_governor_runtime"]
     signal = runtime.signal_runtime.get_signal(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -564,6 +581,11 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
         timeframe=MarketDataTimeframe.M1,
     )
     expansion_candidate = runtime.position_expansion_runtime.get_candidate(
+        exchange="bybit",
+        symbol="BTC/USDT",
+        timeframe=MarketDataTimeframe.M1,
+    )
+    governor_candidate = runtime.portfolio_governor_runtime.get_candidate(
         exchange="bybit",
         symbol="BTC/USDT",
         timeframe=MarketDataTimeframe.M1,
@@ -599,12 +621,20 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
         position_expansion_diagnostics["last_event_type"]
         == PositionExpansionEventType.POSITION_EXPANSION_APPROVED.value
     )
+    assert portfolio_governor_diagnostics["ready"] is True
+    assert portfolio_governor_diagnostics["approved_keys"] == 1
+    assert (
+        portfolio_governor_diagnostics["last_event_type"]
+        == PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_APPROVED.value
+    )
     assert candidate is not None
     assert candidate.status.value == "actionable"
     assert intent is not None
     assert intent.status.value == "executable"
     assert expansion_candidate is not None
     assert expansion_candidate.status.value == "expandable"
+    assert governor_candidate is not None
+    assert governor_candidate.status.value == "approved"
     assert captured_signal_events
     assert captured_signal_events[-1].payload["status"] == "active"
     assert captured_signal_events[-1].payload["direction"] == "BUY"
@@ -636,6 +666,13 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     assert (
         captured_position_expansion_events[-1].payload["expansion_name"]
         == "phase13_position_expansion"
+    )
+    assert captured_portfolio_governor_events
+    assert captured_portfolio_governor_events[-1].payload["status"] == "approved"
+    assert captured_portfolio_governor_events[-1].payload["decision"] == "approve"
+    assert (
+        captured_portfolio_governor_events[-1].payload["governor_name"]
+        == "phase14_portfolio_governor"
     )
 
     await runtime.shutdown(force=True)
@@ -782,6 +819,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     captured_opportunity_invalidations: list[Event] = []
     captured_orchestration_invalidations: list[Event] = []
     captured_position_expansion_invalidations: list[Event] = []
+    captured_portfolio_governor_invalidations: list[Event] = []
     runtime.event_bus.on(
         SignalEventType.SIGNAL_INVALIDATED.value,
         captured_invalidations.append,
@@ -805,6 +843,10 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     runtime.event_bus.on(
         PositionExpansionEventType.POSITION_EXPANSION_INVALIDATED.value,
         captured_position_expansion_invalidations.append,
+    )
+    runtime.event_bus.on(
+        PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_INVALIDATED.value,
+        captured_portfolio_governor_invalidations.append,
     )
 
     await runtime.startup()
@@ -844,6 +886,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
     position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
+    portfolio_governor_diagnostics = diagnostics["portfolio_governor_runtime"]
     invalidated = runtime.signal_runtime.get_signal(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -860,6 +903,11 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
         timeframe=MarketDataTimeframe.M1,
     )
     expansion_candidate = runtime.position_expansion_runtime.get_candidate(
+        exchange="bybit",
+        symbol="BTC/USDT",
+        timeframe=MarketDataTimeframe.M1,
+    )
+    governor_candidate = runtime.portfolio_governor_runtime.get_candidate(
         exchange="bybit",
         symbol="BTC/USDT",
         timeframe=MarketDataTimeframe.M1,
@@ -898,12 +946,20 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
         position_expansion_diagnostics["last_event_type"]
         == PositionExpansionEventType.POSITION_EXPANSION_INVALIDATED.value
     )
+    assert portfolio_governor_diagnostics["ready"] is True
+    assert portfolio_governor_diagnostics["invalidated_governor_keys"] == 1
+    assert (
+        portfolio_governor_diagnostics["last_event_type"]
+        == PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_INVALIDATED.value
+    )
     assert candidate is not None
     assert candidate.status.value == "invalidated"
     assert intent is not None
     assert intent.status.value == "invalidated"
     assert expansion_candidate is not None
     assert expansion_candidate.status.value == "invalidated"
+    assert governor_candidate is not None
+    assert governor_candidate.status.value == "invalidated"
     assert captured_invalidations
     assert captured_invalidations[-1].payload["status"] == "invalidated"
     assert captured_invalidations[-1].payload["validity_status"] == "warming"
@@ -934,6 +990,13 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     assert (
         captured_position_expansion_invalidations[-1].payload["reason_code"]
         == "expansion_invalidated"
+    )
+    assert captured_portfolio_governor_invalidations
+    assert captured_portfolio_governor_invalidations[-1].payload["status"] == "invalidated"
+    assert captured_portfolio_governor_invalidations[-1].payload["validity_status"] == "invalid"
+    assert (
+        captured_portfolio_governor_invalidations[-1].payload["reason_code"]
+        == "governor_invalidated"
     )
 
     await runtime.shutdown(force=True)
@@ -1062,7 +1125,7 @@ async def test_intelligence_runtime_ingest_failure_is_visible_in_runtime_truth()
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_runtime_truth() -> (
+async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_runtime_truth() -> (  # noqa: PLR0915
     None
 ):
     """Signal runtime не должен маскировать incomplete context как ready."""
@@ -1096,6 +1159,8 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
     position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
+    portfolio_governor_diagnostics = diagnostics["portfolio_governor_runtime"]
+    portfolio_governor_diagnostics = diagnostics["portfolio_governor_runtime"]
     health = await runtime.health_checker.check_system()
 
     assert signal_diagnostics["started"] is True
@@ -1129,6 +1194,11 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
     assert position_expansion_diagnostics["tracked_expansion_keys"] == 1
     assert position_expansion_diagnostics["readiness_reasons"] == ["forwardable_decision"]
     assert "position_expansion_runtime_not_ready" in health.readiness_reasons
+    assert portfolio_governor_diagnostics["started"] is True
+    assert portfolio_governor_diagnostics["ready"] is False
+    assert portfolio_governor_diagnostics["tracked_governor_keys"] == 1
+    assert portfolio_governor_diagnostics["readiness_reasons"] == ["approvable_expansion"]
+    assert "portfolio_governor_runtime_not_ready" in health.readiness_reasons
 
     await runtime.shutdown(force=True)
 
@@ -1172,6 +1242,7 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
     position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
+    portfolio_governor_diagnostics = diagnostics["portfolio_governor_runtime"]
 
     assert intelligence_diagnostics["started"] is False
     assert intelligence_diagnostics["ready"] is False
@@ -1267,6 +1338,21 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     assert position_expansion_diagnostics["last_failure_reason"] is None
     assert position_expansion_diagnostics["readiness_reasons"] == ["runtime_stopped"]
     assert position_expansion_diagnostics["degraded_reasons"] == []
+    assert portfolio_governor_diagnostics["started"] is False
+    assert portfolio_governor_diagnostics["ready"] is False
+    assert portfolio_governor_diagnostics["lifecycle_state"] == "stopped"
+    assert portfolio_governor_diagnostics["tracked_governor_keys"] == 0
+    assert portfolio_governor_diagnostics["approved_keys"] == 0
+    assert portfolio_governor_diagnostics["abstained_keys"] == 0
+    assert portfolio_governor_diagnostics["rejected_keys"] == 0
+    assert portfolio_governor_diagnostics["invalidated_governor_keys"] == 0
+    assert portfolio_governor_diagnostics["expired_governor_keys"] == 0
+    assert portfolio_governor_diagnostics["last_expansion_id"] is None
+    assert portfolio_governor_diagnostics["last_governor_id"] is None
+    assert portfolio_governor_diagnostics["last_event_type"] is None
+    assert portfolio_governor_diagnostics["last_failure_reason"] is None
+    assert portfolio_governor_diagnostics["readiness_reasons"] == ["runtime_stopped"]
+    assert portfolio_governor_diagnostics["degraded_reasons"] == []
 
 
 @pytest.mark.asyncio

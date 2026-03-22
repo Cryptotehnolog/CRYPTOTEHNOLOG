@@ -60,8 +60,15 @@ from cryptotechnolog.orchestration import (
     build_orchestration_event,
     create_orchestration_runtime,
 )
+from cryptotechnolog.portfolio_governor import (
+    PortfolioGovernorEventSource,
+    PortfolioGovernorRuntime,
+    build_portfolio_governor_event,
+    create_portfolio_governor_runtime,
+)
 from cryptotechnolog.position_expansion import (
     PositionExpansionEventSource,
+    PositionExpansionEventType,
     PositionExpansionRuntime,
     build_position_expansion_event,
     create_position_expansion_runtime,
@@ -127,6 +134,7 @@ class ProductionRuntime:
     opportunity_runtime: OpportunityRuntime
     orchestration_runtime: OrchestrationRuntime
     position_expansion_runtime: PositionExpansionRuntime
+    portfolio_governor_runtime: PortfolioGovernorRuntime
     startup_result: StartupResult | None = None
     shutdown_result: ShutdownResult | None = None
     last_health: SystemHealth | None = None
@@ -334,6 +342,10 @@ class ProductionRuntime:
             raise ProductionBootstrapError(
                 "Phase 13 position-expansion runtime не подключён к Event Bus"
             )
+        if not self.portfolio_governor_runtime.is_started:
+            raise ProductionBootstrapError(
+                "Phase 14 portfolio-governor runtime не подключён к Event Bus"
+            )
         registered_risk_paths = {
             resolved_path
             for listener in self.listener_registry.all_listeners
@@ -377,6 +389,9 @@ class ProductionRuntime:
         if self.position_expansion_runtime.is_started:
             with contextlib.suppress(Exception):
                 await self.position_expansion_runtime.stop()
+        if self.portfolio_governor_runtime.is_started:
+            with contextlib.suppress(Exception):
+                await self.portfolio_governor_runtime.stop()
         if getattr(self.event_bus, "pending_tasks", None):
             with contextlib.suppress(Exception):
                 await self.event_bus.shutdown()
@@ -533,6 +548,21 @@ class ProductionRuntime:
             position_expansion_runtime.get("degraded_reasons", []),
         )
         reasons.extend(f"phase13_position_expansion:{reason}" for reason in degraded_reason_values)
+        portfolio_governor_runtime = self.portfolio_governor_runtime.get_runtime_diagnostics()
+        if not portfolio_governor_runtime.get("started", False):
+            reasons.append("phase14_portfolio_governor:not_started")
+        if not portfolio_governor_runtime.get("ready", False):
+            reasons.append("phase14_portfolio_governor:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            portfolio_governor_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"phase14_portfolio_governor:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            portfolio_governor_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"phase14_portfolio_governor:{reason}" for reason in degraded_reason_values)
         return reasons
 
 
@@ -678,6 +708,9 @@ async def build_production_runtime(  # noqa: PLR0915
     def update_position_expansion_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
         health_checker.set_runtime_diagnostics(position_expansion_runtime=diagnostics)
 
+    def update_portfolio_governor_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(portfolio_governor_runtime=diagnostics)
+
     intelligence_runtime = create_intelligence_runtime(
         diagnostics_sink=update_intelligence_runtime_diagnostics,
     )
@@ -761,6 +794,17 @@ async def build_production_runtime(  # noqa: PLR0915
     controller.register_component(
         name="phase13_position_expansion_runtime",
         component=position_expansion_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+
+    portfolio_governor_runtime = create_portfolio_governor_runtime(
+        diagnostics_sink=update_portfolio_governor_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase14_portfolio_governor_runtime",
+        component=portfolio_governor_runtime,
         required=False,
         health_check_enabled=False,
         shutdown_timeout=15.0,
@@ -981,6 +1025,36 @@ async def build_production_runtime(  # noqa: PLR0915
             position_expansion_runtime.mark_degraded(f"decision_ingest_failed:{exc}")
             raise RuntimeError(f"position_expansion_decision_ingest_failed:{exc}") from exc
 
+    async def handle_position_expansion_event_for_portfolio_governor(event: Event) -> None:
+        try:
+            payload = cast("dict[str, object]", event.payload)
+            symbol = cast("str", payload["symbol"])
+            exchange = cast("str", payload["exchange"])
+            timeframe = MarketDataTimeframe(cast("str", payload["timeframe"]))
+            generated_at = datetime.fromisoformat(cast("str", payload["generated_at"]))
+            expansion = position_expansion_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            if expansion is None:
+                raise RuntimeError("portfolio_governor_expansion_truth_missing_for_event")
+            update = portfolio_governor_runtime.ingest_expansion(
+                expansion=expansion,
+                reference_time=generated_at,
+            )
+            if update.event_type is not None and update.emitted_payload is not None:
+                await event_bus.publish(
+                    build_portfolio_governor_event(
+                        event_type=update.event_type,
+                        payload=update.emitted_payload,
+                        source=PortfolioGovernorEventSource.PORTFOLIO_GOVERNOR_RUNTIME.value,
+                    )
+                )
+        except Exception as exc:
+            portfolio_governor_runtime.mark_degraded(f"expansion_ingest_failed:{exc}")
+            raise RuntimeError(f"portfolio_governor_expansion_ingest_failed:{exc}") from exc
+
     event_bus.on(SystemEventType.BAR_COMPLETED, handle_market_data_bar_completed_for_intelligence)
     event_bus.on(
         SystemEventType.BAR_COMPLETED,
@@ -1038,6 +1112,18 @@ async def build_production_runtime(  # noqa: PLR0915
         OrchestrationEventType.ORCHESTRATION_INVALIDATED.value,
         handle_orchestration_event_for_position_expansion,
     )
+    event_bus.on(
+        PositionExpansionEventType.POSITION_EXPANSION_CANDIDATE_UPDATED.value,
+        handle_position_expansion_event_for_portfolio_governor,
+    )
+    event_bus.on(
+        PositionExpansionEventType.POSITION_EXPANSION_APPROVED.value,
+        handle_position_expansion_event_for_portfolio_governor,
+    )
+    event_bus.on(
+        PositionExpansionEventType.POSITION_EXPANSION_INVALIDATED.value,
+        handle_position_expansion_event_for_portfolio_governor,
+    )
 
     runtime = ProductionRuntime(
         settings=runtime_settings,
@@ -1066,6 +1152,7 @@ async def build_production_runtime(  # noqa: PLR0915
         opportunity_runtime=opportunity_runtime,
         orchestration_runtime=orchestration_runtime,
         position_expansion_runtime=position_expansion_runtime,
+        portfolio_governor_runtime=portfolio_governor_runtime,
     )
     runtime._update_runtime_diagnostics(
         composition_root_built=True,
