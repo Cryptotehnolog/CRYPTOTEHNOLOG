@@ -23,8 +23,8 @@
 
 ### Мультиязычная архитектура
 
-Ниже показана честная current architecture truth после closure-ready состояния `P_15`
-как линии `Protection / Supervisor Foundation`, с отдельной пометкой для
+Ниже показана честная current architecture truth после closure-ready `P_15`
+и уже открытой `P_16` как узкой `OMS Foundation`, с отдельной пометкой для
 следующих planned contours.
 
 ```text
@@ -49,6 +49,7 @@ CRYPTOTEHNOLOG Platform
 ├── Trading Runtime Layers (Python + Rust)
 │   ├── Order Execution Core / bridge contours (Rust + Python)
 │   ├── Execution Foundation
+│   ├── OMS Foundation
 │   ├── Opportunity / Selection Foundation
 │   ├── Strategy Orchestration / Meta Layer
 │   ├── Position Expansion Foundation
@@ -100,7 +101,8 @@ CRYPTOTEHNOLOG Platform
 | 13 | Position Expansion Foundation | ✅ Done | v1.13.0 |
 | 14 | Portfolio Governor / Capital Governance Foundation | ✅ Done | v1.14.0 |
 | 15 | Protection / Supervisor Foundation | ✅ Closure-Ready | v1.15.0 |
-| 16-18 | OMS / Manager / Validation lines | ⏳ Planned | v1.16.0-v1.18.0 |
+| 16 | OMS Foundation | ✅ Closure-Ready | v1.16.0 |
+| 17-18 | Manager / Validation lines | ⏳ Planned | v1.17.0-v1.18.0 |
 | 19 | Deployment | ⏳ Planned | v1.19.0 |
 
 ---
@@ -363,11 +365,11 @@ cargo test
 
 ---
 
-## Ближайшие следующие линии после P_15
+## Ближайшие следующие линии после P_16
 
-После closure-ready реализации `P_15` ближайшая нормализованная последовательность фаз выглядит так:
+После closure-ready реализации `P_16` ближайшая нормализованная последовательность фаз выглядит так:
 
-- `P_16+` — `OMS` / broader manager / validation-supporting lines
+- `P_17+` — broader manager / validation-supporting lines
 
 Это предварительная roadmap truth.
 Authoritative implementation truth для каждой из этих фаз должна открываться отдельно через
@@ -589,6 +591,36 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ---
 
+## Phase 16 OMS Foundation
+
+`Phase 16` доведена до closure-ready состояния как узкая, production-compatible линия:
+`OMS Foundation`.
+
+В реализованный scope `P_16` входят:
+
+- typed OMS contracts;
+- order-lifecycle / order-state semantics;
+- typed OMS event vocabulary;
+- explicit `OmsRuntime`;
+- deterministic `OmsContext` assembly внутри OMS layer;
+- centralized order-state / order-registry truth;
+- query/state-first surface для active / historical orders;
+- narrow composition-root integration через existing execution truth;
+- operator-visible OMS diagnostics / readiness / degraded truth;
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения closure-ready `P_16`:
+
+- это не liquidation line;
+- это не cancel-all / emergency ops line;
+- это не notifications / approval workflow line;
+- это не broader ops platform;
+- это не broader `StrategyManager`;
+- это не validation / dashboard line;
+- persistence-first OMS platform не входит в текущий scope.
+
+---
+
 ## Структура проекта
 
 ```text
@@ -608,6 +640,7 @@ CRYPTOTEHNOLOG/
 │   ├── position_expansion/       # Position expansion foundation (done)
 │   ├── portfolio_governor/       # Portfolio governor / capital governance foundation (done)
 │   ├── protection/               # Protection / supervisor foundation (closure-ready)
+│   ├── oms/                      # OMS foundation (closure-ready)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -744,5 +777,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.15.0`  
+**Версия:** `v1.16.0`  
 **Последнее обновление:** `2026-03-23`

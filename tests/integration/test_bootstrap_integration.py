@@ -42,6 +42,7 @@ from cryptotechnolog.market_data.events import (
     MarketDataEventType,
     build_market_data_event,
 )
+from cryptotechnolog.oms import OmsEventType
 from cryptotechnolog.opportunity import OpportunityEventType
 from cryptotechnolog.orchestration import OrchestrationEventType
 from cryptotechnolog.portfolio_governor import PortfolioGovernorEventType
@@ -342,6 +343,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "phase8_signal:not_ready" in diagnostics["degraded_reasons"]
     assert "phase9_strategy:not_ready" in diagnostics["degraded_reasons"]
     assert "phase10_execution:not_ready" in diagnostics["degraded_reasons"]
+    assert "phase16_oms:not_ready" in diagnostics["degraded_reasons"]
     assert "phase11_opportunity:not_ready" in diagnostics["degraded_reasons"]
     assert "phase12_orchestration:not_ready" in diagnostics["degraded_reasons"]
     assert "phase13_position_expansion:not_ready" in diagnostics["degraded_reasons"]
@@ -359,6 +361,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "signal_runtime_not_ready" in health.readiness_reasons
     assert "strategy_runtime_not_ready" in health.readiness_reasons
     assert "execution_runtime_not_ready" in health.readiness_reasons
+    assert "oms_runtime_not_ready" in health.readiness_reasons
     assert "opportunity_runtime_not_ready" in health.readiness_reasons
     assert "orchestration_runtime_not_ready" in health.readiness_reasons
     assert "position_expansion_runtime_not_ready" in health.readiness_reasons
@@ -513,6 +516,7 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     captured_signal_events: list[Event] = []
     captured_strategy_events: list[Event] = []
     captured_execution_events: list[Event] = []
+    captured_oms_events: list[Event] = []
     captured_opportunity_events: list[Event] = []
     captured_orchestration_events: list[Event] = []
     captured_position_expansion_events: list[Event] = []
@@ -529,6 +533,10 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     runtime.event_bus.on(
         ExecutionEventType.EXECUTION_REQUESTED.value,
         captured_execution_events.append,
+    )
+    runtime.event_bus.on(
+        OmsEventType.OMS_ORDER_REGISTERED.value,
+        captured_oms_events.append,
     )
     runtime.event_bus.on(
         OpportunityEventType.OPPORTUNITY_SELECTED.value,
@@ -569,6 +577,7 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     signal_diagnostics = diagnostics["signal_runtime"]
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
+    oms_diagnostics = diagnostics["oms_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
     position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
@@ -588,6 +597,9 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
         exchange="bybit",
         symbol="BTC/USDT",
         timeframe=MarketDataTimeframe.M1,
+    )
+    oms_order = (
+        runtime.oms_runtime.get_order_by_intent(intent_id=intent.intent_id) if intent else None
     )
     expansion_candidate = runtime.position_expansion_runtime.get_candidate(
         exchange="bybit",
@@ -617,6 +629,10 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     assert execution_diagnostics["ready"] is True
     assert execution_diagnostics["executable_intent_keys"] == 1
     assert execution_diagnostics["last_event_type"] == ExecutionEventType.EXECUTION_REQUESTED.value
+    assert oms_diagnostics["ready"] is True
+    assert oms_diagnostics["tracked_active_orders"] == 1
+    assert oms_diagnostics["tracked_historical_orders"] == 0
+    assert oms_diagnostics["last_event_type"] == OmsEventType.OMS_ORDER_REGISTERED.value
     assert opportunity_diagnostics["ready"] is True
     assert opportunity_diagnostics["selected_keys"] == 1
     assert (
@@ -648,6 +664,8 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     assert candidate.status.value == "actionable"
     assert intent is not None
     assert intent.status.value == "executable"
+    assert oms_order is not None
+    assert oms_order.lifecycle_status.value == "registered"
     assert expansion_candidate is not None
     assert expansion_candidate.status.value == "expandable"
     assert governor_candidate is not None
@@ -666,6 +684,10 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     assert captured_execution_events[-1].payload["status"] == "executable"
     assert captured_execution_events[-1].payload["direction"] == "BUY"
     assert captured_execution_events[-1].payload["execution_name"] == "phase10_foundation_execution"
+    assert captured_oms_events
+    assert captured_oms_events[-1].source == "OMS_RUNTIME"
+    assert captured_oms_events[-1].payload["lifecycle_status"] == "registered"
+    assert captured_oms_events[-1].payload["query_scope"] == "active"
     assert captured_opportunity_events
     assert captured_opportunity_events[-1].payload["status"] == "selected"
     assert captured_opportunity_events[-1].payload["direction"] == "LONG"
@@ -721,11 +743,16 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
     _install_fake_metrics(runtime)
 
     captured_execution_updates: list[Event] = []
+    captured_oms_updates: list[Event] = []
     captured_opportunity_updates: list[Event] = []
     captured_orchestration_updates: list[Event] = []
     runtime.event_bus.on(
         ExecutionEventType.EXECUTION_INTENT_UPDATED.value,
         captured_execution_updates.append,
+    )
+    runtime.event_bus.on(
+        OmsEventType.OMS_ORDER_REGISTERED.value,
+        captured_oms_updates.append,
     )
     runtime.event_bus.on(
         OpportunityEventType.OPPORTUNITY_CANDIDATE_UPDATED.value,
@@ -754,6 +781,7 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
     diagnostics = runtime.get_runtime_diagnostics()
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
+    oms_diagnostics = diagnostics["oms_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
     candidate = runtime.strategy_runtime.get_candidate(
@@ -777,6 +805,11 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
         execution_diagnostics["last_event_type"]
         == ExecutionEventType.EXECUTION_INTENT_UPDATED.value
     )
+    assert oms_diagnostics["ready"] is False
+    assert oms_diagnostics["tracked_contexts"] == 1
+    assert oms_diagnostics["tracked_active_orders"] == 0
+    assert oms_diagnostics["tracked_historical_orders"] == 0
+    assert oms_diagnostics["readiness_reasons"] == ["executable_execution_intent"]
     assert opportunity_diagnostics["ready"] is False
     assert opportunity_diagnostics["selected_keys"] == 0
     assert opportunity_diagnostics["tracked_selection_keys"] == 1
@@ -800,6 +833,7 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
     assert (
         captured_execution_updates[-1].payload["execution_name"] == "phase10_foundation_execution"
     )
+    assert captured_oms_updates == []
     assert captured_opportunity_updates
     assert captured_opportunity_updates[-1].payload["status"] == "candidate"
     assert captured_opportunity_updates[-1].payload["direction"] is None
@@ -838,6 +872,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     captured_invalidations: list[Event] = []
     captured_strategy_invalidations: list[Event] = []
     captured_execution_invalidations: list[Event] = []
+    captured_oms_events: list[Event] = []
     captured_opportunity_invalidations: list[Event] = []
     captured_orchestration_invalidations: list[Event] = []
     captured_position_expansion_invalidations: list[Event] = []
@@ -853,6 +888,10 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     runtime.event_bus.on(
         ExecutionEventType.EXECUTION_INVALIDATED.value,
         captured_execution_invalidations.append,
+    )
+    runtime.event_bus.on(
+        OmsEventType.OMS_ORDER_EXPIRED.value,
+        captured_oms_events.append,
     )
     runtime.event_bus.on(
         OpportunityEventType.OPPORTUNITY_INVALIDATED.value,
@@ -905,6 +944,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     signal_diagnostics = diagnostics["signal_runtime"]
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
+    oms_diagnostics = diagnostics["oms_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
     position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
@@ -956,6 +996,11 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     assert (
         execution_diagnostics["last_event_type"] == ExecutionEventType.EXECUTION_INVALIDATED.value
     )
+    assert oms_diagnostics["ready"] is False
+    assert oms_diagnostics["lifecycle_state"] == "degraded"
+    assert oms_diagnostics["tracked_active_orders"] == 1
+    assert oms_diagnostics["tracked_historical_orders"] == 0
+    assert oms_diagnostics["last_failure_reason"] == "execution_intent_invalidated"
     assert opportunity_diagnostics["ready"] is True
     assert opportunity_diagnostics["invalidated_selection_keys"] == 1
     assert (
@@ -1007,6 +1052,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     assert captured_execution_invalidations[-1].payload["status"] == "invalidated"
     assert captured_execution_invalidations[-1].payload["validity_status"] == "invalid"
     assert captured_execution_invalidations[-1].payload["reason_code"] == "execution_invalidated"
+    assert captured_oms_events == []
     assert captured_opportunity_invalidations
     assert captured_opportunity_invalidations[-1].payload["status"] == "invalidated"
     assert captured_opportunity_invalidations[-1].payload["validity_status"] == "invalid"
@@ -1192,6 +1238,7 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
     signal_diagnostics = diagnostics["signal_runtime"]
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
+    oms_diagnostics = diagnostics["oms_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
     position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
@@ -1215,6 +1262,13 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
     assert execution_diagnostics["tracked_intent_keys"] == 1
     assert execution_diagnostics["readiness_reasons"] == ["execution_context_warming"]
     assert "execution_runtime_not_ready" in health.readiness_reasons
+    assert oms_diagnostics["started"] is True
+    assert oms_diagnostics["ready"] is False
+    assert oms_diagnostics["tracked_contexts"] == 1
+    assert oms_diagnostics["tracked_active_orders"] == 0
+    assert oms_diagnostics["tracked_historical_orders"] == 0
+    assert oms_diagnostics["readiness_reasons"] == ["executable_execution_intent"]
+    assert "oms_runtime_not_ready" in health.readiness_reasons
     assert opportunity_diagnostics["started"] is True
     assert opportunity_diagnostics["ready"] is False
     assert opportunity_diagnostics["tracked_selection_keys"] == 1
@@ -1280,6 +1334,7 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     signal_diagnostics = diagnostics["signal_runtime"]
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
+    oms_diagnostics = diagnostics["oms_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
     position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
@@ -1338,6 +1393,18 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     assert execution_diagnostics["last_failure_reason"] is None
     assert execution_diagnostics["readiness_reasons"] == ["runtime_stopped"]
     assert execution_diagnostics["degraded_reasons"] == []
+    assert oms_diagnostics["started"] is False
+    assert oms_diagnostics["ready"] is False
+    assert oms_diagnostics["lifecycle_state"] == "stopped"
+    assert oms_diagnostics["tracked_contexts"] == 0
+    assert oms_diagnostics["tracked_active_orders"] == 0
+    assert oms_diagnostics["tracked_historical_orders"] == 0
+    assert oms_diagnostics["last_intent_id"] is None
+    assert oms_diagnostics["last_order_id"] is None
+    assert oms_diagnostics["last_event_type"] is None
+    assert oms_diagnostics["last_failure_reason"] is None
+    assert oms_diagnostics["readiness_reasons"] == ["runtime_stopped"]
+    assert oms_diagnostics["degraded_reasons"] == []
     assert opportunity_diagnostics["started"] is False
     assert opportunity_diagnostics["ready"] is False
     assert opportunity_diagnostics["lifecycle_state"] == "stopped"

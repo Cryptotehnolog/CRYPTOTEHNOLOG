@@ -626,6 +626,8 @@ class TestProductionBootstrap:
         assert runtime.get_runtime_diagnostics()["strategy_runtime"]["ready"] is False
         assert runtime.get_runtime_diagnostics()["execution_runtime"]["started"] is False
         assert runtime.get_runtime_diagnostics()["execution_runtime"]["ready"] is False
+        assert runtime.get_runtime_diagnostics()["oms_runtime"]["started"] is False
+        assert runtime.get_runtime_diagnostics()["oms_runtime"]["ready"] is False
         assert runtime.get_runtime_diagnostics()["opportunity_runtime"]["started"] is False
         assert runtime.get_runtime_diagnostics()["opportunity_runtime"]["ready"] is False
         assert runtime.get_runtime_diagnostics()["orchestration_runtime"]["started"] is False
@@ -660,6 +662,7 @@ class TestProductionBootstrap:
             runtime.controller.get_component("phase10_execution_runtime")
             is runtime.execution_runtime
         )
+        assert runtime.controller.get_component("phase16_oms_runtime") is runtime.oms_runtime
         assert (
             runtime.controller.get_component("phase11_opportunity_runtime")
             is runtime.opportunity_runtime
@@ -691,10 +694,10 @@ class TestProductionBootstrap:
         assert len(runtime.event_bus.handlers[StrategyEventType.STRATEGY_ACTIONABLE.value]) == 1
         assert len(runtime.event_bus.handlers[StrategyEventType.STRATEGY_INVALIDATED.value]) == 1
         assert (
-            len(runtime.event_bus.handlers[ExecutionEventType.EXECUTION_INTENT_UPDATED.value]) == 1
+            len(runtime.event_bus.handlers[ExecutionEventType.EXECUTION_INTENT_UPDATED.value]) == 2
         )
-        assert len(runtime.event_bus.handlers[ExecutionEventType.EXECUTION_REQUESTED.value]) == 1
-        assert len(runtime.event_bus.handlers[ExecutionEventType.EXECUTION_INVALIDATED.value]) == 1
+        assert len(runtime.event_bus.handlers[ExecutionEventType.EXECUTION_REQUESTED.value]) == 2
+        assert len(runtime.event_bus.handlers[ExecutionEventType.EXECUTION_INVALIDATED.value]) == 2
         assert (
             len(
                 runtime.event_bus.handlers[OpportunityEventType.OPPORTUNITY_CANDIDATE_UPDATED.value]
@@ -1843,7 +1846,7 @@ class TestProductionBootstrap:
                 "symbol": "BTC/USDT",
                 "exchange": "bybit",
                 "timeframe": MarketDataTimeframe.M1.value,
-                "generated_at": datetime.now(UTC).isoformat(),
+                "generated_at": datetime(2026, 3, 20, 12, 2, tzinfo=UTC).isoformat(),
             },
         )
 
@@ -1907,7 +1910,7 @@ class TestProductionBootstrap:
                 "symbol": "BTC/USDT",
                 "exchange": "bybit",
                 "timeframe": MarketDataTimeframe.M1.value,
-                "generated_at": datetime.now(UTC).isoformat(),
+                "generated_at": datetime(2026, 3, 20, 12, 2, tzinfo=UTC).isoformat(),
             },
         )
 
@@ -1915,6 +1918,102 @@ class TestProductionBootstrap:
 
         runtime.opportunity_runtime.ingest_intent.assert_called_once()
         runtime.opportunity_runtime._assemble_opportunity_context.assert_called_once()  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_execution_event_wiring_marks_oms_runtime_degraded_on_ingest_failure(
+        self,
+    ) -> None:
+        """Execution-event wiring должен честно переводить OMS runtime в degraded."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.oms_runtime._started = True
+        runtime.oms_runtime.ingest_intent = Mock(  # type: ignore[method-assign]
+            side_effect=RuntimeError("oms_ingest_failure")
+        )
+        handler = runtime.event_bus.handlers[ExecutionEventType.EXECUTION_REQUESTED.value][1]
+        execution_event = Event.new(
+            ExecutionEventType.EXECUTION_REQUESTED.value,
+            "EXECUTION_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="oms_intent_ingest_failed:oms_execution_truth_missing_for_event",
+        ):
+            await handler(execution_event)
+
+        runtime.execution_runtime.get_intent = Mock(  # type: ignore[method-assign]
+            return_value=make_executable_execution_intent()
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="oms_intent_ingest_failed:oms_ingest_failure",
+        ):
+            await handler(execution_event)
+
+        diagnostics = runtime.oms_runtime.get_runtime_diagnostics()
+        assert diagnostics["started"] is True
+        assert diagnostics["ready"] is False
+        assert diagnostics["lifecycle_state"] == "degraded"
+        assert diagnostics["last_failure_reason"] == "intent_ingest_failed:oms_ingest_failure"
+        assert diagnostics["degraded_reasons"] == ["intent_ingest_failed:oms_ingest_failure"]
+
+    @pytest.mark.asyncio
+    async def test_execution_event_wiring_keeps_oms_context_assembly_inside_oms_runtime(
+        self,
+    ) -> None:
+        """Composition root должен передавать execution truth в OmsRuntime, а не собирать OmsContext."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.oms_runtime._started = True
+        runtime.oms_runtime._assemble_oms_context = Mock(  # type: ignore[attr-defined, method-assign]
+            wraps=runtime.oms_runtime._assemble_oms_context  # type: ignore[attr-defined]
+        )
+        runtime.oms_runtime.ingest_intent = Mock(  # type: ignore[method-assign]
+            side_effect=runtime.oms_runtime.ingest_intent
+        )
+        runtime.execution_runtime.get_intent = Mock(  # type: ignore[method-assign]
+            return_value=make_executable_execution_intent()
+        )
+        handler = runtime.event_bus.handlers[ExecutionEventType.EXECUTION_REQUESTED.value][1]
+        execution_event = Event.new(
+            ExecutionEventType.EXECUTION_REQUESTED.value,
+            "EXECUTION_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        await handler(execution_event)
+
+        runtime.oms_runtime.ingest_intent.assert_called_once()
+        runtime.oms_runtime._assemble_oms_context.assert_called_once()  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
     async def test_opportunity_event_wiring_marks_orchestration_runtime_degraded_on_ingest_failure(
