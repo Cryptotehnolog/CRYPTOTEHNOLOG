@@ -43,6 +43,7 @@ from cryptotechnolog.market_data.events import (
     build_market_data_event,
 )
 from cryptotechnolog.opportunity import OpportunityEventType
+from cryptotechnolog.orchestration import OrchestrationEventType
 from cryptotechnolog.risk.engine import RiskEngineEventType
 from cryptotechnolog.signals import SignalEventType
 from cryptotechnolog.strategy import StrategyEventType
@@ -338,6 +339,8 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "phase8_signal:not_ready" in diagnostics["degraded_reasons"]
     assert "phase9_strategy:not_ready" in diagnostics["degraded_reasons"]
     assert "phase10_execution:not_ready" in diagnostics["degraded_reasons"]
+    assert "phase11_opportunity:not_ready" in diagnostics["degraded_reasons"]
+    assert "phase12_orchestration:not_ready" in diagnostics["degraded_reasons"]
     assert health.overall_status == HealthStatus.HEALTHY
     assert health.readiness_status == "not_ready"
     assert health.runtime_identity == runtime.identity
@@ -351,6 +354,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "strategy_runtime_not_ready" in health.readiness_reasons
     assert "execution_runtime_not_ready" in health.readiness_reasons
     assert "opportunity_runtime_not_ready" in health.readiness_reasons
+    assert "orchestration_runtime_not_ready" in health.readiness_reasons
     assert SystemEventType.SYSTEM_BOOT in lifecycle_events
     assert SystemEventType.SYSTEM_READY in lifecycle_events
 
@@ -402,6 +406,7 @@ async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> No
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
+    orchestration_diagnostics = diagnostics["orchestration_runtime"]
     signal = runtime.signal_runtime.get_signal(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -441,6 +446,13 @@ async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> No
         opportunity_diagnostics["last_event_type"]
         == OpportunityEventType.OPPORTUNITY_CANDIDATE_UPDATED.value
     )
+    assert orchestration_diagnostics["started"] is True
+    assert orchestration_diagnostics["ready"] is False
+    assert orchestration_diagnostics["tracked_decision_keys"] == 1
+    assert (
+        orchestration_diagnostics["last_event_type"]
+        == OrchestrationEventType.ORCHESTRATION_CANDIDATE_UPDATED.value
+    )
     assert context is not None
     assert context.derived_inputs is not None
     assert context.derya is not None
@@ -477,6 +489,7 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     captured_strategy_events: list[Event] = []
     captured_execution_events: list[Event] = []
     captured_opportunity_events: list[Event] = []
+    captured_orchestration_events: list[Event] = []
     runtime.event_bus.on(
         SignalEventType.SIGNAL_EMITTED.value,
         captured_signal_events.append,
@@ -492,6 +505,10 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     runtime.event_bus.on(
         OpportunityEventType.OPPORTUNITY_SELECTED.value,
         captured_opportunity_events.append,
+    )
+    runtime.event_bus.on(
+        OrchestrationEventType.ORCHESTRATION_DECIDED.value,
+        captured_orchestration_events.append,
     )
 
     await runtime.startup()
@@ -513,6 +530,7 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
+    orchestration_diagnostics = diagnostics["orchestration_runtime"]
     signal = runtime.signal_runtime.get_signal(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -547,6 +565,12 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
         opportunity_diagnostics["last_event_type"]
         == OpportunityEventType.OPPORTUNITY_SELECTED.value
     )
+    assert orchestration_diagnostics["ready"] is True
+    assert orchestration_diagnostics["forwarded_keys"] == 1
+    assert (
+        orchestration_diagnostics["last_event_type"]
+        == OrchestrationEventType.ORCHESTRATION_DECIDED.value
+    )
     assert candidate is not None
     assert candidate.status.value == "actionable"
     assert intent is not None
@@ -569,13 +593,20 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     assert (
         captured_opportunity_events[-1].payload["selection_name"] == "phase11_foundation_selection"
     )
+    assert captured_orchestration_events
+    assert captured_orchestration_events[-1].payload["status"] == "orchestrated"
+    assert captured_orchestration_events[-1].payload["decision"] == "forward"
+    assert (
+        captured_orchestration_events[-1].payload["orchestration_name"]
+        == "phase12_meta_orchestration"
+    )
 
     await runtime.shutdown(force=True)
 
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_execution_runtime_publishes_intent_updated_for_non_executable_strategy_candidate() -> (
+async def test_execution_runtime_publishes_intent_updated_for_non_executable_strategy_candidate() -> (  # noqa: PLR0915
     None
 ):
     """Integrated execution wiring не должен маскировать non-executable candidate как request."""
@@ -595,6 +626,7 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
 
     captured_execution_updates: list[Event] = []
     captured_opportunity_updates: list[Event] = []
+    captured_orchestration_updates: list[Event] = []
     runtime.event_bus.on(
         ExecutionEventType.EXECUTION_INTENT_UPDATED.value,
         captured_execution_updates.append,
@@ -602,6 +634,10 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
     runtime.event_bus.on(
         OpportunityEventType.OPPORTUNITY_CANDIDATE_UPDATED.value,
         captured_opportunity_updates.append,
+    )
+    runtime.event_bus.on(
+        OrchestrationEventType.ORCHESTRATION_CANDIDATE_UPDATED.value,
+        captured_orchestration_updates.append,
     )
 
     await runtime.startup()
@@ -623,6 +659,7 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
+    orchestration_diagnostics = diagnostics["orchestration_runtime"]
     candidate = runtime.strategy_runtime.get_candidate(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -651,6 +688,13 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
         opportunity_diagnostics["last_event_type"]
         == OpportunityEventType.OPPORTUNITY_CANDIDATE_UPDATED.value
     )
+    assert orchestration_diagnostics["ready"] is False
+    assert orchestration_diagnostics["tracked_decision_keys"] == 1
+    assert orchestration_diagnostics["forwarded_keys"] == 0
+    assert (
+        orchestration_diagnostics["last_event_type"]
+        == OrchestrationEventType.ORCHESTRATION_CANDIDATE_UPDATED.value
+    )
     assert intent is not None
     assert intent.status.value == "suppressed"
     assert intent.direction is None
@@ -665,6 +709,13 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
     assert captured_opportunity_updates[-1].payload["direction"] is None
     assert (
         captured_opportunity_updates[-1].payload["selection_name"] == "phase11_foundation_selection"
+    )
+    assert captured_orchestration_updates
+    assert captured_orchestration_updates[-1].payload["status"] == "candidate"
+    assert captured_orchestration_updates[-1].payload["decision"] == "abstain"
+    assert (
+        captured_orchestration_updates[-1].payload["orchestration_name"]
+        == "phase12_meta_orchestration"
     )
 
     await runtime.shutdown(force=True)
@@ -692,6 +743,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     captured_strategy_invalidations: list[Event] = []
     captured_execution_invalidations: list[Event] = []
     captured_opportunity_invalidations: list[Event] = []
+    captured_orchestration_invalidations: list[Event] = []
     runtime.event_bus.on(
         SignalEventType.SIGNAL_INVALIDATED.value,
         captured_invalidations.append,
@@ -707,6 +759,10 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     runtime.event_bus.on(
         OpportunityEventType.OPPORTUNITY_INVALIDATED.value,
         captured_opportunity_invalidations.append,
+    )
+    runtime.event_bus.on(
+        OrchestrationEventType.ORCHESTRATION_INVALIDATED.value,
+        captured_orchestration_invalidations.append,
     )
 
     await runtime.startup()
@@ -744,6 +800,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
+    orchestration_diagnostics = diagnostics["orchestration_runtime"]
     invalidated = runtime.signal_runtime.get_signal(
         exchange="bybit",
         symbol="BTC/USDT",
@@ -781,6 +838,12 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
         opportunity_diagnostics["last_event_type"]
         == OpportunityEventType.OPPORTUNITY_INVALIDATED.value
     )
+    assert orchestration_diagnostics["ready"] is True
+    assert orchestration_diagnostics["invalidated_decision_keys"] == 1
+    assert (
+        orchestration_diagnostics["last_event_type"]
+        == OrchestrationEventType.ORCHESTRATION_INVALIDATED.value
+    )
     assert candidate is not None
     assert candidate.status.value == "invalidated"
     assert intent is not None
@@ -801,6 +864,13 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     assert captured_opportunity_invalidations[-1].payload["validity_status"] == "invalid"
     assert (
         captured_opportunity_invalidations[-1].payload["reason_code"] == "opportunity_invalidated"
+    )
+    assert captured_orchestration_invalidations
+    assert captured_orchestration_invalidations[-1].payload["status"] == "invalidated"
+    assert captured_orchestration_invalidations[-1].payload["validity_status"] == "invalid"
+    assert (
+        captured_orchestration_invalidations[-1].payload["reason_code"]
+        == "orchestration_invalidated"
     )
 
     await runtime.shutdown(force=True)
@@ -961,6 +1031,7 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
+    orchestration_diagnostics = diagnostics["orchestration_runtime"]
     health = await runtime.health_checker.check_system()
 
     assert signal_diagnostics["started"] is True
@@ -984,6 +1055,11 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
     assert opportunity_diagnostics["tracked_selection_keys"] == 1
     assert opportunity_diagnostics["readiness_reasons"] == ["ready_intent"]
     assert "opportunity_runtime_not_ready" in health.readiness_reasons
+    assert orchestration_diagnostics["started"] is True
+    assert orchestration_diagnostics["ready"] is False
+    assert orchestration_diagnostics["tracked_decision_keys"] == 1
+    assert orchestration_diagnostics["readiness_reasons"] == ["ready_opportunity"]
+    assert "orchestration_runtime_not_ready" in health.readiness_reasons
 
     await runtime.shutdown(force=True)
 
@@ -1025,6 +1101,7 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     strategy_diagnostics = diagnostics["strategy_runtime"]
     execution_diagnostics = diagnostics["execution_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
+    orchestration_diagnostics = diagnostics["orchestration_runtime"]
 
     assert intelligence_diagnostics["started"] is False
     assert intelligence_diagnostics["ready"] is False
@@ -1091,6 +1168,20 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     assert opportunity_diagnostics["last_failure_reason"] is None
     assert opportunity_diagnostics["readiness_reasons"] == ["runtime_stopped"]
     assert opportunity_diagnostics["degraded_reasons"] == []
+    assert orchestration_diagnostics["started"] is False
+    assert orchestration_diagnostics["ready"] is False
+    assert orchestration_diagnostics["lifecycle_state"] == "stopped"
+    assert orchestration_diagnostics["tracked_decision_keys"] == 0
+    assert orchestration_diagnostics["forwarded_keys"] == 0
+    assert orchestration_diagnostics["abstained_keys"] == 0
+    assert orchestration_diagnostics["invalidated_decision_keys"] == 0
+    assert orchestration_diagnostics["expired_decision_keys"] == 0
+    assert orchestration_diagnostics["last_selection_id"] is None
+    assert orchestration_diagnostics["last_decision_id"] is None
+    assert orchestration_diagnostics["last_event_type"] is None
+    assert orchestration_diagnostics["last_failure_reason"] is None
+    assert orchestration_diagnostics["readiness_reasons"] == ["runtime_stopped"]
+    assert orchestration_diagnostics["degraded_reasons"] == []
 
 
 @pytest.mark.asyncio

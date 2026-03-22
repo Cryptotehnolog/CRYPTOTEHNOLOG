@@ -89,7 +89,7 @@ CRYPTOTEHNOLOG Platform
 | 9 | Strategy Foundation | ✅ Done | v1.9.0 |
 | 10 | Execution Foundation | ✅ Done | v1.10.0 |
 | 11 | Opportunity / Selection Foundation | ✅ Done | v1.11.0 |
-| 12 | Strategy Orchestration / Meta Layer | ⏳ Planned | v1.12.0 |
+| 12 | Strategy Orchestration / Meta Layer | ✅ Closure-Ready | v1.12.0 |
 | 13-18 | Position Expansion / Portfolio / Protection / Testing | ⏳ Planned | v1.13.0-v1.18.0 |
 | 19 | Deployment | ⏳ Planned | v1.19.0 |
 
@@ -353,11 +353,10 @@ cargo test
 
 ---
 
-## Ближайшие следующие линии после P_11
+## Ближайшие следующие линии после P_12
 
-После `v1.11.0` ближайшая нормализованная последовательность фаз такая:
+После `P_12` ближайшая нормализованная последовательность фаз такая:
 
-- `P_12` — `Strategy Orchestration / Meta Layer`
 - `P_13+` — position expansion / portfolio / supervisor / broader execution lines
 
 Это предварительная roadmap truth.
@@ -439,6 +438,41 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ---
 
+## Phase 12 Strategy Orchestration / Meta Layer
+
+`Phase 12` доведена до closure-ready состояния как узкая, production-compatible линия:
+`Strategy Orchestration / Meta Layer`.
+
+Реализованный closure scope:
+
+- typed orchestration / meta contracts;
+- orchestration validity / readiness semantics;
+- typed orchestration event vocabulary;
+- explicit `OrchestrationRuntime`;
+- deterministic `OrchestrationContext` assembly внутри orchestration layer;
+- один узкий deterministic contour с явными `FORWARD` / `ABSTAIN`;
+- narrow composition-root integration через existing opportunity truth;
+- operator-visible orchestration diagnostics / readiness / degraded truth;
+- lifecycle semantics для orchestration decision truth:
+  - `CANDIDATE`
+  - `ORCHESTRATED`
+  - `ABSTAINED`
+  - `INVALIDATED`
+  - `EXPIRED`
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения после closure:
+
+- это не full `StrategyManager`;
+- это не broad workflow orchestration;
+- это не `OMS`;
+- это не `Kill Switch` / protection line;
+- это не portfolio / supervisor logic;
+- persistence-first line не входит в scope;
+- dashboard / UI line не входит в scope.
+
+---
+
 ## Структура проекта
 
 ```text
@@ -454,6 +488,7 @@ CRYPTOTEHNOLOG/
 │   ├── execution/                # Order execution
 │   ├── strategy/                 # Strategy foundation (closure-ready)
 │   ├── opportunity/              # Opportunity / selection foundation (done)
+│   ├── orchestration/            # Strategy orchestration / meta foundation (in progress)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -590,5 +625,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.11.0`  
-**Последнее обновление:** `2026-03-21`
+**Версия:** `v1.12.0`  
+**Последнее обновление:** `2026-03-22`
