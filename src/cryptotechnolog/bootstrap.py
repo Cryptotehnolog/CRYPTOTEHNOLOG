@@ -43,6 +43,12 @@ from cryptotechnolog.execution import (
     create_execution_runtime,
 )
 from cryptotechnolog.intelligence.runtime import IntelligenceRuntime, create_intelligence_runtime
+from cryptotechnolog.manager import (
+    ManagerEventSource,
+    ManagerRuntime,
+    build_manager_event,
+    create_manager_runtime,
+)
 from cryptotechnolog.market_data import MarketDataTimeframe
 from cryptotechnolog.market_data.events import BarCompletedPayload
 from cryptotechnolog.market_data.runtime import MarketDataRuntime, create_market_data_runtime
@@ -150,6 +156,7 @@ class ProductionRuntime:
     position_expansion_runtime: PositionExpansionRuntime
     portfolio_governor_runtime: PortfolioGovernorRuntime
     protection_runtime: ProtectionRuntime
+    manager_runtime: ManagerRuntime
     startup_result: StartupResult | None = None
     shutdown_result: ShutdownResult | None = None
     last_health: SystemHealth | None = None
@@ -365,6 +372,8 @@ class ProductionRuntime:
             )
         if not self.protection_runtime.is_started:
             raise ProductionBootstrapError("Phase 15 protection runtime не подключён к Event Bus")
+        if not self.manager_runtime.is_started:
+            raise ProductionBootstrapError("Phase 17 manager runtime не подключён к Event Bus")
         registered_risk_paths = {
             resolved_path
             for listener in self.listener_registry.all_listeners
@@ -417,6 +426,9 @@ class ProductionRuntime:
         if self.protection_runtime.is_started:
             with contextlib.suppress(Exception):
                 await self.protection_runtime.stop()
+        if self.manager_runtime.is_started:
+            with contextlib.suppress(Exception):
+                await self.manager_runtime.stop()
         if getattr(self.event_bus, "pending_tasks", None):
             with contextlib.suppress(Exception):
                 await self.event_bus.shutdown()
@@ -618,6 +630,21 @@ class ProductionRuntime:
             protection_runtime.get("degraded_reasons", []),
         )
         reasons.extend(f"phase15_protection:{reason}" for reason in degraded_reason_values)
+        manager_runtime = self.manager_runtime.get_runtime_diagnostics()
+        if not manager_runtime.get("started", False):
+            reasons.append("phase17_manager:not_started")
+        if not manager_runtime.get("ready", False):
+            reasons.append("phase17_manager:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            manager_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"phase17_manager:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            manager_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"phase17_manager:{reason}" for reason in degraded_reason_values)
         return reasons
 
 
@@ -772,6 +799,9 @@ async def build_production_runtime(  # noqa: PLR0915
     def update_protection_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
         health_checker.set_runtime_diagnostics(protection_runtime=diagnostics)
 
+    def update_manager_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(manager_runtime=diagnostics)
+
     intelligence_runtime = create_intelligence_runtime(
         diagnostics_sink=update_intelligence_runtime_diagnostics,
     )
@@ -888,6 +918,17 @@ async def build_production_runtime(  # noqa: PLR0915
     controller.register_component(
         name="phase15_protection_runtime",
         component=protection_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+
+    manager_runtime = create_manager_runtime(
+        diagnostics_sink=update_manager_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase17_manager_runtime",
+        component=manager_runtime,
         required=False,
         health_check_enabled=False,
         shutdown_timeout=15.0,
@@ -1198,6 +1239,58 @@ async def build_production_runtime(  # noqa: PLR0915
             protection_runtime.mark_degraded(f"governor_ingest_failed:{exc}")
             raise RuntimeError(f"protection_governor_ingest_failed:{exc}") from exc
 
+    async def handle_protection_event_for_manager(event: Event) -> None:
+        try:
+            payload = cast("dict[str, object]", event.payload)
+            symbol = cast("str", payload["symbol"])
+            exchange = cast("str", payload["exchange"])
+            timeframe = MarketDataTimeframe(cast("str", payload["timeframe"]))
+            generated_at = datetime.fromisoformat(cast("str", payload["generated_at"]))
+            opportunity = opportunity_runtime.get_selection(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            orchestration = orchestration_runtime.get_decision(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            expansion = position_expansion_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            governor = portfolio_governor_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            protection = protection_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            update = manager_runtime.ingest_truths(
+                opportunity=opportunity,
+                orchestration=orchestration,
+                expansion=expansion,
+                governor=governor,
+                protection=protection,
+                reference_time=generated_at,
+            )
+            if update.event_type is not None and update.emitted_payload is not None:
+                await event_bus.publish(
+                    build_manager_event(
+                        event_type=update.event_type,
+                        payload=update.emitted_payload,
+                        source=ManagerEventSource.MANAGER_RUNTIME.value,
+                    )
+                )
+        except Exception as exc:
+            manager_runtime.mark_degraded(f"workflow_ingest_failed:{exc}")
+            raise RuntimeError(f"manager_workflow_ingest_failed:{exc}") from exc
+
     event_bus.on(SystemEventType.BAR_COMPLETED, handle_market_data_bar_completed_for_intelligence)
     event_bus.on(
         SystemEventType.BAR_COMPLETED,
@@ -1291,6 +1384,26 @@ async def build_production_runtime(  # noqa: PLR0915
         PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_INVALIDATED.value,
         handle_portfolio_governor_event_for_protection,
     )
+    event_bus.on(
+        "PROTECTION_CANDIDATE_UPDATED",
+        handle_protection_event_for_manager,
+    )
+    event_bus.on(
+        "PROTECTION_PROTECTED",
+        handle_protection_event_for_manager,
+    )
+    event_bus.on(
+        "PROTECTION_HALTED",
+        handle_protection_event_for_manager,
+    )
+    event_bus.on(
+        "PROTECTION_FROZEN",
+        handle_protection_event_for_manager,
+    )
+    event_bus.on(
+        "PROTECTION_INVALIDATED",
+        handle_protection_event_for_manager,
+    )
 
     runtime = ProductionRuntime(
         settings=runtime_settings,
@@ -1322,6 +1435,7 @@ async def build_production_runtime(  # noqa: PLR0915
         position_expansion_runtime=position_expansion_runtime,
         portfolio_governor_runtime=portfolio_governor_runtime,
         protection_runtime=protection_runtime,
+        manager_runtime=manager_runtime,
     )
     runtime._update_runtime_diagnostics(
         composition_root_built=True,
