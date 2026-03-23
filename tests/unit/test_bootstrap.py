@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock, Mock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -36,12 +37,30 @@ from cryptotechnolog.execution import (
     ExecutionValidity,
     ExecutionValidityStatus,
 )
-from cryptotechnolog.manager import ManagerEventType, ManagerRuntimeLifecycleState
+from cryptotechnolog.manager import (
+    ManagerDecision,
+    ManagerEventType,
+    ManagerFreshness,
+    ManagerReasonCode,
+    ManagerRuntimeLifecycleState,
+    ManagerSource,
+    ManagerStatus,
+    ManagerValidity,
+    ManagerValidityStatus,
+    ManagerWorkflowCandidate,
+)
 from cryptotechnolog.market_data import MarketDataTimeframe, OHLCVBarContract
 from cryptotechnolog.market_data.events import (
     BarCompletedPayload,
     MarketDataEventType,
     build_market_data_event,
+)
+from cryptotechnolog.oms import (
+    OmsFreshness,
+    OmsOrderRecord,
+    OmsReasonCode,
+    OmsValidity,
+    OmsValidityStatus,
 )
 from cryptotechnolog.opportunity import (
     OpportunityDirection,
@@ -119,6 +138,7 @@ from cryptotechnolog.strategy import (
     StrategyValidity,
     StrategyValidityStatus,
 )
+from cryptotechnolog.validation import ValidationEventType, ValidationRuntimeLifecycleState
 
 
 def make_settings() -> Settings:
@@ -294,6 +314,30 @@ def make_executable_execution_intent() -> ExecutionOrderIntent:
         originating_candidate_id=candidate.candidate_id,
         confidence=Decimal("0.8"),
         reason_code=ExecutionReasonCode.CONTEXT_READY,
+    )
+
+
+def make_active_oms_order() -> OmsOrderRecord:
+    now = datetime(2026, 3, 20, 12, 2, tzinfo=UTC)
+    intent = make_executable_execution_intent()
+    return OmsOrderRecord.registered(
+        contour_name="phase16_oms_contour",
+        oms_name="phase16_oms",
+        symbol=intent.symbol,
+        exchange=intent.exchange,
+        timeframe=intent.timeframe,
+        freshness=OmsFreshness(
+            generated_at=now,
+            expires_at=now + timedelta(minutes=5),
+        ),
+        validity=OmsValidity(
+            status=OmsValidityStatus.VALID,
+            observed_inputs=3,
+            required_inputs=3,
+        ),
+        originating_intent_id=intent.intent_id,
+        client_order_id="OID-1",
+        reason_code=OmsReasonCode.ORDER_REGISTERED,
     )
 
 
@@ -592,6 +636,39 @@ def make_protected_protection_candidate() -> ProtectionSupervisorCandidate:
     )
 
 
+def make_coordinated_manager_candidate() -> ManagerWorkflowCandidate:
+    now = datetime(2026, 3, 20, 12, 4, tzinfo=UTC)
+    governor = make_approved_portfolio_governor_candidate()
+    protection = make_protected_protection_candidate()
+    return ManagerWorkflowCandidate.candidate(
+        contour_name="phase17_manager_contour",
+        manager_name="phase17_manager",
+        symbol=protection.symbol,
+        exchange=protection.exchange,
+        timeframe=protection.timeframe,
+        source=ManagerSource.WORKFLOW_FOUNDATIONS,
+        freshness=ManagerFreshness(
+            generated_at=now,
+            expires_at=now.replace(minute=9),
+        ),
+        validity=ManagerValidity(
+            status=ManagerValidityStatus.VALID,
+            observed_inputs=5,
+            required_inputs=5,
+        ),
+        decision=ManagerDecision.COORDINATE,
+        status=ManagerStatus.COORDINATED,
+        originating_selection_id=uuid4(),
+        originating_decision_id=uuid4(),
+        originating_expansion_id=governor.originating_expansion_id,
+        originating_governor_id=governor.governor_id,
+        originating_protection_id=protection.protection_id,
+        confidence=Decimal("0.8"),
+        priority_score=Decimal("0.8"),
+        reason_code=ManagerReasonCode.MANAGER_COORDINATED,
+    )
+
+
 def _fake_shutdown_with_component_stop(
     runtime,
     *,
@@ -603,6 +680,8 @@ def _fake_shutdown_with_component_stop(
             await runtime.oms_runtime.stop()
         if runtime.manager_runtime.is_started:
             await runtime.manager_runtime.stop()
+        if runtime.validation_runtime.is_started:
+            await runtime.validation_runtime.stop()
         if runtime.orchestration_runtime.is_started:
             await runtime.orchestration_runtime.stop()
         if runtime.position_expansion_runtime.is_started:
@@ -754,6 +833,10 @@ class TestProductionBootstrap:
         assert (
             runtime.controller.get_component("phase17_manager_runtime") is runtime.manager_runtime
         )
+        assert (
+            runtime.controller.get_component("phase18_validation_runtime")
+            is runtime.validation_runtime
+        )
         assert SystemEventType.BAR_COMPLETED in runtime.event_bus.handlers
         assert len(runtime.event_bus.handlers[SystemEventType.BAR_COMPLETED]) == 3
         assert len(runtime.event_bus.handlers[SignalEventType.SIGNAL_SNAPSHOT_UPDATED.value]) == 1
@@ -778,6 +861,20 @@ class TestProductionBootstrap:
         assert len(runtime.event_bus.handlers[OpportunityEventType.OPPORTUNITY_SELECTED.value]) == 1
         assert (
             len(runtime.event_bus.handlers[OpportunityEventType.OPPORTUNITY_INVALIDATED.value]) == 1
+        )
+        assert (
+            len(runtime.event_bus.handlers[ManagerEventType.MANAGER_CANDIDATE_UPDATED.value]) == 1
+        )
+        assert (
+            len(runtime.event_bus.handlers[ManagerEventType.MANAGER_WORKFLOW_COORDINATED.value])
+            == 1
+        )
+        assert (
+            len(runtime.event_bus.handlers[ManagerEventType.MANAGER_WORKFLOW_ABSTAINED.value]) == 1
+        )
+        assert (
+            len(runtime.event_bus.handlers[ManagerEventType.MANAGER_WORKFLOW_INVALIDATED.value])
+            == 1
         )
         assert (
             len(
@@ -979,10 +1076,10 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
-        runtime.manager_runtime._started = True
-        runtime.manager_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+        runtime.validation_runtime._started = True
+        runtime.validation_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
             ready=True,
-            lifecycle_state=ManagerRuntimeLifecycleState.READY,
+            lifecycle_state=ValidationRuntimeLifecycleState.READY,
             readiness_reasons=(),
             degraded_reasons=(),
         )
@@ -1014,6 +1111,8 @@ class TestProductionBootstrap:
         assert diagnostics["portfolio_governor_runtime"]["ready"] is True
         assert diagnostics["manager_runtime"]["started"] is True
         assert diagnostics["manager_runtime"]["ready"] is True
+        assert diagnostics["validation_runtime"]["started"] is True
+        assert diagnostics["validation_runtime"]["ready"] is True
 
     @pytest.mark.asyncio
     async def test_runtime_startup_fail_fast_exposes_block_reason_in_diagnostics(self) -> None:
@@ -1187,6 +1286,13 @@ class TestProductionBootstrap:
             readiness_reasons=("no_manager_workflow_processed",),
             degraded_reasons=(),
         )
+        runtime.validation_runtime._started = True
+        runtime.validation_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=False,
+            lifecycle_state=ValidationRuntimeLifecycleState.WARMING,
+            readiness_reasons=("no_validation_review_processed",),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
 
@@ -1213,9 +1319,11 @@ class TestProductionBootstrap:
         assert diagnostics["portfolio_governor_runtime"]["ready"] is False
         assert diagnostics["protection_runtime"]["ready"] is False
         assert diagnostics["manager_runtime"]["ready"] is False
+        assert diagnostics["validation_runtime"]["ready"] is False
         assert "phase16_oms:not_ready" in diagnostics["degraded_reasons"]
         assert "phase15_protection:not_ready" in diagnostics["degraded_reasons"]
         assert "phase17_manager:not_ready" in diagnostics["degraded_reasons"]
+        assert "phase18_validation:not_ready" in diagnostics["degraded_reasons"]
 
     @pytest.mark.asyncio
     async def test_runtime_startup_exposes_degraded_readiness_when_health_is_degraded(self) -> None:
@@ -1266,6 +1374,7 @@ class TestProductionBootstrap:
         runtime.portfolio_governor_runtime._started = True
         runtime.protection_runtime._started = True
         runtime.manager_runtime._started = True
+        runtime.validation_runtime._started = True
 
         await runtime.startup()
 
@@ -1406,6 +1515,13 @@ class TestProductionBootstrap:
             readiness_reasons=(),
             degraded_reasons=(),
         )
+        runtime.validation_runtime._started = True
+        runtime.validation_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state=ValidationRuntimeLifecycleState.READY,
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
 
         await runtime.startup()
         shutdown_result = await runtime.shutdown()
@@ -1480,6 +1596,13 @@ class TestProductionBootstrap:
         assert diagnostics["manager_runtime"]["tracked_active_workflows"] == 0
         assert diagnostics["manager_runtime"]["tracked_historical_workflows"] == 0
         assert diagnostics["manager_runtime"]["readiness_reasons"] == ["runtime_stopped"]
+        assert diagnostics["validation_runtime"]["started"] is False
+        assert diagnostics["validation_runtime"]["ready"] is False
+        assert diagnostics["validation_runtime"]["lifecycle_state"] == "stopped"
+        assert diagnostics["validation_runtime"]["tracked_contexts"] == 0
+        assert diagnostics["validation_runtime"]["tracked_active_reviews"] == 0
+        assert diagnostics["validation_runtime"]["tracked_historical_reviews"] == 0
+        assert diagnostics["validation_runtime"]["readiness_reasons"] == ["runtime_stopped"]
 
     @pytest.mark.asyncio
     async def test_start_production_runtime_preserves_fail_fast_truth_after_cleanup(self) -> None:
@@ -2796,6 +2919,174 @@ class TestProductionBootstrap:
         assert captured_manager_events
         assert captured_manager_events[-1].payload["status"] == "coordinated"
         assert captured_manager_events[-1].payload["decision"] == "coordinate"
+
+    @pytest.mark.asyncio
+    async def test_manager_event_wiring_marks_validation_runtime_degraded_on_ingest_failure(
+        self,
+    ) -> None:
+        """Manager-event wiring должен честно переводить validation runtime в degraded."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.validation_runtime._started = True
+        runtime.validation_runtime.ingest_truths = Mock(  # type: ignore[method-assign]
+            side_effect=RuntimeError("validation_ingest_failure")
+        )
+        handler = runtime.event_bus.handlers[ManagerEventType.MANAGER_WORKFLOW_COORDINATED.value][0]
+        manager_event = Event.new(
+            ManagerEventType.MANAGER_WORKFLOW_COORDINATED.value,
+            "MANAGER_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="validation_review_ingest_failed:validation_ingest_failure",
+        ):
+            await handler(manager_event)
+
+        diagnostics = runtime.validation_runtime.get_runtime_diagnostics()
+        assert diagnostics["started"] is True
+        assert diagnostics["ready"] is False
+        assert diagnostics["lifecycle_state"] == "degraded"
+        assert (
+            diagnostics["last_failure_reason"] == "review_ingest_failed:validation_ingest_failure"
+        )
+        assert diagnostics["degraded_reasons"] == ["review_ingest_failed:validation_ingest_failure"]
+
+    @pytest.mark.asyncio
+    async def test_manager_event_wiring_keeps_validation_context_assembly_inside_validation_runtime(
+        self,
+    ) -> None:
+        """Composition root должен передавать existing truths в ValidationRuntime, а не собирать ValidationContext."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.validation_runtime._started = True
+        runtime.validation_runtime._assemble_validation_context = Mock(  # type: ignore[attr-defined, method-assign]
+            wraps=runtime.validation_runtime._assemble_validation_context  # type: ignore[attr-defined]
+        )
+        runtime.validation_runtime.ingest_truths = Mock(  # type: ignore[method-assign]
+            side_effect=runtime.validation_runtime.ingest_truths
+        )
+        runtime.manager_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_coordinated_manager_candidate()
+        )
+        runtime.portfolio_governor_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_approved_portfolio_governor_candidate()
+        )
+        runtime.protection_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_protected_protection_candidate()
+        )
+        runtime.oms_runtime.list_active_orders = Mock(  # type: ignore[method-assign]
+            return_value=(make_active_oms_order(),)
+        )
+        runtime.oms_runtime.list_historical_orders = Mock(  # type: ignore[method-assign]
+            return_value=()
+        )
+        handler = runtime.event_bus.handlers[ManagerEventType.MANAGER_WORKFLOW_COORDINATED.value][0]
+        manager_event = Event.new(
+            ManagerEventType.MANAGER_WORKFLOW_COORDINATED.value,
+            "MANAGER_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+        )
+
+        await handler(manager_event)
+
+        runtime.validation_runtime.ingest_truths.assert_called_once()
+        runtime.validation_runtime._assemble_validation_context.assert_called_once()  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_manager_event_publishes_validation_review_validated_update(self) -> None:
+        """Manager truth должна публиковать узкий VALIDATION_WORKFLOW_VALIDATED path."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        await runtime.validation_runtime.start()
+        runtime.manager_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_coordinated_manager_candidate()
+        )
+        runtime.portfolio_governor_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_approved_portfolio_governor_candidate()
+        )
+        runtime.protection_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_protected_protection_candidate()
+        )
+        runtime.oms_runtime.list_active_orders = Mock(  # type: ignore[method-assign]
+            return_value=(make_active_oms_order(),)
+        )
+        runtime.oms_runtime.list_historical_orders = Mock(  # type: ignore[method-assign]
+            return_value=()
+        )
+        captured_validation_events: list[Event] = []
+        runtime.event_bus.on(
+            ValidationEventType.VALIDATION_WORKFLOW_VALIDATED.value,
+            captured_validation_events.append,
+        )
+        handler = runtime.event_bus.handlers[ManagerEventType.MANAGER_WORKFLOW_COORDINATED.value][0]
+        manager_candidate = make_coordinated_manager_candidate()
+        manager_event = Event.new(
+            ManagerEventType.MANAGER_WORKFLOW_COORDINATED.value,
+            "MANAGER_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": manager_candidate.freshness.generated_at.isoformat(),
+            },
+        )
+
+        await handler(manager_event)
+
+        candidate = runtime.validation_runtime.get_candidate(
+            exchange="bybit",
+            symbol="BTC/USDT",
+            timeframe=MarketDataTimeframe.M1,
+        )
+        diagnostics = runtime.validation_runtime.get_runtime_diagnostics()
+
+        assert candidate is not None
+        assert candidate.status.value == "validated"
+        assert candidate.decision.value == "validate"
+        assert diagnostics["tracked_active_reviews"] == 1
+        assert (
+            diagnostics["last_event_type"]
+            == ValidationEventType.VALIDATION_WORKFLOW_VALIDATED.value
+        )
+        assert captured_validation_events
+        assert captured_validation_events[-1].payload["status"] == "validated"
+        assert captured_validation_events[-1].payload["decision"] == "validate"
 
     @pytest.mark.asyncio
     async def test_composition_root_keeps_market_data_bar_boundary_separate_from_risk_listener(
