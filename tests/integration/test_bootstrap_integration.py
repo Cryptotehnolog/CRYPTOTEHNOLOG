@@ -46,6 +46,7 @@ from cryptotechnolog.market_data.events import (
 from cryptotechnolog.oms import OmsEventType
 from cryptotechnolog.opportunity import OpportunityEventType
 from cryptotechnolog.orchestration import OrchestrationEventType
+from cryptotechnolog.paper import PaperEventType
 from cryptotechnolog.portfolio_governor import PortfolioGovernorEventType
 from cryptotechnolog.position_expansion import PositionExpansionEventType
 from cryptotechnolog.protection import ProtectionEventType
@@ -353,6 +354,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "phase15_protection:not_ready" in diagnostics["degraded_reasons"]
     assert "phase17_manager:not_ready" in diagnostics["degraded_reasons"]
     assert "phase18_validation:not_ready" in diagnostics["degraded_reasons"]
+    assert "phase19_paper:not_ready" in diagnostics["degraded_reasons"]
     assert health.overall_status == HealthStatus.HEALTHY
     assert health.readiness_status == "not_ready"
     assert health.runtime_identity == runtime.identity
@@ -373,6 +375,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
     assert "protection_runtime_not_ready" in health.readiness_reasons
     assert "manager_runtime_not_ready" in health.readiness_reasons
     assert "validation_runtime_not_ready" in health.readiness_reasons
+    assert "paper_runtime_not_ready" in health.readiness_reasons
     assert SystemEventType.SYSTEM_BOOT in lifecycle_events
     assert SystemEventType.SYSTEM_READY in lifecycle_events
 
@@ -530,6 +533,7 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     captured_protection_events: list[Event] = []
     captured_manager_events: list[Event] = []
     captured_validation_events: list[Event] = []
+    captured_paper_events: list[Event] = []
     runtime.event_bus.on(
         SignalEventType.SIGNAL_EMITTED.value,
         captured_signal_events.append,
@@ -574,6 +578,10 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
         ValidationEventType.VALIDATION_CANDIDATE_UPDATED.value,
         captured_validation_events.append,
     )
+    runtime.event_bus.on(
+        PaperEventType.PAPER_CANDIDATE_UPDATED.value,
+        captured_paper_events.append,
+    )
 
     await runtime.startup()
     await runtime.market_data_runtime.ingest_orderbook_snapshot(_make_orderbook_snapshot())
@@ -596,6 +604,7 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     oms_diagnostics = diagnostics["oms_runtime"]
     validation_diagnostics = diagnostics["validation_runtime"]
     manager_diagnostics = diagnostics["manager_runtime"]
+    paper_diagnostics = diagnostics["paper_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
     position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
@@ -644,6 +653,11 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
         symbol="BTC/USDT",
         timeframe=MarketDataTimeframe.M1,
     )
+    paper_candidate = runtime.paper_runtime.get_candidate((
+        "BTC/USDT",
+        "bybit",
+        MarketDataTimeframe.M1,
+    ))
 
     assert signal is not None
     assert signal.status.value == "active"
@@ -702,6 +716,13 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
         == ValidationEventType.VALIDATION_CANDIDATE_UPDATED.value
     )
     assert validation_diagnostics["readiness_reasons"] == ["manager_not_coordinated"]
+    assert paper_diagnostics["started"] is True
+    assert paper_diagnostics["ready"] is False
+    assert paper_diagnostics["tracked_contexts"] == 1
+    assert paper_diagnostics["tracked_active_rehearsals"] == 1
+    assert paper_diagnostics["tracked_historical_rehearsals"] == 0
+    assert paper_diagnostics["last_event_type"] == PaperEventType.PAPER_CANDIDATE_UPDATED.value
+    assert paper_diagnostics["readiness_reasons"] == ["manager_not_coordinated"]
     assert candidate is not None
     assert candidate.status.value == "actionable"
     assert intent is not None
@@ -719,6 +740,9 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     assert validation_candidate is not None
     assert validation_candidate.status.value == "candidate"
     assert validation_candidate.decision.value == "abstain"
+    assert paper_candidate is not None
+    assert paper_candidate.status.value == "candidate"
+    assert paper_candidate.decision.value == "abstain"
     assert captured_signal_events
     assert captured_signal_events[-1].payload["status"] == "active"
     assert captured_signal_events[-1].payload["direction"] == "BUY"
@@ -728,6 +752,9 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     assert captured_validation_events
     assert captured_validation_events[-1].payload["status"] == "candidate"
     assert captured_validation_events[-1].payload["decision"] == "abstain"
+    assert captured_paper_events
+    assert captured_paper_events[-1].payload["status"] == "candidate"
+    assert captured_paper_events[-1].payload["decision"] == "abstain"
     assert captured_strategy_events[-1].payload["direction"] == "LONG"
     assert captured_strategy_events[-1].payload["strategy_name"] == "phase9_foundation_strategy"
     assert captured_execution_events
@@ -935,6 +962,8 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     captured_position_expansion_invalidations: list[Event] = []
     captured_portfolio_governor_invalidations: list[Event] = []
     captured_manager_invalidations: list[Event] = []
+    captured_validation_invalidations: list[Event] = []
+    captured_paper_invalidations: list[Event] = []
     runtime.event_bus.on(
         SignalEventType.SIGNAL_INVALIDATED.value,
         captured_invalidations.append,
@@ -970,6 +999,14 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     runtime.event_bus.on(
         ManagerEventType.MANAGER_WORKFLOW_INVALIDATED.value,
         captured_manager_invalidations.append,
+    )
+    runtime.event_bus.on(
+        ValidationEventType.VALIDATION_WORKFLOW_INVALIDATED.value,
+        captured_validation_invalidations.append,
+    )
+    runtime.event_bus.on(
+        PaperEventType.PAPER_REHEARSAL_INVALIDATED.value,
+        captured_paper_invalidations.append,
     )
 
     await runtime.startup()
@@ -1008,6 +1045,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     execution_diagnostics = diagnostics["execution_runtime"]
     oms_diagnostics = diagnostics["oms_runtime"]
     validation_diagnostics = diagnostics["validation_runtime"]
+    paper_diagnostics = diagnostics["paper_runtime"]
     opportunity_diagnostics = diagnostics["opportunity_runtime"]
     orchestration_diagnostics = diagnostics["orchestration_runtime"]
     position_expansion_diagnostics = diagnostics["position_expansion_runtime"]
@@ -1055,6 +1093,16 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
         timeframe=MarketDataTimeframe.M1,
     )
     validation_historical = runtime.validation_runtime.get_historical_candidate((
+        "BTC/USDT",
+        "bybit",
+        MarketDataTimeframe.M1,
+    ))
+    paper_candidate = runtime.paper_runtime.get_candidate((
+        "BTC/USDT",
+        "bybit",
+        MarketDataTimeframe.M1,
+    ))
+    paper_historical = runtime.paper_runtime.get_historical_candidate((
         "BTC/USDT",
         "bybit",
         MarketDataTimeframe.M1,
@@ -1122,6 +1170,9 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
         validation_diagnostics["last_event_type"]
         == ValidationEventType.VALIDATION_WORKFLOW_INVALIDATED.value
     )
+    assert paper_diagnostics["ready"] is False
+    assert paper_diagnostics["tracked_historical_rehearsals"] == 1
+    assert paper_diagnostics["last_event_type"] == PaperEventType.PAPER_REHEARSAL_INVALIDATED.value
     assert candidate is not None
     assert candidate.status.value == "invalidated"
     assert intent is not None
@@ -1136,6 +1187,9 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     assert validation_candidate is None
     assert validation_historical is not None
     assert validation_historical.status.value == "invalidated"
+    assert paper_candidate is None
+    assert paper_historical is not None
+    assert paper_historical.status.value == "invalidated"
     assert captured_invalidations
     assert captured_invalidations[-1].payload["status"] == "invalidated"
     assert captured_invalidations[-1].payload["validity_status"] == "warming"
@@ -1178,6 +1232,10 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     assert captured_manager_invalidations
     assert captured_manager_invalidations[-1].payload["status"] == "invalidated"
     assert captured_manager_invalidations[-1].payload["validity_status"] == "invalid"
+    assert captured_validation_invalidations
+    assert captured_validation_invalidations[-1].payload["status"] == "invalidated"
+    assert captured_paper_invalidations
+    assert captured_paper_invalidations[-1].payload["status"] == "invalidated"
 
     await runtime.shutdown(force=True)
 
@@ -1343,6 +1401,7 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
     protection_diagnostics = diagnostics["protection_runtime"]
     manager_diagnostics = diagnostics["manager_runtime"]
     validation_diagnostics = diagnostics["validation_runtime"]
+    paper_diagnostics = diagnostics["paper_runtime"]
     health = await runtime.health_checker.check_system()
 
     assert signal_diagnostics["started"] is True
@@ -1407,6 +1466,13 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
     assert validation_diagnostics["tracked_historical_reviews"] == 0
     assert validation_diagnostics["readiness_reasons"] == ["manager_not_coordinated"]
     assert "validation_runtime_not_ready" in health.readiness_reasons
+    assert paper_diagnostics["started"] is True
+    assert paper_diagnostics["ready"] is False
+    assert paper_diagnostics["tracked_contexts"] == 1
+    assert paper_diagnostics["tracked_active_rehearsals"] == 1
+    assert paper_diagnostics["tracked_historical_rehearsals"] == 0
+    assert paper_diagnostics["readiness_reasons"] == ["manager_not_coordinated"]
+    assert "paper_runtime_not_ready" in health.readiness_reasons
 
     await runtime.shutdown(force=True)
 
@@ -1455,6 +1521,7 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     protection_diagnostics = diagnostics["protection_runtime"]
     manager_diagnostics = diagnostics["manager_runtime"]
     validation_diagnostics = diagnostics["validation_runtime"]
+    paper_diagnostics = diagnostics["paper_runtime"]
 
     assert intelligence_diagnostics["started"] is False
     assert intelligence_diagnostics["ready"] is False
@@ -1614,6 +1681,17 @@ async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None
     assert validation_diagnostics["last_failure_reason"] is None
     assert validation_diagnostics["readiness_reasons"] == ["runtime_stopped"]
     assert validation_diagnostics["degraded_reasons"] == []
+    assert paper_diagnostics["started"] is False
+    assert paper_diagnostics["ready"] is False
+    assert paper_diagnostics["lifecycle_state"] == "stopped"
+    assert paper_diagnostics["tracked_contexts"] == 0
+    assert paper_diagnostics["tracked_active_rehearsals"] == 0
+    assert paper_diagnostics["tracked_historical_rehearsals"] == 0
+    assert paper_diagnostics["last_rehearsal_id"] is None
+    assert paper_diagnostics["last_event_type"] is None
+    assert paper_diagnostics["last_failure_reason"] is None
+    assert paper_diagnostics["readiness_reasons"] == ["runtime_stopped"]
+    assert paper_diagnostics["degraded_reasons"] == []
 
 
 @pytest.mark.asyncio
