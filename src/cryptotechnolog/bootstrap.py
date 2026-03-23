@@ -368,6 +368,9 @@ class ProductionRuntime:
             raise ProductionBootstrapError(
                 "Risk runtime persistence не была подключена в production bootstrap"
             )
+        # Upstream truth providers Phase 6-8 остаются startup-degradable:
+        # operator truth видит их как not_ready/degraded, но startup не
+        # проваливается только из-за их warming/missing state.
         if not self.strategy_runtime.is_started:
             raise ProductionBootstrapError("Phase 9 strategy runtime не подключён к Event Bus")
         if not self.execution_runtime.is_started:
@@ -479,8 +482,6 @@ class ProductionRuntime:
             if component.status != HealthStatus.HEALTHY
         ]
         market_data_runtime = self.market_data_runtime.get_runtime_diagnostics()
-        if not market_data_runtime.get("started", False):
-            reasons.append("phase6_market_data:not_started")
         if not market_data_runtime.get("ready", False):
             reasons.append("phase6_market_data:not_ready")
         readiness_reason_values = cast(
@@ -494,8 +495,6 @@ class ProductionRuntime:
         )
         reasons.extend(f"phase6_market_data:{reason}" for reason in degraded_reason_values)
         shared_analysis_runtime = self.shared_analysis_runtime.get_runtime_diagnostics()
-        if not shared_analysis_runtime.get("started", False):
-            reasons.append("c7r_shared_analysis:not_started")
         if not shared_analysis_runtime.get("ready", False):
             reasons.append("c7r_shared_analysis:not_ready")
         readiness_reason_values = cast(
@@ -509,8 +508,6 @@ class ProductionRuntime:
         )
         reasons.extend(f"c7r_shared_analysis:{reason}" for reason in degraded_reason_values)
         intelligence_runtime = self.intelligence_runtime.get_runtime_diagnostics()
-        if not intelligence_runtime.get("started", False):
-            reasons.append("phase7_intelligence:not_started")
         if not intelligence_runtime.get("ready", False):
             reasons.append("phase7_intelligence:not_ready")
         readiness_reason_values = cast(
@@ -524,8 +521,6 @@ class ProductionRuntime:
         )
         reasons.extend(f"phase7_intelligence:{reason}" for reason in degraded_reason_values)
         signal_runtime = self.signal_runtime.get_runtime_diagnostics()
-        if not signal_runtime.get("started", False):
-            reasons.append("phase8_signal:not_started")
         if not signal_runtime.get("ready", False):
             reasons.append("phase8_signal:not_ready")
         readiness_reason_values = cast(

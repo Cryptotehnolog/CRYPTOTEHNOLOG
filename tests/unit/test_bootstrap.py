@@ -1453,6 +1453,136 @@ class TestProductionBootstrap:
         assert "phase19_paper:not_ready" in diagnostics["degraded_reasons"]
 
     @pytest.mark.asyncio
+    async def test_runtime_startup_treats_phase6_to_phase8_as_degradable_not_ready_only(
+        self,
+    ) -> None:
+        """Phase 6-8 upstream runtimes остаются degradable и не публикуют not_started drift."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        runtime.controller.startup = AsyncMock(  # type: ignore[method-assign]
+            return_value=StartupResult(
+                success=True,
+                duration_ms=5,
+                phase_reached=StartupPhase.READY,
+                components_initialized=["database", "redis", "event_bus", "phase5_risk_runtime"],
+                components_failed=[],
+            )
+        )
+        runtime.health_checker.check_system = AsyncMock(  # type: ignore[method-assign]
+            return_value=SystemHealth(
+                overall_status=HealthStatus.HEALTHY,
+                components={},
+                runtime_identity=runtime.identity,
+            )
+        )
+        runtime.db_manager._connected = True
+        runtime.db_manager._pool = Mock()
+        runtime.redis_manager._connected = True
+        runtime.redis_manager._redis = Mock()
+        runtime.event_bus.register_listener(runtime.risk_runtime.risk_listener)
+        runtime.risk_runtime._listener_registered = True
+
+        runtime.strategy_runtime._started = True
+        runtime.strategy_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
+        runtime.execution_runtime._started = True
+        runtime.execution_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
+        runtime.oms_runtime._started = True
+        runtime.oms_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
+        runtime.opportunity_runtime._started = True
+        runtime.opportunity_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
+        runtime.orchestration_runtime._started = True
+        runtime.orchestration_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
+        runtime.position_expansion_runtime._started = True
+        runtime.position_expansion_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
+        runtime.portfolio_governor_runtime._started = True
+        runtime.portfolio_governor_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
+        runtime.protection_runtime._started = True
+        runtime.protection_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state="ready",
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
+        runtime.manager_runtime._started = True
+        runtime.manager_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state=ManagerRuntimeLifecycleState.READY,
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
+        runtime.validation_runtime._started = True
+        runtime.validation_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state=ValidationRuntimeLifecycleState.READY,
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
+        runtime.paper_runtime._started = True
+        runtime.paper_runtime._refresh_diagnostics(  # type: ignore[attr-defined]
+            ready=True,
+            lifecycle_state=PaperRuntimeLifecycleState.READY,
+            readiness_reasons=(),
+            degraded_reasons=(),
+        )
+
+        await runtime.startup()
+
+        diagnostics = runtime.get_runtime_diagnostics()
+        assert diagnostics["runtime_started"] is True
+        assert diagnostics["runtime_ready"] is False
+        assert "phase6_market_data:not_ready" in diagnostics["degraded_reasons"]
+        assert "c7r_shared_analysis:not_ready" in diagnostics["degraded_reasons"]
+        assert "phase7_intelligence:not_ready" in diagnostics["degraded_reasons"]
+        assert "phase8_signal:not_ready" in diagnostics["degraded_reasons"]
+        assert "phase6_market_data:not_started" not in diagnostics["degraded_reasons"]
+        assert "c7r_shared_analysis:not_started" not in diagnostics["degraded_reasons"]
+        assert "phase7_intelligence:not_started" not in diagnostics["degraded_reasons"]
+        assert "phase8_signal:not_started" not in diagnostics["degraded_reasons"]
+
+    @pytest.mark.asyncio
     async def test_runtime_startup_exposes_degraded_readiness_when_health_is_degraded(self) -> None:
         """Деградированный startup не должен выглядеть как fully ready."""
         runtime = await build_production_runtime(

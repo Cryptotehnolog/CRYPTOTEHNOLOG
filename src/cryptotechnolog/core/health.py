@@ -761,8 +761,6 @@ class HealthChecker:
 
         market_data_runtime = diagnostics.get("market_data_runtime")
         if isinstance(market_data_runtime, dict):
-            if not market_data_runtime.get("started", False):
-                reasons.append("market_data_runtime_not_started")
             if not market_data_runtime.get("ready", False):
                 reasons.append("market_data_runtime_not_ready")
             reasons.extend(
@@ -775,8 +773,6 @@ class HealthChecker:
 
         shared_analysis_runtime = diagnostics.get("shared_analysis_runtime")
         if isinstance(shared_analysis_runtime, dict):
-            if not shared_analysis_runtime.get("started", False):
-                reasons.append("shared_analysis_runtime_not_started")
             if not shared_analysis_runtime.get("ready", False):
                 reasons.append("shared_analysis_runtime_not_ready")
             reasons.extend(
@@ -789,8 +785,6 @@ class HealthChecker:
 
         intelligence_runtime = diagnostics.get("intelligence_runtime")
         if isinstance(intelligence_runtime, dict):
-            if not intelligence_runtime.get("started", False):
-                reasons.append("intelligence_runtime_not_started")
             if not intelligence_runtime.get("ready", False):
                 reasons.append("intelligence_runtime_not_ready")
             reasons.extend(
@@ -803,8 +797,6 @@ class HealthChecker:
 
         signal_runtime = diagnostics.get("signal_runtime")
         if isinstance(signal_runtime, dict):
-            if not signal_runtime.get("started", False):
-                reasons.append("signal_runtime_not_started")
             if not signal_runtime.get("ready", False):
                 reasons.append("signal_runtime_not_ready")
             reasons.extend(str(reason) for reason in signal_runtime.get("readiness_reasons", []))
