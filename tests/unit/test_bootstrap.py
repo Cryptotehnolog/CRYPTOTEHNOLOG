@@ -111,6 +111,7 @@ from cryptotechnolog.position_expansion import (
 )
 from cryptotechnolog.protection import (
     ProtectionDecision,
+    ProtectionEventType,
     ProtectionFreshness,
     ProtectionReasonCode,
     ProtectionSource,
@@ -2895,6 +2896,37 @@ class TestProductionBootstrap:
         assert captured_protection_events[-1].payload["status"] == "candidate"
         assert captured_protection_events[-1].payload["decision"] == "protect"
         assert captured_protection_events[-1].payload["reason_code"] == "governor_not_approved"
+
+    @pytest.mark.asyncio
+    async def test_bootstrap_registers_typed_downstream_event_wiring(self) -> None:
+        """Bootstrap должен регистрировать downstream wiring на official typed event vocabulary."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        for event_type in (
+            ProtectionEventType.PROTECTION_CANDIDATE_UPDATED,
+            ProtectionEventType.PROTECTION_PROTECTED,
+            ProtectionEventType.PROTECTION_HALTED,
+            ProtectionEventType.PROTECTION_FROZEN,
+            ProtectionEventType.PROTECTION_INVALIDATED,
+            ManagerEventType.MANAGER_CANDIDATE_UPDATED,
+            ManagerEventType.MANAGER_WORKFLOW_COORDINATED,
+            ManagerEventType.MANAGER_WORKFLOW_ABSTAINED,
+            ManagerEventType.MANAGER_WORKFLOW_INVALIDATED,
+            ValidationEventType.VALIDATION_CANDIDATE_UPDATED,
+            ValidationEventType.VALIDATION_WORKFLOW_VALIDATED,
+            ValidationEventType.VALIDATION_WORKFLOW_ABSTAINED,
+            ValidationEventType.VALIDATION_WORKFLOW_INVALIDATED,
+        ):
+            assert event_type.value in runtime.event_bus.handlers
+            assert runtime.event_bus.handlers[event_type.value]
 
     @pytest.mark.asyncio
     async def test_protection_event_wiring_marks_manager_runtime_degraded_on_ingest_failure(

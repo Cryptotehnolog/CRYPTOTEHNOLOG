@@ -45,6 +45,7 @@ from cryptotechnolog.execution import (
 from cryptotechnolog.intelligence.runtime import IntelligenceRuntime, create_intelligence_runtime
 from cryptotechnolog.manager import (
     ManagerEventSource,
+    ManagerEventType,
     ManagerRuntime,
     build_manager_event,
     create_manager_runtime,
@@ -94,6 +95,7 @@ from cryptotechnolog.position_expansion import (
 )
 from cryptotechnolog.protection import (
     ProtectionEventSource,
+    ProtectionEventType,
     ProtectionRuntime,
     build_protection_event,
     create_protection_runtime,
@@ -116,6 +118,7 @@ from cryptotechnolog.strategy import (
 )
 from cryptotechnolog.validation import (
     ValidationEventSource,
+    ValidationEventType,
     ValidationRuntime,
     build_validation_event,
     create_validation_runtime,
@@ -1588,55 +1591,55 @@ async def build_production_runtime(  # noqa: PLR0915
         handle_portfolio_governor_event_for_protection,
     )
     event_bus.on(
-        "PROTECTION_CANDIDATE_UPDATED",
+        ProtectionEventType.PROTECTION_CANDIDATE_UPDATED.value,
         handle_protection_event_for_manager,
     )
     event_bus.on(
-        "PROTECTION_PROTECTED",
+        ProtectionEventType.PROTECTION_PROTECTED.value,
         handle_protection_event_for_manager,
     )
     event_bus.on(
-        "PROTECTION_HALTED",
+        ProtectionEventType.PROTECTION_HALTED.value,
         handle_protection_event_for_manager,
     )
     event_bus.on(
-        "PROTECTION_FROZEN",
+        ProtectionEventType.PROTECTION_FROZEN.value,
         handle_protection_event_for_manager,
     )
     event_bus.on(
-        "PROTECTION_INVALIDATED",
+        ProtectionEventType.PROTECTION_INVALIDATED.value,
         handle_protection_event_for_manager,
     )
     event_bus.on(
-        "MANAGER_CANDIDATE_UPDATED",
+        ManagerEventType.MANAGER_CANDIDATE_UPDATED.value,
         handle_manager_event_for_validation,
     )
     event_bus.on(
-        "MANAGER_WORKFLOW_COORDINATED",
+        ManagerEventType.MANAGER_WORKFLOW_COORDINATED.value,
         handle_manager_event_for_validation,
     )
     event_bus.on(
-        "MANAGER_WORKFLOW_ABSTAINED",
+        ManagerEventType.MANAGER_WORKFLOW_ABSTAINED.value,
         handle_manager_event_for_validation,
     )
     event_bus.on(
-        "MANAGER_WORKFLOW_INVALIDATED",
+        ManagerEventType.MANAGER_WORKFLOW_INVALIDATED.value,
         handle_manager_event_for_validation,
     )
     event_bus.on(
-        "VALIDATION_CANDIDATE_UPDATED",
+        ValidationEventType.VALIDATION_CANDIDATE_UPDATED.value,
         handle_validation_event_for_paper,
     )
     event_bus.on(
-        "VALIDATION_WORKFLOW_VALIDATED",
+        ValidationEventType.VALIDATION_WORKFLOW_VALIDATED.value,
         handle_validation_event_for_paper,
     )
     event_bus.on(
-        "VALIDATION_WORKFLOW_ABSTAINED",
+        ValidationEventType.VALIDATION_WORKFLOW_ABSTAINED.value,
         handle_validation_event_for_paper,
     )
     event_bus.on(
-        "VALIDATION_WORKFLOW_INVALIDATED",
+        ValidationEventType.VALIDATION_WORKFLOW_INVALIDATED.value,
         handle_validation_event_for_paper,
     )
 
