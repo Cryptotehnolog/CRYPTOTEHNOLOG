@@ -72,6 +72,12 @@ from cryptotechnolog.orchestration import (
     build_orchestration_event,
     create_orchestration_runtime,
 )
+from cryptotechnolog.paper import (
+    PaperEventSource,
+    PaperRuntime,
+    build_paper_event,
+    create_paper_runtime,
+)
 from cryptotechnolog.portfolio_governor import (
     PortfolioGovernorEventSource,
     PortfolioGovernorEventType,
@@ -165,6 +171,7 @@ class ProductionRuntime:
     protection_runtime: ProtectionRuntime
     manager_runtime: ManagerRuntime
     validation_runtime: ValidationRuntime
+    paper_runtime: PaperRuntime
     startup_result: StartupResult | None = None
     shutdown_result: ShutdownResult | None = None
     last_health: SystemHealth | None = None
@@ -384,6 +391,8 @@ class ProductionRuntime:
             raise ProductionBootstrapError("Phase 17 manager runtime не подключён к Event Bus")
         if not self.validation_runtime.is_started:
             raise ProductionBootstrapError("Phase 18 validation runtime не подключён к Event Bus")
+        if not self.paper_runtime.is_started:
+            raise ProductionBootstrapError("Phase 19 paper runtime не подключён к Event Bus")
         registered_risk_paths = {
             resolved_path
             for listener in self.listener_registry.all_listeners
@@ -401,7 +410,7 @@ class ProductionRuntime:
                 "Production Event Bus не форсирует single-risk-path policy"
             )
 
-    async def _ensure_component_cleanup(self) -> None:  # noqa: PLR0912
+    async def _ensure_component_cleanup(self) -> None:  # noqa: PLR0912,PLR0915
         """Дочистить компоненты, если контроллер не остановил их сам."""
         if self.risk_runtime.is_started:
             with contextlib.suppress(Exception):
@@ -442,6 +451,9 @@ class ProductionRuntime:
         if self.validation_runtime.is_started:
             with contextlib.suppress(Exception):
                 await self.validation_runtime.stop()
+        if self.paper_runtime.is_started:
+            with contextlib.suppress(Exception):
+                await self.paper_runtime.stop()
         if getattr(self.event_bus, "pending_tasks", None):
             with contextlib.suppress(Exception):
                 await self.event_bus.shutdown()
@@ -673,6 +685,21 @@ class ProductionRuntime:
             validation_runtime.get("degraded_reasons", []),
         )
         reasons.extend(f"phase18_validation:{reason}" for reason in degraded_reason_values)
+        paper_runtime = self.paper_runtime.get_runtime_diagnostics()
+        if not paper_runtime.get("started", False):
+            reasons.append("phase19_paper:not_started")
+        if not paper_runtime.get("ready", False):
+            reasons.append("phase19_paper:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            paper_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"phase19_paper:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            paper_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"phase19_paper:{reason}" for reason in degraded_reason_values)
         return reasons
 
 
@@ -833,6 +860,9 @@ async def build_production_runtime(  # noqa: PLR0915
     def update_validation_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
         health_checker.set_runtime_diagnostics(validation_runtime=diagnostics)
 
+    def update_paper_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(paper_runtime=diagnostics)
+
     intelligence_runtime = create_intelligence_runtime(
         diagnostics_sink=update_intelligence_runtime_diagnostics,
     )
@@ -970,6 +1000,16 @@ async def build_production_runtime(  # noqa: PLR0915
     controller.register_component(
         name="phase18_validation_runtime",
         component=validation_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+    paper_runtime = create_paper_runtime(
+        diagnostics_sink=update_paper_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase19_paper_runtime",
+        component=paper_runtime,
         required=False,
         health_check_enabled=False,
         shutdown_timeout=15.0,
@@ -1354,6 +1394,18 @@ async def build_production_runtime(  # noqa: PLR0915
                 return order
         return None
 
+    def get_adjacent_oms_order_for_paper(
+        *,
+        exchange: str,
+        symbol: str,
+        timeframe: MarketDataTimeframe,
+    ) -> OmsOrderRecord | None:
+        return get_adjacent_oms_order_for_validation(
+            exchange=exchange,
+            symbol=symbol,
+            timeframe=timeframe,
+        )
+
     async def handle_manager_event_for_validation(event: Event) -> None:
         try:
             payload = cast("dict[str, object]", event.payload)
@@ -1400,6 +1452,47 @@ async def build_production_runtime(  # noqa: PLR0915
         except Exception as exc:
             validation_runtime.mark_degraded(f"review_ingest_failed:{exc}")
             raise RuntimeError(f"validation_review_ingest_failed:{exc}") from exc
+
+    async def handle_validation_event_for_paper(event: Event) -> None:
+        try:
+            payload = cast("dict[str, object]", event.payload)
+            symbol = cast("str", payload["symbol"])
+            exchange = cast("str", payload["exchange"])
+            timeframe = MarketDataTimeframe(cast("str", payload["timeframe"]))
+            generated_at = datetime.fromisoformat(cast("str", payload["generated_at"]))
+            key = (symbol, exchange, timeframe)
+            validation = validation_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            ) or validation_runtime.get_historical_candidate(key)
+            manager = manager_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            ) or manager_runtime.get_historical_candidate(key)
+            oms_order = get_adjacent_oms_order_for_paper(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            update = paper_runtime.ingest_truths(
+                manager=manager,
+                validation=validation,
+                oms_order=oms_order,
+                reference_time=generated_at,
+            )
+            if update.event_type is not None and update.emitted_payload is not None:
+                await event_bus.publish(
+                    build_paper_event(
+                        event_type=update.event_type,
+                        payload=update.emitted_payload,
+                        source=PaperEventSource.PAPER_RUNTIME.value,
+                    )
+                )
+        except Exception as exc:
+            paper_runtime.mark_degraded(f"rehearsal_ingest_failed:{exc}")
+            raise RuntimeError(f"paper_rehearsal_ingest_failed:{exc}") from exc
 
     event_bus.on(SystemEventType.BAR_COMPLETED, handle_market_data_bar_completed_for_intelligence)
     event_bus.on(
@@ -1530,6 +1623,22 @@ async def build_production_runtime(  # noqa: PLR0915
         "MANAGER_WORKFLOW_INVALIDATED",
         handle_manager_event_for_validation,
     )
+    event_bus.on(
+        "VALIDATION_CANDIDATE_UPDATED",
+        handle_validation_event_for_paper,
+    )
+    event_bus.on(
+        "VALIDATION_WORKFLOW_VALIDATED",
+        handle_validation_event_for_paper,
+    )
+    event_bus.on(
+        "VALIDATION_WORKFLOW_ABSTAINED",
+        handle_validation_event_for_paper,
+    )
+    event_bus.on(
+        "VALIDATION_WORKFLOW_INVALIDATED",
+        handle_validation_event_for_paper,
+    )
 
     runtime = ProductionRuntime(
         settings=runtime_settings,
@@ -1563,6 +1672,7 @@ async def build_production_runtime(  # noqa: PLR0915
         protection_runtime=protection_runtime,
         manager_runtime=manager_runtime,
         validation_runtime=validation_runtime,
+        paper_runtime=paper_runtime,
     )
     runtime._update_runtime_diagnostics(
         composition_root_built=True,

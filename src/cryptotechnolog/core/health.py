@@ -936,6 +936,17 @@ class HealthChecker:
                 f"validation:{reason}" for reason in validation_runtime.get("degraded_reasons", [])
             )
 
+        paper_runtime = diagnostics.get("paper_runtime")
+        if isinstance(paper_runtime, dict):
+            if not paper_runtime.get("started", False):
+                reasons.append("paper_runtime_not_started")
+            if not paper_runtime.get("ready", False):
+                reasons.append("paper_runtime_not_ready")
+            reasons.extend(str(reason) for reason in paper_runtime.get("readiness_reasons", []))
+            reasons.extend(
+                f"paper:{reason}" for reason in paper_runtime.get("degraded_reasons", [])
+            )
+
         for component_name, component_health in components.items():
             if component_health.status != HealthStatus.HEALTHY:
                 reasons.append(f"{component_name}:{component_health.status.value}")
