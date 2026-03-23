@@ -410,7 +410,7 @@ jobs:
           uv pip install pip-audit safety
 
       - name: Run pip-audit
-        run: .venv/bin/pip-audit -r requirements.txt || true
+        run: .venv/bin/pip-audit -r requirements.txt
 
       - name: Run safety
         run: .venv/bin/safety check -r requirements.txt || true
