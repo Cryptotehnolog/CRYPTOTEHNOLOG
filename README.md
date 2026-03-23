@@ -23,8 +23,8 @@
 
 ### Мультиязычная архитектура
 
-Ниже показана честная current architecture truth после closure-ready `P_18`
-как узкой `Validation Foundation`,
+Ниже показана честная current architecture truth после closure-ready `P_19`
+как узкой `Paper Trading Foundation`,
 с отдельной пометкой для следующих planned contours.
 
 ```text
@@ -55,7 +55,8 @@ CRYPTOTEHNOLOG Platform
 │   ├── Position Expansion Foundation
 │   ├── Portfolio Governor / Capital Governance Foundation
 │   ├── Strategy Manager / Workflow Foundation
-│   └── Validation Foundation
+│   ├── Validation Foundation
+│   └── Paper Trading Foundation
 │
 ├── Observability (Python + Web)
 │   ├── Metrics Collector (Python)
@@ -77,7 +78,7 @@ CRYPTOTEHNOLOG Platform
 | **Секреты** | Infisical, `.env` | Управление секретами |
 | **Наблюдаемость** | Grafana, Prometheus | Метрики и мониторинг |
 | **Контейнеризация** | Docker, Docker Compose | Среда разработки |
-| **Оркестрация** | Kubernetes | Production deployment (`Phase 19`) |
+| **Оркестрация** | Kubernetes | Production deployment (future deployment line) |
 | **CI/CD** | GitHub Actions | Автоматические проверки и deployment |
 
 ---
@@ -106,7 +107,7 @@ CRYPTOTEHNOLOG Platform
 | 16 | OMS Foundation | ✅ Closure-Ready | v1.16.0 |
 | 17 | Strategy Manager / Workflow Foundation | ✅ Closure-Ready | v1.17.0 |
 | 18 | Validation Foundation | ✅ Closure-Ready | v1.18.0 |
-| 19 | Deployment | ⏳ Planned | v1.19.0 |
+| 19 | Paper Trading Foundation | ✅ Closure-Ready | v1.19.0 |
 
 ---
 
@@ -368,11 +369,12 @@ cargo test
 
 ---
 
-## Ближайшие следующие линии после P_17
+## Ближайшие следующие линии после P_19
 
-После closure-ready реализации `P_17` ближайшая нормализованная последовательность фаз выглядит так:
+После closure-ready реализации `P_19`
+ближайшая нормализованная последовательность фаз выглядит так:
 
-- `P_18+` — validation-supporting и follow-up lines поверх уже отделённых execution / oms / governor / protection / manager contours
+- `P_19+` — paper-supporting, deployment-supporting и другие future lines только после отдельной нормализации authoritative phase truth
 
 Это предварительная roadmap truth.
 Authoritative implementation truth для каждой из этих фаз должна открываться отдельно через
@@ -697,6 +699,41 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ---
 
+## Phase 19 Paper Trading Foundation
+
+`Phase 19` доведена до closure-ready состояния как узкая, production-compatible линия:
+`Paper Trading Foundation`.
+
+В реализованный scope `P_19` входят:
+
+- package foundation в `src/cryptotechnolog/paper`;
+- typed paper / rehearsal contracts;
+- explicit `PaperRuntime`;
+- deterministic `PaperContext` assembly внутри paper layer;
+- один узкий deterministic rehearsal contour с `REHEARSED` / `ABSTAINED`;
+- query/state-first paper surface;
+- narrow composition-root integration через existing typed truths:
+  - `manager`
+  - `validation`
+  - optional adjacent `oms`
+- operator-visible paper diagnostics / readiness / degraded truth;
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения closure-ready `P_19`:
+
+- это не analytics / reporting platform;
+- это не backtesting / replay engine;
+- это не dashboard / operator line;
+- это не notifications / approval workflow line;
+- это не liquidation / ops line;
+- это не `Execution`;
+- это не `OMS`;
+- это не `Manager`;
+- это не `Validation`;
+- `backtest` и `dashboard` не поглощаются текущим paper contour.
+
+---
+
 ## Структура проекта
 
 ```text
@@ -719,6 +756,7 @@ CRYPTOTEHNOLOG/
 │   ├── oms/                      # OMS foundation (closure-ready)
 │   ├── manager/                  # Strategy manager / workflow foundation (closure-ready)
 │   ├── validation/               # Validation foundation (closure-ready)
+│   ├── paper/                    # Paper trading foundation (closure-ready)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -855,5 +893,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.18.0`  
-**Последнее обновление:** `2026-03-23`
+**Версия:** `v1.19.0`  
+**Последнее обновление:** `2026-03-24`

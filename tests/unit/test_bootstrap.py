@@ -715,6 +715,41 @@ def make_validated_validation_candidate() -> ValidationReviewCandidate:
     )
 
 
+def make_invalidated_validation_candidate() -> ValidationReviewCandidate:
+    now = datetime(2026, 3, 20, 12, 6, tzinfo=UTC)
+    manager = make_coordinated_manager_candidate()
+    governor = make_approved_portfolio_governor_candidate()
+    protection = make_protected_protection_candidate()
+    oms_order = make_active_oms_order()
+    return ValidationReviewCandidate.candidate(
+        contour_name="phase18_validation_contour",
+        validation_name="phase18_validation",
+        symbol=manager.symbol,
+        exchange=manager.exchange,
+        timeframe=manager.timeframe,
+        source=ValidationSource.RUNTIME_FOUNDATIONS,
+        freshness=ValidationFreshness(
+            generated_at=now,
+            expires_at=now.replace(minute=11),
+        ),
+        validity=ValidationValidity(
+            status=ValidationValidityStatus.INVALID,
+            observed_inputs=4,
+            required_inputs=4,
+            invalid_reason="validation_invalidated",
+        ),
+        decision=ValidationDecision.ABSTAIN,
+        status=ValidationStatus.INVALIDATED,
+        originating_workflow_id=manager.workflow_id,
+        originating_governor_id=governor.governor_id,
+        originating_protection_id=protection.protection_id,
+        originating_oms_order_id=oms_order.oms_order_id,
+        confidence=Decimal("0.8"),
+        review_score=Decimal("1.0"),
+        reason_code=ValidationReasonCode.VALIDATION_INVALIDATED,
+    )
+
+
 def _fake_shutdown_with_component_stop(
     runtime,
     *,
@@ -3357,6 +3392,101 @@ class TestProductionBootstrap:
         assert captured_paper_events
         assert captured_paper_events[-1].payload["status"] == "rehearsed"
         assert captured_paper_events[-1].payload["decision"] == "rehearse"
+
+    @pytest.mark.asyncio
+    async def test_validation_invalidated_event_publishes_paper_rehearsal_invalidated_update(
+        self,
+    ) -> None:
+        """Historical validation invalidation должна публиковать узкий PAPER_REHEARSAL_INVALIDATED path."""
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        await runtime.paper_runtime.start()
+        runtime.validation_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_validated_validation_candidate()
+        )
+        runtime.validation_runtime.get_historical_candidate = Mock(  # type: ignore[method-assign]
+            return_value=None
+        )
+        runtime.manager_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=make_coordinated_manager_candidate()
+        )
+        runtime.manager_runtime.get_historical_candidate = Mock(  # type: ignore[method-assign]
+            return_value=None
+        )
+        runtime.oms_runtime.list_active_orders = Mock(  # type: ignore[method-assign]
+            return_value=(make_active_oms_order(),)
+        )
+        runtime.oms_runtime.list_historical_orders = Mock(  # type: ignore[method-assign]
+            return_value=()
+        )
+        rehearsed_handler = runtime.event_bus.handlers[
+            ValidationEventType.VALIDATION_WORKFLOW_VALIDATED.value
+        ][0]
+        rehearsed_validation = make_validated_validation_candidate()
+        rehearsed_event = Event.new(
+            ValidationEventType.VALIDATION_WORKFLOW_VALIDATED.value,
+            "VALIDATION_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": rehearsed_validation.freshness.generated_at.isoformat(),
+            },
+        )
+
+        await rehearsed_handler(rehearsed_event)
+
+        invalidated_validation = make_invalidated_validation_candidate()
+        runtime.validation_runtime.get_candidate = Mock(  # type: ignore[method-assign]
+            return_value=None
+        )
+        runtime.validation_runtime.get_historical_candidate = Mock(  # type: ignore[method-assign]
+            return_value=invalidated_validation
+        )
+        captured_paper_events: list[Event] = []
+        runtime.event_bus.on(
+            PaperEventType.PAPER_REHEARSAL_INVALIDATED.value,
+            captured_paper_events.append,
+        )
+        invalidated_handler = runtime.event_bus.handlers[
+            ValidationEventType.VALIDATION_WORKFLOW_INVALIDATED.value
+        ][0]
+        invalidated_event = Event.new(
+            ValidationEventType.VALIDATION_WORKFLOW_INVALIDATED.value,
+            "VALIDATION_RUNTIME",
+            {
+                "symbol": "BTC/USDT",
+                "exchange": "bybit",
+                "timeframe": MarketDataTimeframe.M1.value,
+                "generated_at": invalidated_validation.freshness.generated_at.isoformat(),
+            },
+        )
+
+        await invalidated_handler(invalidated_event)
+
+        key = ("BTC/USDT", "bybit", MarketDataTimeframe.M1)
+        candidate = runtime.paper_runtime.get_candidate(key)
+        historical = runtime.paper_runtime.get_historical_candidate(key)
+        diagnostics = runtime.paper_runtime.get_runtime_diagnostics()
+
+        assert candidate is None
+        assert historical is not None
+        assert historical.status.value == "invalidated"
+        assert historical.decision.value == "abstain"
+        assert diagnostics["tracked_active_rehearsals"] == 0
+        assert diagnostics["tracked_historical_rehearsals"] == 1
+        assert diagnostics["last_event_type"] == PaperEventType.PAPER_REHEARSAL_INVALIDATED.value
+        assert captured_paper_events
+        assert captured_paper_events[-1].payload["status"] == "invalidated"
+        assert captured_paper_events[-1].payload["decision"] == "abstain"
 
     @pytest.mark.asyncio
     async def test_composition_root_keeps_market_data_bar_boundary_separate_from_risk_listener(
