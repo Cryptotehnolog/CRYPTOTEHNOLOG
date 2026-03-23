@@ -2758,8 +2758,9 @@ class TestProductionBootstrap:
         runtime.portfolio_governor_runtime.get_candidate = Mock(  # type: ignore[method-assign]
             return_value=make_approved_portfolio_governor_candidate()
         )
+        protection_candidate = make_protected_protection_candidate()
         runtime.protection_runtime.get_candidate = Mock(  # type: ignore[method-assign]
-            return_value=make_protected_protection_candidate()
+            return_value=protection_candidate
         )
         captured_manager_events: list[Event] = []
         runtime.event_bus.on(
@@ -2774,7 +2775,7 @@ class TestProductionBootstrap:
                 "symbol": "BTC/USDT",
                 "exchange": "bybit",
                 "timeframe": MarketDataTimeframe.M1.value,
-                "generated_at": datetime.now(UTC).isoformat(),
+                "generated_at": protection_candidate.freshness.generated_at.isoformat(),
             },
         )
 
