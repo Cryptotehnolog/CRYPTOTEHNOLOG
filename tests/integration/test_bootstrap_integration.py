@@ -777,9 +777,9 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_execution_runtime_publishes_intent_updated_for_non_executable_strategy_candidate() -> (  # noqa: PLR0915
+async def test_execution_runtime_publishes_intent_updated_for_non_executable_strategy_candidate() -> (
     None
-):
+):  # noqa: PLR0915
     """Integrated execution wiring не должен маскировать non-executable candidate как request."""
     runtime = await build_production_runtime(
         settings=_make_settings(),
@@ -1306,9 +1306,9 @@ async def test_intelligence_runtime_ingest_failure_is_visible_in_runtime_truth()
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_runtime_truth() -> (  # noqa: PLR0915
+async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_runtime_truth() -> (
     None
-):
+):  # noqa: PLR0915
     """Signal runtime не должен маскировать incomplete context как ready."""
     runtime = await build_production_runtime(
         settings=_make_settings(),

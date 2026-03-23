@@ -155,7 +155,7 @@ jobs:
         run: |
           .venv/bin/ruff check src/ tests/ --select F821,I002
           .venv/bin/ruff check src/ tests/
-          .venv/bin/ruff format --check src/ tests/
+          .venv/bin/ruff format --check --preview src/ tests/
 
       - name: Run type checker (mypy)
         run: |
@@ -518,4 +518,3 @@ jobs:
           needs.docker-build.result == 'failure' ||
           needs.code-quality.result == 'failure'
         run: exit 1
-

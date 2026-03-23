@@ -81,21 +81,17 @@ class GPGSigner(IConfigSigner):
     """
 
     # Файлы, которые требуют подписи в production
-    PRODUCTION_SIGNED_FILES: frozenset[str] = frozenset(
-        {
-            "config/prod/",
-            "config/staging/",
-        }
-    )
+    PRODUCTION_SIGNED_FILES: frozenset[str] = frozenset({
+        "config/prod/",
+        "config/staging/",
+    })
 
     # Файлы, которые не требуют подписи
-    UNSIGNED_FILES: frozenset[str] = frozenset(
-        {
-            ".env.example",
-            "config/dev/",
-            "config/local/",
-        }
-    )
+    UNSIGNED_FILES: frozenset[str] = frozenset({
+        ".env.example",
+        "config/dev/",
+        "config/local/",
+    })
 
     def __init__(
         self,
