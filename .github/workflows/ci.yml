@@ -157,21 +157,19 @@ jobs:
           .venv/bin/ruff check src/ tests/
           .venv/bin/ruff format --check --preview src/ tests/
 
-      - name: Run type checker (mypy)
+      - name: Run critical runtime type checker (mypy)
         run: |
-          .venv/bin/mypy -m cryptotechnolog \
-            -m cryptotechnolog.core \
-            -m cryptotechnolog.backtest \
-            -m cryptotechnolog.data \
-            -m cryptotechnolog.config \
-            -m cryptotechnolog.risk \
-            -m cryptotechnolog.analysis \
+          .venv/bin/mypy \
             -m cryptotechnolog.execution \
-            -m cryptotechnolog.intelligence \
-            -m cryptotechnolog.models \
-            -m cryptotechnolog.observability \
-            -m cryptotechnolog.strategy
-        continue-on-error: true
+            -m cryptotechnolog.oms \
+            -m cryptotechnolog.opportunity \
+            -m cryptotechnolog.orchestration \
+            -m cryptotechnolog.position_expansion \
+            -m cryptotechnolog.portfolio_governor \
+            -m cryptotechnolog.protection \
+            -m cryptotechnolog.manager \
+            -m cryptotechnolog.validation \
+            -m cryptotechnolog.paper
 
       - name: Run unit tests (without DB - parallel with retry)
         run: .venv/bin/python -m pytest tests/unit/ -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml --reruns 3 --reruns-delay 1
