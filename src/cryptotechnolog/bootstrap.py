@@ -108,10 +108,17 @@ from cryptotechnolog.strategy import (
     build_strategy_event,
     create_strategy_runtime,
 )
+from cryptotechnolog.validation import (
+    ValidationEventSource,
+    ValidationRuntime,
+    build_validation_event,
+    create_validation_runtime,
+)
 
 if TYPE_CHECKING:
     from cryptotechnolog.analysis import RiskDerivedInputsSnapshot
     from cryptotechnolog.market_data import OrderBookSnapshotContract
+    from cryptotechnolog.oms import OmsOrderRecord
 
 
 class ProductionBootstrapError(RuntimeError):
@@ -157,6 +164,7 @@ class ProductionRuntime:
     portfolio_governor_runtime: PortfolioGovernorRuntime
     protection_runtime: ProtectionRuntime
     manager_runtime: ManagerRuntime
+    validation_runtime: ValidationRuntime
     startup_result: StartupResult | None = None
     shutdown_result: ShutdownResult | None = None
     last_health: SystemHealth | None = None
@@ -374,6 +382,8 @@ class ProductionRuntime:
             raise ProductionBootstrapError("Phase 15 protection runtime не подключён к Event Bus")
         if not self.manager_runtime.is_started:
             raise ProductionBootstrapError("Phase 17 manager runtime не подключён к Event Bus")
+        if not self.validation_runtime.is_started:
+            raise ProductionBootstrapError("Phase 18 validation runtime не подключён к Event Bus")
         registered_risk_paths = {
             resolved_path
             for listener in self.listener_registry.all_listeners
@@ -429,6 +439,9 @@ class ProductionRuntime:
         if self.manager_runtime.is_started:
             with contextlib.suppress(Exception):
                 await self.manager_runtime.stop()
+        if self.validation_runtime.is_started:
+            with contextlib.suppress(Exception):
+                await self.validation_runtime.stop()
         if getattr(self.event_bus, "pending_tasks", None):
             with contextlib.suppress(Exception):
                 await self.event_bus.shutdown()
@@ -645,6 +658,21 @@ class ProductionRuntime:
             manager_runtime.get("degraded_reasons", []),
         )
         reasons.extend(f"phase17_manager:{reason}" for reason in degraded_reason_values)
+        validation_runtime = self.validation_runtime.get_runtime_diagnostics()
+        if not validation_runtime.get("started", False):
+            reasons.append("phase18_validation:not_started")
+        if not validation_runtime.get("ready", False):
+            reasons.append("phase18_validation:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            validation_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"phase18_validation:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            validation_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"phase18_validation:{reason}" for reason in degraded_reason_values)
         return reasons
 
 
@@ -802,6 +830,9 @@ async def build_production_runtime(  # noqa: PLR0915
     def update_manager_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
         health_checker.set_runtime_diagnostics(manager_runtime=diagnostics)
 
+    def update_validation_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(validation_runtime=diagnostics)
+
     intelligence_runtime = create_intelligence_runtime(
         diagnostics_sink=update_intelligence_runtime_diagnostics,
     )
@@ -929,6 +960,16 @@ async def build_production_runtime(  # noqa: PLR0915
     controller.register_component(
         name="phase17_manager_runtime",
         component=manager_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+    validation_runtime = create_validation_runtime(
+        diagnostics_sink=update_validation_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase18_validation_runtime",
+        component=validation_runtime,
         required=False,
         health_check_enabled=False,
         shutdown_timeout=15.0,
@@ -1291,6 +1332,75 @@ async def build_production_runtime(  # noqa: PLR0915
             manager_runtime.mark_degraded(f"workflow_ingest_failed:{exc}")
             raise RuntimeError(f"manager_workflow_ingest_failed:{exc}") from exc
 
+    def get_adjacent_oms_order_for_validation(
+        *,
+        exchange: str,
+        symbol: str,
+        timeframe: MarketDataTimeframe,
+    ) -> OmsOrderRecord | None:
+        for order in oms_runtime.list_active_orders():
+            if (
+                order.exchange == exchange
+                and order.symbol == symbol
+                and order.timeframe == timeframe
+            ):
+                return order
+        for order in oms_runtime.list_historical_orders():
+            if (
+                order.exchange == exchange
+                and order.symbol == symbol
+                and order.timeframe == timeframe
+            ):
+                return order
+        return None
+
+    async def handle_manager_event_for_validation(event: Event) -> None:
+        try:
+            payload = cast("dict[str, object]", event.payload)
+            symbol = cast("str", payload["symbol"])
+            exchange = cast("str", payload["exchange"])
+            timeframe = MarketDataTimeframe(cast("str", payload["timeframe"]))
+            generated_at = datetime.fromisoformat(cast("str", payload["generated_at"]))
+            key = (symbol, exchange, timeframe)
+            manager = manager_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            ) or manager_runtime.get_historical_candidate(key)
+            governor = portfolio_governor_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            protection = protection_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            oms_order = get_adjacent_oms_order_for_validation(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            update = validation_runtime.ingest_truths(
+                manager=manager,
+                governor=governor,
+                protection=protection,
+                oms_order=oms_order,
+                reference_time=generated_at,
+            )
+            if update.event_type is not None and update.emitted_payload is not None:
+                await event_bus.publish(
+                    build_validation_event(
+                        event_type=update.event_type,
+                        payload=update.emitted_payload,
+                        source=ValidationEventSource.VALIDATION_RUNTIME.value,
+                    )
+                )
+        except Exception as exc:
+            validation_runtime.mark_degraded(f"review_ingest_failed:{exc}")
+            raise RuntimeError(f"validation_review_ingest_failed:{exc}") from exc
+
     event_bus.on(SystemEventType.BAR_COMPLETED, handle_market_data_bar_completed_for_intelligence)
     event_bus.on(
         SystemEventType.BAR_COMPLETED,
@@ -1404,6 +1514,22 @@ async def build_production_runtime(  # noqa: PLR0915
         "PROTECTION_INVALIDATED",
         handle_protection_event_for_manager,
     )
+    event_bus.on(
+        "MANAGER_CANDIDATE_UPDATED",
+        handle_manager_event_for_validation,
+    )
+    event_bus.on(
+        "MANAGER_WORKFLOW_COORDINATED",
+        handle_manager_event_for_validation,
+    )
+    event_bus.on(
+        "MANAGER_WORKFLOW_ABSTAINED",
+        handle_manager_event_for_validation,
+    )
+    event_bus.on(
+        "MANAGER_WORKFLOW_INVALIDATED",
+        handle_manager_event_for_validation,
+    )
 
     runtime = ProductionRuntime(
         settings=runtime_settings,
@@ -1436,6 +1562,7 @@ async def build_production_runtime(  # noqa: PLR0915
         portfolio_governor_runtime=portfolio_governor_runtime,
         protection_runtime=protection_runtime,
         manager_runtime=manager_runtime,
+        validation_runtime=validation_runtime,
     )
     runtime._update_runtime_diagnostics(
         composition_root_built=True,

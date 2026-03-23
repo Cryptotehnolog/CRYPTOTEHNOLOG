@@ -23,8 +23,8 @@
 
 ### Мультиязычная архитектура
 
-Ниже показана честная current architecture truth после closure-ready `P_17`
-как узкой `Strategy Manager / Workflow Foundation`,
+Ниже показана честная current architecture truth после closure-ready `P_18`
+как узкой `Validation Foundation`,
 с отдельной пометкой для следующих planned contours.
 
 ```text
@@ -54,7 +54,8 @@ CRYPTOTEHNOLOG Platform
 │   ├── Strategy Orchestration / Meta Layer
 │   ├── Position Expansion Foundation
 │   ├── Portfolio Governor / Capital Governance Foundation
-│   └── Strategy Manager / Workflow Foundation
+│   ├── Strategy Manager / Workflow Foundation
+│   └── Validation Foundation
 │
 ├── Observability (Python + Web)
 │   ├── Metrics Collector (Python)
@@ -104,7 +105,7 @@ CRYPTOTEHNOLOG Platform
 | 15 | Protection / Supervisor Foundation | ✅ Closure-Ready | v1.15.0 |
 | 16 | OMS Foundation | ✅ Closure-Ready | v1.16.0 |
 | 17 | Strategy Manager / Workflow Foundation | ✅ Closure-Ready | v1.17.0 |
-| 18 | Validation line | ⏳ Planned | v1.18.0 |
+| 18 | Validation Foundation | ✅ Closure-Ready | v1.18.0 |
 | 19 | Deployment | ⏳ Planned | v1.19.0 |
 
 ---
@@ -659,6 +660,43 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ---
 
+## Phase 18 Validation Foundation
+
+`Phase 18` доведена до closure-ready состояния как узкая, production-compatible линия:
+`Validation Foundation`.
+
+В реализованный scope `P_18` входят:
+
+- package foundation в `src/cryptotechnolog/validation`;
+- typed validation / review contracts;
+- explicit `ValidationRuntime`;
+- deterministic `ValidationContext` assembly внутри validation layer;
+- один узкий deterministic validation contour с `VALIDATED` / `ABSTAINED`;
+- query/state-first validation surface;
+- narrow composition-root integration через existing typed truths:
+  - `manager`
+  - `portfolio_governor`
+  - `protection`
+  - optional adjacent `oms`
+- operator-visible validation diagnostics / readiness / degraded truth;
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения closure-ready `P_18`:
+
+- это не analytics / reporting platform;
+- это не full benchmark / optimization / Monte Carlo / walk-forward line;
+- это не backtesting engine;
+- это не paper trading system;
+- это не dashboard / UI line;
+- это не notifications / approval workflow line;
+- это не liquidation / ops line;
+- это не `Execution`;
+- это не `OMS`;
+- это не `Manager`;
+- broader strategy comparison / ranking ownership не входит в текущий scope.
+
+---
+
 ## Структура проекта
 
 ```text
@@ -680,6 +718,7 @@ CRYPTOTEHNOLOG/
 │   ├── protection/               # Protection / supervisor foundation (closure-ready)
 │   ├── oms/                      # OMS foundation (closure-ready)
 │   ├── manager/                  # Strategy manager / workflow foundation (closure-ready)
+│   ├── validation/               # Validation foundation (closure-ready)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -816,5 +855,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.17.0`  
+**Версия:** `v1.18.0`  
 **Последнее обновление:** `2026-03-23`
