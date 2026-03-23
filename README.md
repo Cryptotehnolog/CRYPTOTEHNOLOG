@@ -23,9 +23,9 @@
 
 ### Мультиязычная архитектура
 
-Ниже показана честная current architecture truth после closure-ready `P_15`
-и уже открытой `P_16` как узкой `OMS Foundation`, с отдельной пометкой для
-следующих planned contours.
+Ниже показана честная current architecture truth после closure-ready `P_17`
+как узкой `Strategy Manager / Workflow Foundation`,
+с отдельной пометкой для следующих planned contours.
 
 ```text
 CRYPTOTEHNOLOG Platform
@@ -53,7 +53,8 @@ CRYPTOTEHNOLOG Platform
 │   ├── Opportunity / Selection Foundation
 │   ├── Strategy Orchestration / Meta Layer
 │   ├── Position Expansion Foundation
-│   └── Portfolio Governor / Capital Governance Foundation
+│   ├── Portfolio Governor / Capital Governance Foundation
+│   └── Strategy Manager / Workflow Foundation
 │
 ├── Observability (Python + Web)
 │   ├── Metrics Collector (Python)
@@ -102,7 +103,8 @@ CRYPTOTEHNOLOG Platform
 | 14 | Portfolio Governor / Capital Governance Foundation | ✅ Done | v1.14.0 |
 | 15 | Protection / Supervisor Foundation | ✅ Closure-Ready | v1.15.0 |
 | 16 | OMS Foundation | ✅ Closure-Ready | v1.16.0 |
-| 17-18 | Manager / Validation lines | ⏳ Planned | v1.17.0-v1.18.0 |
+| 17 | Strategy Manager / Workflow Foundation | ✅ Closure-Ready | v1.17.0 |
+| 18 | Validation line | ⏳ Planned | v1.18.0 |
 | 19 | Deployment | ⏳ Planned | v1.19.0 |
 
 ---
@@ -365,11 +367,11 @@ cargo test
 
 ---
 
-## Ближайшие следующие линии после P_16
+## Ближайшие следующие линии после P_17
 
-После closure-ready реализации `P_16` ближайшая нормализованная последовательность фаз выглядит так:
+После closure-ready реализации `P_17` ближайшая нормализованная последовательность фаз выглядит так:
 
-- `P_17+` — broader manager / validation-supporting lines
+- `P_18+` — validation-supporting и follow-up lines поверх уже отделённых execution / oms / governor / protection / manager contours
 
 Это предварительная roadmap truth.
 Authoritative implementation truth для каждой из этих фаз должна открываться отдельно через
@@ -621,6 +623,42 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ---
 
+## Phase 17 Strategy Manager / Workflow Foundation
+
+`Phase 17` доведена до closure-ready состояния как узкая, production-compatible линия:
+`Strategy Manager / Workflow Foundation`.
+
+В реализованный scope `P_17` входят:
+
+- package foundation в `src/cryptotechnolog/manager`;
+- typed manager / workflow contracts;
+- explicit `ManagerRuntime`;
+- deterministic `ManagerContext` assembly внутри manager layer;
+- один узкий deterministic coordination contour с `COORDINATED` / `ABSTAINED`;
+- query/state-first manager surface;
+- narrow composition-root integration через existing typed truths:
+  - `opportunity`
+  - `orchestration`
+  - `position_expansion`
+  - `portfolio_governor`
+  - `protection`
+- operator-visible manager diagnostics / readiness / degraded truth;
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения closure-ready `P_17`:
+
+- это не `Execution`;
+- это не `OMS`;
+- это не `Portfolio Governor` или `Protection`;
+- это не notifications / approval workflow line;
+- это не liquidation / ops line;
+- это не analytics / validation line;
+- это не dashboard / UI line;
+- это не full multi-strategy platform;
+- broader central-platform ownership semantics не входят в текущий scope.
+
+---
+
 ## Структура проекта
 
 ```text
@@ -641,6 +679,7 @@ CRYPTOTEHNOLOG/
 │   ├── portfolio_governor/       # Portfolio governor / capital governance foundation (done)
 │   ├── protection/               # Protection / supervisor foundation (closure-ready)
 │   ├── oms/                      # OMS foundation (closure-ready)
+│   ├── manager/                  # Strategy manager / workflow foundation (closure-ready)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -777,5 +816,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.16.0`  
+**Версия:** `v1.17.0`  
 **Последнее обновление:** `2026-03-23`
