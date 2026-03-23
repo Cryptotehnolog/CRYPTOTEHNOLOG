@@ -4,8 +4,9 @@ from typing import Any, cast
 
 import pandas as pd
 
-from cryptotechnolog.backtest import ReplayConfig, ReplayEngine, TickEvent
+from cryptotechnolog.backtest.events import TickEvent
 from cryptotechnolog.backtest.recorder import BALANCE_STOP_THRESHOLD, SPREAD_THRESHOLD
+from cryptotechnolog.backtest.replay_engine import ReplayConfig, ReplayEngine
 
 
 # Example 1: Simple tick processing

@@ -10,14 +10,14 @@ from typing import Any
 
 import pandas as pd
 
-from cryptotechnolog.backtest import (
+from cryptotechnolog.backtest.events import (
     BalanceUpdateEvent,
-    EventRecorder,
     OrderEvent,
     PositionUpdateEvent,
     TickEvent,
     TradeEvent,
 )
+from cryptotechnolog.backtest.recorder import EventRecorder
 
 
 @dataclass
