@@ -1009,11 +1009,11 @@ pytest tests/unit/test_settings.py
 
 - **On Push**: тесты, linting, type checking
 - **On PR**: дополнительные security scan и review checks
-- **On Merge to Main**: release/tag/deployment preparation
+- **On Merge to master**: release/tag/deployment preparation
 
 ### Branch Protection
 
-- `main`: protected, requires PR + approval + passing CI
+- `master`: protected, requires PR + approval + passing CI
 - `develop`: integration branch, requires passing CI
 - `feature/*`: feature branches
 

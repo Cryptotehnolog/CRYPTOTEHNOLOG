@@ -1,9 +1,8 @@
 // ==================== CRYPTOTEHNOLOG Audit Chain Crate ====================
 // Immutable audit chain for regulatory compliance
 //
-// This crate will be implemented in Phase 8-9
 //
-// Planned features:
+// Core features:
 // - Cryptographic audit chain (hash-based linking)
 // - Immutable audit records
 // - Regulatory compliance logging
