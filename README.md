@@ -23,8 +23,8 @@
 
 ### Мультиязычная архитектура
 
-Ниже показана честная current architecture truth после closure-ready `P_19`
-как узкой `Paper Trading Foundation`,
+Ниже показана честная current architecture truth после closure-ready `P_20`
+как узкой `Backtesting / Replay Foundation`,
 с отдельной пометкой для следующих planned contours.
 
 ```text
@@ -56,7 +56,8 @@ CRYPTOTEHNOLOG Platform
 │   ├── Portfolio Governor / Capital Governance Foundation
 │   ├── Strategy Manager / Workflow Foundation
 │   ├── Validation Foundation
-│   └── Paper Trading Foundation
+│   ├── Paper Trading Foundation
+│   └── Backtesting / Replay Foundation
 │
 ├── Observability (Python + Web)
 │   ├── Metrics Collector (Python)
@@ -108,6 +109,7 @@ CRYPTOTEHNOLOG Platform
 | 17 | Strategy Manager / Workflow Foundation | ✅ Closure-Ready | v1.17.0 |
 | 18 | Validation Foundation | ✅ Closure-Ready | v1.18.0 |
 | 19 | Paper Trading Foundation | ✅ Closure-Ready | v1.19.0 |
+| 20 | Backtesting / Replay Foundation | ✅ Closure-Ready | v1.20.0 |
 
 ---
 
@@ -369,12 +371,12 @@ cargo test
 
 ---
 
-## Ближайшие следующие линии после P_19
+## Ближайшие следующие линии после P_20
 
-После closure-ready реализации `P_19`
+После closure-ready реализации `P_20`
 ближайшая нормализованная последовательность фаз выглядит так:
 
-- `P_19+` — paper-supporting, deployment-supporting и другие future lines только после отдельной нормализации authoritative phase truth
+- `P_20+` — replay-supporting, analytics-supporting, historical-data-supporting и другие future lines только после отдельной нормализации authoritative phase truth
 
 Это предварительная roadmap truth.
 Authoritative implementation truth для каждой из этих фаз должна открываться отдельно через
@@ -734,6 +736,57 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ---
 
+## Phase 20 Backtesting / Replay Foundation
+
+`Phase 20` доведена до closure-ready состояния как узкая, production-compatible линия:
+`Backtesting / Replay Foundation`.
+
+В реализованный scope `P_20` входят:
+
+- package foundation в `src/cryptotechnolog/backtest`;
+- typed replay/backtest contracts;
+- typed replay event vocabulary;
+- narrowed authoritative package surface;
+- explicit `ReplayRuntime`;
+- deterministic `ReplayContext` assembly внутри replay layer;
+- centralized replay-state truth для active / historical replay candidates;
+- lifecycle semantics:
+  - `CANDIDATE`
+  - `REPLAYED`
+  - `ABSTAINED`
+  - `INVALIDATED`
+  - `EXPIRED`
+- validity/freshness semantics:
+  - `VALID`
+  - `WARMING`
+  - `INVALID`
+- deterministic historical-input ingestion;
+- first ingress path truth:
+  - `BAR_STREAM`
+  - authoritative first format = `CSV`
+  - separate `DATAFRAME` adapter truth;
+- integrated ingress -> runtime path внутри `backtest`;
+- query/state-first replay surface;
+- anti-lookahead integrity guard;
+- unit-level verification на relevant replay/contracts/ingress subset.
+
+Честные ограничения closure-ready `P_20`:
+
+- это не analytics / reporting platform;
+- это не plotting / dashboard / operator line;
+- это не comparison / ranking platform;
+- это не full historical data platform;
+- это не optimization / Monte Carlo / walk-forward line;
+- это не broader research / simulation lab;
+- это не `Validation`;
+- это не `Paper`;
+- это не `Execution`;
+- это не `OMS`;
+- это не `Manager`;
+- legacy `ReplayEngine` и `EventRecorder` не являются authoritative Phase 20 surface.
+
+---
+
 ## Структура проекта
 
 ```text
@@ -757,6 +810,7 @@ CRYPTOTEHNOLOG/
 │   ├── manager/                  # Strategy manager / workflow foundation (closure-ready)
 │   ├── validation/               # Validation foundation (closure-ready)
 │   ├── paper/                    # Paper trading foundation (closure-ready)
+│   ├── backtest/                 # Backtesting / replay foundation (closure-ready)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -893,5 +947,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.19.0`  
+**Версия:** `v1.20.0`  
 **Последнее обновление:** `2026-03-24`
