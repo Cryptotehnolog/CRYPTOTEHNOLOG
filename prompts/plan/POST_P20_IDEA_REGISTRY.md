@@ -138,23 +138,31 @@
 - `why_not_now`: broad NautilusTrader-style engine/platform semantics не соответствуют current phase-by-phase project boundary truth
 - `likely_future_line`: supporting architectural hardening only when a new concrete boundary drift appears
 
+#### Idea: OsEngine reconnect-aware subscription recovery / resubscribe truth
+- `type`: external borrowing discipline
+- `source`: OsEngine exchange-connectivity audit after `P_22`, [0035-live-feed-connectivity-foundation-boundary.md](/D:/CRYPTOTEHNOLOG/docs/adr/0035-live-feed-connectivity-foundation-boundary.md), [README.md](/D:/CRYPTOTEHNOLOG/README.md)
+- `status`: `future_candidate`
+- `safe_narrow_version`: explicit reconnect-aware subscription recovery / resubscribe boundary for live-feed session recovery without broad connector-platform semantics
+- `why_not_now`: после `P_22` идея уже выглядит сильной, но пока не должна открываться как full connector platform, adapter ecosystem или reliability/orchestration line
+- `likely_future_line`: narrow post-`P_22` connectivity follow-up around subscription recovery / resubscribe truth
+
 ### Most probable future line
 
 #### Idea: analytics / reporting
 - `type`: future phase candidate
 - `source`: [POST_P20_NEXT_LINE_NORMALIZATION.md](/D:/CRYPTOTEHNOLOG/prompts/plan/POST_P20_NEXT_LINE_NORMALIZATION.md), [0030-validation-foundation-boundary.md](/D:/CRYPTOTEHNOLOG/docs/adr/0030-validation-foundation-boundary.md), [0031-paper-trading-foundation-boundary.md](/D:/CRYPTOTEHNOLOG/docs/adr/0031-paper-trading-foundation-boundary.md), [0032-backtesting-replay-foundation-boundary.md](/D:/CRYPTOTEHNOLOG/docs/adr/0032-backtesting-replay-foundation-boundary.md)
-- `status`: `future_candidate`
+- `status`: `partially_absorbed`
 - `safe_narrow_version`: `Reporting Artifact Foundation`
-- `why_not_now`: `P_21` всё ещё рано открывать; broad analytics/reporting territory пока недостаточно узка, а honest opening truth пока лучше удерживается как artifact-first core без runtime-heavy service boundary
-- `likely_future_line`: strongest future `P_21` candidate
+- `why_not_now`: broad analytics/reporting territory в исходной широкой форме по-прежнему не должна автоматически расширяться в runtime/service/platform semantics после уже formalized `P_21`
+- `likely_future_line`: possible future richer reporting/runtime follow-up only after separate normalization
 
 #### Idea: Reporting Artifact Foundation
 - `type`: future phase candidate narrow core
-- `source`: post-`P_20` decomposition audits, current typed truths in [validation/models.py](/D:/CRYPTOTEHNOLOG/src/cryptotechnolog/validation/models.py), [paper/models.py](/D:/CRYPTOTEHNOLOG/src/cryptotechnolog/paper/models.py), [backtest/models.py](/D:/CRYPTOTEHNOLOG/src/cryptotechnolog/backtest/models.py)
-- `status`: `future_candidate`
+- `source`: post-`P_20` decomposition audits, [P_21.md](/D:/CRYPTOTEHNOLOG/prompts/plan/P_21.md), [P_21_RESULT.md](/D:/CRYPTOTEHNOLOG/prompts/plan/P_21_RESULT.md), [0034-reporting-artifact-foundation-boundary.md](/D:/CRYPTOTEHNOLOG/docs/adr/0034-reporting-artifact-foundation-boundary.md), [validation/models.py](/D:/CRYPTOTEHNOLOG/src/cryptotechnolog/validation/models.py), [paper/models.py](/D:/CRYPTOTEHNOLOG/src/cryptotechnolog/paper/models.py), [backtest/models.py](/D:/CRYPTOTEHNOLOG/src/cryptotechnolog/backtest/models.py)
+- `status`: `implemented`
 - `safe_narrow_version`: typed reporting contracts and report artifacts with read-only aggregation over `ValidationReviewCandidate`, `PaperRehearsalCandidate` and `ReplayCandidate`
-- `why_not_now`: artefact-first core уже различим, но ещё не зафиксирован как boundary-safe opening truth отдельной будущей линии
-- `likely_future_line`: most likely safe opening core for future `P_21`
+- `why_not_now`: broad reporting/runtime continuation по-прежнему не должна автоматически выводиться из уже закрытой artifact-first линии
+- `likely_future_line`: possible future reporting follow-up only after separate normalization
 
 #### Idea: dashboard / operator surface
 - `type`: supporting future direction
@@ -166,9 +174,8 @@
 
 ## Current registry verdict
 
-- `P_20 / v1.20.0` и post-`P_20` hardening уже закрыты.
-- `P_21` сейчас не открывается.
-- strongest future candidate на горизонте: `analytics / reporting`.
-- safe narrow version этого направления: `Reporting Artifact Foundation`.
-- broad analytics / reporting platform в исходной широкой форме не должна реализовываться напрямую.
-- немедленных новых шагов этот registry сам по себе не требует.
+- `P_20 / v1.20.0`, `P_21 / v1.21.0` и `P_22 / v1.22.0` уже formalized.
+- broad analytics / reporting platform в исходной широкой форме по-прежнему не должна реализовываться напрямую.
+- `Reporting Artifact Foundation` уже absorbed в project truth как formalized `P_21`.
+- strongest new borrowing candidate после `P_22`: reconnect-aware subscription recovery / resubscribe truth из OsEngine audit.
+- эта borrowing idea пока не открывает новую фазу сама по себе и должна оставаться узким future candidate.
