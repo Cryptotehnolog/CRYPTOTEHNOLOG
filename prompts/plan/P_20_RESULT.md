@@ -130,8 +130,8 @@ Phase verification подтверждает:
 - `docs/adr/0032-backtesting-replay-foundation-boundary.md`;
 - фактический код `backtest` subset.
 
-На этом шаге version/runtime identity ещё не переводится на `v1.20.0`.
-Formal finalization остаётся отдельным release-level шагом.
+На этом шаге version/runtime identity уже переведена на `v1.20.0`.
+Formal finalization `P_20` выполнена как отдельный release-level шаг.
 
 ---
 
@@ -151,11 +151,12 @@ Formal finalization остаётся отдельным release-level шагом
 
 ## 🏁 КОРОТКИЙ ВЫВОД
 
-`P_20` closure-ready как узкая `Backtesting / Replay Foundation`.
+`P_20` формально закрыта как `v1.20.0`
+и closure-ready как узкая `Backtesting / Replay Foundation`.
 
 Фактическая implementation truth:
 
 - replay layer существует как отдельный runtime/ingress contour;
 - current scope остаётся narrow и ownership-safe;
-- phase готова не к новому implementation-step,
-  а к отдельному шагу formal finalization `v1.20.0`.
+- phase закрыта на release-level без расширения scope
+  и готова к следующему branch-level merge/finalization flow.
