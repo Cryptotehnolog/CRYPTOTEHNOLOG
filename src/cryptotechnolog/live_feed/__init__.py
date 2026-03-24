@@ -1,13 +1,13 @@
 """
 Phase 22 Live Feed Connectivity Foundation.
 
-На шаге `Connectivity Contract Lock` пакет intentionally включает только:
+На текущем шаге пакет intentionally включает только:
 - typed connection/session contracts;
 - typed feed-health/readiness/degraded truth;
 - typed ingress handoff truth.
+- narrow single-session connectivity runtime.
 
 На этом шаге пакет intentionally не включает:
-- connectivity runtime;
 - adapter/client ecosystem;
 - execution connectivity / routing / reconciliation;
 - persistence / API / dashboard semantics.
@@ -21,12 +21,24 @@ from .models import (
     FeedIngressEnvelope,
     FeedSessionIdentity,
 )
+from .runtime import (
+    FeedConnectivityRuntime,
+    FeedConnectivityRuntimeConfig,
+    FeedConnectivityRuntimeDiagnostics,
+    FeedConnectivityRuntimeState,
+    create_live_feed_runtime,
+)
 
 __all__ = [
     "FeedConnectionState",
     "FeedConnectionStatus",
     "FeedConnectivityAssessment",
+    "FeedConnectivityRuntime",
+    "FeedConnectivityRuntimeConfig",
+    "FeedConnectivityRuntimeDiagnostics",
+    "FeedConnectivityRuntimeState",
     "FeedIngestRequest",
     "FeedIngressEnvelope",
     "FeedSessionIdentity",
+    "create_live_feed_runtime",
 ]
