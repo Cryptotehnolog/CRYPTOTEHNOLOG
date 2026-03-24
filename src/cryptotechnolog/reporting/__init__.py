@@ -31,12 +31,17 @@ from .models import (
     ReportingSourceLayer,
     ValidationReportArtifact,
 )
+from .retrieval import (
+    ReportingArtifactCatalog,
+    build_reporting_artifact_catalog,
+)
 
 __all__ = [
     "PaperReportArtifact",
     "ReplayReportArtifact",
     "ReportArtifact",
     "ReportingArtifactBundle",
+    "ReportingArtifactCatalog",
     "ReportingArtifactKind",
     "ReportingArtifactProvenance",
     "ReportingArtifactStatus",
@@ -47,4 +52,5 @@ __all__ = [
     "assemble_reporting_artifact_bundle",
     "assemble_reporting_bundle_from_candidates",
     "assemble_validation_report_artifact",
+    "build_reporting_artifact_catalog",
 ]
