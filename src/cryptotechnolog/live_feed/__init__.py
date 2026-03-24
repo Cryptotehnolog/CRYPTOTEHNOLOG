@@ -6,6 +6,7 @@ Phase 22 Live Feed Connectivity Foundation.
 - typed feed-health/readiness/degraded truth;
 - typed ingress handoff truth.
 - narrow single-session connectivity runtime.
+- narrow ingest integration path в existing market_data runtime.
 
 На этом шаге пакет intentionally не включает:
 - adapter/client ecosystem;
@@ -13,6 +14,12 @@ Phase 22 Live Feed Connectivity Foundation.
 - persistence / API / dashboard semantics.
 """
 
+from .integration import (
+    LiveFeedMarketDataIngress,
+    LiveFeedMarketDataIngressResult,
+    UnsupportedFeedIngressError,
+    create_live_feed_market_data_ingress,
+)
 from .models import (
     FeedConnectionState,
     FeedConnectionStatus,
@@ -40,5 +47,9 @@ __all__ = [
     "FeedIngestRequest",
     "FeedIngressEnvelope",
     "FeedSessionIdentity",
+    "LiveFeedMarketDataIngress",
+    "LiveFeedMarketDataIngressResult",
+    "UnsupportedFeedIngressError",
+    "create_live_feed_market_data_ingress",
     "create_live_feed_runtime",
 ]
