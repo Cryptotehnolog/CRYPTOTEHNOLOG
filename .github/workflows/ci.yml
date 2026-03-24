@@ -356,11 +356,11 @@ jobs:
       - name: Run detect-secrets
         run: |
           if [ -f .secrets.baseline ]; then
-            .venv/bin/detect-secrets scan --baseline .secrets.baseline || true
+            .venv/bin/detect-secrets scan --baseline .secrets.baseline
           else
-            .venv/bin/detect-secrets scan || true
+            echo ".secrets.baseline is required for blocking detect-secrets gate"
+            exit 1
           fi
-        continue-on-error: true
 
       - name: Run Bandit
         run: |
@@ -417,7 +417,7 @@ jobs:
         run: .venv/bin/pip-audit -r requirements.txt
 
       - name: Run safety
-        run: .venv/bin/safety check -r requirements.txt || true
+        run: .venv/bin/safety check -r requirements.txt
 
   # ==================== Docker Build Test ====================
   docker-build:
