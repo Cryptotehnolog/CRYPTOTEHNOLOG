@@ -280,7 +280,8 @@ class TestReplayEvents:
 
 
 class TestReplayRuntimeBoundary:
-    def test_runtime_boundary_shape_is_explicit_but_not_implemented_yet(self) -> None:
+    @pytest.mark.asyncio
+    async def test_runtime_boundary_shape_is_explicit_and_startable(self) -> None:
         config = ReplayRuntimeConfig(
             contour_name="phase20_replay_contour",
             replay_name="phase20_backtest",
@@ -300,8 +301,10 @@ class TestReplayRuntimeBoundary:
         assert diagnostics.to_dict()["lifecycle_state"] == "not_started"
         assert update.replay_candidate is None
 
-        with pytest.raises(NotImplementedError, match="Replay Runtime Foundation"):
-            create_replay_runtime(config)
+        runtime = create_replay_runtime(config)
+        await runtime.start()
+
+        assert runtime.is_started is True
 
 
 class TestBacktestPackageSurface:

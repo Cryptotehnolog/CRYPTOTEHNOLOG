@@ -21,6 +21,17 @@ from cryptotechnolog.backtest.events import (
     build_replay_event,
     default_priority_for_replay_event,
 )
+from cryptotechnolog.backtest.ingress import (
+    BarStreamCsvIngressConfig,
+    BarStreamIngressFormat,
+    BarStreamRecord,
+    HistoricalInputIngress,
+    HistoricalInputInventoryEntry,
+    IntegratedReplayIngressResult,
+    LoadedHistoricalBarStream,
+    ReplayIngressPath,
+    ReplayIngressStateKey,
+)
 from cryptotechnolog.backtest.models import (
     HistoricalInputContract,
     HistoricalInputKind,
@@ -47,9 +58,16 @@ from cryptotechnolog.backtest.runtime import (
 )
 
 __all__ = [
+    "BarStreamCsvIngressConfig",
+    "BarStreamIngressFormat",
+    "BarStreamRecord",
     "HistoricalInputContract",
+    "HistoricalInputIngress",
+    "HistoricalInputInventoryEntry",
     "HistoricalInputKind",
     "HistoricalInputPayload",
+    "IntegratedReplayIngressResult",
+    "LoadedHistoricalBarStream",
     "ReplayCandidate",
     "ReplayCandidatePayload",
     "ReplayContext",
@@ -58,6 +76,8 @@ __all__ = [
     "ReplayEventSource",
     "ReplayEventType",
     "ReplayFreshness",
+    "ReplayIngressPath",
+    "ReplayIngressStateKey",
     "ReplayReasonCode",
     "ReplayRecorderState",
     "ReplayRuntime",
