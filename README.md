@@ -23,8 +23,8 @@
 
 ### Мультиязычная архитектура
 
-Ниже показана честная current architecture truth после formal finalization `P_21`
-как узкой `Reporting Artifact Foundation`,
+Ниже показана честная current architecture truth после formal finalization `P_22`
+как узкой `Live Feed Connectivity Foundation`,
 с отдельной пометкой для следующих planned contours.
 
 ```text
@@ -41,6 +41,7 @@ CRYPTOTEHNOLOG Platform
 │   ├── Event Bus (Rust) ← high-performance messaging
 │   ├── Rust Risk Ledger (legacy/high-performance path)
 │   ├── Audit Chain (Rust) ← cryptographic hashing
+│   ├── Live Feed Connectivity Foundation
 │   ├── Market Data Layer (Python)
 │   ├── Analysis Layer (Python)
 │   ├── Intelligence Layer (Python)
@@ -114,6 +115,7 @@ CRYPTOTEHNOLOG Platform
 | 19 | Paper Trading Foundation | ✅ Closure-Ready | v1.19.0 |
 | 20 | Backtesting / Replay Foundation | ✅ Closure-Ready | v1.20.0 |
 | 21 | Reporting Artifact Foundation | ✅ Closure-Ready | v1.21.0 |
+| 22 | Live Feed Connectivity Foundation | ✅ Done | v1.22.0 |
 
 ---
 
@@ -375,12 +377,12 @@ cargo test
 
 ---
 
-## Ближайшие следующие линии после P_21
+## Ближайшие следующие линии после P_22
 
-После closure-ready реализации `P_21`
+После closure-ready реализации `P_22`
 ближайшая нормализованная последовательность фаз выглядит так:
 
-- `P_21+` — dashboard/operator-supporting, analytics-runtime-supporting, comparison-supporting и другие future lines только после отдельной нормализации authoritative phase truth
+- `P_22+` — exchange adapter ecosystem, execution-connectivity-supporting, routing/reliability-supporting и другие future lines только после отдельной нормализации authoritative phase truth
 
 Это предварительная roadmap truth.
 Authoritative implementation truth для каждой из этих фаз должна открываться отдельно через
@@ -822,6 +824,51 @@ artifact-first линия:
 - это не `Manager`;
 - `Validation`, `Paper` и `Replay` не поглощаются текущим reporting contour.
 
+---
+
+## Phase 22 Live Feed Connectivity Foundation
+
+`Phase 22` формально закрыта как `v1.22.0` как узкая,
+connectivity-first линия:
+`Live Feed Connectivity Foundation`.
+
+В реализованный closure-ready scope `P_22` входят:
+
+- package foundation в `src/cryptotechnolog/live_feed`;
+- typed connection/session contracts;
+- typed feed-health/readiness/degraded truth;
+- `FeedConnectionStatus`;
+- `FeedSessionIdentity`;
+- `FeedConnectionState`;
+- `FeedConnectivityAssessment`;
+- `FeedIngressEnvelope`;
+- `FeedIngestRequest`;
+- narrow single-session runtime boundary;
+- explicit lifecycle transitions;
+- minimal reconnect/backoff semantics;
+- typed ingest handoff generation;
+- narrow ingest integration contour в existing `market_data`;
+- support только для:
+  - `trade_tick`;
+  - `orderbook_snapshot`;
+- unit-level verification на relevant live-feed subset.
+
+Честные ограничения formalized `P_22`:
+
+- это не broad exchange adapter ecosystem;
+- это не rich client hierarchy;
+- это не execution connectivity;
+- это не order routing / smart routing;
+- это не failover / reliability platform;
+- это не reconciliation;
+- это не historical storage / backfill platform;
+- это не dashboard/operator workflow line;
+- это не analytics / reporting / research line;
+- это не `market_data` domain ownership takeover;
+- это не `execution` ownership;
+- это не `oms` ownership;
+- это не broad live-trading platform rewrite.
+
 ## Структура проекта
 
 ```text
@@ -847,6 +894,7 @@ CRYPTOTEHNOLOG/
 │   ├── paper/                    # Paper trading foundation (closure-ready)
 │   ├── backtest/                 # Backtesting / replay foundation (closure-ready)
 │   ├── reporting/                # Reporting artifact foundation (closure-ready)
+│   ├── live_feed/                # Live feed connectivity foundation (done)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -983,5 +1031,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.21.0`  
+**Версия:** `v1.22.0`  
 **Последнее обновление:** `2026-03-24`

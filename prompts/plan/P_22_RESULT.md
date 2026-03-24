@@ -5,7 +5,7 @@
 
 ## 📌 ИТОГ ФАЗЫ
 
-`P_22` доведена до closure-ready состояния как узкая
+`P_22` формально закрыта как `v1.22.0` как узкая
 `Live Feed Connectivity Foundation`.
 
 Фаза реализована не как broad exchange-connectivity platform,
@@ -19,7 +19,7 @@
 
 ## ✅ ФАКТИЧЕСКИ РЕАЛИЗОВАННЫЙ SCOPE
 
-В closure scope `P_22` входят:
+В formalized scope `P_22` входят:
 
 - package foundation в `src/cryptotechnolog/live_feed`;
 - typed connection/session contracts;
@@ -53,7 +53,7 @@
 - minimal reconnect/backoff truth;
 - narrow ingest handoff и integration bridge в existing `market_data`.
 
-Внутри closure-ready реализации:
+Внутри formalized реализации:
 
 - `live_feed` package boundary существует отдельно от `market_data`;
 - contracts удерживают session/connectivity truth отдельно от market-data domain truth;
@@ -86,7 +86,7 @@
 
 ## 🔒 ЧЕСТНЫЕ ГРАНИЦЫ ФАЗЫ
 
-Closure-ready `P_22` не владеет:
+Formalized `P_22` не владеет:
 
 - broad exchange adapter ecosystem;
 - rich client hierarchy;
@@ -110,7 +110,7 @@ Ingest integration внутри `live_feed`
 
 ## 🧪 VERIFICATION TRUTH
 
-Для closure-ready состояния `P_22` выполнен relevant verification subset:
+Для formal finalization `P_22` выполнен relevant verification subset:
 
 - unit tests:
   - `tests/unit/test_live_feed_contracts.py`
@@ -140,20 +140,19 @@ Phase verification подтверждает:
 
 ## 📚 DOC / PHASE TRUTH
 
-К моменту closure-ready состояния синхронизированы:
+К моменту formal finalization синхронизированы:
 
 - `prompts/plan/P_22.md`;
 - `docs/adr/0035-live-feed-connectivity-foundation-boundary.md`;
 - фактический код `live_feed` subset.
 
-Текущий result doc фиксирует closure-ready truth,
-но ещё не делает formal finalization автоматически.
+Текущий result doc фиксирует уже formalized truth `P_22 / v1.22.0`.
 
 ---
 
 ## 🧭 ЧТО ОСТАЁТСЯ ВНЕ SCOPE
 
-Даже после closure-ready состояния `P_22` вне scope остаются:
+Даже после formal finalization `P_22` вне scope остаются:
 
 - broad exchange adapter ecosystem;
 - rich client hierarchy;
@@ -173,7 +172,7 @@ Phase verification подтверждает:
 
 ## 🏁 КОРОТКИЙ ВЫВОД
 
-`P_22` уже выглядит closure-ready по implementation truth
+`P_22` формально закрыта как `v1.22.0`
 как узкая `Live Feed Connectivity Foundation`.
 
 Фактическая implementation truth:
@@ -181,7 +180,5 @@ Phase verification подтверждает:
 - `live_feed` layer существует как отдельный connectivity-first package contour;
 - package включает contracts, narrow runtime и ingest integration;
 - current scope остаётся ownership-safe относительно `market_data`, `execution` и `oms`;
-- phase готова к следующему path:
-  - README/doc sync;
-  - затем formal finalization,
-  если release truth будет синхронизирована отдельно.
+- phase закрыта на release-level без расширения scope
+  и готова к следующему branch-level merge/finalization flow.
