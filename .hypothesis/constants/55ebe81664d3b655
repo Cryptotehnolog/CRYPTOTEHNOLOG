@@ -1,4 +1,0 @@
-# file: d:\CRYPTOTEHNOLOG\src\core\state_machine_enums.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 100, 120, 300, 600, 1800, 3600, 'boot', 'circuit_breaker_open', 'degraded', 'emergency_shutdown', 'error', 'execution_error', 'fast_velocity_alert', 'halt', 'health_check_failed', 'init', 'low_universe_quality', 'operator_ready', 'operator_request', 'position_closed', 'ready', 'recovery', 'recovery_complete', 'risk_breach', 'risk_reduction', 'risk_violation', 'slow_velocity_alert', 'stable_recovered', 'survival', 'system_startup', 'test', 'trading', 'watchdog_alert']

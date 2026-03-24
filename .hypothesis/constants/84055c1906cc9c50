@@ -1,4 +1,0 @@
-# file: d:\CRYPTOTEHNOLOG\src\core\listeners\risk.py
-# hypothesis_version: 6.151.9
-
-['DAILY_LOSS_LIMIT', 'DRAWDOWN_EXCEEDED', 'ORDER_FILLED', 'ORDER_REJECTED', 'ORDER_SIZE', 'ORDER_SUBMITTED', 'POSITION_CLOSED', 'POSITION_OPENED', 'POSITION_SIZE', 'RISK_VIOLATION', 'Risk limit exceeded', 'UNKNOWN', 'current_value', 'entry_price', 'filled_size', 'limit_type', 'max_value', 'order_id', 'position_id', 'price', 'realized_pnl', 'reason', 'risk_check_listener', 'side', 'size', 'symbol', 'unknown']

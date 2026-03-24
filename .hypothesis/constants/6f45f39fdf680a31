@@ -1,4 +1,0 @@
-# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\config\providers.py
-# hypothesis_version: 6.151.9
-
-[30.0, 200, 403, 404, '#', ',', '.', '...', '.env.infisical', '.infisical', '/', '/staging/crypto', '=', 'Authorization', 'CT_', 'Content-Type', 'INFISICAL_CLIENT_ID', 'INFISICAL_PROJECT_ID', 'INFISICAL_TOKEN', 'INFISICAL_URL', '[', '_last_source', 'accessToken', 'application/json', 'clientId', 'clientSecret', 'credentials', 'default', 'development', 'environment', 'false', 'secret', 'secretPath', 'secretValue', 'token', 'true', 'utf-8', 'utf-8-sig', 'workspaceId', '{']

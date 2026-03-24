@@ -1,4 +1,0 @@
-# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\core\listeners\metrics.py
-# hypothesis_version: 6.151.9
-
-[1.0, 1000, 'ORDER_CANCELLED', 'ORDER_FILLED', 'ORDER_REJECTED', 'ORDER_SUBMITTED', 'POSITION_CLOSED', 'POSITION_OPENED', 'RISK_VIOLATION', 'SYSTEM_BOOT', 'SYSTEM_HALT', 'SYSTEM_READY', 'SYSTEM_SHUTDOWN', 'boot', 'error_rate', 'fill_rate', 'fill_time', 'filled_size', 'halt', 'leverage', 'metrics_listener', 'order_latency', 'orders_filled_total', 'position_exposure', 'ready', 'realized_pnl', 'resource_usage', 'shutdown', 'side', 'size', 'state', 'submit_time', 'symbol', 'system_state', 'throughput', 'violation_type', 'volume_filled']

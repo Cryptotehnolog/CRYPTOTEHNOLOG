@@ -1,4 +1,0 @@
-# file: d:\CRYPTOTEHNOLOG\src\core\event_bus.py
-# hypothesis_version: 6.151.9
-
-[0.1, 1024, '*', 'EventBus очищен', 'Listeners disabled', 'Listeners enabled', 'SYSTEM', '__name__', 'async_queue', 'backend', 'capacity', 'channel_based', 'component', 'handler_count', 'message', 'publish_count', 'severity', 'subscribe_count', 'subscriber_count', 'unsubscribe_count', 'warning', 'Новый подписчик', 'Обработчик удалён', 'Ошибка в listener', 'Ошибка в обработчике', 'Подписчик удалён']
