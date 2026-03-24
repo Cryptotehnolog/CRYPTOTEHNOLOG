@@ -42,21 +42,28 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+_DEV_LOCAL_ENVIRONMENTS = frozenset({"development", "dev", "local", "test"})
+
 
 # ==================== Auth Stub ====================
 
 
 class TokenAuthenticator:
     """
-    Stub аутентификации по токену.
+    Explicit dev-local stub аутентификации по токену.
 
-    В Фазе 4 заменить на реальную аутентификацию.
+    Не должен materialize-иться в default production-like path.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, enable_stub_tokens: bool = False) -> None:
         self._operators: dict[str, Operator] = {}
         self._lock = threading.Lock()
-        self._initialize_stub_operators()
+        self._stub_enabled = enable_stub_tokens
+
+        if self._stub_enabled:
+            self._initialize_stub_operators()
+        else:
+            logger.info("Stub operator tokens отключены; authenticator работает fail-closed")
 
     def _initialize_stub_operators(self) -> None:
         """Инициализировать stub операторов."""
@@ -135,6 +142,22 @@ class TokenAuthenticator:
         return bool(operator_level >= required_level)
 
 
+class DenyAllAuthenticator:
+    """Fail-closed authenticator для default production-like path."""
+
+    def authenticate(self, token: str) -> Operator | None:
+        """Всегда отклонять аутентификацию."""
+        return None
+
+    def get_operator(self, token: str) -> Operator | None:
+        """Получить оператора по токену."""
+        return self.authenticate(token)
+
+    def validate_operator_role(self, operator: Operator, required_role: OperatorRole) -> bool:
+        """Fail-closed проверка ролей."""
+        return False
+
+
 # ==================== Operator Gate ====================
 
 
@@ -152,9 +175,11 @@ class OperatorGate:
         event_bus: Опциональный Event Bus
         authenticator: Опциональный аутентификатор
         request_timeout: Timeout запроса в минутах
+        environment: Контур окружения (`development/dev/local/test` или production-like)
+        allow_dev_stub_auth: Явно разрешить dev-local stub auth
 
     Пример:
-        >>> gate = OperatorGate()
+        >>> gate = OperatorGate(environment="test", allow_dev_stub_auth=True)
         >>> # Запрос на остановку системы
         >>> request = gate.create_request(
         ...     operator_token="admin_token_1",
@@ -167,11 +192,17 @@ class OperatorGate:
     def __init__(
         self,
         event_bus: EnhancedEventBus | None = None,
-        authenticator: TokenAuthenticator | None = None,
+        authenticator: TokenAuthenticator | DenyAllAuthenticator | None = None,
         request_timeout: int = DEFAULT_REQUEST_TIMEOUT_MINUTES,
+        environment: str = "production",
+        allow_dev_stub_auth: bool = False,
     ) -> None:
         self._event_bus = event_bus or get_event_bus()
-        self._authenticator = authenticator or TokenAuthenticator()
+        self._environment = environment
+        self._authenticator = authenticator or self._build_default_authenticator(
+            environment=environment,
+            allow_dev_stub_auth=allow_dev_stub_auth,
+        )
         self._request_timeout = request_timeout
 
         # Active requests
@@ -197,7 +228,31 @@ class OperatorGate:
         logger.info(
             "OperatorGate инициализирован",
             request_timeout=request_timeout,
+            environment=environment,
+            allow_dev_stub_auth=allow_dev_stub_auth,
         )
+
+    def _is_explicit_dev_local_mode(self) -> bool:
+        """Проверить explicit dev-local contour."""
+        return self._environment.strip().lower() in _DEV_LOCAL_ENVIRONMENTS
+
+    def _build_default_authenticator(
+        self,
+        *,
+        environment: str,
+        allow_dev_stub_auth: bool,
+    ) -> TokenAuthenticator | DenyAllAuthenticator:
+        """Собрать default authenticator без hidden insecure stub path."""
+        normalized_environment = environment.strip().lower()
+
+        if allow_dev_stub_auth:
+            if normalized_environment not in _DEV_LOCAL_ENVIRONMENTS:
+                raise ValueError(
+                    "allow_dev_stub_auth допустим только для explicit dev-local environments."
+                )
+            return TokenAuthenticator(enable_stub_tokens=True)
+
+        return DenyAllAuthenticator()
 
     @property
     def request_timeout(self) -> int:

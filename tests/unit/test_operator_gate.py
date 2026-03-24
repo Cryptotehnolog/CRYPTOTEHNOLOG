@@ -23,7 +23,11 @@ from cryptotechnolog.core.dual_control import (
 )
 from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
 from cryptotechnolog.core.global_instances import reset_event_bus, set_event_bus
-from cryptotechnolog.core.operator_gate import OperatorGate, TokenAuthenticator
+from cryptotechnolog.core.operator_gate import (
+    DenyAllAuthenticator,
+    OperatorGate,
+    TokenAuthenticator,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -45,7 +49,7 @@ class TestTokenAuthenticator:
 
     def test_authenticate_valid_token(self):
         """Тест аутентификации с валидным токеном."""
-        auth = TokenAuthenticator()
+        auth = TokenAuthenticator(enable_stub_tokens=True)
         operator = auth.authenticate("admin_token_1")
 
         assert operator is not None
@@ -54,14 +58,14 @@ class TestTokenAuthenticator:
 
     def test_authenticate_invalid_token(self):
         """Тест аутентификации с невалидным токеном."""
-        auth = TokenAuthenticator()
+        auth = TokenAuthenticator(enable_stub_tokens=True)
         operator = auth.authenticate("invalid_token")
 
         assert operator is None
 
     def test_validate_admin_role(self):
         """Тест проверки роли ADMIN."""
-        auth = TokenAuthenticator()
+        auth = TokenAuthenticator(enable_stub_tokens=True)
         operator = auth.authenticate("admin_token_1")
 
         assert auth.validate_operator_role(operator, OperatorRole.ADMIN) is True
@@ -69,7 +73,7 @@ class TestTokenAuthenticator:
 
     def test_validate_trader_role(self):
         """Тест проверки роли TRADER."""
-        auth = TokenAuthenticator()
+        auth = TokenAuthenticator(enable_stub_tokens=True)
         operator = auth.authenticate("trader_token_1")
 
         assert auth.validate_operator_role(operator, OperatorRole.TRADER) is True
@@ -220,9 +224,25 @@ class TestDualControlRequest:
 class TestOperatorGate:
     """Тесты OperatorGate."""
 
+    @staticmethod
+    def _create_dev_gate(request_timeout: int = 5) -> OperatorGate:
+        """Создать gate с explicit dev-local stub auth."""
+        return OperatorGate(
+            request_timeout=request_timeout,
+            environment="test",
+            allow_dev_stub_auth=True,
+        )
+
+    def test_default_operator_gate_is_fail_closed(self):
+        """Default OperatorGate не должен materialize-ить stub auth path."""
+        gate = OperatorGate()
+
+        assert isinstance(gate._authenticator, DenyAllAuthenticator)
+        assert gate.authenticate("admin_token_1") is None
+
     def test_create_halt_request(self):
         """Тест создания запроса на остановку."""
-        gate = OperatorGate(request_timeout=5)
+        gate = self._create_dev_gate(request_timeout=5)
 
         request = gate.create_request(
             operator_token="admin_token_1",
@@ -237,7 +257,7 @@ class TestOperatorGate:
 
     def test_create_request_invalid_token(self):
         """Тест создания запроса с невалидным токеном."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
 
         request = gate.create_request(
             operator_token="invalid_token",
@@ -248,7 +268,7 @@ class TestOperatorGate:
 
     def test_create_critical_operation_without_admin(self):
         """Тест отклонения критической операции без ADMIN."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
 
         # TRADER не может создавать SYSTEM_HALT
         request = gate.create_request(
@@ -260,7 +280,7 @@ class TestOperatorGate:
 
     def test_approve_request(self):
         """Тест подтверждения запроса."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
 
         # Admin1 создаёт запрос
         request = gate.create_request(
@@ -279,7 +299,7 @@ class TestOperatorGate:
 
     def test_approve_with_invalid_token(self):
         """Тест подтверждения с невалидным токеном."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
 
         request = gate.create_request(
             operator_token="admin_token_1",
@@ -293,7 +313,7 @@ class TestOperatorGate:
 
     def test_reject_request(self):
         """Тест отклонения запроса."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
 
         request = gate.create_request(
             operator_token="admin_token_1",
@@ -308,7 +328,7 @@ class TestOperatorGate:
 
     def test_cancel_own_request(self):
         """Тест отмены своего запроса."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
 
         request = gate.create_request(
             operator_token="admin_token_1",
@@ -322,7 +342,7 @@ class TestOperatorGate:
 
     def test_cancel_other_request_not_allowed(self):
         """Тест отмены чужого запроса."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
 
         request = gate.create_request(
             operator_token="admin_token_1",
@@ -337,7 +357,7 @@ class TestOperatorGate:
 
     def test_get_pending_requests(self):
         """Тест получения ожидающих запросов."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
 
         gate.create_request(
             operator_token="admin_token_1",
@@ -355,7 +375,7 @@ class TestOperatorGate:
 
     def test_get_requests_by_operator(self):
         """Тест получения запросов по оператору."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
 
         gate.create_request(
             operator_token="admin_token_1",
@@ -377,7 +397,7 @@ class TestOperatorGate:
 
     def test_stats(self):
         """Тест статистики."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
 
         gate.create_request(
             operator_token="admin_token_1",
@@ -400,9 +420,14 @@ class TestOperatorGate:
 class TestOperatorGateCallbacks:
     """Тесты callback в OperatorGate."""
 
+    @staticmethod
+    def _create_dev_gate() -> OperatorGate:
+        """Создать gate с explicit dev-local stub auth."""
+        return OperatorGate(environment="test", allow_dev_stub_auth=True)
+
     def test_on_request_created_callback(self):
         """Тест callback при создании запроса."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
         created_requests = []
 
         def callback(request: DualControlRequest):
@@ -419,7 +444,7 @@ class TestOperatorGateCallbacks:
 
     def test_on_request_approved_callback(self):
         """Тест callback при подтверждении."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
         approved_requests = []
 
         def callback(request: DualControlRequest):
@@ -437,7 +462,7 @@ class TestOperatorGateCallbacks:
 
     def test_on_request_rejected_callback(self):
         """Тест callback при отклонении."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
         rejected_requests = []
 
         def callback(request: DualControlRequest):
@@ -457,10 +482,19 @@ class TestOperatorGateCallbacks:
 class TestOperatorGateIntegration:
     """Интеграционные тесты OperatorGate."""
 
+    @staticmethod
+    def _create_dev_gate(request_timeout: int = 5) -> OperatorGate:
+        """Создать gate с explicit dev-local stub auth."""
+        return OperatorGate(
+            request_timeout=request_timeout,
+            environment="test",
+            allow_dev_stub_auth=True,
+        )
+
     @pytest.mark.asyncio
     async def test_start_stop(self):
         """Тест запуска и остановки."""
-        gate = OperatorGate()
+        gate = self._create_dev_gate()
 
         await gate.start()
         assert gate.get_stats()["running"] is True
@@ -471,7 +505,7 @@ class TestOperatorGateIntegration:
     @pytest.mark.asyncio
     async def test_expiration_check(self):
         """Тест проверки истечения."""
-        gate = OperatorGate(request_timeout=1)
+        gate = self._create_dev_gate(request_timeout=1)
 
         gate.create_request(
             operator_token="admin_token_1",
@@ -531,7 +565,7 @@ class TestDualControlRequestInvariants:
     @given(role=st.sampled_from(list(OperatorRole)))
     def test_role_validation(self, role: OperatorRole):
         """Тест валидации ролей."""
-        auth = TokenAuthenticator()
+        auth = TokenAuthenticator(enable_stub_tokens=True)
         operator = Operator(
             id=uuid.uuid4(),
             name="Test",
