@@ -1,5 +1,5 @@
 # ==================== CRYPTOTEHNOLOG Event Recorder ====================
-# Records all events during replay for analysis and debugging
+# Legacy compatibility recorder contour for replay-side state capture only
 
 from __future__ import annotations
 
@@ -27,12 +27,15 @@ BALANCE_STOP_THRESHOLD = 9000  # Balance threshold for stopping backtest
 
 class EventRecorder:
     """
-    Records all events during backtest replay.
+    Legacy compatibility recorder for replay-side event capture.
 
-    Allows:
-    - Replay analysis after simulation
-    - Debug issues in production
-    - Generate performance reports
+    Этот contour intentionally не задаёт authoritative Phase 20 truth и
+    не делает package owner-ом analytics/reporting platform semantics.
+
+    Current narrow role:
+    - capture replay-side state/events;
+    - support legacy debug/inspection workflows;
+    - optionally persist raw recorder artifacts.
     """
 
     def __init__(self, output_dir: str | Path | None = None):
