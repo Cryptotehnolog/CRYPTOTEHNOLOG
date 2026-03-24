@@ -29,6 +29,8 @@ from .models import (
     ReplayContext,
     ReplayDecision,
     ReplayFreshness,
+    ReplayIntegrity,
+    ReplayIntegrityStatus,
     ReplayReasonCode,
     ReplayRecorderState,
     ReplaySource,
@@ -174,18 +176,26 @@ class ReplayRuntime:
         """Собрать replay context и обновить replay truth из historical input."""
         self._ensure_started()
         key = self._resolve_state_key(historical_input)
-        self._inputs[key] = historical_input
+        previous_input = self._inputs.get(key)
         emitted_input_payload = HistoricalInputPayload.from_input(historical_input)
 
+        integrity, integrity_reason_code = self._build_integrity(
+            historical_input=historical_input,
+            previous_input=previous_input,
+        )
         validity, reason_code = self._build_validity(
             historical_input=historical_input,
             reference_time=reference_time,
+            integrity=integrity,
+            integrity_reason_code=integrity_reason_code,
         )
         context = self._assemble_replay_context(
             historical_input=historical_input,
             validity=validity,
+            integrity=integrity,
             reference_time=reference_time,
         )
+        self._inputs[key] = historical_input
         self._contexts[key] = context
 
         update = self._build_update_for_context(
@@ -439,7 +449,19 @@ class ReplayRuntime:
         *,
         historical_input: HistoricalInputContract,
         reference_time: datetime,
+        integrity: ReplayIntegrity,
+        integrity_reason_code: ReplayReasonCode | None,
     ) -> tuple[ReplayValidity, ReplayReasonCode]:
+        if not integrity.is_clean:
+            return (
+                ReplayValidity(
+                    status=ReplayValidityStatus.INVALID,
+                    observed_inputs=0,
+                    required_inputs=1,
+                    invalid_reason=integrity.reason or "historical_input_integrity_failed",
+                ),
+                integrity_reason_code or ReplayReasonCode.INPUT_WINDOW_DRIFTED,
+            )
         window = historical_input.coverage_window
         if window.end_at > reference_time:
             return (
@@ -480,6 +502,47 @@ class ReplayRuntime:
             ReplayReasonCode.INPUT_WINDOW_READY,
         )
 
+    def _build_integrity(
+        self,
+        *,
+        historical_input: HistoricalInputContract,
+        previous_input: HistoricalInputContract | None,
+    ) -> tuple[ReplayIntegrity, ReplayReasonCode | None]:
+        if previous_input is None:
+            return ReplayIntegrity(), None
+
+        previous_window = previous_input.coverage_window
+        current_window = historical_input.coverage_window
+
+        if current_window.end_at < previous_window.end_at:
+            return (
+                ReplayIntegrity(
+                    status=ReplayIntegrityStatus.REGRESSED,
+                    reason="historical_input_window_regressed",
+                    reference_input_id=previous_input.input_id,
+                ),
+                ReplayReasonCode.INPUT_WINDOW_REGRESSED,
+            )
+
+        if (
+            current_window.start_at == previous_window.start_at
+            and current_window.end_at == previous_window.end_at
+            and (
+                current_window.observed_events != previous_window.observed_events
+                or current_window.expected_events != previous_window.expected_events
+            )
+        ):
+            return (
+                ReplayIntegrity(
+                    status=ReplayIntegrityStatus.DRIFTED,
+                    reason="historical_input_coverage_drift_detected",
+                    reference_input_id=previous_input.input_id,
+                ),
+                ReplayReasonCode.INPUT_WINDOW_DRIFTED,
+            )
+
+        return ReplayIntegrity(), None
+
     def _build_freshness(self, *, reference_time: datetime) -> ReplayFreshness:
         return ReplayFreshness(
             generated_at=reference_time,
@@ -491,6 +554,7 @@ class ReplayRuntime:
         *,
         historical_input: HistoricalInputContract,
         validity: ReplayValidity,
+        integrity: ReplayIntegrity,
         reference_time: datetime,
     ) -> ReplayContext:
         """Собрать typed ReplayContext внутри replay layer."""
@@ -504,6 +568,7 @@ class ReplayRuntime:
             source=ReplaySource.HISTORICAL_INPUTS,
             historical_input=historical_input,
             validity=validity,
+            integrity=integrity,
             validation_review_id=validation_review_id,
             paper_rehearsal_id=paper_rehearsal_id,
             metadata=metadata,

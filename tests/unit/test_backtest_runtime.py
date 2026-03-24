@@ -11,6 +11,7 @@ from cryptotechnolog.backtest import (
     ReplayCoverageWindow,
     ReplayDecision,
     ReplayEventType,
+    ReplayIntegrityStatus,
     ReplayReasonCode,
     ReplayRuntimeLifecycleState,
     ReplayStatus,
@@ -177,6 +178,73 @@ async def test_replay_runtime_blocks_lookahead_historical_input() -> None:
     assert diagnostics["ready"] is False
     assert diagnostics["last_failure_reason"] == "historical_input_lookahead_detected"
     assert "historical_input_lookahead_detected" in diagnostics["degraded_reasons"]
+
+
+@pytest.mark.asyncio
+async def test_replay_runtime_rejects_regressive_historical_window_for_same_state_key() -> None:
+    runtime = create_replay_runtime()
+    await runtime.start()
+    runtime.ingest_historical_input(
+        historical_input=_historical_input(),
+        reference_time=_now(),
+    )
+
+    update = runtime.ingest_historical_input(
+        historical_input=HistoricalInputContract.candidate(
+            input_name="btcusdt_m1_window",
+            symbol="BTCUSDT",
+            exchange="BINANCE",
+            kind=HistoricalInputKind.BAR_STREAM,
+            timeframe=MarketDataTimeframe.M1,
+            coverage_window=ReplayCoverageWindow(
+                start_at=_now() - timedelta(minutes=6),
+                end_at=_now() - timedelta(minutes=1),
+                observed_events=6,
+                expected_events=6,
+            ),
+            source_reference="fixtures/btcusdt_m1_regressed.csv",
+        ),
+        reference_time=_now(),
+    )
+
+    assert update.context is not None
+    assert update.context.integrity.status == ReplayIntegrityStatus.REGRESSED
+    assert update.context.validity.status == ReplayValidityStatus.INVALID
+    assert update.context.validity.invalid_reason == "historical_input_window_regressed"
+    assert update.replay_candidate is not None
+    assert update.replay_candidate.status == ReplayStatus.INVALIDATED
+    assert update.event_type == ReplayEventType.REPLAY_INVALIDATED
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    assert diagnostics["last_failure_reason"] == "historical_input_window_regressed"
+    assert "historical_input_window_regressed" in diagnostics["degraded_reasons"]
+
+
+@pytest.mark.asyncio
+async def test_replay_runtime_rejects_coverage_drift_for_same_window() -> None:
+    runtime = create_replay_runtime()
+    await runtime.start()
+    runtime.ingest_historical_input(
+        historical_input=_historical_input(observed_events=10, expected_events=10),
+        reference_time=_now(),
+    )
+
+    update = runtime.ingest_historical_input(
+        historical_input=_historical_input(observed_events=9, expected_events=10),
+        reference_time=_now(),
+    )
+
+    assert update.context is not None
+    assert update.context.integrity.status == ReplayIntegrityStatus.DRIFTED
+    assert update.context.validity.status == ReplayValidityStatus.INVALID
+    assert update.context.validity.invalid_reason == "historical_input_coverage_drift_detected"
+    assert update.replay_candidate is not None
+    assert update.replay_candidate.status == ReplayStatus.INVALIDATED
+    assert update.event_type == ReplayEventType.REPLAY_INVALIDATED
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    assert diagnostics["last_failure_reason"] == "historical_input_coverage_drift_detected"
+    assert "historical_input_coverage_drift_detected" in diagnostics["degraded_reasons"]
 
 
 @pytest.mark.asyncio

@@ -49,6 +49,14 @@ class ReplayValidityStatus(StrEnum):
     INVALID = "invalid"
 
 
+class ReplayIntegrityStatus(StrEnum):
+    """Integrity-статус для narrow replay input/replay truth."""
+
+    CLEAN = "clean"
+    REGRESSED = "regressed"
+    DRIFTED = "drifted"
+
+
 class HistoricalInputKind(StrEnum):
     """Тип historical input для replay foundation."""
 
@@ -64,6 +72,8 @@ class ReplayReasonCode(StrEnum):
     INPUT_WINDOW_INCOMPLETE = "input_window_incomplete"
     INPUT_WINDOW_INVALID = "input_window_invalid"
     INPUT_WINDOW_LOOKAHEAD = "input_window_lookahead"
+    INPUT_WINDOW_REGRESSED = "input_window_regressed"
+    INPUT_WINDOW_DRIFTED = "input_window_drifted"
     RECORDER_STATE_MISSING = "recorder_state_missing"
     VALIDATION_TRUTH_EXTERNAL = "validation_truth_external"
     PAPER_TRUTH_EXTERNAL = "paper_truth_external"
@@ -164,6 +174,19 @@ class ReplayFreshness:
 
 
 @dataclass(slots=True, frozen=True)
+class ReplayIntegrity:
+    """Typed integrity truth для replay foundation."""
+
+    status: ReplayIntegrityStatus = ReplayIntegrityStatus.CLEAN
+    reason: str | None = None
+    reference_input_id: UUID | None = None
+
+    @property
+    def is_clean(self) -> bool:
+        return self.status == ReplayIntegrityStatus.CLEAN
+
+
+@dataclass(slots=True, frozen=True)
 class HistoricalInputContract:
     """
     Typed historical-input contract для replay foundation.
@@ -243,6 +266,7 @@ class ReplayContext:
     source: ReplaySource
     historical_input: HistoricalInputContract
     validity: ReplayValidity
+    integrity: ReplayIntegrity = field(default_factory=ReplayIntegrity)
     validation_review_id: UUID | None = None
     paper_rehearsal_id: UUID | None = None
     metadata: dict[str, object] = field(default_factory=dict)
@@ -370,6 +394,8 @@ __all__ = [
     "ReplayCoverageWindow",
     "ReplayDecision",
     "ReplayFreshness",
+    "ReplayIntegrity",
+    "ReplayIntegrityStatus",
     "ReplayReasonCode",
     "ReplayRecorderState",
     "ReplaySource",

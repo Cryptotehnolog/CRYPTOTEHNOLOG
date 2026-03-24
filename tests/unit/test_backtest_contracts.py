@@ -20,6 +20,8 @@ from cryptotechnolog.backtest import (
     ReplayEventSource,
     ReplayEventType,
     ReplayFreshness,
+    ReplayIntegrity,
+    ReplayIntegrityStatus,
     ReplayReasonCode,
     ReplayRecorderState,
     ReplayRuntimeConfig,
@@ -161,6 +163,45 @@ class TestReplayContracts:
         assert context.validation_review_id == validation_review_id
         assert context.paper_rehearsal_id == paper_rehearsal_id
         assert context.source == ReplaySource.HISTORICAL_INPUTS
+        assert context.integrity.status == ReplayIntegrityStatus.CLEAN
+
+    def test_replay_context_can_carry_typed_integrity_truth(self) -> None:
+        window = ReplayCoverageWindow(
+            start_at=datetime(2026, 3, 24, 10, 0, tzinfo=UTC),
+            end_at=datetime(2026, 3, 24, 10, 5, tzinfo=UTC),
+            observed_events=5,
+            expected_events=5,
+        )
+        historical_input = HistoricalInputContract.candidate(
+            input_name="btcusdt_m1_window",
+            symbol="BTC/USDT",
+            exchange="bybit",
+            kind=HistoricalInputKind.BAR_STREAM,
+            timeframe=MarketDataTimeframe.M1,
+            coverage_window=window,
+        )
+
+        context = ReplayContext(
+            replay_name="phase20_backtest",
+            contour_name="phase20_replay_contour",
+            observed_at=datetime(2026, 3, 24, 10, 6, tzinfo=UTC),
+            source=ReplaySource.HISTORICAL_INPUTS,
+            historical_input=historical_input,
+            validity=ReplayValidity(
+                status=ReplayValidityStatus.INVALID,
+                observed_inputs=0,
+                required_inputs=1,
+                invalid_reason="historical_input_coverage_drift_detected",
+            ),
+            integrity=ReplayIntegrity(
+                status=ReplayIntegrityStatus.DRIFTED,
+                reason="historical_input_coverage_drift_detected",
+                reference_input_id=historical_input.input_id,
+            ),
+        )
+
+        assert context.integrity.status == ReplayIntegrityStatus.DRIFTED
+        assert context.integrity.reason == "historical_input_coverage_drift_detected"
 
     def test_replay_candidate_can_carry_minimal_recorder_state_without_analytics_ownership(
         self,

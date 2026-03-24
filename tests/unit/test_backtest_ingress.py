@@ -13,6 +13,7 @@ from cryptotechnolog.backtest import (
     HistoricalInputKind,
     ReplayDecision,
     ReplayIngressPath,
+    ReplayIntegrityStatus,
     ReplayRuntimeLifecycleState,
     ReplayStatus,
     ReplayValidityStatus,
@@ -215,6 +216,47 @@ async def test_historical_input_ingress_blocks_lookahead_runtime_path() -> None:
     diagnostics = runtime.get_runtime_diagnostics()
     assert diagnostics["ready"] is False
     assert diagnostics["last_failure_reason"] == "historical_input_lookahead_detected"
+
+
+@pytest.mark.asyncio
+async def test_historical_input_ingress_surfaces_coverage_drift_for_same_window() -> None:
+    ingress = HistoricalInputIngress()
+    runtime = create_replay_runtime()
+    await runtime.start()
+
+    baseline = _bars_dataframe()
+    ingress.load_dataframe_into_runtime(
+        baseline,
+        runtime=runtime,
+        reference_time=datetime(2026, 3, 24, 10, 3, tzinfo=UTC),
+        input_name="btcusdt_m1_bar_window",
+        symbol="BTCUSDT",
+        exchange="BINANCE",
+        timeframe=MarketDataTimeframe.M1,
+    )
+
+    drifted = baseline.sort_values("timestamp").iloc[[0, 2]].reset_index(drop=True)
+    result = ingress.load_dataframe_into_runtime(
+        drifted,
+        runtime=runtime,
+        reference_time=datetime(2026, 3, 24, 10, 3, tzinfo=UTC),
+        input_name="btcusdt_m1_bar_window",
+        symbol="BTCUSDT",
+        exchange="BINANCE",
+        timeframe=MarketDataTimeframe.M1,
+    )
+
+    assert result.runtime_update.context is not None
+    assert result.runtime_update.context.integrity.status == ReplayIntegrityStatus.DRIFTED
+    assert result.runtime_update.context.validity.status == ReplayValidityStatus.INVALID
+    assert result.runtime_update.context.validity.invalid_reason == (
+        "historical_input_coverage_drift_detected"
+    )
+    assert result.runtime_update.replay_candidate is not None
+    assert result.runtime_update.replay_candidate.status == ReplayStatus.INVALIDATED
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    assert diagnostics["last_failure_reason"] == "historical_input_coverage_drift_detected"
 
 
 @pytest.mark.asyncio
