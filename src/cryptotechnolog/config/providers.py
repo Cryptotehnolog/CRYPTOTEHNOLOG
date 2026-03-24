@@ -30,6 +30,8 @@ HTTP_OK = 200
 # Настройка логирования
 logger = logging.getLogger(__name__)
 
+_DEV_LOCAL_ENVIRONMENTS = frozenset({"development", "dev", "local", "test"})
+
 
 class FileConfigProvider(IConfigLoader):
     """
@@ -224,12 +226,12 @@ class InfisicalConfigProvider(IConfigLoader):
     Требует установленных переменных окружения:
     - INFISICAL_TOKEN: токен доступа к Infisical
     - ИЛИ INFISICAL_CLIENT_ID + INFISICAL_CLIENT_SECRET: для Machine Identity
-    - INFISICAL_URL: URL Infisical сервера (опционально, по умолчанию - локальный)
+    - INFISICAL_URL: URL Infisical сервера для production-like path
 
     Поддерживает:
-    - Локальный Infisical (localhost:8080)
+    - explicit dev-local Infisical (localhost:8080)
     - Machine Identity (Client ID + Client Secret)
-    - Fallback на .env файл если Infisical недоступен
+    - controlled dev-local fallback через `.env.infisical`
 
     Пример использования:
         provider = InfisicalConfigProvider()
@@ -251,6 +253,35 @@ class InfisicalConfigProvider(IConfigLoader):
     _project_id: str | None
     _secret_paths: list[str]
     _secret_keys: list[str]
+
+    def _normalized_environment(self) -> str:
+        """Вернуть нормализованный marker окружения."""
+        return self._environment.strip().lower()
+
+    def _is_explicit_dev_local_mode(self) -> bool:
+        """Проверить, разрешён ли controlled dev-local fallback contour."""
+        return self._normalized_environment() in _DEV_LOCAL_ENVIRONMENTS
+
+    def _allows_dev_local_fallbacks(self) -> bool:
+        """Разрешены ли dev-local fallback paths для текущего provider contour."""
+        return self._fallback_to_env and self._is_explicit_dev_local_mode()
+
+    def _resolve_infisical_url(self, local_url: str | None) -> str:
+        """
+        Разрешить URL Infisical с fail-closed поведением для production-like path.
+
+        Локальный URL по умолчанию допустим только в explicit dev-local mode.
+        """
+        explicit_url = local_url or os.environ.get("INFISICAL_URL")
+        if explicit_url:
+            return explicit_url
+
+        if self._is_explicit_dev_local_mode():
+            return self.DEFAULT_LOCAL_URL
+
+        raise ValueError(
+            "INFISICAL_URL должен быть явно задан вне explicit dev-local environments."
+        )
 
     def _resolve_secret_paths(
         self,
@@ -365,8 +396,10 @@ class InfisicalConfigProvider(IConfigLoader):
             self._secret_paths,
         )
 
-        # Always load from .env.infisical to get secret keys and paths
-        self._load_token_from_env_file()
+        # Dev-local path может добрать keys/paths из .env.infisical, но
+        # production-like contour не должен молча уходить в env-file fallback.
+        if self._allows_dev_local_fallbacks():
+            self._load_token_from_env_file()
 
         self._token = None  # Will be fetched dynamically
 
@@ -391,14 +424,15 @@ class InfisicalConfigProvider(IConfigLoader):
         # Token-based auth
         self._token = token or os.environ.get("INFISICAL_TOKEN")
 
-        if not self._token and fallback_to_env:
+        if not self._token and self._allows_dev_local_fallbacks():
             # Fallback to .env - load from .env.infisical
             self._token = self._load_token_from_env_file()
 
         if not self._token and not (self._client_id and self._client_secret):
             raise ValueError(
-                "INFISICAL_TOKEN не установлен и не найден в .env.infisical. "
-                "Запустите scripts/setup_infisical.ps1 для инициализации."
+                "INFISICAL_TOKEN не установлен. "
+                "Для explicit dev-local mode допустим fallback через .env.infisical; "
+                "для production-like path требуется явный token/provider wiring."
             )
 
     def __init__(
@@ -426,8 +460,8 @@ class InfisicalConfigProvider(IConfigLoader):
             use_machine_identity: Использовать Machine Identity
             client_id: Client ID для Machine Identity
             client_secret: Client Secret для Machine Identity
-            local_url: URL локального Infisical (по умолчанию http://127.0.0.1:8080)
-            fallback_to_env: Использовать .env если Infisical недоступен
+            local_url: URL локального Infisical для explicit dev-local contour
+            fallback_to_env: Разрешить dev-local fallback через `.env.infisical`
             secret_paths: Список путей к папкам с секретами (например: ["/production/crypto", "/staging/telegram"])
             secret_keys: Список имён секретов для загрузки (например: ["API_KEY", "API_SECRET"])
         """
@@ -448,8 +482,8 @@ class InfisicalConfigProvider(IConfigLoader):
         # Разрешаем ключи секретов
         self._secret_keys = self._resolve_secret_keys(secret_keys)
 
-        # Determine Infisical URL (local or cloud)
-        self._infisical_url = local_url or os.environ.get("INFISICAL_URL", self.DEFAULT_LOCAL_URL)
+        # Determine Infisical URL (local fallback only for explicit dev-local mode)
+        self._infisical_url = self._resolve_infisical_url(local_url)
 
         # Разрешаем и валидируем credentials
         self._resolve_credentials(
@@ -468,6 +502,9 @@ class InfisicalConfigProvider(IConfigLoader):
         - ./secrets/infisical-token (local development)
         - ~/.infisical/credentials (Infisical CLI)
         """
+        if not self._allows_dev_local_fallbacks():
+            return None
+
         # Try local file first
         local_token_path = Path("secrets/infisical-token")
         if local_token_path.exists():
@@ -487,6 +524,9 @@ class InfisicalConfigProvider(IConfigLoader):
         """
         Загрузить токен или credentials из .env.infisical файла.
         """
+        if not self._allows_dev_local_fallbacks():
+            return None
+
         env_file = Path(".env.infisical")
         if not env_file.exists():
             return None

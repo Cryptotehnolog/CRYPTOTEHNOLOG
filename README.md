@@ -80,7 +80,7 @@ CRYPTOTEHNOLOG Platform
 |-----------|------------|------------|
 | **Языки** | Python 3.11+, Rust 1.75+, TypeScript | Мультиязычная архитектура |
 | **Базы данных** | PostgreSQL 15, TimescaleDB, Redis 7 | Персистентное хранение и кэш |
-| **Секреты** | Infisical, `.env` | Управление секретами |
+| **Секреты** | Infisical + explicit dev-local fallback | Управление секретами |
 | **Наблюдаемость** | Grafana, Prometheus | Метрики и мониторинг |
 | **Контейнеризация** | Docker, Docker Compose | Среда разработки |
 | **Оркестрация** | Kubernetes | Production deployment (future deployment line) |
@@ -980,11 +980,22 @@ pytest tests/unit/test_settings.py
 
 ## Безопасность
 
-- **Secrets Management**: `Infisical` или `.env` для чувствительных данных
+- **Secrets Management**: `Infisical` является canonical secret contour; dev-local fallback через `.env.infisical` / local URL допустим только как explicit local/dev mode
 - **Configuration Integrity**: криптографические подписи для конфигов
 - **Audit Trail**: immutable cryptographic audit chain
 - **Network Security**: TLS для всех внешних соединений
 - **API Permissions**: только `Read/Trade`, без withdrawal permissions
+
+### Infisical Adoption Note
+
+- `development/dev/local/test` остаются допустимым explicit dev-local contour для `InfisicalConfigProvider`
+- production-like path больше не может молча жить на:
+  - local `Infisical` URL по умолчанию
+  - `.env.infisical`
+  - file-token fallback (`secrets/infisical-token`, `~/.infisical/credentials`)
+- для production-like usage теперь должны быть явно заданы:
+  - `INFISICAL_URL`
+  - и token / machine-identity provider wiring
 
 ---
 

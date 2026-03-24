@@ -14,12 +14,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-import tempfile
-from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
 
 import pytest
 
@@ -33,41 +28,37 @@ from cryptotechnolog.config.providers import (
 class TestFileConfigProvider:
     """Тесты для FileConfigProvider."""
 
-    @pytest.fixture
-    def temp_dir(self) -> Iterator[Path]:
-        """Создать временную директорию."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
-
-    @pytest.fixture
-    def yaml_file(self, temp_dir: Path) -> Path:
-        """Создать тестовый YAML файл."""
-        file_path = temp_dir / "test.yaml"
-        file_path.write_text("key: value\nnumber: 42\n", encoding="utf-8")
-        return file_path
-
-    @pytest.fixture
-    def json_file(self, temp_dir: Path) -> Path:
-        """Создать тестовый JSON файл."""
-        file_path = temp_dir / "test.json"
-        file_path.write_text('{"key": "value", "number": 42}', encoding="utf-8")
-        return file_path
-
     @pytest.mark.asyncio
-    async def test_load_yaml_file(self, yaml_file: Path) -> None:
+    async def test_load_yaml_file(self) -> None:
         """Тест загрузки YAML файла."""
         provider = FileConfigProvider()
-        result = await provider.load(str(yaml_file))
+        yaml_path = Path("test.yaml")
+
+        with (
+            patch.object(provider, "_resolve_path", return_value=yaml_path),
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "is_file", return_value=True),
+            patch.object(Path, "read_bytes", return_value=b"key: value\nnumber: 42\n"),
+        ):
+            result = await provider.load(str(yaml_path))
 
         assert b"key" in result
         assert b"value" in result
         assert b"number" in result
 
     @pytest.mark.asyncio
-    async def test_load_json_file(self, json_file: Path) -> None:
+    async def test_load_json_file(self) -> None:
         """Тест загрузки JSON файла."""
         provider = FileConfigProvider()
-        result = await provider.load(str(json_file))
+        json_path = Path("test.json")
+
+        with (
+            patch.object(provider, "_resolve_path", return_value=json_path),
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "is_file", return_value=True),
+            patch.object(Path, "read_bytes", return_value=b'{"key": "value", "number": 42}'),
+        ):
+            result = await provider.load(str(json_path))
 
         data = json.loads(result)
         assert data["key"] == "value"
@@ -78,27 +69,44 @@ class TestFileConfigProvider:
         """Тест ошибки при отсутствии файла."""
         provider = FileConfigProvider()
 
-        with pytest.raises(FileNotFoundError):
+        with (
+            patch.object(provider, "_resolve_path", return_value=Path("nonexistent.yaml")),
+            patch.object(Path, "exists", return_value=False),
+            pytest.raises(FileNotFoundError),
+        ):
             await provider.load("nonexistent.yaml")
 
     @pytest.mark.asyncio
-    async def test_load_relative_path(self, temp_dir: Path) -> None:
+    async def test_load_relative_path(self) -> None:
         """Тест относительного пути."""
-        test_file = temp_dir / "relative.yaml"
-        test_file.write_text("test: data", encoding="utf-8")
+        base_path = Path("config")
+        provider = FileConfigProvider(base_path=base_path)
 
-        provider = FileConfigProvider(base_path=temp_dir)
-        result = await provider.load("relative.yaml")
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "is_file", return_value=True),
+            patch.object(Path, "read_bytes", return_value=b"test: data"),
+        ):
+            result = await provider.load("relative.yaml")
 
         assert b"test" in result
+        assert provider._resolve_path("relative.yaml") == base_path / "relative.yaml"
 
     @pytest.mark.asyncio
-    async def test_reload(self, yaml_file: Path) -> None:
+    async def test_reload(self) -> None:
         """Тест перезагрузки."""
         provider = FileConfigProvider()
-        await provider.load(str(yaml_file))
+        yaml_path = Path("test.yaml")
 
-        result = await provider.reload()
+        with (
+            patch.object(provider, "_resolve_path", return_value=yaml_path),
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "is_file", return_value=True),
+            patch.object(Path, "read_bytes", return_value=b"key: value\nnumber: 42\n"),
+        ):
+            await provider.load(str(yaml_path))
+
+            result = await provider.reload()
         assert b"key" in result
 
 
@@ -188,6 +196,50 @@ class TestInfisicalConfigProvider:
 
             assert provider._token == "test_token"
             assert provider._project_id == "test_project"
+
+    def test_dev_local_mode_keeps_default_local_infisical_url(self) -> None:
+        """Explicit dev-local mode может использовать local Infisical URL по умолчанию."""
+        with patch.dict(
+            os.environ,
+            {"INFISICAL_TOKEN": "test_token", "INFISICAL_PROJECT_ID": "test_project"},
+            clear=True,
+        ):
+            provider = InfisicalConfigProvider(environment="development")
+
+            assert provider.get_url() == InfisicalConfigProvider.DEFAULT_LOCAL_URL
+            assert provider.is_local() is True
+
+    def test_production_like_mode_requires_explicit_infisical_url(self) -> None:
+        """Production-like path не должен молча уходить в local Infisical URL."""
+        with (
+            patch.dict(
+                os.environ,
+                {"INFISICAL_TOKEN": "test_token", "INFISICAL_PROJECT_ID": "test_project"},
+                clear=True,
+            ),
+            pytest.raises(ValueError, match="INFISICAL_URL"),
+        ):
+            InfisicalConfigProvider(environment="production")
+
+    def test_production_like_mode_does_not_fallback_to_env_infisical(self) -> None:
+        """Production-like path не должен брать token из .env.infisical молча."""
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "INFISICAL_PROJECT_ID": "test_project",
+                    "INFISICAL_URL": "https://infisical.example.com",
+                },
+                clear=True,
+            ),
+            patch("pathlib.Path.exists", return_value=True),
+            patch(
+                "pathlib.Path.read_text",
+                return_value="INFISICAL_TOKEN=dev_fallback_token\n",
+            ),
+            pytest.raises(ValueError, match="INFISICAL_TOKEN"),
+        ):
+            InfisicalConfigProvider(environment="production", fallback_to_env=True)
 
     @pytest.mark.asyncio
     async def test_fetch_single_secret_success(self) -> None:
