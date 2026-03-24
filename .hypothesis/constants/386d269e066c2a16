@@ -1,4 +1,0 @@
-# file: d:\CRYPTOTEHNOLOG\src\core\watchdog.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.5, 1.0, 2.0, 30.0, 60.0, 'Health check failed', 'Test error', 'Unknown error', 'Watchdog запущен', 'Watchdog остановлен', 'Watchdog уже запущен', 'check_interval', 'comp1', 'comp2', 'component', 'component_count', 'components', 'consecutive_failures', 'critical', 'degraded', 'details', 'error', 'failed', 'failing', 'failure_threshold', 'healthy', 'info', 'level', 'message', 'new_state', 'old_state', 'recovering', 'recovery_attempts', 'running', 'status', 'test', 'total_checks', 'total_failures', 'total_recoveries', 'unhealthy', 'warning', 'Ошибка в мониторинге']

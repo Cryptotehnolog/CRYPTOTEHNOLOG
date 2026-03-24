@@ -1,4 +1,0 @@
-# file: D:\CRYPTOTEHNOLOG\.venv\watchdog\utils\platform.py
-# hypothesis_version: 6.151.9
-
-['bsd', 'darwin', 'dragonfly', 'freebsd', 'linux', 'netbsd', 'openbsd', 'unknown', 'win', 'windows']

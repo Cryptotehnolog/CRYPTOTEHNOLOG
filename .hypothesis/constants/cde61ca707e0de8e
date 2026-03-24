@@ -1,4 +1,0 @@
-# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\config\repository.py
-# hypothesis_version: 6.151.9
-
-['config_versions', 'get_by_hash', 'get_by_version', 'get_history', 'get_latest', 'save_version']

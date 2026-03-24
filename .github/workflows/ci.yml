@@ -18,6 +18,14 @@ jobs:
     name: Python Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      REDIS_HOST: localhost
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: bot_user
+      POSTGRES_PASSWORD: bot_password_dev
+      POSTGRES_DB: trading_dev
+      POSTGRES_TEST_DB: trading_test
 
     strategy:
       matrix:
@@ -36,9 +44,9 @@ jobs:
       postgres:
         image: timescale/timescaledb:latest-pg15
         env:
-          POSTGRES_USER: bot_user
-          POSTGRES_PASSWORD: bot_password_dev
-          POSTGRES_DB: trading_dev
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
         ports:
           - 5432:5432
         options: >-
@@ -79,40 +87,45 @@ jobs:
 
       - name: Create test database and apply migrations
         run: |
-          .venv/bin/python -c "
+          .venv/bin/python - <<'PY'
           import asyncio
           import asyncpg
+          import os
           from pathlib import Path
 
           async def create_test_db_and_migrate():
               # Connect to postgres to create database
               conn = await asyncpg.connect(
-                  host='localhost',
-                  port=5432,
-                  user='bot_user',
-                  password='bot_password_dev',
+                  host=os.environ['POSTGRES_HOST'],
+                  port=int(os.environ['POSTGRES_PORT']),
+                  user=os.environ['POSTGRES_USER'],
+                  password=os.environ['POSTGRES_PASSWORD'],
                   database='postgres'
               )
-              
+
               # Drop existing test database if exists
-              await conn.execute(\"\"\"
+              await conn.execute("""
                   SELECT pg_terminate_backend(pg_stat_activity.pid)
                   FROM pg_stat_activity
-                  WHERE pg_stat_activity.datname = 'trading_test'
+                  WHERE pg_stat_activity.datname = $1
                   AND pid <> pg_backend_pid()
-              \"\"\")
-              await conn.execute('DROP DATABASE IF EXISTS trading_test')
-              await conn.execute('CREATE DATABASE trading_test OWNER bot_user')
-              print('Created fresh trading_test database')
+              """, os.environ['POSTGRES_TEST_DB'])
+              await conn.execute(
+                  f"DROP DATABASE IF EXISTS {os.environ['POSTGRES_TEST_DB']}"
+              )
+              await conn.execute(
+                  f"CREATE DATABASE {os.environ['POSTGRES_TEST_DB']} OWNER {os.environ['POSTGRES_USER']}"
+              )
+              print(f"Created fresh {os.environ['POSTGRES_TEST_DB']} database")
               await conn.close()
 
               # Connect to trading_test and create tables
               conn = await asyncpg.connect(
-                  host='localhost',
-                  port=5432,
-                  user='bot_user',
-                  password='bot_password_dev',
-                  database='trading_test'
+                  host=os.environ['POSTGRES_HOST'],
+                  port=int(os.environ['POSTGRES_PORT']),
+                  user=os.environ['POSTGRES_USER'],
+                  password=os.environ['POSTGRES_PASSWORD'],
+                  database=os.environ['POSTGRES_TEST_DB']
               )
 
               # Apply migrations as whole files (not split by semicolon!)
@@ -145,51 +158,40 @@ jobs:
                           print(f'Warning: {e}')
                   print(f'Completed {filename}')
 
-              print('Applied all migrations to trading_test')
+              print(f"Applied all migrations to {os.environ['POSTGRES_TEST_DB']}")
               await conn.close()
 
           asyncio.run(create_test_db_and_migrate())
-          "
+          PY
 
       - name: Run linter (ruff)
         run: |
           .venv/bin/ruff check src/ tests/ --select F821,I002
           .venv/bin/ruff check src/ tests/
-          .venv/bin/ruff format --check src/ tests/
+          .venv/bin/ruff format --check --preview src/ tests/
 
-      - name: Run type checker (mypy)
+      - name: Run critical runtime type checker (mypy)
         run: |
-          .venv/bin/mypy -m cryptotechnolog \
-            -m cryptotechnolog.core \
-            -m cryptotechnolog.backtest \
-            -m cryptotechnolog.data \
-            -m cryptotechnolog.config \
-            -m cryptotechnolog.risk \
-            -m cryptotechnolog.analysis \
+          .venv/bin/mypy \
             -m cryptotechnolog.execution \
-            -m cryptotechnolog.intelligence \
-            -m cryptotechnolog.models \
-            -m cryptotechnolog.observability \
-            -m cryptotechnolog.strategy
-        continue-on-error: true
+            -m cryptotechnolog.oms \
+            -m cryptotechnolog.opportunity \
+            -m cryptotechnolog.orchestration \
+            -m cryptotechnolog.position_expansion \
+            -m cryptotechnolog.portfolio_governor \
+            -m cryptotechnolog.protection \
+            -m cryptotechnolog.manager \
+            -m cryptotechnolog.validation \
+            -m cryptotechnolog.paper
 
       - name: Run unit tests (without DB - parallel with retry)
         run: .venv/bin/python -m pytest tests/unit/ -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml --reruns 3 --reruns-delay 1
-        env:
-          REDIS_HOST: localhost
-          POSTGRES_HOST: localhost
 
       - name: Run unit tests (with DB - sequential with retry)
         run: .venv/bin/python -m pytest tests/unit/ -v -m db -n 0 --cov=src --cov-report=xml --reruns 3 --reruns-delay 1
-        env:
-          REDIS_HOST: localhost
-          POSTGRES_HOST: localhost
 
       - name: Run integration tests (sequential with retry)
         run: .venv/bin/python -m pytest tests/integration/ -v -n 0 --cov=src --cov-append --cov-report=xml --reruns 3 --reruns-delay 1
-        env:
-          REDIS_HOST: localhost
-          POSTGRES_HOST: localhost
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -354,11 +356,11 @@ jobs:
       - name: Run detect-secrets
         run: |
           if [ -f .secrets.baseline ]; then
-            .venv/bin/detect-secrets scan --baseline .secrets.baseline || true
+            .venv/bin/detect-secrets scan --baseline .secrets.baseline
           else
-            .venv/bin/detect-secrets scan || true
+            echo ".secrets.baseline is required for blocking detect-secrets gate"
+            exit 1
           fi
-        continue-on-error: true
 
       - name: Run Bandit
         run: |
@@ -412,10 +414,10 @@ jobs:
           uv pip install pip-audit safety
 
       - name: Run pip-audit
-        run: .venv/bin/pip-audit -r requirements.txt || true
+        run: .venv/bin/pip-audit -r requirements.txt
 
       - name: Run safety
-        run: .venv/bin/safety check -r requirements.txt || true
+        run: .venv/bin/safety check -r requirements.txt
 
   # ==================== Docker Build Test ====================
   docker-build:
@@ -518,4 +520,3 @@ jobs:
           needs.docker-build.result == 'failure' ||
           needs.code-quality.result == 'failure'
         run: exit 1
-

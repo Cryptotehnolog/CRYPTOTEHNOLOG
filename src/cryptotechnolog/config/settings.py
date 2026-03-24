@@ -12,6 +12,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cryptotechnolog.runtime_identity import get_project_name, get_runtime_version
 
+_LOCAL_ENVIRONMENTS = frozenset({"development", "dev", "local", "test"})
+_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
 
 class Settings(BaseSettings):
     """
@@ -25,7 +28,7 @@ class Settings(BaseSettings):
     project_name: str = Field(default_factory=get_project_name)
     project_version: str = Field(default_factory=get_runtime_version)
     environment: str = "development"
-    debug: bool = True
+    debug: bool = False
 
     # ==================== Paths ====================
     # Base directory (project root)
@@ -51,44 +54,70 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_user: str = "bot_user"
-    postgres_password: SecretStr = SecretStr("bot_password_dev")
+    postgres_password: SecretStr = SecretStr("")
     postgres_db: str = "trading_dev"
 
     # Test database (отдельная БД для интеграционных тестов)
     postgres_test_db: str = "trading_test"
 
     @property
+    def normalized_environment(self) -> str:
+        """Return a normalized environment marker for fail-closed decisions."""
+        return self.environment.strip().lower()
+
+    @property
+    def is_explicit_local_mode(self) -> bool:
+        """Return True when settings are explicitly running in local/dev-like mode."""
+        return self.normalized_environment in _LOCAL_ENVIRONMENTS
+
+    @property
+    def has_postgres_password(self) -> bool:
+        """Return True when PostgreSQL password is explicitly configured."""
+        return bool(self.postgres_password.get_secret_value().strip())
+
+    @property
+    def is_local_postgres_target(self) -> bool:
+        """Return True when PostgreSQL target is clearly local-only."""
+        return self.postgres_host.strip().lower() in _LOCAL_HOSTS
+
+    @property
+    def uses_default_event_bus_redis_url(self) -> bool:
+        """Return True when event bus still points to the permissive local default."""
+        return self.event_bus_redis_url.strip() == "redis://localhost:6379"
+
+    def _build_postgres_url(self, database_name: str) -> str:
+        """Construct PostgreSQL URL with fail-closed semantics for non-local paths."""
+        if self.has_postgres_password:
+            auth_part = f"{self.postgres_user}:{self.postgres_password.get_secret_value()}"
+        elif self.is_explicit_local_mode and self.is_local_postgres_target:
+            auth_part = f"{self.postgres_user}:"
+        else:
+            raise ValueError(
+                "POSTGRES_PASSWORD must be explicitly configured for non-local PostgreSQL usage"
+            )
+
+        return f"postgresql://{auth_part}@{self.postgres_host}:{self.postgres_port}/{database_name}"
+
+    @property
     def postgres_url(self) -> str:
         """Construct PostgreSQL connection URL."""
-        return (
-            f"postgresql://{self.postgres_user}:{self.postgres_password.get_secret_value()}"
-            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-        )
+        return self._build_postgres_url(self.postgres_db)
 
     @property
     def postgres_async_url(self) -> str:
         """Construct async PostgreSQL connection URL."""
         # Note: asyncpg uses 'postgresql' scheme, not 'postgresql+asyncpg'
-        return (
-            f"postgresql://{self.postgres_user}:{self.postgres_password.get_secret_value()}"
-            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-        )
+        return self._build_postgres_url(self.postgres_db)
 
     @property
     def postgres_test_url(self) -> str:
         """Construct test PostgreSQL connection URL."""
-        return (
-            f"postgresql://{self.postgres_user}:{self.postgres_password.get_secret_value()}"
-            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_test_db}"
-        )
+        return self._build_postgres_url(self.postgres_test_db)
 
     @property
     def postgres_test_async_url(self) -> str:
         """Construct test async PostgreSQL connection URL."""
-        return (
-            f"postgresql://{self.postgres_user}:{self.postgres_password.get_secret_value()}"
-            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_test_db}"
-        )
+        return self._build_postgres_url(self.postgres_test_db)
 
     # ==================== Connection Pooling ====================
     # PostgreSQL Connection Pool Settings
@@ -363,6 +392,60 @@ def _normalize_config_value(value: Any) -> Any:
     return normalized_value
 
 
+def _collect_runtime_secret_validation_errors(settings_to_validate: Settings) -> list[str]:
+    """Collect fail-closed validation errors for secrets and local defaults."""
+    validation_errors: list[str] = []
+
+    if not settings_to_validate.is_explicit_local_mode and settings_to_validate.debug:
+        validation_errors.append("debug must be disabled outside explicit local/test environments")
+
+    if not settings_to_validate.has_postgres_password and not (
+        settings_to_validate.is_explicit_local_mode
+        and settings_to_validate.is_local_postgres_target
+    ):
+        validation_errors.append(
+            "postgres_password must be explicitly configured outside local/test PostgreSQL usage"
+        )
+
+    if (
+        not settings_to_validate.is_explicit_local_mode
+        and settings_to_validate.uses_default_event_bus_redis_url
+    ):
+        validation_errors.append(
+            "event_bus_redis_url must be explicitly configured outside local/test environments"
+        )
+
+    return validation_errors
+
+
+def _collect_domain_validation_errors(settings_to_validate: Settings) -> list[str]:
+    """Collect domain validation errors for risk and trading settings."""
+    validation_errors: list[str] = []
+
+    if settings_to_validate.base_r_percent <= 0 or settings_to_validate.base_r_percent > 1:
+        validation_errors.append("base_r_percent must be between 0 and 1")
+
+    if settings_to_validate.max_r_per_trade <= 0:
+        validation_errors.append("max_r_per_trade must be positive")
+
+    if settings_to_validate.max_portfolio_r <= 0:
+        validation_errors.append("max_portfolio_r must be positive")
+
+    if (
+        settings_to_validate.default_leverage < 1
+        or settings_to_validate.default_leverage > settings_to_validate.max_leverage
+    ):
+        validation_errors.append(
+            "default_leverage must be between 1 and "
+            f"max_leverage ({settings_to_validate.max_leverage})"
+        )
+
+    if settings_to_validate.slippage_tolerance < 0 or settings_to_validate.slippage_tolerance > 1:
+        validation_errors.append("slippage_tolerance must be between 0 and 1")
+
+    return validation_errors
+
+
 # ==================== Settings Validation ====================
 def validate_settings(
     settings_to_validate: Settings | None = None,
@@ -397,27 +480,8 @@ def validate_settings(
             except Exception as e:
                 validation_errors.append(f"Failed to create {path_name} at {path}: {e}")
 
-    # Validate database settings
-    # (No external secrets manager validation required)
-
-    # Validate risk parameters
-    if s.base_r_percent <= 0 or s.base_r_percent > 1:
-        validation_errors.append("base_r_percent must be between 0 and 1")
-
-    if s.max_r_per_trade <= 0:
-        validation_errors.append("max_r_per_trade must be positive")
-
-    if s.max_portfolio_r <= 0:
-        validation_errors.append("max_portfolio_r must be positive")
-
-    # Validate trading settings
-    if s.default_leverage < 1 or s.default_leverage > s.max_leverage:
-        validation_errors.append(
-            f"default_leverage must be between 1 and max_leverage ({s.max_leverage})"
-        )
-
-    if s.slippage_tolerance < 0 or s.slippage_tolerance > 1:
-        validation_errors.append("slippage_tolerance must be between 0 and 1")
+    validation_errors.extend(_collect_runtime_secret_validation_errors(s))
+    validation_errors.extend(_collect_domain_validation_errors(s))
 
     # Report validation results
     if validation_errors:

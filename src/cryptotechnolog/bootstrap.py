@@ -43,9 +43,22 @@ from cryptotechnolog.execution import (
     create_execution_runtime,
 )
 from cryptotechnolog.intelligence.runtime import IntelligenceRuntime, create_intelligence_runtime
+from cryptotechnolog.manager import (
+    ManagerEventSource,
+    ManagerEventType,
+    ManagerRuntime,
+    build_manager_event,
+    create_manager_runtime,
+)
 from cryptotechnolog.market_data import MarketDataTimeframe
 from cryptotechnolog.market_data.events import BarCompletedPayload
 from cryptotechnolog.market_data.runtime import MarketDataRuntime, create_market_data_runtime
+from cryptotechnolog.oms import (
+    OmsEventSource,
+    OmsRuntime,
+    build_oms_event,
+    create_oms_runtime,
+)
 from cryptotechnolog.opportunity import (
     OpportunityEventSource,
     OpportunityEventType,
@@ -60,8 +73,15 @@ from cryptotechnolog.orchestration import (
     build_orchestration_event,
     create_orchestration_runtime,
 )
+from cryptotechnolog.paper import (
+    PaperEventSource,
+    PaperRuntime,
+    build_paper_event,
+    create_paper_runtime,
+)
 from cryptotechnolog.portfolio_governor import (
     PortfolioGovernorEventSource,
+    PortfolioGovernorEventType,
     PortfolioGovernorRuntime,
     build_portfolio_governor_event,
     create_portfolio_governor_runtime,
@@ -72,6 +92,13 @@ from cryptotechnolog.position_expansion import (
     PositionExpansionRuntime,
     build_position_expansion_event,
     create_position_expansion_runtime,
+)
+from cryptotechnolog.protection import (
+    ProtectionEventSource,
+    ProtectionEventType,
+    ProtectionRuntime,
+    build_protection_event,
+    create_protection_runtime,
 )
 from cryptotechnolog.risk.runtime import RiskRuntime, create_risk_runtime
 from cryptotechnolog.runtime_identity import RuntimeIdentity, build_runtime_identity
@@ -89,10 +116,18 @@ from cryptotechnolog.strategy import (
     build_strategy_event,
     create_strategy_runtime,
 )
+from cryptotechnolog.validation import (
+    ValidationEventSource,
+    ValidationEventType,
+    ValidationRuntime,
+    build_validation_event,
+    create_validation_runtime,
+)
 
 if TYPE_CHECKING:
     from cryptotechnolog.analysis import RiskDerivedInputsSnapshot
     from cryptotechnolog.market_data import OrderBookSnapshotContract
+    from cryptotechnolog.oms import OmsOrderRecord
 
 
 class ProductionBootstrapError(RuntimeError):
@@ -131,10 +166,15 @@ class ProductionRuntime:
     signal_runtime: SignalRuntime
     strategy_runtime: StrategyRuntime
     execution_runtime: ExecutionRuntime
+    oms_runtime: OmsRuntime
     opportunity_runtime: OpportunityRuntime
     orchestration_runtime: OrchestrationRuntime
     position_expansion_runtime: PositionExpansionRuntime
     portfolio_governor_runtime: PortfolioGovernorRuntime
+    protection_runtime: ProtectionRuntime
+    manager_runtime: ManagerRuntime
+    validation_runtime: ValidationRuntime
+    paper_runtime: PaperRuntime
     startup_result: StartupResult | None = None
     shutdown_result: ShutdownResult | None = None
     last_health: SystemHealth | None = None
@@ -328,10 +368,15 @@ class ProductionRuntime:
             raise ProductionBootstrapError(
                 "Risk runtime persistence не была подключена в production bootstrap"
             )
+        # Upstream truth providers Phase 6-8 остаются startup-degradable:
+        # operator truth видит их как not_ready/degraded, но startup не
+        # проваливается только из-за их warming/missing state.
         if not self.strategy_runtime.is_started:
             raise ProductionBootstrapError("Phase 9 strategy runtime не подключён к Event Bus")
         if not self.execution_runtime.is_started:
             raise ProductionBootstrapError("Phase 10 execution runtime не подключён к Event Bus")
+        if not self.oms_runtime.is_started:
+            raise ProductionBootstrapError("Phase 16 OMS runtime не подключён к Event Bus")
         if not self.opportunity_runtime.is_started:
             raise ProductionBootstrapError("Phase 11 opportunity runtime не подключён к Event Bus")
         if not self.orchestration_runtime.is_started:
@@ -346,6 +391,14 @@ class ProductionRuntime:
             raise ProductionBootstrapError(
                 "Phase 14 portfolio-governor runtime не подключён к Event Bus"
             )
+        if not self.protection_runtime.is_started:
+            raise ProductionBootstrapError("Phase 15 protection runtime не подключён к Event Bus")
+        if not self.manager_runtime.is_started:
+            raise ProductionBootstrapError("Phase 17 manager runtime не подключён к Event Bus")
+        if not self.validation_runtime.is_started:
+            raise ProductionBootstrapError("Phase 18 validation runtime не подключён к Event Bus")
+        if not self.paper_runtime.is_started:
+            raise ProductionBootstrapError("Phase 19 paper runtime не подключён к Event Bus")
         registered_risk_paths = {
             resolved_path
             for listener in self.listener_registry.all_listeners
@@ -363,7 +416,7 @@ class ProductionRuntime:
                 "Production Event Bus не форсирует single-risk-path policy"
             )
 
-    async def _ensure_component_cleanup(self) -> None:
+    async def _ensure_component_cleanup(self) -> None:  # noqa: PLR0912,PLR0915
         """Дочистить компоненты, если контроллер не остановил их сам."""
         if self.risk_runtime.is_started:
             with contextlib.suppress(Exception):
@@ -380,6 +433,9 @@ class ProductionRuntime:
         if self.execution_runtime.is_started:
             with contextlib.suppress(Exception):
                 await self.execution_runtime.stop()
+        if self.oms_runtime.is_started:
+            with contextlib.suppress(Exception):
+                await self.oms_runtime.stop()
         if self.opportunity_runtime.is_started:
             with contextlib.suppress(Exception):
                 await self.opportunity_runtime.stop()
@@ -392,6 +448,18 @@ class ProductionRuntime:
         if self.portfolio_governor_runtime.is_started:
             with contextlib.suppress(Exception):
                 await self.portfolio_governor_runtime.stop()
+        if self.protection_runtime.is_started:
+            with contextlib.suppress(Exception):
+                await self.protection_runtime.stop()
+        if self.manager_runtime.is_started:
+            with contextlib.suppress(Exception):
+                await self.manager_runtime.stop()
+        if self.validation_runtime.is_started:
+            with contextlib.suppress(Exception):
+                await self.validation_runtime.stop()
+        if self.paper_runtime.is_started:
+            with contextlib.suppress(Exception):
+                await self.paper_runtime.stop()
         if getattr(self.event_bus, "pending_tasks", None):
             with contextlib.suppress(Exception):
                 await self.event_bus.shutdown()
@@ -414,8 +482,6 @@ class ProductionRuntime:
             if component.status != HealthStatus.HEALTHY
         ]
         market_data_runtime = self.market_data_runtime.get_runtime_diagnostics()
-        if not market_data_runtime.get("started", False):
-            reasons.append("phase6_market_data:not_started")
         if not market_data_runtime.get("ready", False):
             reasons.append("phase6_market_data:not_ready")
         readiness_reason_values = cast(
@@ -429,8 +495,6 @@ class ProductionRuntime:
         )
         reasons.extend(f"phase6_market_data:{reason}" for reason in degraded_reason_values)
         shared_analysis_runtime = self.shared_analysis_runtime.get_runtime_diagnostics()
-        if not shared_analysis_runtime.get("started", False):
-            reasons.append("c7r_shared_analysis:not_started")
         if not shared_analysis_runtime.get("ready", False):
             reasons.append("c7r_shared_analysis:not_ready")
         readiness_reason_values = cast(
@@ -444,8 +508,6 @@ class ProductionRuntime:
         )
         reasons.extend(f"c7r_shared_analysis:{reason}" for reason in degraded_reason_values)
         intelligence_runtime = self.intelligence_runtime.get_runtime_diagnostics()
-        if not intelligence_runtime.get("started", False):
-            reasons.append("phase7_intelligence:not_started")
         if not intelligence_runtime.get("ready", False):
             reasons.append("phase7_intelligence:not_ready")
         readiness_reason_values = cast(
@@ -459,8 +521,6 @@ class ProductionRuntime:
         )
         reasons.extend(f"phase7_intelligence:{reason}" for reason in degraded_reason_values)
         signal_runtime = self.signal_runtime.get_runtime_diagnostics()
-        if not signal_runtime.get("started", False):
-            reasons.append("phase8_signal:not_started")
         if not signal_runtime.get("ready", False):
             reasons.append("phase8_signal:not_ready")
         readiness_reason_values = cast(
@@ -503,6 +563,21 @@ class ProductionRuntime:
             execution_runtime.get("degraded_reasons", []),
         )
         reasons.extend(f"phase10_execution:{reason}" for reason in degraded_reason_values)
+        oms_runtime = self.oms_runtime.get_runtime_diagnostics()
+        if not oms_runtime.get("started", False):
+            reasons.append("phase16_oms:not_started")
+        if not oms_runtime.get("ready", False):
+            reasons.append("phase16_oms:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            oms_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"phase16_oms:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            oms_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"phase16_oms:{reason}" for reason in degraded_reason_values)
         opportunity_runtime = self.opportunity_runtime.get_runtime_diagnostics()
         if not opportunity_runtime.get("started", False):
             reasons.append("phase11_opportunity:not_started")
@@ -563,6 +638,66 @@ class ProductionRuntime:
             portfolio_governor_runtime.get("degraded_reasons", []),
         )
         reasons.extend(f"phase14_portfolio_governor:{reason}" for reason in degraded_reason_values)
+        protection_runtime = self.protection_runtime.get_runtime_diagnostics()
+        if not protection_runtime.get("started", False):
+            reasons.append("phase15_protection:not_started")
+        if not protection_runtime.get("ready", False):
+            reasons.append("phase15_protection:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            protection_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"phase15_protection:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            protection_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"phase15_protection:{reason}" for reason in degraded_reason_values)
+        manager_runtime = self.manager_runtime.get_runtime_diagnostics()
+        if not manager_runtime.get("started", False):
+            reasons.append("phase17_manager:not_started")
+        if not manager_runtime.get("ready", False):
+            reasons.append("phase17_manager:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            manager_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"phase17_manager:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            manager_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"phase17_manager:{reason}" for reason in degraded_reason_values)
+        validation_runtime = self.validation_runtime.get_runtime_diagnostics()
+        if not validation_runtime.get("started", False):
+            reasons.append("phase18_validation:not_started")
+        if not validation_runtime.get("ready", False):
+            reasons.append("phase18_validation:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            validation_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"phase18_validation:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            validation_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"phase18_validation:{reason}" for reason in degraded_reason_values)
+        paper_runtime = self.paper_runtime.get_runtime_diagnostics()
+        if not paper_runtime.get("started", False):
+            reasons.append("phase19_paper:not_started")
+        if not paper_runtime.get("ready", False):
+            reasons.append("phase19_paper:not_ready")
+        readiness_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            paper_runtime.get("readiness_reasons", []),
+        )
+        reasons.extend(f"phase19_paper:{reason}" for reason in readiness_reason_values)
+        degraded_reason_values = cast(
+            "list[str] | tuple[str, ...]",
+            paper_runtime.get("degraded_reasons", []),
+        )
+        reasons.extend(f"phase19_paper:{reason}" for reason in degraded_reason_values)
         return reasons
 
 
@@ -699,6 +834,9 @@ async def build_production_runtime(  # noqa: PLR0915
     def update_execution_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
         health_checker.set_runtime_diagnostics(execution_runtime=diagnostics)
 
+    def update_oms_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(oms_runtime=diagnostics)
+
     def update_opportunity_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
         health_checker.set_runtime_diagnostics(opportunity_runtime=diagnostics)
 
@@ -710,6 +848,18 @@ async def build_production_runtime(  # noqa: PLR0915
 
     def update_portfolio_governor_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
         health_checker.set_runtime_diagnostics(portfolio_governor_runtime=diagnostics)
+
+    def update_protection_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(protection_runtime=diagnostics)
+
+    def update_manager_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(manager_runtime=diagnostics)
+
+    def update_validation_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(validation_runtime=diagnostics)
+
+    def update_paper_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
+        health_checker.set_runtime_diagnostics(paper_runtime=diagnostics)
 
     intelligence_runtime = create_intelligence_runtime(
         diagnostics_sink=update_intelligence_runtime_diagnostics,
@@ -766,6 +916,17 @@ async def build_production_runtime(  # noqa: PLR0915
         shutdown_timeout=15.0,
     )
 
+    oms_runtime = create_oms_runtime(
+        diagnostics_sink=update_oms_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase16_oms_runtime",
+        component=oms_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+
     opportunity_runtime = create_opportunity_runtime(
         diagnostics_sink=update_opportunity_runtime_diagnostics,
     )
@@ -805,6 +966,48 @@ async def build_production_runtime(  # noqa: PLR0915
     controller.register_component(
         name="phase14_portfolio_governor_runtime",
         component=portfolio_governor_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+
+    protection_runtime = create_protection_runtime(
+        diagnostics_sink=update_protection_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase15_protection_runtime",
+        component=protection_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+
+    manager_runtime = create_manager_runtime(
+        diagnostics_sink=update_manager_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase17_manager_runtime",
+        component=manager_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+    validation_runtime = create_validation_runtime(
+        diagnostics_sink=update_validation_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase18_validation_runtime",
+        component=validation_runtime,
+        required=False,
+        health_check_enabled=False,
+        shutdown_timeout=15.0,
+    )
+    paper_runtime = create_paper_runtime(
+        diagnostics_sink=update_paper_runtime_diagnostics,
+    )
+    controller.register_component(
+        name="phase19_paper_runtime",
+        component=paper_runtime,
         required=False,
         health_check_enabled=False,
         shutdown_timeout=15.0,
@@ -965,6 +1168,36 @@ async def build_production_runtime(  # noqa: PLR0915
             opportunity_runtime.mark_degraded(f"intent_ingest_failed:{exc}")
             raise RuntimeError(f"opportunity_intent_ingest_failed:{exc}") from exc
 
+    async def handle_execution_event_for_oms(event: Event) -> None:
+        try:
+            payload = cast("dict[str, object]", event.payload)
+            symbol = cast("str", payload["symbol"])
+            exchange = cast("str", payload["exchange"])
+            timeframe = MarketDataTimeframe(cast("str", payload["timeframe"]))
+            generated_at = datetime.fromisoformat(cast("str", payload["generated_at"]))
+            intent = execution_runtime.get_intent(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            if intent is None:
+                raise RuntimeError("oms_execution_truth_missing_for_event")
+            update = oms_runtime.ingest_intent(
+                intent=intent,
+                reference_time=generated_at,
+            )
+            if update.event_type is not None and update.emitted_payload is not None:
+                await event_bus.publish(
+                    build_oms_event(
+                        event_type=update.event_type,
+                        payload=update.emitted_payload,
+                        source=OmsEventSource.OMS_RUNTIME.value,
+                    )
+                )
+        except Exception as exc:
+            oms_runtime.mark_degraded(f"intent_ingest_failed:{exc}")
+            raise RuntimeError(f"oms_intent_ingest_failed:{exc}") from exc
+
     async def handle_opportunity_event_for_orchestration(event: Event) -> None:
         try:
             payload = cast("dict[str, object]", event.payload)
@@ -1055,6 +1288,210 @@ async def build_production_runtime(  # noqa: PLR0915
             portfolio_governor_runtime.mark_degraded(f"expansion_ingest_failed:{exc}")
             raise RuntimeError(f"portfolio_governor_expansion_ingest_failed:{exc}") from exc
 
+    async def handle_portfolio_governor_event_for_protection(event: Event) -> None:
+        try:
+            payload = cast("dict[str, object]", event.payload)
+            symbol = cast("str", payload["symbol"])
+            exchange = cast("str", payload["exchange"])
+            timeframe = MarketDataTimeframe(cast("str", payload["timeframe"]))
+            generated_at = datetime.fromisoformat(cast("str", payload["generated_at"]))
+            governor = portfolio_governor_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            if governor is None:
+                raise RuntimeError("protection_governor_truth_missing_for_event")
+            update = protection_runtime.ingest_governor(
+                governor=governor,
+                reference_time=generated_at,
+            )
+            if update.emitted_payload is not None:
+                await event_bus.publish(
+                    build_protection_event(
+                        event_type=update.event_type,
+                        payload=update.emitted_payload,
+                        source=ProtectionEventSource.PROTECTION_RUNTIME.value,
+                    )
+                )
+        except Exception as exc:
+            protection_runtime.mark_degraded(f"governor_ingest_failed:{exc}")
+            raise RuntimeError(f"protection_governor_ingest_failed:{exc}") from exc
+
+    async def handle_protection_event_for_manager(event: Event) -> None:
+        try:
+            payload = cast("dict[str, object]", event.payload)
+            symbol = cast("str", payload["symbol"])
+            exchange = cast("str", payload["exchange"])
+            timeframe = MarketDataTimeframe(cast("str", payload["timeframe"]))
+            generated_at = datetime.fromisoformat(cast("str", payload["generated_at"]))
+            opportunity = opportunity_runtime.get_selection(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            orchestration = orchestration_runtime.get_decision(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            expansion = position_expansion_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            governor = portfolio_governor_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            protection = protection_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            update = manager_runtime.ingest_truths(
+                opportunity=opportunity,
+                orchestration=orchestration,
+                expansion=expansion,
+                governor=governor,
+                protection=protection,
+                reference_time=generated_at,
+            )
+            if update.event_type is not None and update.emitted_payload is not None:
+                await event_bus.publish(
+                    build_manager_event(
+                        event_type=update.event_type,
+                        payload=update.emitted_payload,
+                        source=ManagerEventSource.MANAGER_RUNTIME.value,
+                    )
+                )
+        except Exception as exc:
+            manager_runtime.mark_degraded(f"workflow_ingest_failed:{exc}")
+            raise RuntimeError(f"manager_workflow_ingest_failed:{exc}") from exc
+
+    def get_adjacent_oms_order_for_validation(
+        *,
+        exchange: str,
+        symbol: str,
+        timeframe: MarketDataTimeframe,
+    ) -> OmsOrderRecord | None:
+        for order in oms_runtime.list_active_orders():
+            if (
+                order.exchange == exchange
+                and order.symbol == symbol
+                and order.timeframe == timeframe
+            ):
+                return order
+        for order in oms_runtime.list_historical_orders():
+            if (
+                order.exchange == exchange
+                and order.symbol == symbol
+                and order.timeframe == timeframe
+            ):
+                return order
+        return None
+
+    def get_adjacent_oms_order_for_paper(
+        *,
+        exchange: str,
+        symbol: str,
+        timeframe: MarketDataTimeframe,
+    ) -> OmsOrderRecord | None:
+        return get_adjacent_oms_order_for_validation(
+            exchange=exchange,
+            symbol=symbol,
+            timeframe=timeframe,
+        )
+
+    async def handle_manager_event_for_validation(event: Event) -> None:
+        try:
+            payload = cast("dict[str, object]", event.payload)
+            symbol = cast("str", payload["symbol"])
+            exchange = cast("str", payload["exchange"])
+            timeframe = MarketDataTimeframe(cast("str", payload["timeframe"]))
+            generated_at = datetime.fromisoformat(cast("str", payload["generated_at"]))
+            key = (symbol, exchange, timeframe)
+            manager = manager_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            ) or manager_runtime.get_historical_candidate(key)
+            governor = portfolio_governor_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            protection = protection_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            oms_order = get_adjacent_oms_order_for_validation(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            update = validation_runtime.ingest_truths(
+                manager=manager,
+                governor=governor,
+                protection=protection,
+                oms_order=oms_order,
+                reference_time=generated_at,
+            )
+            if update.event_type is not None and update.emitted_payload is not None:
+                await event_bus.publish(
+                    build_validation_event(
+                        event_type=update.event_type,
+                        payload=update.emitted_payload,
+                        source=ValidationEventSource.VALIDATION_RUNTIME.value,
+                    )
+                )
+        except Exception as exc:
+            validation_runtime.mark_degraded(f"review_ingest_failed:{exc}")
+            raise RuntimeError(f"validation_review_ingest_failed:{exc}") from exc
+
+    async def handle_validation_event_for_paper(event: Event) -> None:
+        try:
+            payload = cast("dict[str, object]", event.payload)
+            symbol = cast("str", payload["symbol"])
+            exchange = cast("str", payload["exchange"])
+            timeframe = MarketDataTimeframe(cast("str", payload["timeframe"]))
+            generated_at = datetime.fromisoformat(cast("str", payload["generated_at"]))
+            key = (symbol, exchange, timeframe)
+            validation = validation_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            ) or validation_runtime.get_historical_candidate(key)
+            manager = manager_runtime.get_candidate(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            ) or manager_runtime.get_historical_candidate(key)
+            oms_order = get_adjacent_oms_order_for_paper(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            update = paper_runtime.ingest_truths(
+                manager=manager,
+                validation=validation,
+                oms_order=oms_order,
+                reference_time=generated_at,
+            )
+            if update.event_type is not None and update.emitted_payload is not None:
+                await event_bus.publish(
+                    build_paper_event(
+                        event_type=update.event_type,
+                        payload=update.emitted_payload,
+                        source=PaperEventSource.PAPER_RUNTIME.value,
+                    )
+                )
+        except Exception as exc:
+            paper_runtime.mark_degraded(f"rehearsal_ingest_failed:{exc}")
+            raise RuntimeError(f"paper_rehearsal_ingest_failed:{exc}") from exc
+
     event_bus.on(SystemEventType.BAR_COMPLETED, handle_market_data_bar_completed_for_intelligence)
     event_bus.on(
         SystemEventType.BAR_COMPLETED,
@@ -1081,12 +1518,24 @@ async def build_production_runtime(  # noqa: PLR0915
         handle_execution_event_for_opportunity,
     )
     event_bus.on(
+        ExecutionEventType.EXECUTION_INTENT_UPDATED.value,
+        handle_execution_event_for_oms,
+    )
+    event_bus.on(
         ExecutionEventType.EXECUTION_REQUESTED.value,
         handle_execution_event_for_opportunity,
     )
     event_bus.on(
+        ExecutionEventType.EXECUTION_REQUESTED.value,
+        handle_execution_event_for_oms,
+    )
+    event_bus.on(
         ExecutionEventType.EXECUTION_INVALIDATED.value,
         handle_execution_event_for_opportunity,
+    )
+    event_bus.on(
+        ExecutionEventType.EXECUTION_INVALIDATED.value,
+        handle_execution_event_for_oms,
     )
     event_bus.on(
         OpportunityEventType.OPPORTUNITY_CANDIDATE_UPDATED.value,
@@ -1124,6 +1573,70 @@ async def build_production_runtime(  # noqa: PLR0915
         PositionExpansionEventType.POSITION_EXPANSION_INVALIDATED.value,
         handle_position_expansion_event_for_portfolio_governor,
     )
+    event_bus.on(
+        PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_CANDIDATE_UPDATED.value,
+        handle_portfolio_governor_event_for_protection,
+    )
+    event_bus.on(
+        PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_APPROVED.value,
+        handle_portfolio_governor_event_for_protection,
+    )
+    event_bus.on(
+        PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_INVALIDATED.value,
+        handle_portfolio_governor_event_for_protection,
+    )
+    event_bus.on(
+        ProtectionEventType.PROTECTION_CANDIDATE_UPDATED.value,
+        handle_protection_event_for_manager,
+    )
+    event_bus.on(
+        ProtectionEventType.PROTECTION_PROTECTED.value,
+        handle_protection_event_for_manager,
+    )
+    event_bus.on(
+        ProtectionEventType.PROTECTION_HALTED.value,
+        handle_protection_event_for_manager,
+    )
+    event_bus.on(
+        ProtectionEventType.PROTECTION_FROZEN.value,
+        handle_protection_event_for_manager,
+    )
+    event_bus.on(
+        ProtectionEventType.PROTECTION_INVALIDATED.value,
+        handle_protection_event_for_manager,
+    )
+    event_bus.on(
+        ManagerEventType.MANAGER_CANDIDATE_UPDATED.value,
+        handle_manager_event_for_validation,
+    )
+    event_bus.on(
+        ManagerEventType.MANAGER_WORKFLOW_COORDINATED.value,
+        handle_manager_event_for_validation,
+    )
+    event_bus.on(
+        ManagerEventType.MANAGER_WORKFLOW_ABSTAINED.value,
+        handle_manager_event_for_validation,
+    )
+    event_bus.on(
+        ManagerEventType.MANAGER_WORKFLOW_INVALIDATED.value,
+        handle_manager_event_for_validation,
+    )
+    event_bus.on(
+        ValidationEventType.VALIDATION_CANDIDATE_UPDATED.value,
+        handle_validation_event_for_paper,
+    )
+    event_bus.on(
+        ValidationEventType.VALIDATION_WORKFLOW_VALIDATED.value,
+        handle_validation_event_for_paper,
+    )
+    event_bus.on(
+        ValidationEventType.VALIDATION_WORKFLOW_ABSTAINED.value,
+        handle_validation_event_for_paper,
+    )
+    event_bus.on(
+        ValidationEventType.VALIDATION_WORKFLOW_INVALIDATED.value,
+        handle_validation_event_for_paper,
+    )
 
     runtime = ProductionRuntime(
         settings=runtime_settings,
@@ -1149,10 +1662,15 @@ async def build_production_runtime(  # noqa: PLR0915
         signal_runtime=signal_runtime,
         strategy_runtime=strategy_runtime,
         execution_runtime=execution_runtime,
+        oms_runtime=oms_runtime,
         opportunity_runtime=opportunity_runtime,
         orchestration_runtime=orchestration_runtime,
         position_expansion_runtime=position_expansion_runtime,
         portfolio_governor_runtime=portfolio_governor_runtime,
+        protection_runtime=protection_runtime,
+        manager_runtime=manager_runtime,
+        validation_runtime=validation_runtime,
+        paper_runtime=paper_runtime,
     )
     runtime._update_runtime_diagnostics(
         composition_root_built=True,

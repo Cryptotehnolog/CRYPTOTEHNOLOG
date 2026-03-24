@@ -1,5 +1,8 @@
 # Тесты CRYPTOTEHNOLOG
 
+> Архивная testing note: этот документ не является authoritative truth для текущего test/CI contour.
+> Актуальную truth следует читать по `README.md`, `.github/workflows/ci.yml` и текущему содержимому `tests/`.
+
 Список всех тестов проекта с описанием что проверяется.
 
 ---

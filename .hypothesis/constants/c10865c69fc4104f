@@ -1,4 +1,0 @@
-# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\config\signers\gpg_signer.py
-# hypothesis_version: 6.151.9
-
-['--keyring', '--trusted-key', '--verify', '--version', '.env.example', '.sig', '/', 'BAD signature', 'GPG недоступен', 'Good signature', 'No signature', 'config/dev/', 'config/local/', 'config/prod/', 'config/staging/', 'gpg', 'replace', 'utf-8', 'Подпись не найдена', 'Файл не существует']

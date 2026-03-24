@@ -23,9 +23,9 @@
 
 ### Мультиязычная архитектура
 
-Ниже показана честная current architecture truth после formal finalization `P_14`
-как линии `Portfolio Governor / Capital Governance Foundation`, с отдельной пометкой для
-следующих planned contours.
+Ниже показана честная current architecture truth после formal finalization `P_22`
+как узкой `Live Feed Connectivity Foundation`,
+с отдельной пометкой для следующих planned contours.
 
 ```text
 CRYPTOTEHNOLOG Platform
@@ -35,12 +35,13 @@ CRYPTOTEHNOLOG Platform
 │   ├── Config Manager
 │   ├── Risk Engine (Phase 5 orchestration)
 │   ├── Operator Gate / Watchdog / Health truth
-│   └── [Planned] Portfolio / Protection contours
+│   └── Portfolio Governor / [Closure-Ready] Protection contour
 │
 ├── Data Plane
 │   ├── Event Bus (Rust) ← high-performance messaging
 │   ├── Rust Risk Ledger (legacy/high-performance path)
 │   ├── Audit Chain (Rust) ← cryptographic hashing
+│   ├── Live Feed Connectivity Foundation
 │   ├── Market Data Layer (Python)
 │   ├── Analysis Layer (Python)
 │   ├── Intelligence Layer (Python)
@@ -49,10 +50,18 @@ CRYPTOTEHNOLOG Platform
 ├── Trading Runtime Layers (Python + Rust)
 │   ├── Order Execution Core / bridge contours (Rust + Python)
 │   ├── Execution Foundation
+│   ├── OMS Foundation
 │   ├── Opportunity / Selection Foundation
 │   ├── Strategy Orchestration / Meta Layer
 │   ├── Position Expansion Foundation
-│   └── Portfolio Governor / Capital Governance Foundation
+│   ├── Portfolio Governor / Capital Governance Foundation
+│   ├── Strategy Manager / Workflow Foundation
+│   ├── Validation Foundation
+│   ├── Paper Trading Foundation
+│   └── Backtesting / Replay Foundation
+│
+├── Reporting / Artifact Layers (Python)
+│   └── Reporting Artifact Foundation
 │
 ├── Observability (Python + Web)
 │   ├── Metrics Collector (Python)
@@ -69,12 +78,12 @@ CRYPTOTEHNOLOG Platform
 
 | Компонент | Технология | Назначение |
 |-----------|------------|------------|
-| **Языки** | Python 3.11+, Rust 1.75+, TypeScript | Мультиязычная архитектура |
+| **Языки** | Python 3.12+, Rust 1.75+, TypeScript | Мультиязычная архитектура |
 | **Базы данных** | PostgreSQL 15, TimescaleDB, Redis 7 | Персистентное хранение и кэш |
-| **Секреты** | Infisical, `.env` | Управление секретами |
+| **Секреты** | Infisical + explicit dev-local fallback | Управление секретами |
 | **Наблюдаемость** | Grafana, Prometheus | Метрики и мониторинг |
 | **Контейнеризация** | Docker, Docker Compose | Среда разработки |
-| **Оркестрация** | Kubernetes | Production deployment (`Phase 19`) |
+| **Оркестрация** | Kubernetes | Production deployment (future deployment line) |
 | **CI/CD** | GitHub Actions | Автоматические проверки и deployment |
 
 ---
@@ -99,8 +108,14 @@ CRYPTOTEHNOLOG Platform
 | 12 | Strategy Orchestration / Meta Layer | ✅ Done | v1.12.0 |
 | 13 | Position Expansion Foundation | ✅ Done | v1.13.0 |
 | 14 | Portfolio Governor / Capital Governance Foundation | ✅ Done | v1.14.0 |
-| 15-18 | Protection / OMS / Manager / Testing | ⏳ Planned | v1.15.0-v1.18.0 |
-| 19 | Deployment | ⏳ Planned | v1.19.0 |
+| 15 | Protection / Supervisor Foundation | ✅ Closure-Ready | v1.15.0 |
+| 16 | OMS Foundation | ✅ Closure-Ready | v1.16.0 |
+| 17 | Strategy Manager / Workflow Foundation | ✅ Closure-Ready | v1.17.0 |
+| 18 | Validation Foundation | ✅ Closure-Ready | v1.18.0 |
+| 19 | Paper Trading Foundation | ✅ Closure-Ready | v1.19.0 |
+| 20 | Backtesting / Replay Foundation | ✅ Closure-Ready | v1.20.0 |
+| 21 | Reporting Artifact Foundation | ✅ Closure-Ready | v1.21.0 |
+| 22 | Live Feed Connectivity Foundation | ✅ Done | v1.22.0 |
 
 ---
 
@@ -307,7 +322,7 @@ Deferred follow-up lines после `P_9`:
 ### Предварительные требования
 
 - `Windows 10/11` или `Linux` (`WSL2` для Windows)
-- `Python 3.11+`
+- `Python 3.12`
 - `Rust 1.75+`
 - `Docker Desktop` с `WSL2`
 - `Visual Studio Code`
@@ -340,6 +355,10 @@ pytest tests/
 
 # Запустить runtime разработки (когда это нужно)
 python -m cryptotechnolog.main
+
+# Собрать и проверить canonical Docker runtime path
+docker build -t cryptotechnolog:local .
+docker run --rm cryptotechnolog:local python -m cryptotechnolog.main
 ```
 
 ### Разработка
@@ -362,11 +381,12 @@ cargo test
 
 ---
 
-## Ближайшие следующие линии после P_14
+## Ближайшие следующие линии после P_22
 
-После formal finalization `P_14` ближайшая нормализованная последовательность фаз выглядит так:
+После closure-ready реализации `P_22`
+ближайшая нормализованная последовательность фаз выглядит так:
 
-- `P_15+` — protection / `OMS` / broader manager / validation-supporting lines
+- `P_22+` — exchange adapter ecosystem, execution-connectivity-supporting, routing/reliability-supporting и другие future lines только после отдельной нормализации authoritative phase truth
 
 Это предварительная roadmap truth.
 Authoritative implementation truth для каждой из этих фаз должна открываться отдельно через
@@ -552,6 +572,307 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ---
 
+## Phase 15 Protection / Supervisor Foundation
+
+`Phase 15` доведена до closure-ready состояния как узкая, production-compatible линия:
+`Protection / Supervisor Foundation`.
+
+В реализованный scope `P_15` входят:
+
+- typed protection / supervisor contracts;
+- protection decision / status / validity semantics;
+- typed protection event vocabulary;
+- explicit `ProtectionRuntime`;
+- deterministic `ProtectionContext` assembly внутри protection layer;
+- один узкий deterministic contour с `PROTECT` / `HALT` / `FREEZE`;
+- narrow composition-root integration через existing portfolio-governor truth;
+- operator-visible protection diagnostics / readiness / degraded truth;
+- lifecycle semantics для protection candidate truth:
+  - `CANDIDATE`
+  - `PROTECTED`
+  - `HALTED`
+  - `FROZEN`
+  - `INVALIDATED`
+  - `EXPIRED`
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения closure-ready `P_15`:
+
+- это не `OMS`;
+- это не cancel / modify lifecycle;
+- это не broad close-all / liquidation engine;
+- это не notifications / approval workflow line;
+- это не broader `StrategyManager`;
+- это не analytics / validation line;
+- dashboard / UI line не входит в scope.
+
+---
+
+## Phase 16 OMS Foundation
+
+`Phase 16` доведена до closure-ready состояния как узкая, production-compatible линия:
+`OMS Foundation`.
+
+В реализованный scope `P_16` входят:
+
+- typed OMS contracts;
+- order-lifecycle / order-state semantics;
+- typed OMS event vocabulary;
+- explicit `OmsRuntime`;
+- deterministic `OmsContext` assembly внутри OMS layer;
+- centralized order-state / order-registry truth;
+- query/state-first surface для active / historical orders;
+- narrow composition-root integration через existing execution truth;
+- operator-visible OMS diagnostics / readiness / degraded truth;
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения closure-ready `P_16`:
+
+- это не liquidation line;
+- это не cancel-all / emergency ops line;
+- это не notifications / approval workflow line;
+- это не broader ops platform;
+- это не broader `StrategyManager`;
+- это не validation / dashboard line;
+- persistence-first OMS platform не входит в текущий scope.
+
+---
+
+## Phase 17 Strategy Manager / Workflow Foundation
+
+`Phase 17` доведена до closure-ready состояния как узкая, production-compatible линия:
+`Strategy Manager / Workflow Foundation`.
+
+В реализованный scope `P_17` входят:
+
+- package foundation в `src/cryptotechnolog/manager`;
+- typed manager / workflow contracts;
+- explicit `ManagerRuntime`;
+- deterministic `ManagerContext` assembly внутри manager layer;
+- один узкий deterministic coordination contour с `COORDINATED` / `ABSTAINED`;
+- query/state-first manager surface;
+- narrow composition-root integration через existing typed truths:
+  - `opportunity`
+  - `orchestration`
+  - `position_expansion`
+  - `portfolio_governor`
+  - `protection`
+- operator-visible manager diagnostics / readiness / degraded truth;
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения closure-ready `P_17`:
+
+- это не `Execution`;
+- это не `OMS`;
+- это не `Portfolio Governor` или `Protection`;
+- это не notifications / approval workflow line;
+- это не liquidation / ops line;
+- это не analytics / validation line;
+- это не dashboard / UI line;
+- это не full multi-strategy platform;
+- broader central-platform ownership semantics не входят в текущий scope.
+
+---
+
+## Phase 18 Validation Foundation
+
+`Phase 18` доведена до closure-ready состояния как узкая, production-compatible линия:
+`Validation Foundation`.
+
+В реализованный scope `P_18` входят:
+
+- package foundation в `src/cryptotechnolog/validation`;
+- typed validation / review contracts;
+- explicit `ValidationRuntime`;
+- deterministic `ValidationContext` assembly внутри validation layer;
+- один узкий deterministic validation contour с `VALIDATED` / `ABSTAINED`;
+- query/state-first validation surface;
+- narrow composition-root integration через existing typed truths:
+  - `manager`
+  - `portfolio_governor`
+  - `protection`
+  - optional adjacent `oms`
+- operator-visible validation diagnostics / readiness / degraded truth;
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения closure-ready `P_18`:
+
+- это не analytics / reporting platform;
+- это не full benchmark / optimization / Monte Carlo / walk-forward line;
+- это не backtesting engine;
+- это не paper trading system;
+- это не dashboard / UI line;
+- это не notifications / approval workflow line;
+- это не liquidation / ops line;
+- это не `Execution`;
+- это не `OMS`;
+- это не `Manager`;
+- broader strategy comparison / ranking ownership не входит в текущий scope.
+
+---
+
+## Phase 19 Paper Trading Foundation
+
+`Phase 19` доведена до closure-ready состояния как узкая, production-compatible линия:
+`Paper Trading Foundation`.
+
+В реализованный scope `P_19` входят:
+
+- package foundation в `src/cryptotechnolog/paper`;
+- typed paper / rehearsal contracts;
+- explicit `PaperRuntime`;
+- deterministic `PaperContext` assembly внутри paper layer;
+- один узкий deterministic rehearsal contour с `REHEARSED` / `ABSTAINED`;
+- query/state-first paper surface;
+- narrow composition-root integration через existing typed truths:
+  - `manager`
+  - `validation`
+  - optional adjacent `oms`
+- operator-visible paper diagnostics / readiness / degraded truth;
+- unit/integration verification на relevant runtime/bootstrap subset.
+
+Честные ограничения closure-ready `P_19`:
+
+- это не analytics / reporting platform;
+- это не backtesting / replay engine;
+- это не dashboard / operator line;
+- это не notifications / approval workflow line;
+- это не liquidation / ops line;
+- это не `Execution`;
+- это не `OMS`;
+- это не `Manager`;
+- это не `Validation`;
+- `backtest` и `dashboard` не поглощаются текущим paper contour.
+
+---
+
+## Phase 20 Backtesting / Replay Foundation
+
+`Phase 20` доведена до closure-ready состояния как узкая, production-compatible линия:
+`Backtesting / Replay Foundation`.
+
+В реализованный scope `P_20` входят:
+
+- package foundation в `src/cryptotechnolog/backtest`;
+- typed replay/backtest contracts;
+- typed replay event vocabulary;
+- narrowed authoritative package surface;
+- explicit `ReplayRuntime`;
+- deterministic `ReplayContext` assembly внутри replay layer;
+- centralized replay-state truth для active / historical replay candidates;
+- lifecycle semantics:
+  - `CANDIDATE`
+  - `REPLAYED`
+  - `ABSTAINED`
+  - `INVALIDATED`
+  - `EXPIRED`
+- validity/freshness semantics:
+  - `VALID`
+  - `WARMING`
+  - `INVALID`
+- deterministic historical-input ingestion;
+- first ingress path truth:
+  - `BAR_STREAM`
+  - authoritative first format = `CSV`
+  - separate `DATAFRAME` adapter truth;
+- integrated ingress -> runtime path внутри `backtest`;
+- query/state-first replay surface;
+- anti-lookahead integrity guard;
+- unit-level verification на relevant replay/contracts/ingress subset.
+
+Честные ограничения closure-ready `P_20`:
+
+- это не analytics / reporting platform;
+- это не plotting / dashboard / operator line;
+- это не comparison / ranking platform;
+- это не full historical data platform;
+- это не optimization / Monte Carlo / walk-forward line;
+- это не broader research / simulation lab;
+- это не `Validation`;
+- это не `Paper`;
+- это не `Execution`;
+- это не `OMS`;
+- это не `Manager`;
+- legacy `ReplayEngine` и `EventRecorder` не являются authoritative Phase 20 surface.
+
+---
+
+## Phase 21 Reporting Artifact Foundation
+
+`Phase 21` доведена до closure-ready состояния как узкая,
+artifact-first линия:
+`Reporting Artifact Foundation`.
+
+В реализованный closure-ready scope `P_21` входят:
+
+- package foundation в `src/cryptotechnolog/reporting`;
+- typed reporting contracts;
+- typed provenance/reference truth;
+- `ValidationReportArtifact`;
+- `PaperReportArtifact`;
+- `ReplayReportArtifact`;
+- `ReportingArtifactBundle`;
+- deterministic artifact assembly;
+- local read-only retrieval/catalog surface;
+- unit-level verification на relevant reporting subset.
+
+Честные ограничения closure-ready `P_21`:
+
+- это не analytics runtime/platform;
+- это не dashboard / operator line;
+- это не comparison / ranking platform;
+- это не optimization / Monte Carlo / walk-forward line;
+- это не plotting / delivery / notification line;
+- это не `Execution`;
+- это не `OMS`;
+- это не `Manager`;
+- `Validation`, `Paper` и `Replay` не поглощаются текущим reporting contour.
+
+---
+
+## Phase 22 Live Feed Connectivity Foundation
+
+`Phase 22` формально закрыта как `v1.22.0` как узкая,
+connectivity-first линия:
+`Live Feed Connectivity Foundation`.
+
+В реализованный closure-ready scope `P_22` входят:
+
+- package foundation в `src/cryptotechnolog/live_feed`;
+- typed connection/session contracts;
+- typed feed-health/readiness/degraded truth;
+- `FeedConnectionStatus`;
+- `FeedSessionIdentity`;
+- `FeedConnectionState`;
+- `FeedConnectivityAssessment`;
+- `FeedIngressEnvelope`;
+- `FeedIngestRequest`;
+- narrow single-session runtime boundary;
+- explicit lifecycle transitions;
+- minimal reconnect/backoff semantics;
+- typed ingest handoff generation;
+- narrow ingest integration contour в existing `market_data`;
+- support только для:
+  - `trade_tick`;
+  - `orderbook_snapshot`;
+- unit-level verification на relevant live-feed subset.
+
+Честные ограничения formalized `P_22`:
+
+- это не broad exchange adapter ecosystem;
+- это не rich client hierarchy;
+- это не execution connectivity;
+- это не order routing / smart routing;
+- это не failover / reliability platform;
+- это не reconciliation;
+- это не historical storage / backfill platform;
+- это не dashboard/operator workflow line;
+- это не analytics / reporting / research line;
+- это не `market_data` domain ownership takeover;
+- это не `execution` ownership;
+- это не `oms` ownership;
+- это не broad live-trading platform rewrite.
+
 ## Структура проекта
 
 ```text
@@ -570,6 +891,14 @@ CRYPTOTEHNOLOG/
 │   ├── orchestration/            # Strategy orchestration / meta foundation (done)
 │   ├── position_expansion/       # Position expansion foundation (done)
 │   ├── portfolio_governor/       # Portfolio governor / capital governance foundation (done)
+│   ├── protection/               # Protection / supervisor foundation (closure-ready)
+│   ├── oms/                      # OMS foundation (closure-ready)
+│   ├── manager/                  # Strategy manager / workflow foundation (closure-ready)
+│   ├── validation/               # Validation foundation (closure-ready)
+│   ├── paper/                    # Paper trading foundation (closure-ready)
+│   ├── backtest/                 # Backtesting / replay foundation (closure-ready)
+│   ├── reporting/                # Reporting artifact foundation (closure-ready)
+│   ├── live_feed/                # Live feed connectivity foundation (done)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -655,11 +984,22 @@ pytest tests/unit/test_settings.py
 
 ## Безопасность
 
-- **Secrets Management**: `Infisical` или `.env` для чувствительных данных
+- **Secrets Management**: `Infisical` является canonical secret contour; dev-local fallback через `.env.infisical` / local URL допустим только как explicit local/dev mode
 - **Configuration Integrity**: криптографические подписи для конфигов
 - **Audit Trail**: immutable cryptographic audit chain
 - **Network Security**: TLS для всех внешних соединений
 - **API Permissions**: только `Read/Trade`, без withdrawal permissions
+
+### Infisical Adoption Note
+
+- `development/dev/local/test` остаются допустимым explicit dev-local contour для `InfisicalConfigProvider`
+- production-like path больше не может молча жить на:
+  - local `Infisical` URL по умолчанию
+  - `.env.infisical`
+  - file-token fallback (`secrets/infisical-token`, `~/.infisical/credentials`)
+- для production-like usage теперь должны быть явно заданы:
+  - `INFISICAL_URL`
+  - и token / machine-identity provider wiring
 
 ---
 
@@ -669,11 +1009,11 @@ pytest tests/unit/test_settings.py
 
 - **On Push**: тесты, linting, type checking
 - **On PR**: дополнительные security scan и review checks
-- **On Merge to Main**: release/tag/deployment preparation
+- **On Merge to master**: release/tag/deployment preparation
 
 ### Branch Protection
 
-- `main`: protected, requires PR + approval + passing CI
+- `master`: protected, requires PR + approval + passing CI
 - `develop`: integration branch, requires passing CI
 - `feature/*`: feature branches
 
@@ -706,5 +1046,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.14.0`  
-**Последнее обновление:** `2026-03-22`
+**Версия:** `v1.22.0`  
+**Последнее обновление:** `2026-03-24`

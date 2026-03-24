@@ -100,6 +100,19 @@ class TestSettings:
 
         assert settings.postgres_async_url == expected_url
 
+    def test_settings_local_postgres_url_without_password(self):
+        """Test that explicit local/test mode may use PostgreSQL without a configured password."""
+        os.environ["ENVIRONMENT"] = "development"
+        os.environ.pop("POSTGRES_PASSWORD", None)
+
+        try:
+            settings = Settings()
+            assert settings.has_postgres_password is False
+            assert settings.is_explicit_local_mode is True
+            assert settings.postgres_url == "postgresql://bot_user:@localhost:5432/trading_dev"
+        finally:
+            os.environ.pop("ENVIRONMENT", None)
+
     def test_settings_redis_url_construction(self):
         """Test that Redis URL is constructed correctly."""
         settings = Settings()
@@ -338,6 +351,31 @@ class TestSettingsValidation:
                 os.environ.pop("MAX_LEVERAGE", None)
 
             # Reload settings back to original
+            reload_settings()
+
+    def test_validate_settings_requires_explicit_postgres_secret_for_production(self):
+        """Test that production-like settings fail closed without PostgreSQL secret."""
+        original_environment = os.environ.get("ENVIRONMENT")
+        original_password = os.environ.get("POSTGRES_PASSWORD")
+
+        try:
+            os.environ["ENVIRONMENT"] = "production"
+            os.environ.pop("POSTGRES_PASSWORD", None)
+
+            production_settings = reload_settings()
+
+            assert validate_settings(production_settings) is False
+        finally:
+            if original_environment is not None:
+                os.environ["ENVIRONMENT"] = original_environment
+            else:
+                os.environ.pop("ENVIRONMENT", None)
+
+            if original_password is not None:
+                os.environ["POSTGRES_PASSWORD"] = original_password
+            else:
+                os.environ.pop("POSTGRES_PASSWORD", None)
+
             reload_settings()
 
     def test_validate_settings_invalid_slippage_tolerance(self):

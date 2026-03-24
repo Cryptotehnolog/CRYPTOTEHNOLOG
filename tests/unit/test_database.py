@@ -6,8 +6,11 @@
 - Гарантирует отсутствие конфликтов event loops
 """
 
+import os
+
 import pytest
 
+from cryptotechnolog.config.settings import reload_settings
 from cryptotechnolog.core.database import DatabaseManager, get_database
 
 
@@ -34,6 +37,42 @@ class TestDatabaseManagerInit:
         db2 = get_database()
         assert db1 is db2
 
+    def test_constructor_is_lazy_without_postgres_secret(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Constructor не должен materialize PostgreSQL URL до реального usage path."""
+        original_environment = os.environ.get("ENVIRONMENT")
+        original_host = os.environ.get("POSTGRES_HOST")
+        original_password = os.environ.get("POSTGRES_PASSWORD")
+
+        try:
+            monkeypatch.setenv("ENVIRONMENT", "production")
+            monkeypatch.setenv("POSTGRES_HOST", "db.internal")
+            monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
+            reload_settings()
+
+            db = DatabaseManager()
+
+            assert db is not None
+            assert not db.is_connected
+        finally:
+            if original_environment is not None:
+                os.environ["ENVIRONMENT"] = original_environment
+            else:
+                os.environ.pop("ENVIRONMENT", None)
+
+            if original_host is not None:
+                os.environ["POSTGRES_HOST"] = original_host
+            else:
+                os.environ.pop("POSTGRES_HOST", None)
+
+            if original_password is not None:
+                os.environ["POSTGRES_PASSWORD"] = original_password
+            else:
+                os.environ.pop("POSTGRES_PASSWORD", None)
+
+            reload_settings()
+
 
 class TestDatabaseManagerConnection:
     """Тесты подключения к БД."""
@@ -44,6 +83,84 @@ class TestDatabaseManagerConnection:
         db = DatabaseManager()
         await db.disconnect()
         assert not db.is_connected
+
+    @pytest.mark.asyncio
+    async def test_connect_fails_closed_without_postgres_secret(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Non-local DB usage без password должен падать fail-closed на connect path."""
+        original_environment = os.environ.get("ENVIRONMENT")
+        original_host = os.environ.get("POSTGRES_HOST")
+        original_password = os.environ.get("POSTGRES_PASSWORD")
+
+        try:
+            monkeypatch.setenv("ENVIRONMENT", "production")
+            monkeypatch.setenv("POSTGRES_HOST", "db.internal")
+            monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
+            reload_settings()
+
+            db = DatabaseManager()
+
+            with pytest.raises(
+                ValueError,
+                match="POSTGRES_PASSWORD must be explicitly configured",
+            ):
+                await db.connect()
+        finally:
+            if original_environment is not None:
+                os.environ["ENVIRONMENT"] = original_environment
+            else:
+                os.environ.pop("ENVIRONMENT", None)
+
+            if original_host is not None:
+                os.environ["POSTGRES_HOST"] = original_host
+            else:
+                os.environ.pop("POSTGRES_HOST", None)
+
+            if original_password is not None:
+                os.environ["POSTGRES_PASSWORD"] = original_password
+            else:
+                os.environ.pop("POSTGRES_PASSWORD", None)
+
+            reload_settings()
+
+    @pytest.mark.asyncio
+    async def test_local_test_path_resolves_url_without_hidden_dev_secret(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Local/test contour остаётся допустимым без hidden dev password."""
+        original_environment = os.environ.get("ENVIRONMENT")
+        original_host = os.environ.get("POSTGRES_HOST")
+        original_password = os.environ.get("POSTGRES_PASSWORD")
+
+        try:
+            monkeypatch.setenv("ENVIRONMENT", "test")
+            monkeypatch.setenv("POSTGRES_HOST", "localhost")
+            monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
+            reload_settings()
+
+            db = DatabaseManager()
+
+            assert db._resolve_postgres_url() == "postgresql://bot_user:@localhost:5432/trading_dev"
+        finally:
+            if original_environment is not None:
+                os.environ["ENVIRONMENT"] = original_environment
+            else:
+                os.environ.pop("ENVIRONMENT", None)
+
+            if original_host is not None:
+                os.environ["POSTGRES_HOST"] = original_host
+            else:
+                os.environ.pop("POSTGRES_HOST", None)
+
+            if original_password is not None:
+                os.environ["POSTGRES_PASSWORD"] = original_password
+            else:
+                os.environ.pop("POSTGRES_PASSWORD", None)
+
+            reload_settings()
 
 
 @pytest.mark.db

@@ -761,8 +761,6 @@ class HealthChecker:
 
         market_data_runtime = diagnostics.get("market_data_runtime")
         if isinstance(market_data_runtime, dict):
-            if not market_data_runtime.get("started", False):
-                reasons.append("market_data_runtime_not_started")
             if not market_data_runtime.get("ready", False):
                 reasons.append("market_data_runtime_not_ready")
             reasons.extend(
@@ -775,8 +773,6 @@ class HealthChecker:
 
         shared_analysis_runtime = diagnostics.get("shared_analysis_runtime")
         if isinstance(shared_analysis_runtime, dict):
-            if not shared_analysis_runtime.get("started", False):
-                reasons.append("shared_analysis_runtime_not_started")
             if not shared_analysis_runtime.get("ready", False):
                 reasons.append("shared_analysis_runtime_not_ready")
             reasons.extend(
@@ -789,8 +785,6 @@ class HealthChecker:
 
         intelligence_runtime = diagnostics.get("intelligence_runtime")
         if isinstance(intelligence_runtime, dict):
-            if not intelligence_runtime.get("started", False):
-                reasons.append("intelligence_runtime_not_started")
             if not intelligence_runtime.get("ready", False):
                 reasons.append("intelligence_runtime_not_ready")
             reasons.extend(
@@ -803,8 +797,6 @@ class HealthChecker:
 
         signal_runtime = diagnostics.get("signal_runtime")
         if isinstance(signal_runtime, dict):
-            if not signal_runtime.get("started", False):
-                reasons.append("signal_runtime_not_started")
             if not signal_runtime.get("ready", False):
                 reasons.append("signal_runtime_not_ready")
             reasons.extend(str(reason) for reason in signal_runtime.get("readiness_reasons", []))
@@ -833,6 +825,15 @@ class HealthChecker:
             reasons.extend(
                 f"execution:{reason}" for reason in execution_runtime.get("degraded_reasons", [])
             )
+
+        oms_runtime = diagnostics.get("oms_runtime")
+        if isinstance(oms_runtime, dict):
+            if not oms_runtime.get("started", False):
+                reasons.append("oms_runtime_not_started")
+            if not oms_runtime.get("ready", False):
+                reasons.append("oms_runtime_not_ready")
+            reasons.extend(str(reason) for reason in oms_runtime.get("readiness_reasons", []))
+            reasons.extend(f"oms:{reason}" for reason in oms_runtime.get("degraded_reasons", []))
 
         opportunity_runtime = diagnostics.get("opportunity_runtime")
         if isinstance(opportunity_runtime, dict):
@@ -888,6 +889,54 @@ class HealthChecker:
             reasons.extend(
                 f"portfolio_governor:{reason}"
                 for reason in portfolio_governor_runtime.get("degraded_reasons", [])
+            )
+
+        protection_runtime = diagnostics.get("protection_runtime")
+        if isinstance(protection_runtime, dict):
+            if not protection_runtime.get("started", False):
+                reasons.append("protection_runtime_not_started")
+            if not protection_runtime.get("ready", False):
+                reasons.append("protection_runtime_not_ready")
+            reasons.extend(
+                str(reason) for reason in protection_runtime.get("readiness_reasons", [])
+            )
+            reasons.extend(
+                f"protection:{reason}" for reason in protection_runtime.get("degraded_reasons", [])
+            )
+
+        manager_runtime = diagnostics.get("manager_runtime")
+        if isinstance(manager_runtime, dict):
+            if not manager_runtime.get("started", False):
+                reasons.append("manager_runtime_not_started")
+            if not manager_runtime.get("ready", False):
+                reasons.append("manager_runtime_not_ready")
+            reasons.extend(str(reason) for reason in manager_runtime.get("readiness_reasons", []))
+            reasons.extend(
+                f"manager:{reason}" for reason in manager_runtime.get("degraded_reasons", [])
+            )
+
+        validation_runtime = diagnostics.get("validation_runtime")
+        if isinstance(validation_runtime, dict):
+            if not validation_runtime.get("started", False):
+                reasons.append("validation_runtime_not_started")
+            if not validation_runtime.get("ready", False):
+                reasons.append("validation_runtime_not_ready")
+            reasons.extend(
+                str(reason) for reason in validation_runtime.get("readiness_reasons", [])
+            )
+            reasons.extend(
+                f"validation:{reason}" for reason in validation_runtime.get("degraded_reasons", [])
+            )
+
+        paper_runtime = diagnostics.get("paper_runtime")
+        if isinstance(paper_runtime, dict):
+            if not paper_runtime.get("started", False):
+                reasons.append("paper_runtime_not_started")
+            if not paper_runtime.get("ready", False):
+                reasons.append("paper_runtime_not_ready")
+            reasons.extend(str(reason) for reason in paper_runtime.get("readiness_reasons", []))
+            reasons.extend(
+                f"paper:{reason}" for reason in paper_runtime.get("degraded_reasons", [])
             )
 
         for component_name, component_health in components.items():
@@ -998,19 +1047,17 @@ class HealthChecker:
     def _is_wait_condition_satisfied(self, health: SystemHealth) -> bool:
         """Определить, достигнуто ли условие готовности для wait-helper."""
         diagnostics = health.diagnostics
-        readiness_context_present = any(
-            [
-                diagnostics.get("composition_root_built", False),
-                diagnostics.get("runtime_started", False),
-                diagnostics.get("runtime_ready", False),
-                diagnostics.get("startup_state") not in (None, "not_started"),
-                diagnostics.get("bootstrap_module") is not None,
-                diagnostics.get("bootstrap_mode") is not None,
-                diagnostics.get("active_risk_path") is not None,
-                diagnostics.get("failure_reason") is not None,
-                bool(diagnostics.get("degraded_reasons")),
-            ]
-        )
+        readiness_context_present = any((
+            diagnostics.get("composition_root_built", False),
+            diagnostics.get("runtime_started", False),
+            diagnostics.get("runtime_ready", False),
+            diagnostics.get("startup_state") not in (None, "not_started"),
+            diagnostics.get("bootstrap_module") is not None,
+            diagnostics.get("bootstrap_mode") is not None,
+            diagnostics.get("active_risk_path") is not None,
+            diagnostics.get("failure_reason") is not None,
+            bool(diagnostics.get("degraded_reasons")),
+        ))
         if readiness_context_present:
             return health.readiness_status == "ready"
         return health.is_healthy()

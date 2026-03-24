@@ -695,6 +695,38 @@ class TestHealthChecker:
         assert "market_data:universe_empty" in result.readiness_reasons
 
     @pytest.mark.asyncio
+    async def test_check_system_treats_phase6_to_phase8_as_not_ready_only(self) -> None:
+        """Phase 6-8 upstream runtimes не должны создавать not_started drift в readiness truth."""
+        identity = build_runtime_identity(
+            bootstrap_module="cryptotechnolog.bootstrap",
+            bootstrap_mode="production",
+            active_risk_path="phase5_risk_engine",
+        )
+        checker = HealthChecker(runtime_identity=identity)
+        checker.set_runtime_diagnostics(
+            composition_root_built=True,
+            runtime_started=True,
+            runtime_ready=False,
+            active_risk_path="phase5_risk_engine",
+            market_data_runtime={"started": False, "ready": False, "readiness_reasons": []},
+            shared_analysis_runtime={"started": False, "ready": False, "readiness_reasons": []},
+            intelligence_runtime={"started": False, "ready": False, "readiness_reasons": []},
+            signal_runtime={"started": False, "ready": False, "readiness_reasons": []},
+        )
+
+        result = await checker.check_system()
+
+        assert result.readiness_status == "not_ready"
+        assert "market_data_runtime_not_ready" in result.readiness_reasons
+        assert "shared_analysis_runtime_not_ready" in result.readiness_reasons
+        assert "intelligence_runtime_not_ready" in result.readiness_reasons
+        assert "signal_runtime_not_ready" in result.readiness_reasons
+        assert "market_data_runtime_not_started" not in result.readiness_reasons
+        assert "shared_analysis_runtime_not_started" not in result.readiness_reasons
+        assert "intelligence_runtime_not_started" not in result.readiness_reasons
+        assert "signal_runtime_not_started" not in result.readiness_reasons
+
+    @pytest.mark.asyncio
     async def test_check_and_wait_uses_readiness_truth_when_runtime_context_present(self) -> None:
         """check_and_wait должен ждать readiness, а не только overall health."""
         identity = build_runtime_identity(

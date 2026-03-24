@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 PROJECT_NAME = "CRYPTOTEHNOLOG"
-PACKAGE_VERSION = "1.14.0"
+PACKAGE_VERSION = "1.22.0"
 
 
 @dataclass(slots=True, frozen=True)

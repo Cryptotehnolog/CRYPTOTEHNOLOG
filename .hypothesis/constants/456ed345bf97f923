@@ -1,4 +1,0 @@
-# file: D:\CRYPTOTEHNOLOG\src\cryptotechnolog\config\manager.py
-# hypothesis_version: 6.151.9
-
-['CONFIG_MANAGER', 'CONFIG_UPDATED', 'auto_reload', 'changed_sections', 'config_yaml', 'exchanges', 'load', 'load_from_history', 'new_version', 'old_version', 'reload', 'risk', 'source', 'strategies', 'system', 'utf-8']
