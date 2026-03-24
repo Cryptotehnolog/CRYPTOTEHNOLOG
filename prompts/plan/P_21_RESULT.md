@@ -125,9 +125,10 @@ Phase verification подтверждает:
 - `docs/adr/0034-reporting-artifact-foundation-boundary.md`;
 - фактический код `reporting` subset.
 
-`P_21` выглядит closure-ready по implementation truth
-и готова к result/doc normalization path
-без дополнительного implementation-step.
+На этапе formal finalization:
+
+- release/version truth переведена на `v1.21.0`;
+- phase/result/ADR/code truth синхронизированы без дополнительного implementation-step.
 
 ---
 
@@ -150,7 +151,7 @@ Phase verification подтверждает:
 
 ## 🏁 КОРОТКИЙ ВЫВОД
 
-`P_21` уже выглядит closure-ready
+`P_21` формально закрыта как `v1.21.0`
 как узкая `Reporting Artifact Foundation`.
 
 Фактическая implementation truth:
@@ -158,5 +159,5 @@ Phase verification подтверждает:
 - reporting layer существует как отдельный artifact-first package contour;
 - package включает contracts, deterministic assembly и local retrieval/catalog;
 - current scope остаётся ownership-safe и read-only;
-- дальнейший path после этого шага уже должен идти в doc/release sync,
-  а не в новый implementation expansion.
+- phase закрыта на release-level без расширения scope
+  и готова к следующему branch-level merge/finalization flow.

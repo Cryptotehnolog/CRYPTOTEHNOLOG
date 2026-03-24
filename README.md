@@ -23,8 +23,8 @@
 
 ### Мультиязычная архитектура
 
-Ниже показана честная current architecture truth после closure-ready `P_20`
-как узкой `Backtesting / Replay Foundation`,
+Ниже показана честная current architecture truth после formal finalization `P_21`
+как узкой `Reporting Artifact Foundation`,
 с отдельной пометкой для следующих planned contours.
 
 ```text
@@ -58,6 +58,9 @@ CRYPTOTEHNOLOG Platform
 │   ├── Validation Foundation
 │   ├── Paper Trading Foundation
 │   └── Backtesting / Replay Foundation
+│
+├── Reporting / Artifact Layers (Python)
+│   └── Reporting Artifact Foundation
 │
 ├── Observability (Python + Web)
 │   ├── Metrics Collector (Python)
@@ -110,6 +113,7 @@ CRYPTOTEHNOLOG Platform
 | 18 | Validation Foundation | ✅ Closure-Ready | v1.18.0 |
 | 19 | Paper Trading Foundation | ✅ Closure-Ready | v1.19.0 |
 | 20 | Backtesting / Replay Foundation | ✅ Closure-Ready | v1.20.0 |
+| 21 | Reporting Artifact Foundation | ✅ Closure-Ready | v1.21.0 |
 
 ---
 
@@ -371,12 +375,12 @@ cargo test
 
 ---
 
-## Ближайшие следующие линии после P_20
+## Ближайшие следующие линии после P_21
 
-После closure-ready реализации `P_20`
+После closure-ready реализации `P_21`
 ближайшая нормализованная последовательность фаз выглядит так:
 
-- `P_20+` — replay-supporting, analytics-supporting, historical-data-supporting и другие future lines только после отдельной нормализации authoritative phase truth
+- `P_21+` — dashboard/operator-supporting, analytics-runtime-supporting, comparison-supporting и другие future lines только после отдельной нормализации authoritative phase truth
 
 Это предварительная roadmap truth.
 Authoritative implementation truth для каждой из этих фаз должна открываться отдельно через
@@ -787,6 +791,37 @@ Authoritative implementation truth для каждой из этих фаз до
 
 ---
 
+## Phase 21 Reporting Artifact Foundation
+
+`Phase 21` доведена до closure-ready состояния как узкая,
+artifact-first линия:
+`Reporting Artifact Foundation`.
+
+В реализованный closure-ready scope `P_21` входят:
+
+- package foundation в `src/cryptotechnolog/reporting`;
+- typed reporting contracts;
+- typed provenance/reference truth;
+- `ValidationReportArtifact`;
+- `PaperReportArtifact`;
+- `ReplayReportArtifact`;
+- `ReportingArtifactBundle`;
+- deterministic artifact assembly;
+- local read-only retrieval/catalog surface;
+- unit-level verification на relevant reporting subset.
+
+Честные ограничения closure-ready `P_21`:
+
+- это не analytics runtime/platform;
+- это не dashboard / operator line;
+- это не comparison / ranking platform;
+- это не optimization / Monte Carlo / walk-forward line;
+- это не plotting / delivery / notification line;
+- это не `Execution`;
+- это не `OMS`;
+- это не `Manager`;
+- `Validation`, `Paper` и `Replay` не поглощаются текущим reporting contour.
+
 ## Структура проекта
 
 ```text
@@ -811,6 +846,7 @@ CRYPTOTEHNOLOG/
 │   ├── validation/               # Validation foundation (closure-ready)
 │   ├── paper/                    # Paper trading foundation (closure-ready)
 │   ├── backtest/                 # Backtesting / replay foundation (closure-ready)
+│   ├── reporting/                # Reporting artifact foundation (closure-ready)
 │   └── observability/            # Monitoring & metrics
 ├── crates/                       # Rust workspace crates
 │   ├── eventbus/                 # High-performance event bus
@@ -947,5 +983,5 @@ pytest tests/unit/test_settings.py
 
 ---
 
-**Версия:** `v1.20.0`  
+**Версия:** `v1.21.0`  
 **Последнее обновление:** `2026-03-24`
