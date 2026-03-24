@@ -78,7 +78,7 @@ CRYPTOTEHNOLOG Platform
 
 | Компонент | Технология | Назначение |
 |-----------|------------|------------|
-| **Языки** | Python 3.11+, Rust 1.75+, TypeScript | Мультиязычная архитектура |
+| **Языки** | Python 3.12+, Rust 1.75+, TypeScript | Мультиязычная архитектура |
 | **Базы данных** | PostgreSQL 15, TimescaleDB, Redis 7 | Персистентное хранение и кэш |
 | **Секреты** | Infisical + explicit dev-local fallback | Управление секретами |
 | **Наблюдаемость** | Grafana, Prometheus | Метрики и мониторинг |
@@ -322,7 +322,7 @@ Deferred follow-up lines после `P_9`:
 ### Предварительные требования
 
 - `Windows 10/11` или `Linux` (`WSL2` для Windows)
-- `Python 3.11+`
+- `Python 3.12`
 - `Rust 1.75+`
 - `Docker Desktop` с `WSL2`
 - `Visual Studio Code`
@@ -355,6 +355,10 @@ pytest tests/
 
 # Запустить runtime разработки (когда это нужно)
 python -m cryptotechnolog.main
+
+# Собрать и проверить canonical Docker runtime path
+docker build -t cryptotechnolog:local .
+docker run --rm cryptotechnolog:local python -m cryptotechnolog.main
 ```
 
 ### Разработка

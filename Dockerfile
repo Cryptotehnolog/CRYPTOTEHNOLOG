@@ -1,8 +1,11 @@
 # ==================== CRYPTOTEHNOLOG Python Service Dockerfile ====================
 # Multi-stage build for optimized image size
 
+ARG PYTHON_BASE_IMAGE=python:3.12-slim
+ARG APP_VERSION=1.22.0
+
 # ==================== Stage 1: Builder ====================
-FROM python:3.11-slim AS builder
+FROM ${PYTHON_BASE_IMAGE} AS builder
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -27,12 +30,13 @@ RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # ==================== Stage 2: Runtime ====================
-FROM python:3.11-slim AS runtime
+FROM ${PYTHON_BASE_IMAGE} AS runtime
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH="/app/src"
 
 # Install runtime dependencies only
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -61,9 +65,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import sys; sys.exit(0)" || exit 1
 
 # Default command
-CMD ["python", "-m", "src.main"]
+CMD ["python", "-m", "cryptotechnolog.main"]
 
 # Labels
 LABEL maintainer="CRYPTOTEHNOLOG Team" \
-      version="1.0.0" \
+      version="${APP_VERSION}" \
       description="Institutional-Grade Crypto Trading Platform"
