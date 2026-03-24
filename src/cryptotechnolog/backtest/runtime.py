@@ -177,7 +177,10 @@ class ReplayRuntime:
         self._inputs[key] = historical_input
         emitted_input_payload = HistoricalInputPayload.from_input(historical_input)
 
-        validity, reason_code = self._build_validity(historical_input=historical_input)
+        validity, reason_code = self._build_validity(
+            historical_input=historical_input,
+            reference_time=reference_time,
+        )
         context = self._assemble_replay_context(
             historical_input=historical_input,
             validity=validity,
@@ -408,7 +411,7 @@ class ReplayRuntime:
             validation_review_id=context.validation_review_id,
             paper_rehearsal_id=context.paper_rehearsal_id,
             recorder_state=recorder_state,
-            reason_code=ReplayReasonCode.REPLAY_ABSTAINED,
+            reason_code=reason_code,
         )
         self._active_replays[key] = candidate
         self._replay_key_by_id[candidate.replay_id] = key
@@ -435,8 +438,19 @@ class ReplayRuntime:
         self,
         *,
         historical_input: HistoricalInputContract,
+        reference_time: datetime,
     ) -> tuple[ReplayValidity, ReplayReasonCode]:
         window = historical_input.coverage_window
+        if window.end_at > reference_time:
+            return (
+                ReplayValidity(
+                    status=ReplayValidityStatus.INVALID,
+                    observed_inputs=0,
+                    required_inputs=1,
+                    invalid_reason="historical_input_lookahead_detected",
+                ),
+                ReplayReasonCode.INPUT_WINDOW_LOOKAHEAD,
+            )
         if window.expected_events <= 0 or window.observed_events <= 0:
             return (
                 ReplayValidity(

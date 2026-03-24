@@ -11,6 +11,7 @@ from cryptotechnolog.backtest import (
     ReplayCoverageWindow,
     ReplayDecision,
     ReplayEventType,
+    ReplayReasonCode,
     ReplayRuntimeLifecycleState,
     ReplayStatus,
     ReplayValidityStatus,
@@ -151,6 +152,31 @@ async def test_replay_runtime_abstains_for_invalid_historical_input() -> None:
     assert diagnostics["ready"] is False
     assert diagnostics["lifecycle_state"] == ReplayRuntimeLifecycleState.DEGRADED.value
     assert diagnostics["last_failure_reason"] == "historical_input_empty_or_invalid"
+
+
+@pytest.mark.asyncio
+async def test_replay_runtime_blocks_lookahead_historical_input() -> None:
+    runtime = create_replay_runtime()
+    await runtime.start()
+
+    update = runtime.ingest_historical_input(
+        historical_input=_historical_input(),
+        reference_time=_now() - timedelta(minutes=1),
+    )
+
+    assert update.context is not None
+    assert update.context.validity.status == ReplayValidityStatus.INVALID
+    assert update.context.validity.invalid_reason == "historical_input_lookahead_detected"
+    assert update.replay_candidate is not None
+    assert update.replay_candidate.status == ReplayStatus.ABSTAINED
+    assert update.replay_candidate.decision == ReplayDecision.ABSTAIN
+    assert update.replay_candidate.reason_code == ReplayReasonCode.INPUT_WINDOW_LOOKAHEAD
+    assert update.event_type == ReplayEventType.REPLAY_ABSTAINED
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    assert diagnostics["ready"] is False
+    assert diagnostics["last_failure_reason"] == "historical_input_lookahead_detected"
+    assert "historical_input_lookahead_detected" in diagnostics["degraded_reasons"]
 
 
 @pytest.mark.asyncio

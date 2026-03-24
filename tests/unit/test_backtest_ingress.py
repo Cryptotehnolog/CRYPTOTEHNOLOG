@@ -188,6 +188,36 @@ async def test_historical_input_ingress_integrates_warming_path_into_runtime() -
 
 
 @pytest.mark.asyncio
+async def test_historical_input_ingress_blocks_lookahead_runtime_path() -> None:
+    ingress = HistoricalInputIngress()
+    runtime = create_replay_runtime()
+    await runtime.start()
+
+    result = ingress.load_dataframe_into_runtime(
+        _bars_dataframe(),
+        runtime=runtime,
+        reference_time=datetime(2026, 3, 24, 10, 1, tzinfo=UTC),
+        input_name="btcusdt_m1_bar_window",
+        symbol="BTCUSDT",
+        exchange="BINANCE",
+        timeframe=MarketDataTimeframe.M1,
+    )
+
+    assert result.runtime_update.context is not None
+    assert result.runtime_update.context.validity.status == ReplayValidityStatus.INVALID
+    assert result.runtime_update.context.validity.invalid_reason == (
+        "historical_input_lookahead_detected"
+    )
+    assert result.runtime_update.replay_candidate is not None
+    assert result.runtime_update.replay_candidate.status == ReplayStatus.ABSTAINED
+    assert result.runtime_update.replay_candidate.decision == ReplayDecision.ABSTAIN
+
+    diagnostics = runtime.get_runtime_diagnostics()
+    assert diagnostics["ready"] is False
+    assert diagnostics["last_failure_reason"] == "historical_input_lookahead_detected"
+
+
+@pytest.mark.asyncio
 async def test_historical_input_ingress_integrates_csv_into_runtime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

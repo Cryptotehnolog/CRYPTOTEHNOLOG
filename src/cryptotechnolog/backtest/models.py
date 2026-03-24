@@ -63,6 +63,7 @@ class ReplayReasonCode(StrEnum):
     INPUT_WINDOW_READY = "input_window_ready"
     INPUT_WINDOW_INCOMPLETE = "input_window_incomplete"
     INPUT_WINDOW_INVALID = "input_window_invalid"
+    INPUT_WINDOW_LOOKAHEAD = "input_window_lookahead"
     RECORDER_STATE_MISSING = "recorder_state_missing"
     VALIDATION_TRUTH_EXTERNAL = "validation_truth_external"
     PAPER_TRUTH_EXTERNAL = "paper_truth_external"
