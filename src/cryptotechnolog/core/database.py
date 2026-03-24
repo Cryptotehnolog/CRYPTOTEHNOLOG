@@ -75,9 +75,9 @@ class DatabaseManager:
         """
         settings = get_settings()
 
+        self._settings = settings
         self._min_size = min_size or settings.postgres_pool_min_size
         self._max_size = max_size or settings.postgres_pool_max_size
-        self._url = settings.postgres_async_url
 
         self._pool: asyncpg.Pool | None = None
         self._connection: asyncpg.Connection | None = None
@@ -139,6 +139,15 @@ class DatabaseManager:
             # Нет запущенного loop - используем 0 как идентификатор
             return 0
 
+    def _resolve_postgres_url(self) -> str:
+        """
+        Лениво materialize PostgreSQL URL только на реальном connect path.
+
+        Это сохраняет fail-closed semantics для non-local usage,
+        но не роняет простой constructor DatabaseManager().
+        """
+        return self._settings.postgres_async_url
+
     async def _ensure_pool(self) -> asyncpg.Pool:
         """
         Обеспечить наличие пула для текущего event loop.
@@ -186,8 +195,9 @@ class DatabaseManager:
                 max_size=self._max_size,
             )
 
+            database_url = self._resolve_postgres_url()
             self._pool = await asyncpg.create_pool(
-                self._url,
+                database_url,
                 min_size=self._min_size,
                 max_size=self._max_size,
                 command_timeout=60,
