@@ -10,7 +10,12 @@ from cryptotechnolog.live_feed import (
     FeedConnectivityAssessment,
     FeedIngestRequest,
     FeedIngressEnvelope,
+    FeedRecoveryAssessment,
+    FeedRecoveryIngestMode,
+    FeedResubscribeRequest,
     FeedSessionIdentity,
+    FeedSubscriptionRecoveryState,
+    FeedSubscriptionRecoveryStatus,
 )
 
 
@@ -173,4 +178,117 @@ def test_ingress_envelope_and_request_preserve_narrow_handoff_truth() -> None:
         FeedIngestRequest(
             envelope=envelope,
             requested_at=current_time - timedelta(milliseconds=1),
+        )
+
+
+def test_subscription_recovery_state_enforces_recovery_invariants() -> None:
+    current_time = _now()
+    session = _session()
+
+    state = FeedSubscriptionRecoveryState(
+        session=session,
+        status=FeedSubscriptionRecoveryStatus.RECOVERY_REQUIRED,
+        observed_at=current_time,
+        recovery_required_at=current_time - timedelta(seconds=2),
+        last_recovery_reason="session_reconnected",
+        reset_required=True,
+    )
+
+    assert state.reset_required is True
+    assert state.status == FeedSubscriptionRecoveryStatus.RECOVERY_REQUIRED
+
+    with pytest.raises(ValueError, match="Recovery state требует recovery_required_at"):
+        FeedSubscriptionRecoveryState(
+            session=session,
+            status=FeedSubscriptionRecoveryStatus.RESUBSCRIBING,
+            observed_at=current_time,
+            last_recovery_reason="session_reconnected",
+        )
+
+    with pytest.raises(ValueError, match="RECOVERED state требует last_resubscribe_at"):
+        FeedSubscriptionRecoveryState(
+            session=session,
+            status=FeedSubscriptionRecoveryStatus.RECOVERED,
+            observed_at=current_time,
+        )
+
+    with pytest.raises(ValueError, match="IDLE state не допускает reset_required"):
+        FeedSubscriptionRecoveryState(
+            session=session,
+            status=FeedSubscriptionRecoveryStatus.IDLE,
+            observed_at=current_time,
+            reset_required=True,
+        )
+
+
+def test_resubscribe_request_keeps_session_scoped_intent_narrow() -> None:
+    current_time = _now()
+    session = _session()
+
+    request = FeedResubscribeRequest(
+        session=session,
+        requested_at=current_time,
+        recovery_reason="feed_resumed_after_disconnect",
+        subscription_scope=("BTCUSDT",),
+    )
+
+    assert request.ingest_mode == FeedRecoveryIngestMode.RECOVERY_RESET_REQUIRED
+    assert request.subscription_scope == session.subscription_scope
+    assert not hasattr(request, "client_pool")
+
+    with pytest.raises(ValueError, match="non-empty recovery_reason"):
+        FeedResubscribeRequest(
+            session=session,
+            requested_at=current_time,
+            recovery_reason="",
+            subscription_scope=("BTCUSDT",),
+        )
+
+    with pytest.raises(ValueError, match="session subscription_scope"):
+        FeedResubscribeRequest(
+            session=session,
+            requested_at=current_time,
+            recovery_reason="feed_resumed_after_disconnect",
+            subscription_scope=("ETHUSDT",),
+        )
+
+
+def test_recovery_assessment_and_ingest_mode_preserve_boundary_with_market_data() -> None:
+    current_time = _now()
+    session = _session()
+
+    assessment = FeedRecoveryAssessment(
+        session=session,
+        status=FeedSubscriptionRecoveryStatus.RECOVERED,
+        observed_at=current_time,
+        ingest_mode=FeedRecoveryIngestMode.RECOVERY_RESYNC,
+        is_recovered=True,
+        reset_required=False,
+    )
+
+    assert assessment.is_recovered is True
+    assert assessment.ingest_mode == FeedRecoveryIngestMode.RECOVERY_RESYNC
+    assert not hasattr(assessment, "tick_contract")
+    assert not hasattr(assessment, "market_data_runtime")
+
+    with pytest.raises(ValueError, match="reset_required incompatible"):
+        FeedRecoveryAssessment(
+            session=session,
+            status=FeedSubscriptionRecoveryStatus.RECOVERY_REQUIRED,
+            observed_at=current_time,
+            ingest_mode=FeedRecoveryIngestMode.NORMAL,
+            is_recovered=False,
+            reset_required=True,
+            recovery_reason="session_reconnected",
+        )
+
+    with pytest.raises(ValueError, match="RECOVERY_BLOCKED status требует blocked assessment"):
+        FeedRecoveryAssessment(
+            session=session,
+            status=FeedSubscriptionRecoveryStatus.RECOVERY_BLOCKED,
+            observed_at=current_time,
+            ingest_mode=FeedRecoveryIngestMode.RECOVERY_RESET_REQUIRED,
+            is_recovered=False,
+            reset_required=True,
+            recovery_reason="subscription_rejected",
         )

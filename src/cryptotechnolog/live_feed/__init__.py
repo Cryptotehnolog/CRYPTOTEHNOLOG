@@ -3,6 +3,7 @@ Phase 22 Live Feed Connectivity Foundation.
 
 На текущем шаге пакет intentionally включает только:
 - typed connection/session contracts;
+- typed subscription recovery / resubscribe contracts;
 - typed feed-health/readiness/degraded truth;
 - typed ingress handoff truth.
 - narrow single-session connectivity runtime.
@@ -26,7 +27,12 @@ from .models import (
     FeedConnectivityAssessment,
     FeedIngestRequest,
     FeedIngressEnvelope,
+    FeedRecoveryAssessment,
+    FeedRecoveryIngestMode,
+    FeedResubscribeRequest,
     FeedSessionIdentity,
+    FeedSubscriptionRecoveryState,
+    FeedSubscriptionRecoveryStatus,
 )
 from .runtime import (
     FeedConnectivityRuntime,
@@ -46,7 +52,12 @@ __all__ = [
     "FeedConnectivityRuntimeState",
     "FeedIngestRequest",
     "FeedIngressEnvelope",
+    "FeedRecoveryAssessment",
+    "FeedRecoveryIngestMode",
+    "FeedResubscribeRequest",
     "FeedSessionIdentity",
+    "FeedSubscriptionRecoveryState",
+    "FeedSubscriptionRecoveryStatus",
     "LiveFeedMarketDataIngress",
     "LiveFeedMarketDataIngressResult",
     "UnsupportedFeedIngressError",
