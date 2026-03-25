@@ -25,16 +25,16 @@ export function TopStatusBar() {
   return (
     <header className={statusBar}>
       <div className={titleCluster}>
-        <div className={barMeta}>Поддерживающая dashboard line • read-only операторский вид</div>
+        <div className={barMeta}>Поддерживающая линия панели • операторский вид только для чтения</div>
         <h1 className={barTitle}>{currentItem.title}</h1>
         <p className={barSubtitle}>
-          {currentItem.description}. Панель остаётся supporting/read-only контуром и отражает
-          текущую platform truth после v1.14.0 без расширения backend scope.
+          {currentItem.description}. Панель остаётся поддерживающим контуром только для чтения и
+          отражает текущее состояние платформы после v1.14.0 без расширения серверных границ.
         </p>
       </div>
       <div className={statusCluster}>
-        <Badge tone="neutral">dashboard line</Badge>
-        <Badge tone="accent">platform truth v1.14.0</Badge>
+        <Badge tone="neutral">линия панели</Badge>
+        <Badge tone="accent">состояние платформы v1.14.0</Badge>
         <Badge tone="warning">только чтение</Badge>
         <Badge tone="neutral">{currentPhaseLabel}</Badge>
       </div>

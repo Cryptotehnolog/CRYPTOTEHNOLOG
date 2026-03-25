@@ -20,12 +20,12 @@ export function OverviewCircuitBreakers({
   if (items.length === 0) {
     return (
       <Panel
-        title="Сводка по circuit breaker"
-        caption="Критические снимки circuit breaker пока не зарегистрированы."
+        title="Сводка по защитным выключателям"
+        caption="Критические снимки защитных выключателей пока не зарегистрированы."
       >
         <EmptyState
-          title="Circuit breaker не зарегистрированы"
-          message="Сервер панели не вернул ни одного снимка circuit breaker."
+          title="Защитные выключатели не зарегистрированы"
+          message="Сервер панели не вернул ни одного снимка защитного выключателя."
         />
       </Panel>
     );
@@ -33,8 +33,8 @@ export function OverviewCircuitBreakers({
 
   return (
     <Panel
-      title="Сводка по circuit breaker"
-      caption="Состояние защитных circuit breaker без mutating-действий."
+      title="Сводка по защитным выключателям"
+      caption="Состояние защитных выключателей без изменяющих действий."
     >
       <div className={list}>
         {items.map((item) => (

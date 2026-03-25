@@ -78,7 +78,7 @@ export function OverviewModuleAvailability({
   return (
     <Panel
       title="Доступность модулей"
-      caption="Карта текущих dashboard surfaces и runtime contours без расширения backend/API scope."
+      caption="Карта текущих поверхностей панели и торговых контуров без расширения серверных и API-границ."
     >
       {renderModuleList("core", coreModules)}
       {renderModuleList("runtime", runtimeModules)}

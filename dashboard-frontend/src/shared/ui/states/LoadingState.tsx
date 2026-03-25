@@ -1,15 +1,21 @@
 import { stateCaption, stateCard, stateText, stateTitle } from "./StateCard.css";
 
-export function LoadingState() {
+type LoadingStateProps = {
+  title?: string;
+  caption?: string;
+  message?: string;
+};
+
+export function LoadingState({
+  title = "Загрузка обзора",
+  caption = "Панель подключается к локальному runtime и собирает снимок платформы в режиме только чтения.",
+  message = "Панель запрашивает снимок состояния платформы из серверного контура управления.",
+}: LoadingStateProps) {
   return (
     <div className={stateCard}>
-      <h2 className={stateTitle}>Загрузка обзора</h2>
-      <p className={stateCaption}>
-        Панель подключается к локальному dashboard runtime и собирает read-only snapshot платформы.
-      </p>
-      <p className={stateText}>
-        Панель запрашивает снимок состояния платформы из backend панели управления.
-      </p>
+      <h2 className={stateTitle}>{title}</h2>
+      <p className={stateCaption}>{caption}</p>
+      <p className={stateText}>{message}</p>
     </div>
   );
 }

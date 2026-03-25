@@ -35,16 +35,28 @@ const moduleGroupOrder: Record<string, number> = {
   signals: 10,
   strategy: 11,
   execution: 12,
-  opportunity: 13,
-  orchestration: 14,
-  "position-expansion": 15,
-  "portfolio-governor": 16,
+  oms: 13,
+  manager: 14,
+  validation: 15,
+  paper: 16,
+  backtest: 17,
+  reporting: 18,
+  opportunity: 19,
+  orchestration: 20,
+  "position-expansion": 21,
+  "portfolio-governor": 22,
 };
 
 function getModuleGroup(key: string): "core" | "runtime" {
   return key === "signals" ||
     key === "strategy" ||
     key === "execution" ||
+    key === "oms" ||
+    key === "manager" ||
+    key === "validation" ||
+    key === "paper" ||
+    key === "backtest" ||
+    key === "reporting" ||
     key === "opportunity" ||
     key === "orchestration" ||
     key === "position-expansion" ||

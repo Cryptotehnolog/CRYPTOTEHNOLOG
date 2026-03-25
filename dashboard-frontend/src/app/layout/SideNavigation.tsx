@@ -22,13 +22,13 @@ const navGroups = [
   {
     key: "overview",
     title: "Обзор",
-    caption: "Главная read-only витрина текущего состояния платформы.",
+    caption: "Главная витрина текущего состояния платформы в режиме только чтения.",
     items: navigationItems.filter((item) => item.key === "overview"),
   },
   {
     key: "core",
     title: "Системные поверхности",
-    caption: "Control-plane, observability и operator-facing поверхности без отдельного trading workflow.",
+    caption: "Контур управления, наблюдаемость и операторские поверхности без отдельного торгового сценария.",
     items: navigationItems.filter(
       (item) =>
         item.key !== "overview" &&
@@ -45,8 +45,8 @@ const navGroups = [
   },
   {
     key: "runtime",
-    title: "Торговые runtime-контуры",
-    caption: "Current mainline contours, которые уже видны в navigation, но пока раскрываются через overview и placeholder routes.",
+    title: "Торговые контуры",
+    caption: "Контуры основной линии, которые уже видны в навигации и постепенно раскрываются через обзор и отдельные страницы.",
     items: navigationItems.filter((item) =>
       [
         "signals",

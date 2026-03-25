@@ -53,7 +53,7 @@ export function OverviewPage() {
       <ModuleStateCard
         title="Обзор"
         status="inactive"
-        message="Модуль обзора предусмотрен в каркасе панели, но backend для него ещё не подключён."
+        message="Модуль обзора предусмотрен в каркасе панели, но серверный контур для него ещё не подключён."
       />
     );
   }
@@ -73,7 +73,7 @@ export function OverviewPage() {
       <div className={sectionGrid}>
         <Panel
           title="Состояние системы"
-          caption="Текущее состояние control plane и runtime discipline платформы."
+          caption="Текущее состояние контура управления и дисциплины исполнения платформы."
           aside={
             <Badge tone={overviewQuery.data.system_state.trade_allowed ? "success" : "danger"}>
               {overviewQuery.data.system_state.trade_allowed
@@ -87,7 +87,7 @@ export function OverviewPage() {
 
       <Panel
         title="Сводка по здоровью"
-        caption="Агрегированное состояние backend foundation и serving truth после sync с mainline."
+        caption="Агрегированное состояние серверной основы и контуров обслуживания после синхронизации с основной линией."
       >
         <KeyValueList items={model.health} />
       </Panel>
@@ -109,7 +109,7 @@ export function OverviewPage() {
 
       <Panel
         title="Заглушка уведомлений"
-        caption="Уведомления остаются отдельной supporting line и не входят в текущий dashboard scope."
+        caption="Уведомления остаются отдельной поддерживающей линией и не входят в текущие границы панели."
       >
         <KeyValueList
           items={[
