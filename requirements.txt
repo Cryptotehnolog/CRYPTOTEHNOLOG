@@ -53,7 +53,7 @@ colorama==0.4.6
     # via
     #   click
     #   uvicorn
-cryptography==46.0.5
+cryptography==46.0.6
     # via
     #   cryptotechnolog (pyproject.toml)
     #   ccxt
@@ -76,8 +76,6 @@ httpcore==1.0.9
 httptools==0.7.1
     # via uvicorn
 httpx==0.28.1
-    # via cryptotechnolog (pyproject.toml)
-hvac==2.4.0
     # via cryptotechnolog (pyproject.toml)
 idna==3.11
     # via
@@ -138,8 +136,6 @@ python-dotenv==1.2.1
     #   cryptotechnolog (pyproject.toml)
     #   pydantic-settings
     #   uvicorn
-python-gnupg==0.5.6
-    # via cryptotechnolog (pyproject.toml)
 pytz==2025.2
     # via
     #   cryptotechnolog (pyproject.toml)
@@ -149,9 +145,7 @@ pyyaml==6.0.3
 redis==5.3.1
     # via cryptotechnolog (pyproject.toml)
 requests==2.33.0
-    # via
-    #   ccxt
-    #   hvac
+    # via ccxt
 scipy==1.14.1
     # via cryptotechnolog (pyproject.toml)
 setuptools==82.0.0
