@@ -25,9 +25,20 @@ export type TerminalChartHostElements = {
   hostEl: HTMLDivElement;
 };
 
+export type TerminalChartRuntimeApi = {
+  timeToX: (time: UTCTimestamp) => number | null;
+  xToTime: (x: number) => UTCTimestamp | null;
+  priceToY: (price: number) => number | null;
+  yToPrice: (y: number) => number | null;
+  panByPixels: (deltaX: number) => void;
+  getVisiblePriceRange: () => { from: number; to: number } | null;
+};
+
 export type TerminalChartEngineMountParams = {
   host: TerminalChartHostElements;
   model: TerminalChartEngineModel;
   theme: TerminalTheme;
   onActiveCandleChange: (candle: TerminalChartDatum | null) => void;
+  onRuntimeReady?: (runtime: TerminalChartRuntimeApi | null) => void;
+  onViewportChange?: () => void;
 };

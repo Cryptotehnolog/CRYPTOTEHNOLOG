@@ -16,6 +16,7 @@ import type {
   TerminalChartEngineInput,
   TerminalChartEngineModel,
   TerminalChartEngineMountParams,
+  TerminalChartRuntimeApi,
 } from "./terminalChartEngine.types";
 import { buildTerminalChartData } from "./terminalChartData";
 
@@ -25,6 +26,33 @@ function isChartCandleData(value: unknown): value is TerminalChartDatum {
   }
 
   return ["open", "high", "low", "close"].every((key) => typeof (value as Record<string, unknown>)[key] === "number");
+}
+
+function parseResolutionToSeconds(resolution: string) {
+  const match = resolution.match(/^(\d+)([a-zA-Z]+)$/);
+  if (!match) {
+    return 60;
+  }
+
+  const amount = Number.parseInt(match[1], 10);
+  const unit = match[2];
+
+  switch (unit) {
+    case "s":
+      return amount;
+    case "m":
+      return amount * 60;
+    case "h":
+      return amount * 60 * 60;
+    case "D":
+      return amount * 60 * 60 * 24;
+    case "W":
+      return amount * 60 * 60 * 24 * 7;
+    case "M":
+      return amount * 60 * 60 * 24 * 30;
+    default:
+      return 60;
+  }
 }
 
 export function createLightweightChartModel(input: TerminalChartEngineInput): TerminalChartEngineModel {
@@ -40,10 +68,15 @@ export function createLightweightChartModel(input: TerminalChartEngineInput): Te
 }
 
 export function mountLightweightChartEngine(params: TerminalChartEngineMountParams) {
-  const { host, model, theme, onActiveCandleChange } = params;
+  const { host, model, theme, onActiveCandleChange, onRuntimeReady, onViewportChange } = params;
   const { rootEl, viewportEl, hostEl } = host;
   const colors = terminalTheme[theme];
   const candleByTime = new Map(model.candles.map((candle) => [candle.time, candle]));
+  const baseTime = model.candles[0]?.time ?? (Math.floor(Date.now() / 1000) as UTCTimestamp);
+  const timeStepSeconds =
+    model.candles.length >= 2
+      ? Math.max(1, Math.round(Number(model.candles[1].time) - Number(model.candles[0].time)))
+      : parseResolutionToSeconds(model.resolution);
   const isSecondsTimeframe = model.resolution.endsWith("s");
   const isIntradayTimeframe =
     model.resolution.endsWith("s") || model.resolution.endsWith("m") || model.resolution.endsWith("h");
@@ -145,12 +178,80 @@ export function mountLightweightChartEngine(params: TerminalChartEngineMountPara
   syncDebugRanges();
   onActiveCandleChange(model.initialCandle);
 
+  const getVisibleLogicalRange = () =>
+    timeScale.getVisibleLogicalRange() ?? {
+      from: 0,
+      to: Math.max(model.candles.length - 1, 1),
+    };
+
+  const logicalToTime = (logical: number) =>
+    Math.round(Number(baseTime) + logical * timeStepSeconds) as UTCTimestamp;
+
+  const timeToLogical = (time: UTCTimestamp) => (Number(time) - Number(baseTime)) / timeStepSeconds;
+
+  const runtimeApi: TerminalChartRuntimeApi = {
+    timeToX: (time) => {
+      const logicalRange = getVisibleLogicalRange();
+      const span = logicalRange.to - logicalRange.from;
+      const width = Math.max(viewportEl.clientWidth, 1);
+
+      if (!Number.isFinite(span) || span === 0) {
+        return width / 2;
+      }
+
+      const logical = timeToLogical(time);
+      return ((logical - logicalRange.from) / span) * width;
+    },
+    xToTime: (x) => {
+      const logicalRange = getVisibleLogicalRange();
+      const span = logicalRange.to - logicalRange.from;
+      const width = Math.max(viewportEl.clientWidth, 1);
+
+      if (!Number.isFinite(span) || span === 0) {
+        return baseTime;
+      }
+
+      const logical = logicalRange.from + (x / width) * span;
+      return logicalToTime(logical);
+    },
+    priceToY: (price) => series.priceToCoordinate(price),
+    yToPrice: (y) => {
+      const price = series.coordinateToPrice(y);
+
+      return typeof price === "number" ? price : null;
+    },
+    panByPixels: (deltaX) => {
+      const visibleRange = timeScale.getVisibleLogicalRange();
+      const viewportWidth = Math.max(viewportEl.clientWidth, 1);
+      if (!visibleRange || Math.abs(deltaX) < 0.1) {
+        return;
+      }
+
+      const span = visibleRange.to - visibleRange.from;
+      if (!Number.isFinite(span) || span <= 0) {
+        return;
+      }
+
+      const logicalShift = (deltaX / viewportWidth) * span;
+      timeScale.setVisibleLogicalRange({
+        from: visibleRange.from + logicalShift,
+        to: visibleRange.to + logicalShift,
+      });
+      syncDebugRangesSoon();
+      onViewportChange?.();
+    },
+    getVisiblePriceRange: () => priceScale.getVisibleRange(),
+  };
+
+  onRuntimeReady?.(runtimeApi);
+
   chart.subscribeCrosshairMove((param) => {
     if (!param.point || !param.time) {
       delete rootEl.dataset.crosshairX;
       delete rootEl.dataset.crosshairY;
       delete rootEl.dataset.crosshairTime;
       onActiveCandleChange(model.initialCandle);
+      onViewportChange?.();
       return;
     }
 
@@ -168,6 +269,11 @@ export function mountLightweightChartEngine(params: TerminalChartEngineMountPara
     if (fullCandle) {
       onActiveCandleChange(fullCandle);
     }
+    onViewportChange?.();
+  });
+
+  timeScale.subscribeVisibleLogicalRangeChange(() => {
+    onViewportChange?.();
   });
 
   const handleWheelOnScale = (event: WheelEvent) => {
@@ -199,6 +305,7 @@ export function mountLightweightChartEngine(params: TerminalChartEngineMountPara
         to: center + nextSpan / 2,
       });
       syncDebugRangesSoon();
+      onViewportChange?.();
       return;
     }
 
@@ -232,6 +339,7 @@ export function mountLightweightChartEngine(params: TerminalChartEngineMountPara
     }
 
     syncDebugRangesSoon();
+    onViewportChange?.();
   };
 
   viewportEl.addEventListener("wheel", handleWheelOnScale, {
@@ -261,11 +369,13 @@ export function mountLightweightChartEngine(params: TerminalChartEngineMountPara
       },
     });
     syncDebugRangesSoon();
+    onViewportChange?.();
   });
 
   resizeObserver.observe(viewportEl);
 
   return () => {
+    onRuntimeReady?.(null);
     resizeObserver.disconnect();
     viewportEl.removeEventListener("wheel", handleWheelOnScale);
     chart.remove();

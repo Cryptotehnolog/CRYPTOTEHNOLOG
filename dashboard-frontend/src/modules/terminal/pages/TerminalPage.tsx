@@ -153,6 +153,26 @@ const marketWatch = [
     tone: "up",
   },
   {
+    pair: "BTC/USDT",
+    exchange: "Bybit",
+    price: "67 405",
+    spread: "спред 5.1",
+    signal: "объём держится",
+    context: "bid 67 402 · ask 67 407",
+    move: "+1.6%",
+    tone: "up",
+  },
+  {
+    pair: "BTC/USDT",
+    exchange: "Binance",
+    price: "67 398",
+    spread: "спред 3.9",
+    signal: "баланс спроса",
+    context: "bid 67 396 · ask 67 400",
+    move: "+1.5%",
+    tone: "up",
+  },
+  {
     pair: "ETH/USDT",
     exchange: "Bybit",
     price: "3 540",
@@ -302,6 +322,10 @@ const positionQuickActionDescriptions: Record<PositionQuickAction, string> = {
   "stop-loss": "Mock-действие: для позиции будет подготовлен защитный stop-loss.",
   "в безубыток": "Mock-действие: stop-loss будет перенесён в точку безубытка.",
 };
+
+function getInstrumentContextKey(pair: string, exchange: string) {
+  return `${exchange}:${pair}`;
+}
 
 const attentionItems = [
   {
@@ -495,7 +519,10 @@ export function TerminalPage() {
     loadPersistedSelectedTimeframes(initialAllTimeframes),
   );
   const [activeInstrument, setActiveInstrument] = useState("BTC/USDT");
-  const [marketSelectedInstrument, setMarketSelectedInstrument] = useState<string | null>("BTC/USDT");
+  const [activeExchange, setActiveExchange] = useState("OKX");
+  const [marketSelectedInstrument, setMarketSelectedInstrument] = useState<string | null>(
+    getInstrumentContextKey("BTC/USDT", "OKX"),
+  );
   const [positionsSelectedInstrument, setPositionsSelectedInstrument] = useState<string | null>(null);
   const [positionsView, setPositionsView] = useState<"open" | "history">("open");
   const [openPositionActionsFor, setOpenPositionActionsFor] = useState<string | null>(null);
@@ -520,9 +547,10 @@ export function TerminalPage() {
   const widgetCanvasRef = useRef<HTMLDivElement | null>(null);
 
   const marketContext =
-    marketWatch.find((item) => item.pair === activeInstrument) ??
+    marketWatch.find((item) => item.pair === activeInstrument && item.exchange === activeExchange) ??
     {
       pair: activeInstrument,
+      exchange: activeExchange,
       price: "67 420",
       move: "+0.0%",
       signal: "волатильность выше средней",
@@ -852,26 +880,28 @@ export function TerminalPage() {
     setPositionActionOverlayPosition({ top: clampedTop, left });
   };
 
-  const handleInstrumentActivate = (pair: string, source: "market" | "positions") => {
+  const handleInstrumentActivate = (pair: string, exchange: string, source: "market" | "positions") => {
     setActiveInstrument(pair);
+    setActiveExchange(exchange);
     if (source === "market") {
-      setMarketSelectedInstrument(pair);
+      setMarketSelectedInstrument(getInstrumentContextKey(pair, exchange));
       setPositionsSelectedInstrument(null);
       return;
     }
 
-    setPositionsSelectedInstrument(pair);
+    setPositionsSelectedInstrument(getInstrumentContextKey(pair, exchange));
     setMarketSelectedInstrument(null);
   };
 
   const handleInstrumentKeyDown = (
     event: ReactKeyboardEvent<HTMLElement>,
     pair: string,
+    exchange: string,
     source: "market" | "positions",
   ) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      handleInstrumentActivate(pair, source);
+      handleInstrumentActivate(pair, exchange, source);
     }
   };
 
@@ -1074,6 +1104,7 @@ export function TerminalPage() {
               <div className={`${chartSurfaceSlot} terminal-widget-no-drag`}>
               <TerminalChartSurface
                 instrument={marketContext.pair}
+                exchange={marketContext.exchange}
                 move={marketContext.move}
                 timeframe={timeframe}
               />
@@ -1094,18 +1125,18 @@ export function TerminalPage() {
               <div className={marketGrid}>
                 {marketWatch.map((item) => (
                   <div
-                    key={item.pair}
-                    className={`${marketPair} terminal-widget-no-drag ${marketSelectedInstrument === item.pair ? marketPairActive : ""}`}
+                    key={getInstrumentContextKey(item.pair, item.exchange)}
+                    className={`${marketPair} terminal-widget-no-drag ${marketSelectedInstrument === getInstrumentContextKey(item.pair, item.exchange) ? marketPairActive : ""}`}
                     role="button"
                     tabIndex={0}
-                    aria-label={`Открыть ${item.pair} на главном графике`}
-                    onClick={() => handleInstrumentActivate(item.pair, "market")}
-                    onKeyDown={(event) => handleInstrumentKeyDown(event, item.pair, "market")}
+                    aria-label={`Открыть ${item.pair} ${item.exchange} на главном графике`}
+                    onClick={() => handleInstrumentActivate(item.pair, item.exchange, "market")}
+                    onKeyDown={(event) => handleInstrumentKeyDown(event, item.pair, item.exchange, "market")}
                   >
                     <div className={marketPairBody}>
                       <div className={marketPairHeader}>
                         <div className={marketPairMain}>
-                          <span className={marketSelectedInstrument === item.pair ? positionInstrumentActive : marketPairPrice}>
+                          <span className={marketSelectedInstrument === getInstrumentContextKey(item.pair, item.exchange) ? positionInstrumentActive : marketPairPrice}>
                             {item.pair}
                           </span>
                           <span className={marketPairExchange}>{item.exchange}</span>
@@ -1325,18 +1356,18 @@ export function TerminalPage() {
                         return (
                         <div
                           key={rowKey}
-                          className={`${tableRow} ${tableRowInteractive} terminal-widget-no-drag ${positionsSelectedInstrument === row.pair ? tableRowActive : ""}`}
+                          className={`${tableRow} ${tableRowInteractive} terminal-widget-no-drag ${positionsSelectedInstrument === getInstrumentContextKey(row.pair, row.exchange) ? tableRowActive : ""}`}
                           role="button"
                           tabIndex={0}
                           aria-label={`Открыть ${row.pair} на главном графике`}
-                          onClick={() => handleInstrumentActivate(row.pair, "positions")}
-                          onKeyDown={(event) => handleInstrumentKeyDown(event, row.pair, "positions")}
+                          onClick={() => handleInstrumentActivate(row.pair, row.exchange, "positions")}
+                          onKeyDown={(event) => handleInstrumentKeyDown(event, row.pair, row.exchange, "positions")}
                         >
                         <div className={positionStrategyCell}>
                           <span className={positionPrimaryValue}>{row.exchange}</span>
                         </div>
                         <div className={positionPairCell}>
-                          <span className={`${positionPrimaryValue} ${positionsSelectedInstrument === row.pair ? positionInstrumentActive : ""}`}>
+                          <span className={`${positionPrimaryValue} ${positionsSelectedInstrument === getInstrumentContextKey(row.pair, row.exchange) ? positionInstrumentActive : ""}`}>
                             {row.pair}
                           </span>
                         </div>
@@ -1388,18 +1419,18 @@ export function TerminalPage() {
                       : filteredHistoryRows.map((row) => (
                         <div
                           key={`${row.exchange}-${row.pair}-${row.closedAt}`}
-                        className={`${tableRow} ${tableRowInteractive} terminal-widget-no-drag ${positionsSelectedInstrument === row.pair ? tableRowActive : ""}`}
+                        className={`${tableRow} ${tableRowInteractive} terminal-widget-no-drag ${positionsSelectedInstrument === getInstrumentContextKey(row.pair, row.exchange) ? tableRowActive : ""}`}
                           role="button"
                           tabIndex={0}
                           aria-label={`Открыть ${row.pair} на главном графике`}
-                        onClick={() => handleInstrumentActivate(row.pair, "positions")}
-                        onKeyDown={(event) => handleInstrumentKeyDown(event, row.pair, "positions")}
+                        onClick={() => handleInstrumentActivate(row.pair, row.exchange, "positions")}
+                        onKeyDown={(event) => handleInstrumentKeyDown(event, row.pair, row.exchange, "positions")}
                         >
                         <div className={positionStrategyCell}>
                           <span className={positionPrimaryValue}>{row.exchange}</span>
                         </div>
                         <div className={positionPairCell}>
-                          <span className={`${positionPrimaryValue} ${positionsSelectedInstrument === row.pair ? positionInstrumentActive : ""}`}>
+                          <span className={`${positionPrimaryValue} ${positionsSelectedInstrument === getInstrumentContextKey(row.pair, row.exchange) ? positionInstrumentActive : ""}`}>
                             {row.pair}
                           </span>
                         </div>
