@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from cryptotechnolog.config import get_logger, get_settings
 from cryptotechnolog.core import EnhancedEventBus
@@ -18,6 +19,13 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 logger = get_logger(__name__)
+
+_DASHBOARD_ALLOWED_ORIGINS = (
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:4173",
+    "http://localhost:4173",
+)
 
 
 def _create_dashboard_event_bus() -> EnhancedEventBus:
@@ -47,6 +55,13 @@ def create_dashboard_app(runtime: DashboardRuntime | None = None) -> FastAPI:
         title="CRYPTOTEHNOLOG Dashboard API",
         version=get_runtime_version(),
         lifespan=lifespan,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(_DASHBOARD_ALLOWED_ORIGINS),
+        allow_credentials=False,
+        allow_methods=["GET", "OPTIONS"],
+        allow_headers=["*"],
     )
     app.state.dashboard_runtime = dashboard_runtime
     app.include_router(create_dashboard_router(dashboard_runtime.overview_facade))

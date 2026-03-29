@@ -54,11 +54,15 @@ COPY --from=builder /opt/venv /opt/venv
 # Copy application code
 COPY --chown=cryptotechnolog:cryptotechnolog src/ /app/src/
 COPY --chown=cryptotechnolog:cryptotechnolog config/ /app/config/
+COPY --chown=cryptotechnolog:cryptotechnolog scripts/docker/ /app/scripts/docker/
 COPY --chown=cryptotechnolog:cryptotechnolog pyproject.toml /app/
 
 # Switch to non-root user
 USER cryptotechnolog
 WORKDIR /app
+
+# Ensure local helper scripts are executable inside the runtime image
+RUN chmod +x /app/scripts/docker/*.sh
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \

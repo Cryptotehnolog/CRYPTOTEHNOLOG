@@ -1,0 +1,18 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . ./
+RUN chmod +x /app/scripts/start-dashboard-frontend.sh
+
+ARG VITE_DASHBOARD_API_BASE_URL=http://127.0.0.1:8000
+ENV VITE_DASHBOARD_API_BASE_URL=${VITE_DASHBOARD_API_BASE_URL}
+
+RUN npm run build
+
+EXPOSE 5173
+
+CMD ["/app/scripts/start-dashboard-frontend.sh"]

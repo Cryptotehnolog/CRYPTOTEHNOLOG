@@ -5,6 +5,67 @@
 name: cryptotechnolog
 
 services:
+  # ==================== Dashboard Backend ====================
+  # Read-only dashboard foundation + /terminal backend API
+  dashboard-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto_dashboard_backend
+    command: ["/app/scripts/docker/start-dashboard-backend.sh"]
+    env_file:
+      - .env.infisical
+    environment:
+      ENVIRONMENT: development
+      DASHBOARD_HOST: 0.0.0.0
+      DASHBOARD_PORT: 8000
+      INFISICAL_URL: http://host.docker.internal:8080
+      DASHBOARD_BACKEND_START_WAIT_URL: http://host.docker.internal:8080/api/status
+      DASHBOARD_BACKEND_START_WAIT_SECONDS: 3
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:8000/dashboard/overview"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - cryptotechnolog_network
+
+  # ==================== Dashboard Frontend ====================
+  # Serves foundation panel and /terminal via built Vite preview
+  dashboard-frontend:
+    build:
+      context: ./dashboard-frontend
+      dockerfile: Dockerfile.dashboard-frontend
+      args:
+        VITE_DASHBOARD_API_BASE_URL: http://127.0.0.1:8000
+    container_name: crypto_dashboard_frontend
+    environment:
+      DASHBOARD_FRONTEND_WAIT_URL: http://dashboard-backend:8000/dashboard/overview
+      DASHBOARD_FRONTEND_WAIT_SECONDS: 3
+    ports:
+      - "5174:5173"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - cryptotechnolog_network
+
   # ==================== Redis ====================
   # For state machine, caching, pub/sub
   redis:

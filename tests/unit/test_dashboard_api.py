@@ -516,6 +516,22 @@ def test_dashboard_overview_endpoint_returns_snapshot() -> None:
     assert data["alerts_summary"]["connected"] is False
 
 
+def test_dashboard_app_allows_local_cors_preflight() -> None:
+    app = create_dashboard_app()
+
+    with TestClient(app) as client:
+        response = client.options(
+            "/dashboard/overview",
+            headers={
+                "Origin": "http://127.0.0.1:5173",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
+
+
 def test_dashboard_risk_summary_endpoint_returns_snapshot() -> None:
     app = FastAPI()
     app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))

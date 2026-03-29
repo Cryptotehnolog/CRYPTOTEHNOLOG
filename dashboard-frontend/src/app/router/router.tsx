@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 
 import { DashboardShell } from "../layout/DashboardShell";
+import { TerminalShell } from "../layout/TerminalShell";
 import { OverviewPage } from "../../modules/overview/pages/OverviewPage";
 import { ControlPlanePage } from "../../modules/control-plane/pages/ControlPlanePage";
 import { HealthObservabilityPage } from "../../modules/health-observability/pages/HealthObservabilityPage";
@@ -20,6 +21,8 @@ import { ValidationPage } from "../../modules/validation/pages/ValidationPage";
 import { PaperPage } from "../../modules/paper/pages/PaperPage";
 import { BacktestPage } from "../../modules/backtest/pages/BacktestPage";
 import { ReportingPage } from "../../modules/reporting/pages/ReportingPage";
+import { TerminalPage } from "../../modules/terminal/pages/TerminalPage";
+import { TerminalSettingsPage } from "../../modules/terminal/pages/TerminalSettingsPage";
 import { ModulePlaceholderPage } from "../../modules/placeholder/pages/ModulePlaceholderPage";
 import { navigationItems } from "../../shared/config/navigation";
 
@@ -52,6 +55,20 @@ const placeholderRoutes = navigationItems
   }));
 
 export const router = createBrowserRouter([
+  {
+    path: "/terminal",
+    element: <TerminalShell />,
+    children: [
+      {
+        index: true,
+        element: <TerminalPage />,
+      },
+      {
+        path: "settings",
+        element: <TerminalSettingsPage />,
+      },
+    ],
+  },
   {
     path: "/",
     element: <DashboardShell />,
