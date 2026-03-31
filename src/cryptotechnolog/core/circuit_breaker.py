@@ -19,7 +19,7 @@ from functools import wraps
 import time
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from cryptotechnolog.config import get_logger
+from cryptotechnolog.config import get_logger, get_settings
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
@@ -64,16 +64,32 @@ class CircuitBreaker:
     def __init__(
         self,
         name: str,
-        failure_threshold: int = 5,
-        recovery_timeout: int = 60,
-        success_threshold: int = 3,
+        failure_threshold: int | None = None,
+        recovery_timeout: int | None = None,
+        success_threshold: int | None = None,
         excluded_exceptions: tuple[type[Exception], ...] = (),
         on_state_change: Callable[[CircuitState, CircuitState], None] | None = None,
     ) -> None:
+        settings = get_settings()
+        resolved_failure_threshold = (
+            failure_threshold
+            if failure_threshold is not None
+            else settings.reliability_circuit_breaker_failure_threshold
+        )
+        resolved_recovery_timeout = (
+            recovery_timeout
+            if recovery_timeout is not None
+            else settings.reliability_circuit_breaker_recovery_timeout_seconds
+        )
+        resolved_success_threshold = (
+            success_threshold
+            if success_threshold is not None
+            else settings.reliability_circuit_breaker_success_threshold
+        )
         self._name = name
-        self._failure_threshold = failure_threshold
-        self._recovery_timeout = recovery_timeout
-        self._success_threshold = success_threshold
+        self._failure_threshold = resolved_failure_threshold
+        self._recovery_timeout = resolved_recovery_timeout
+        self._success_threshold = resolved_success_threshold
         self._excluded_exceptions = excluded_exceptions
         self._on_state_change = on_state_change
 
@@ -87,8 +103,8 @@ class CircuitBreaker:
         logger.info(
             "Circuit breaker initialized",
             name=name,
-            failure_threshold=failure_threshold,
-            recovery_timeout=recovery_timeout,
+            failure_threshold=resolved_failure_threshold,
+            recovery_timeout=resolved_recovery_timeout,
         )
 
     @property

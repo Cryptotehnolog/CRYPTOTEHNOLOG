@@ -15,11 +15,13 @@
 
 import pytest
 
+from cryptotechnolog.config import reload_settings, update_settings
 from cryptotechnolog.core.state_machine_enums import (
     MAX_STATE_TIMES,
     STATE_POLICIES,
     SystemState,
     get_state_policy,
+    get_state_timeout_limit,
 )
 
 
@@ -222,3 +224,51 @@ class TestStateTimeoutTransitions:
             assert isinstance(policy.allow_new_positions, bool)
             assert isinstance(policy.risk_multiplier, float)
             assert isinstance(policy.max_positions, int)
+
+
+def test_get_state_policy_reads_settings_overrides_for_working_modes() -> None:
+    try:
+        update_settings(
+            {
+                "system_trading_risk_multiplier": 0.85,
+                "system_degraded_max_positions": 42,
+                "system_risk_reduction_max_order_size": 0.015,
+                "system_survival_max_positions": 1,
+            }
+        )
+
+        assert get_state_policy(SystemState.TRADING).risk_multiplier == 0.85
+        assert get_state_policy(SystemState.DEGRADED).max_positions == 42
+        assert get_state_policy(SystemState.RISK_REDUCTION).max_order_size == 0.015
+        assert get_state_policy(SystemState.SURVIVAL).max_positions == 1
+    finally:
+        reload_settings()
+
+
+def test_get_state_timeout_limit_reads_settings_overrides_for_configured_states() -> None:
+    try:
+        update_settings(
+            {
+                "system_boot_max_seconds": 75,
+                "system_init_max_seconds": 150,
+                "system_ready_max_seconds": 4200,
+                "system_risk_reduction_max_seconds": 2100,
+                "system_degraded_max_seconds": 3900,
+                "system_survival_max_seconds": 1950,
+                "system_error_max_seconds": 420,
+                "system_recovery_max_seconds": 720,
+            }
+        )
+
+        assert get_state_timeout_limit(SystemState.BOOT) == 75
+        assert get_state_timeout_limit(SystemState.INIT) == 150
+        assert get_state_timeout_limit(SystemState.READY) == 4200
+        assert get_state_timeout_limit(SystemState.RISK_REDUCTION) == 2100
+        assert get_state_timeout_limit(SystemState.DEGRADED) == 3900
+        assert get_state_timeout_limit(SystemState.SURVIVAL) == 1950
+        assert get_state_timeout_limit(SystemState.ERROR) == 420
+        assert get_state_timeout_limit(SystemState.RECOVERY) == 720
+        assert get_state_timeout_limit(SystemState.TRADING) is None
+        assert get_state_timeout_limit(SystemState.HALT) is None
+    finally:
+        reload_settings()

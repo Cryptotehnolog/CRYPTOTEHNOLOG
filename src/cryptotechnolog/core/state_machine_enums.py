@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
+from cryptotechnolog.config import get_settings
+
 if TYPE_CHECKING:
     from collections.abc import Set
 
@@ -371,4 +373,86 @@ STATE_POLICIES: dict[SystemState, StatePolicy] = {
 
 def get_state_policy(state: SystemState) -> StatePolicy:
     """Получить политику для состояния."""
-    return STATE_POLICIES.get(state, STATE_POLICIES[SystemState.HALT])
+    base_policy = STATE_POLICIES.get(state, STATE_POLICIES[SystemState.HALT])
+    settings = get_settings()
+
+    match state:
+        case SystemState.TRADING:
+            return StatePolicy(
+                allow_new_positions=base_policy.allow_new_positions,
+                allow_increase_size=base_policy.allow_increase_size,
+                allow_new_orders=base_policy.allow_new_orders,
+                risk_multiplier=settings.system_trading_risk_multiplier,
+                max_positions=settings.system_trading_max_positions,
+                max_order_size=settings.system_trading_max_order_size,
+                allow_short_selling=base_policy.allow_short_selling,
+                require_manual_approval=base_policy.require_manual_approval,
+                description=base_policy.description,
+            )
+        case SystemState.DEGRADED:
+            return StatePolicy(
+                allow_new_positions=base_policy.allow_new_positions,
+                allow_increase_size=base_policy.allow_increase_size,
+                allow_new_orders=base_policy.allow_new_orders,
+                risk_multiplier=settings.system_degraded_risk_multiplier,
+                max_positions=settings.system_degraded_max_positions,
+                max_order_size=settings.system_degraded_max_order_size,
+                allow_short_selling=base_policy.allow_short_selling,
+                require_manual_approval=base_policy.require_manual_approval,
+                description=base_policy.description,
+            )
+        case SystemState.RISK_REDUCTION:
+            return StatePolicy(
+                allow_new_positions=base_policy.allow_new_positions,
+                allow_increase_size=base_policy.allow_increase_size,
+                allow_new_orders=base_policy.allow_new_orders,
+                risk_multiplier=settings.system_risk_reduction_risk_multiplier,
+                max_positions=settings.system_risk_reduction_max_positions,
+                max_order_size=settings.system_risk_reduction_max_order_size,
+                allow_short_selling=base_policy.allow_short_selling,
+                require_manual_approval=base_policy.require_manual_approval,
+                description=base_policy.description,
+            )
+        case SystemState.SURVIVAL:
+            return StatePolicy(
+                allow_new_positions=base_policy.allow_new_positions,
+                allow_increase_size=base_policy.allow_increase_size,
+                allow_new_orders=base_policy.allow_new_orders,
+                risk_multiplier=settings.system_survival_risk_multiplier,
+                max_positions=settings.system_survival_max_positions,
+                max_order_size=settings.system_survival_max_order_size,
+                allow_short_selling=base_policy.allow_short_selling,
+                require_manual_approval=base_policy.require_manual_approval,
+                description=base_policy.description,
+            )
+        case _:
+            return base_policy
+
+
+def get_state_timeout_limit(state: SystemState) -> int | None:
+    """Получить таймаут состояния с учётом settings-based overrides."""
+    baseline_timeout = MAX_STATE_TIMES.get(state, -1)
+    settings = get_settings()
+
+    timeout = baseline_timeout
+    match state:
+        case SystemState.BOOT:
+            timeout = settings.system_boot_max_seconds
+        case SystemState.INIT:
+            timeout = settings.system_init_max_seconds
+        case SystemState.READY:
+            timeout = settings.system_ready_max_seconds
+        case SystemState.RISK_REDUCTION:
+            timeout = settings.system_risk_reduction_max_seconds
+        case SystemState.DEGRADED:
+            timeout = settings.system_degraded_max_seconds
+        case SystemState.SURVIVAL:
+            timeout = settings.system_survival_max_seconds
+        case SystemState.ERROR:
+            timeout = settings.system_error_max_seconds
+        case SystemState.RECOVERY:
+            timeout = settings.system_recovery_max_seconds
+        case _:
+            timeout = baseline_timeout
+
+    return timeout if timeout != -1 else None

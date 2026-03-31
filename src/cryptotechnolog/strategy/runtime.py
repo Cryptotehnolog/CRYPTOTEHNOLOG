@@ -18,6 +18,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
+from cryptotechnolog.config import get_settings
 from cryptotechnolog.market_data import MarketDataTimeframe
 from cryptotechnolog.signals import SignalDirection, SignalSnapshot, SignalStatus
 
@@ -35,6 +36,8 @@ from .models import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from cryptotechnolog.config.settings import Settings
 
 
 type StrategyStateKey = tuple[str, str, MarketDataTimeframe, str, str]
@@ -66,6 +69,16 @@ class StrategyRuntimeConfig:
             raise ValueError(
                 "min_signal_confidence_for_actionable должен находиться в диапазоне [0, 1]"
             )
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> StrategyRuntimeConfig:
+        """Build strategy runtime config from canonical project settings."""
+        return cls(
+            max_candidate_age_seconds=settings.strategy_max_candidate_age_seconds,
+            min_signal_confidence_for_actionable=Decimal(
+                str(settings.strategy_min_signal_confidence)
+            ),
+        )
 
 
 @dataclass(slots=True)
@@ -676,7 +689,7 @@ def create_strategy_runtime(
 ) -> StrategyRuntime:
     """Собрать explicit strategy runtime foundation."""
     return StrategyRuntime(
-        config=config,
+        config=config or StrategyRuntimeConfig.from_settings(get_settings()),
         diagnostics_sink=diagnostics_sink,
     )
 

@@ -19,7 +19,7 @@ from enum import Enum
 import time
 from typing import TYPE_CHECKING, Any
 
-from cryptotechnolog.config import get_logger
+from cryptotechnolog.config import get_logger, get_settings
 from cryptotechnolog.runtime_identity import RuntimeIdentity, get_release_identity
 
 if TYPE_CHECKING:
@@ -112,7 +112,7 @@ class SystemHealth:
 class HealthCheck:
     """Базовый класс для проверки здоровья компонента."""
 
-    def __init__(self, name: str, timeout: float = 5.0) -> None:
+    def __init__(self, name: str, timeout: float | None = None) -> None:
         """
         Инициализировать проверку.
 
@@ -120,8 +120,11 @@ class HealthCheck:
             name: Имя компонента
             timeout: Таймаут проверки в секундах
         """
+        settings = get_settings()
         self.name = name
-        self.timeout = timeout
+        self.timeout = (
+            timeout if timeout is not None else settings.health_check_timeout_seconds
+        )
 
     async def check(self) -> ComponentHealth:
         """
@@ -136,7 +139,7 @@ class HealthCheck:
 class DatabaseHealthCheck(HealthCheck):
     """Проверка здоровья PostgreSQL."""
 
-    def __init__(self, db_manager: Any | None = None, timeout: float = 5.0) -> None:
+    def __init__(self, db_manager: Any | None = None, timeout: float | None = None) -> None:
         """
         Инициализировать проверку БД.
 
@@ -228,7 +231,7 @@ class DatabaseHealthCheck(HealthCheck):
 class RedisHealthCheck(HealthCheck):
     """Проверка здоровья Redis."""
 
-    def __init__(self, redis_manager: Any | None = None, timeout: float = 5.0) -> None:
+    def __init__(self, redis_manager: Any | None = None, timeout: float | None = None) -> None:
         """
         Инициализировать проверку Redis.
 
@@ -318,7 +321,7 @@ class RedisHealthCheck(HealthCheck):
 class EventBusHealthCheck(HealthCheck):
     """Проверка здоровья Event Bus."""
 
-    def __init__(self, event_bus: Any | None = None, timeout: float = 5.0) -> None:
+    def __init__(self, event_bus: Any | None = None, timeout: float | None = None) -> None:
         """
         Инициализировать проверку Event Bus.
 
@@ -423,7 +426,11 @@ class EventBusHealthCheck(HealthCheck):
 class MetricsHealthCheck(HealthCheck):
     """Проверка здоровья системы метрик."""
 
-    def __init__(self, metrics_collector: Any | None = None, timeout: float = 5.0) -> None:
+    def __init__(
+        self,
+        metrics_collector: Any | None = None,
+        timeout: float | None = None,
+    ) -> None:
         """
         Инициализировать проверку метрик.
 
@@ -519,10 +526,12 @@ class HealthChecker:
 
     def __init__(self, runtime_identity: RuntimeIdentity | None = None) -> None:
         """Инициализировать проверяльщик."""
+        settings = get_settings()
         self._checks: dict[str, HealthCheck] = {}
         self._last_health: SystemHealth | None = None
         self._status_callbacks: list[Callable[[SystemHealth], Awaitable[None]]] = []
-        self._check_interval: float = 60.0  # Интервал автоматической проверки
+        self._check_interval: float = settings.health_background_check_interval_seconds
+        self._check_and_wait_timeout: float = settings.health_check_and_wait_timeout_seconds
         self._running: bool = False
         self._monitor_task: asyncio.Task | None = None
         self._runtime_identity = runtime_identity or get_release_identity()
@@ -1018,7 +1027,7 @@ class HealthChecker:
 
         logger.info("Мониторинг остановлен")
 
-    async def check_and_wait(self, timeout: float = 30.0) -> SystemHealth:
+    async def check_and_wait(self, timeout: float | None = None) -> SystemHealth:
         """
         Проверить систему и ждать готовности.
 
@@ -1031,9 +1040,10 @@ class HealthChecker:
         Returns:
             Состояние системы
         """
+        resolved_timeout = timeout if timeout is not None else self._check_and_wait_timeout
         start_time = time.time()
 
-        while time.time() - start_time < timeout:
+        while time.time() - start_time < resolved_timeout:
             health = await self.check_system()
 
             if self._is_wait_condition_satisfied(health):

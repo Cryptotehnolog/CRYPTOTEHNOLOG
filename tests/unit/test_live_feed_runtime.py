@@ -9,7 +9,9 @@ from cryptotechnolog.live_feed import (
     FeedConnectivityRuntime,
     FeedConnectivityRuntimeConfig,
     FeedSessionIdentity,
+    create_live_feed_runtime,
 )
+from cryptotechnolog.config import get_settings, reload_settings, update_settings
 
 
 def _now() -> datetime:
@@ -114,3 +116,16 @@ async def test_runtime_rejects_ingest_handoff_when_not_connected() -> None:
             transport_payload={"price": "65000"},
             ingested_at=current_time + timedelta(seconds=1),
         )
+
+
+async def test_create_live_feed_runtime_uses_retry_delay_from_settings() -> None:
+    try:
+        update_settings({"live_feed_retry_delay_seconds": 11})
+        runtime = create_live_feed_runtime(session=_session())
+
+        assert runtime.config.default_retry_delay_seconds == (
+            get_settings().live_feed_retry_delay_seconds
+        )
+        assert runtime.config.default_retry_delay_seconds == 11
+    finally:
+        reload_settings()

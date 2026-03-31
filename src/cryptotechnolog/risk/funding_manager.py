@@ -43,6 +43,7 @@ class FundingManagerConfig:
     min_annualized_spread: Decimal = Decimal("0.05")
     max_acceptable_funding: Decimal = Decimal("0.003")
     min_exchange_improvement: Decimal = Decimal("0.0005")
+    min_quotes_for_opportunity: int = MIN_QUOTES_FOR_OPPORTUNITY
     funding_periods_per_day: int = 3
     days_per_year: int = 365
 
@@ -153,7 +154,7 @@ class FundingManager:
 
     def _build_opportunity(self, snapshot: FundingRateSnapshot) -> FundingOpportunity | None:
         """Собрать funding opportunity для одного символа при достаточном spread."""
-        if len(snapshot.quotes) < MIN_QUOTES_FOR_OPPORTUNITY:
+        if len(snapshot.quotes) < self._config.min_quotes_for_opportunity:
             return None
 
         sorted_quotes = sorted(snapshot.quotes, key=lambda quote: quote.rate)

@@ -18,6 +18,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
+from cryptotechnolog.config import get_settings
 from cryptotechnolog.intelligence import DeryaRegime
 from cryptotechnolog.market_data import MarketDataTimeframe, OHLCVBarContract
 
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from cryptotechnolog.analysis import RiskDerivedInputsSnapshot
+    from cryptotechnolog.config.settings import Settings
     from cryptotechnolog.intelligence import DeryaAssessment
     from cryptotechnolog.market_data import OrderBookSnapshotContract
     from cryptotechnolog.market_data.events import BarCompletedPayload
@@ -75,6 +77,16 @@ class SignalRuntimeConfig:
             raise ValueError("min_derya_confidence должен находиться в диапазоне [0, 1]")
         if self.risk_reward_multiple <= 0:
             raise ValueError("risk_reward_multiple должен быть положительным")
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> SignalRuntimeConfig:
+        """Build signal runtime config from canonical project settings."""
+        return cls(
+            max_signal_age_seconds=settings.signal_max_age_seconds,
+            min_adx_for_activation=Decimal(str(settings.signal_min_trend_strength)),
+            min_derya_confidence=Decimal(str(settings.signal_min_regime_confidence)),
+            risk_reward_multiple=Decimal(str(settings.signal_target_risk_reward)),
+        )
 
 
 @dataclass(slots=True)
@@ -798,7 +810,7 @@ def create_signal_runtime(
 ) -> SignalRuntime:
     """Собрать explicit signal runtime foundation."""
     return SignalRuntime(
-        config=config,
+        config=config or SignalRuntimeConfig.from_settings(get_settings()),
         diagnostics_sink=diagnostics_sink,
     )
 

@@ -60,7 +60,7 @@ def create_dashboard_app(runtime: DashboardRuntime | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=list(_DASHBOARD_ALLOWED_ORIGINS),
         allow_credentials=False,
-        allow_methods=["GET", "OPTIONS"],
+        allow_methods=["GET", "PUT", "OPTIONS"],
         allow_headers=["*"],
     )
     app.state.dashboard_runtime = dashboard_runtime

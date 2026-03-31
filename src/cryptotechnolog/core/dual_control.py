@@ -14,6 +14,8 @@ from enum import Enum, StrEnum
 from typing import Any
 import uuid
 
+from cryptotechnolog.config import get_settings
+
 
 class OperationType(Enum):
     """Типы операций требующих dual control."""
@@ -250,10 +252,12 @@ class DualControlManager:
         Возвращает:
             Созданный запрос
         """
+        request_timeout_minutes = get_settings().manual_approval_timeout_minutes
         request = DualControlRequest(
             operation_type=operation_type,
             requested_by=requested_by,
             target_state=target_state,
+            expires_at=datetime.now(UTC) + timedelta(minutes=request_timeout_minutes),
             metadata=metadata or {},
         )
         self.requests[request.id] = request

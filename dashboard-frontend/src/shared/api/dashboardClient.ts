@@ -31,3 +31,23 @@ export async function getJson<T>(path: string): Promise<T> {
 
   return (await response.json()) as T;
 }
+
+export async function putJson<TResponse, TBody>(path: string, body: TBody): Promise<TResponse> {
+  const response = await fetch(buildUrl(path), {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new DashboardApiError(
+      `Сервер панели вернул ошибку ${response.status}`,
+      response.status,
+    );
+  }
+
+  return (await response.json()) as TResponse;
+}

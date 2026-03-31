@@ -23,7 +23,7 @@ import random
 import time
 from typing import TYPE_CHECKING, Any
 
-from cryptotechnolog.config import get_logger
+from cryptotechnolog.config import get_logger, get_settings
 
 # Верхнеуровневый импорт EnhancedEventBus
 from .enhanced_event_bus import EnhancedEventBus
@@ -95,16 +95,33 @@ class RecoveryStrategy:
     def __init__(
         self,
         max_retries: int = 3,
-        backoff_base: float = 1.0,
-        backoff_multiplier: float = 2.0,
-        max_backoff: float = 60.0,
-        jitter_factor: float = 0.5,
+        backoff_base: float | None = None,
+        backoff_multiplier: float | None = None,
+        max_backoff: float | None = None,
+        jitter_factor: float | None = None,
     ) -> None:
+        settings = get_settings()
         self.max_retries = max_retries
-        self.backoff_base = backoff_base
-        self.backoff_multiplier = backoff_multiplier
-        self.max_backoff = max_backoff
-        self.jitter_factor = jitter_factor
+        self.backoff_base = (
+            backoff_base
+            if backoff_base is not None
+            else settings.reliability_watchdog_backoff_base_seconds
+        )
+        self.backoff_multiplier = (
+            backoff_multiplier
+            if backoff_multiplier is not None
+            else settings.reliability_watchdog_backoff_multiplier
+        )
+        self.max_backoff = (
+            max_backoff
+            if max_backoff is not None
+            else settings.reliability_watchdog_max_backoff_seconds
+        )
+        self.jitter_factor = (
+            jitter_factor
+            if jitter_factor is not None
+            else settings.reliability_watchdog_jitter_factor
+        )
         self._attempt = 0
         self._rng = random.Random()  # Для воспроизводимости в тестах
 
@@ -329,13 +346,24 @@ class Watchdog:
     def __init__(
         self,
         event_bus: EnhancedEventBus | None = None,
-        check_interval: float = 30.0,
-        failure_threshold: int = 3,
+        check_interval: float | None = None,
+        failure_threshold: int | None = None,
         max_recovery_attempts: int = 3,
     ) -> None:
+        settings = get_settings()
+        resolved_check_interval = (
+            check_interval
+            if check_interval is not None
+            else settings.reliability_watchdog_check_interval_seconds
+        )
+        resolved_failure_threshold = (
+            failure_threshold
+            if failure_threshold is not None
+            else settings.reliability_watchdog_failure_threshold
+        )
         self._event_bus = event_bus or get_event_bus()
-        self._check_interval = check_interval
-        self._failure_threshold = failure_threshold
+        self._check_interval = resolved_check_interval
+        self._failure_threshold = resolved_failure_threshold
         self._max_recovery_attempts = max_recovery_attempts
 
         self._components: dict[str, ComponentChecker] = {}
@@ -355,8 +383,8 @@ class Watchdog:
 
         logger.info(
             "Watchdog инициализирован",
-            check_interval=check_interval,
-            failure_threshold=failure_threshold,
+            check_interval=resolved_check_interval,
+            failure_threshold=resolved_failure_threshold,
         )
 
     @property

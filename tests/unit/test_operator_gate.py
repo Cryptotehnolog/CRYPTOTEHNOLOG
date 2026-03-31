@@ -14,6 +14,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 import pytest
 
+from cryptotechnolog.config import reload_settings, update_settings
 from cryptotechnolog.core.dual_control import (
     DualControlRequest,
     OperationType,
@@ -239,6 +240,16 @@ class TestOperatorGate:
 
         assert isinstance(gate._authenticator, DenyAllAuthenticator)
         assert gate.authenticate("admin_token_1") is None
+
+    def test_default_operator_gate_uses_manual_approval_timeout_from_settings(self):
+        """Default OperatorGate читает timeout ручного подтверждения из canonical settings."""
+        try:
+            update_settings({"manual_approval_timeout_minutes": 9})
+            gate = OperatorGate()
+
+            assert gate.request_timeout == 9
+        finally:
+            reload_settings()
 
     def test_create_halt_request(self):
         """Тест создания запроса на остановку."""

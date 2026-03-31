@@ -15,6 +15,8 @@ from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
+from cryptotechnolog.config import get_settings
+
 from .models import (
     FeedConnectionState,
     FeedConnectionStatus,
@@ -26,6 +28,7 @@ from .models import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from cryptotechnolog.config.settings import Settings
 
 
 @dataclass(slots=True, frozen=True)
@@ -38,6 +41,13 @@ class FeedConnectivityRuntimeConfig:
     def __post_init__(self) -> None:
         if self.default_retry_delay_seconds <= 0:
             raise ValueError("default_retry_delay_seconds должен быть положительным")
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> FeedConnectivityRuntimeConfig:
+        """Build live-feed runtime config from canonical project settings."""
+        return cls(
+            default_retry_delay_seconds=settings.live_feed_retry_delay_seconds,
+        )
 
 
 @dataclass(slots=True, frozen=True)
@@ -334,7 +344,7 @@ def create_live_feed_runtime(
     """Собрать explicit runtime contour для одной live feed session."""
     return FeedConnectivityRuntime(
         session=session,
-        config=config,
+        config=config or FeedConnectivityRuntimeConfig.from_settings(get_settings()),
         diagnostics_sink=diagnostics_sink,
     )
 

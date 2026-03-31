@@ -22,9 +22,9 @@ from cryptotechnolog.config import get_logger
 from .event import Event, SystemEventSource, SystemEventType
 from .state_machine_enums import (
     ALLOWED_TRANSITIONS,
-    MAX_STATE_TIMES,
     SystemState,
     get_state_policy,
+    get_state_timeout_limit,
     is_transition_allowed,
 )
 from .state_transition import (
@@ -671,8 +671,7 @@ class StateMachine:
         Returns:
             Таймаут в секундах или None если без ограничений
         """
-        timeout = MAX_STATE_TIMES.get(self._current_state)
-        return timeout if timeout != -1 else None
+        return get_state_timeout_limit(self._current_state)
 
     def is_state_timeout_exceeded(self) -> bool:
         """
@@ -695,7 +694,7 @@ class StateMachine:
         """
         Мониторить таймауты состояний и выполнять автоматические переходы.
 
-        Запускается как background task. При превышении MAX_STATE_TIMES
+        Запускается как background task. При превышении настроенного таймаута состояния
         выполняет автоматический переход в следующее состояние.
 
         Аргументы:

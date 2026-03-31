@@ -29,6 +29,8 @@ from .models import (
 )
 
 if TYPE_CHECKING:
+    from cryptotechnolog.config.settings import Settings
+
     from .models import SymbolIdentity
 
 
@@ -47,6 +49,25 @@ class UniversePolicyConfig:
     min_admissible_ratio_degraded: Decimal = Decimal("0.10")
     min_confidence_ready: Decimal = Decimal("0.70")
     min_confidence_degraded: Decimal = Decimal("0.45")
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> UniversePolicyConfig:
+        """Собрать admissibility policy из project settings."""
+        return cls(
+            max_spread_bps=Decimal(str(settings.universe_max_spread_bps)),
+            min_top_of_book_depth_usd=Decimal(str(settings.universe_min_top_depth_usd)),
+            min_depth_5bps_usd=Decimal(str(settings.universe_min_depth_5bps_usd)),
+            max_latency_ms=Decimal(str(settings.universe_max_latency_ms)),
+            min_coverage_ratio=Decimal(str(settings.universe_min_coverage_ratio)),
+            max_data_freshness_ms=settings.universe_max_data_age_ms,
+            min_quality_score=Decimal(str(settings.universe_min_quality_score)),
+            min_admissible_count_ready=settings.universe_min_ready_instruments,
+            min_admissible_ratio_degraded=Decimal(
+                str(settings.universe_min_degraded_instruments_ratio)
+            ),
+            min_confidence_ready=Decimal(str(settings.universe_min_ready_confidence)),
+            min_confidence_degraded=Decimal(str(settings.universe_min_degraded_confidence)),
+        )
 
 
 @dataclass(slots=True, frozen=True)

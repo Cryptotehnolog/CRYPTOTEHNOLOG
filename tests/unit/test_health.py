@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from cryptotechnolog.config import reload_settings, update_settings
 from cryptotechnolog.core.health import (
     ComponentHealth,
     DatabaseHealthCheck,
@@ -434,6 +435,24 @@ class TestHealthChecker:
         checker = HealthChecker()
         assert len(checker.get_registered_checks()) == 0
         assert checker.get_runtime_identity().version == get_release_identity().version
+
+    def test_init_uses_health_policy_settings(self) -> None:
+        """HealthChecker должен читать operational defaults из canonical settings."""
+        try:
+            update_settings(
+                {
+                    "health_check_timeout_seconds": 6.5,
+                    "health_background_check_interval_seconds": 45.0,
+                    "health_check_and_wait_timeout_seconds": 20.0,
+                }
+            )
+            checker = HealthChecker()
+            check = DatabaseHealthCheck()
+            assert checker._check_interval == 45.0
+            assert checker._check_and_wait_timeout == 20.0
+            assert check.timeout == 6.5
+        finally:
+            reload_settings()
 
     def test_register_check(self) -> None:
         """Регистрация проверки."""

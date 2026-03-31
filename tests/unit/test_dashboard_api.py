@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, cast
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from cryptotechnolog.config import get_settings, reload_settings
 from cryptotechnolog.dashboard.api import create_dashboard_router
 from cryptotechnolog.dashboard.app import create_dashboard_app
 from cryptotechnolog.dashboard.dto.backtest import (
@@ -56,6 +57,23 @@ from cryptotechnolog.dashboard.dto.reporting import (
     ReportingSummaryDTO,
 )
 from cryptotechnolog.dashboard.dto.risk import RiskConstraintDTO, RiskSummaryDTO
+from cryptotechnolog.dashboard.dto.settings import (
+    CorrelationPolicySettingsDTO,
+    DecisionChainSettingsDTO,
+    EventBusPolicySettingsDTO,
+    FundingPolicySettingsDTO,
+    HealthPolicySettingsDTO,
+    LiveFeedPolicySettingsDTO,
+    ManualApprovalPolicySettingsDTO,
+    ProtectionPolicySettingsDTO,
+    ReliabilityPolicySettingsDTO,
+    RiskLimitsSettingsDTO,
+    SystemStatePolicySettingsDTO,
+    SystemStateTimeoutSettingsDTO,
+    TrailingPolicySettingsDTO,
+    UniversePolicySettingsDTO,
+    WorkflowTimeoutsSettingsDTO,
+)
 from cryptotechnolog.dashboard.dto.signals import SignalAvailabilityItemDTO, SignalsSummaryDTO
 from cryptotechnolog.dashboard.dto.strategy import (
     StrategyAvailabilityItemDTO,
@@ -822,6 +840,721 @@ def test_dashboard_position_history_endpoint_returns_snapshot() -> None:
     assert data["positions"][0]["exit_reason"] == "trailing_stop"
     assert data["positions"][0]["realized_pnl_usd"] == "72.50"
     assert data["positions"][0]["realized_pnl_percent"] == "1.81"
+
+
+def test_dashboard_universe_policy_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/universe-policy")
+
+    assert response.status_code == 200
+    data = UniversePolicySettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.max_spread_bps == settings.universe_max_spread_bps
+    assert data.min_top_depth_usd == settings.universe_min_top_depth_usd
+    assert data.min_ready_confidence == settings.universe_min_ready_confidence
+
+
+def test_dashboard_universe_policy_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/universe-policy",
+            json={
+                "max_spread_bps": 18.0,
+                "min_top_depth_usd": 120000.0,
+                "min_depth_5bps_usd": 280000.0,
+                "max_latency_ms": 180.0,
+                "min_coverage_ratio": 0.95,
+                "max_data_age_ms": 1500,
+                "min_quality_score": 0.8,
+                "min_ready_instruments": 8,
+                "min_degraded_instruments_ratio": 0.2,
+                "min_ready_confidence": 0.82,
+                "min_degraded_confidence": 0.55,
+            },
+        )
+
+        assert response.status_code == 200
+        data = UniversePolicySettingsDTO.model_validate(response.json())
+        assert data.max_spread_bps == 18.0
+        assert data.min_top_depth_usd == 120000.0
+        assert data.min_ready_confidence == 0.82
+
+        settings = get_settings()
+        assert settings.universe_max_spread_bps == 18.0
+        assert settings.universe_min_top_depth_usd == 120000.0
+        assert settings.universe_min_ready_confidence == 0.82
+    finally:
+        reload_settings()
+
+
+def test_dashboard_decision_chain_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/decision-thresholds")
+
+    assert response.status_code == 200
+    data = DecisionChainSettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.signal_min_trend_strength == settings.signal_min_trend_strength
+    assert data.signal_min_regime_confidence == settings.signal_min_regime_confidence
+    assert data.orchestration_max_decision_age_seconds == (
+        settings.orchestration_max_decision_age_seconds
+    )
+
+
+def test_dashboard_decision_chain_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/decision-thresholds",
+            json={
+                "signal_min_trend_strength": 24.0,
+                "signal_min_regime_confidence": 0.62,
+                "signal_target_risk_reward": 2.5,
+                "signal_max_age_seconds": 240,
+                "strategy_min_signal_confidence": 0.61,
+                "strategy_max_candidate_age_seconds": 260,
+                "execution_min_strategy_confidence": 0.64,
+                "execution_max_intent_age_seconds": 180,
+                "opportunity_min_confidence": 0.67,
+                "opportunity_min_priority": 0.71,
+                "opportunity_max_age_seconds": 210,
+                "orchestration_min_confidence": 0.69,
+                "orchestration_min_priority": 0.74,
+                "orchestration_max_decision_age_seconds": 150,
+            },
+        )
+
+        assert response.status_code == 200
+        data = DecisionChainSettingsDTO.model_validate(response.json())
+        assert data.signal_min_trend_strength == 24.0
+        assert data.strategy_min_signal_confidence == 0.61
+        assert data.orchestration_max_decision_age_seconds == 150
+
+        settings = get_settings()
+        assert settings.signal_min_trend_strength == 24.0
+        assert settings.strategy_min_signal_confidence == 0.61
+        assert settings.orchestration_max_decision_age_seconds == 150
+    finally:
+        reload_settings()
+
+
+def test_dashboard_risk_limits_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/risk-limits")
+
+    assert response.status_code == 200
+    data = RiskLimitsSettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.base_r_percent == settings.base_r_percent
+    assert data.max_r_per_trade == settings.max_r_per_trade
+    assert data.risk_starting_equity == settings.risk_starting_equity
+
+
+def test_dashboard_risk_limits_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/risk-limits",
+            json={
+                "base_r_percent": 0.015,
+                "max_r_per_trade": 1.2,
+                "max_portfolio_r": 6.0,
+                "risk_max_total_exposure_usd": 65000.0,
+                "max_position_size": 12000.0,
+                "risk_starting_equity": 15000.0,
+            },
+        )
+
+        assert response.status_code == 200
+        data = RiskLimitsSettingsDTO.model_validate(response.json())
+        assert data.base_r_percent == 0.015
+        assert data.max_r_per_trade == 1.2
+        assert data.risk_starting_equity == 15000.0
+
+        settings = get_settings()
+        assert settings.base_r_percent == 0.015
+        assert settings.max_r_per_trade == 1.2
+        assert settings.risk_starting_equity == 15000.0
+    finally:
+        reload_settings()
+
+
+def test_dashboard_trailing_policy_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/trailing-policy")
+
+    assert response.status_code == 200
+    data = TrailingPolicySettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.arm_at_pnl_r == settings.trailing_arm_at_pnl_r
+    assert data.t1_atr_multiplier == settings.trailing_t1_atr_multiplier
+    assert data.structural_confirmed_lows == settings.trailing_structural_confirmed_lows
+
+
+def test_dashboard_trailing_policy_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/trailing-policy",
+            json={
+                "arm_at_pnl_r": 1.2,
+                "t2_at_pnl_r": 2.4,
+                "t3_at_pnl_r": 4.5,
+                "t4_at_pnl_r": 6.8,
+                "t1_atr_multiplier": 2.2,
+                "t2_atr_multiplier": 1.7,
+                "t3_atr_multiplier": 1.2,
+                "t4_atr_multiplier": 0.9,
+                "emergency_buffer_bps": 60.0,
+                "structural_min_adx": 28.0,
+                "structural_confirmed_highs": 3,
+                "structural_confirmed_lows": 4,
+            },
+        )
+
+        assert response.status_code == 200
+        data = TrailingPolicySettingsDTO.model_validate(response.json())
+        assert data.arm_at_pnl_r == 1.2
+        assert data.t1_atr_multiplier == 2.2
+        assert data.structural_confirmed_lows == 4
+
+        settings = get_settings()
+        assert settings.trailing_arm_at_pnl_r == 1.2
+        assert settings.trailing_t1_atr_multiplier == 2.2
+        assert settings.trailing_structural_confirmed_lows == 4
+    finally:
+        reload_settings()
+
+
+def test_dashboard_correlation_policy_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/correlation-policy")
+
+    assert response.status_code == 200
+    data = CorrelationPolicySettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.correlation_limit == settings.correlation_limit
+    assert data.same_group_correlation == settings.same_group_correlation
+    assert data.cross_group_correlation == settings.cross_group_correlation
+
+
+def test_dashboard_correlation_policy_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/correlation-policy",
+            json={
+                "correlation_limit": 0.75,
+                "same_group_correlation": 0.6,
+                "cross_group_correlation": 0.2,
+            },
+        )
+
+        assert response.status_code == 200
+        data = CorrelationPolicySettingsDTO.model_validate(response.json())
+        assert data.correlation_limit == 0.75
+        assert data.same_group_correlation == 0.6
+        assert data.cross_group_correlation == 0.2
+
+        settings = get_settings()
+        assert settings.correlation_limit == 0.75
+        assert settings.same_group_correlation == 0.6
+        assert settings.cross_group_correlation == 0.2
+    finally:
+        reload_settings()
+
+
+def test_dashboard_protection_policy_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/protection-policy")
+
+    assert response.status_code == 200
+    data = ProtectionPolicySettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.halt_priority_threshold == settings.protection_halt_priority_threshold
+    assert data.freeze_priority_threshold == settings.protection_freeze_priority_threshold
+
+
+def test_dashboard_protection_policy_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/protection-policy",
+            json={
+                "halt_priority_threshold": 0.88,
+                "freeze_priority_threshold": 0.96,
+            },
+        )
+
+        assert response.status_code == 200
+        data = ProtectionPolicySettingsDTO.model_validate(response.json())
+        assert data.halt_priority_threshold == 0.88
+        assert data.freeze_priority_threshold == 0.96
+
+        settings = get_settings()
+        assert settings.protection_halt_priority_threshold == 0.88
+        assert settings.protection_freeze_priority_threshold == 0.96
+    finally:
+        reload_settings()
+
+
+def test_dashboard_funding_policy_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/funding-policy")
+
+    assert response.status_code == 200
+    data = FundingPolicySettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.min_arbitrage_spread == settings.funding_min_arbitrage_spread
+    assert data.min_annualized_spread == settings.funding_min_annualized_spread
+    assert data.max_acceptable_funding == settings.funding_max_acceptable_rate
+    assert data.min_exchange_improvement == settings.funding_min_exchange_improvement
+    assert data.min_quotes_for_opportunity == settings.funding_min_quotes_for_opportunity
+
+
+def test_dashboard_funding_policy_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/funding-policy",
+            json={
+                "min_arbitrage_spread": 0.003,
+                "min_annualized_spread": 0.08,
+                "max_acceptable_funding": 0.0025,
+                "min_exchange_improvement": 0.0008,
+                "min_quotes_for_opportunity": 3,
+            },
+        )
+
+        assert response.status_code == 200
+        data = FundingPolicySettingsDTO.model_validate(response.json())
+        assert data.min_arbitrage_spread == 0.003
+        assert data.min_annualized_spread == 0.08
+        assert data.max_acceptable_funding == 0.0025
+        assert data.min_exchange_improvement == 0.0008
+        assert data.min_quotes_for_opportunity == 3
+
+        settings = get_settings()
+        assert settings.funding_min_arbitrage_spread == 0.003
+        assert settings.funding_min_annualized_spread == 0.08
+        assert settings.funding_max_acceptable_rate == 0.0025
+        assert settings.funding_min_exchange_improvement == 0.0008
+        assert settings.funding_min_quotes_for_opportunity == 3
+    finally:
+        reload_settings()
+
+
+def test_dashboard_system_state_policy_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/system-state-policy")
+
+    assert response.status_code == 200
+    data = SystemStatePolicySettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.trading_risk_multiplier == settings.system_trading_risk_multiplier
+    assert data.degraded_max_positions == settings.system_degraded_max_positions
+    assert data.survival_max_order_size == settings.system_survival_max_order_size
+
+
+def test_dashboard_system_state_policy_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/system-state-policy",
+            json={
+                "trading_risk_multiplier": 0.9,
+                "trading_max_positions": 80,
+                "trading_max_order_size": 0.08,
+                "degraded_risk_multiplier": 0.45,
+                "degraded_max_positions": 40,
+                "degraded_max_order_size": 0.04,
+                "risk_reduction_risk_multiplier": 0.2,
+                "risk_reduction_max_positions": 15,
+                "risk_reduction_max_order_size": 0.015,
+                "survival_risk_multiplier": 0.05,
+                "survival_max_positions": 1,
+                "survival_max_order_size": 0.005,
+            },
+        )
+
+        assert response.status_code == 200
+        data = SystemStatePolicySettingsDTO.model_validate(response.json())
+        assert data.trading_risk_multiplier == 0.9
+        assert data.degraded_max_positions == 40
+        assert data.survival_max_order_size == 0.005
+
+        settings = get_settings()
+        assert settings.system_trading_risk_multiplier == 0.9
+        assert settings.system_degraded_max_positions == 40
+        assert settings.system_survival_max_order_size == 0.005
+    finally:
+        reload_settings()
+
+
+def test_dashboard_system_state_timeouts_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/system-state-timeouts")
+
+    assert response.status_code == 200
+    data = SystemStateTimeoutSettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.boot_max_seconds == settings.system_boot_max_seconds
+    assert data.ready_max_seconds == settings.system_ready_max_seconds
+    assert data.recovery_max_seconds == settings.system_recovery_max_seconds
+
+
+def test_dashboard_system_state_timeouts_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/system-state-timeouts",
+            json={
+                "boot_max_seconds": 75,
+                "init_max_seconds": 150,
+                "ready_max_seconds": 4200,
+                "risk_reduction_max_seconds": 2100,
+                "degraded_max_seconds": 3900,
+                "survival_max_seconds": 1950,
+                "error_max_seconds": 420,
+                "recovery_max_seconds": 720,
+            },
+        )
+
+        assert response.status_code == 200
+        data = SystemStateTimeoutSettingsDTO.model_validate(response.json())
+        assert data.boot_max_seconds == 75
+        assert data.degraded_max_seconds == 3900
+        assert data.recovery_max_seconds == 720
+
+        settings = get_settings()
+        assert settings.system_boot_max_seconds == 75
+        assert settings.system_degraded_max_seconds == 3900
+        assert settings.system_recovery_max_seconds == 720
+    finally:
+        reload_settings()
+
+
+def test_dashboard_reliability_policy_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/reliability-policy")
+
+    assert response.status_code == 200
+    data = ReliabilityPolicySettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.circuit_breaker_failure_threshold == (
+        settings.reliability_circuit_breaker_failure_threshold
+    )
+    assert data.watchdog_backoff_multiplier == settings.reliability_watchdog_backoff_multiplier
+    assert data.watchdog_check_interval_seconds == (
+        settings.reliability_watchdog_check_interval_seconds
+    )
+
+
+def test_dashboard_reliability_policy_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/reliability-policy",
+            json={
+                "circuit_breaker_failure_threshold": 6,
+                "circuit_breaker_recovery_timeout_seconds": 75,
+                "circuit_breaker_success_threshold": 4,
+                "watchdog_failure_threshold": 4,
+                "watchdog_backoff_base_seconds": 1.5,
+                "watchdog_backoff_multiplier": 2.5,
+                "watchdog_max_backoff_seconds": 90.0,
+                "watchdog_jitter_factor": 0.35,
+                "watchdog_check_interval_seconds": 20.0,
+            },
+        )
+
+        assert response.status_code == 200
+        data = ReliabilityPolicySettingsDTO.model_validate(response.json())
+        assert data.circuit_breaker_failure_threshold == 6
+        assert data.circuit_breaker_recovery_timeout_seconds == 75
+        assert data.watchdog_check_interval_seconds == 20.0
+
+        settings = get_settings()
+        assert settings.reliability_circuit_breaker_failure_threshold == 6
+        assert settings.reliability_circuit_breaker_recovery_timeout_seconds == 75
+        assert settings.reliability_watchdog_check_interval_seconds == 20.0
+    finally:
+        reload_settings()
+
+
+def test_dashboard_health_policy_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/health-policy")
+
+    assert response.status_code == 200
+    data = HealthPolicySettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.check_timeout_seconds == settings.health_check_timeout_seconds
+    assert data.background_check_interval_seconds == settings.health_background_check_interval_seconds
+    assert data.check_and_wait_timeout_seconds == settings.health_check_and_wait_timeout_seconds
+
+
+def test_dashboard_health_policy_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/health-policy",
+            json={
+                "check_timeout_seconds": 6.5,
+                "background_check_interval_seconds": 45.0,
+                "check_and_wait_timeout_seconds": 20.0,
+            },
+        )
+
+        assert response.status_code == 200
+        data = HealthPolicySettingsDTO.model_validate(response.json())
+        assert data.check_timeout_seconds == 6.5
+        assert data.background_check_interval_seconds == 45.0
+        assert data.check_and_wait_timeout_seconds == 20.0
+
+        settings = get_settings()
+        assert settings.health_check_timeout_seconds == 6.5
+        assert settings.health_background_check_interval_seconds == 45.0
+        assert settings.health_check_and_wait_timeout_seconds == 20.0
+    finally:
+        reload_settings()
+
+
+def test_dashboard_event_bus_policy_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/event-bus-policy")
+
+    assert response.status_code == 200
+    data = EventBusPolicySettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.subscriber_capacity == settings.event_bus_subscriber_capacity
+    assert data.fill_ratio_low == settings.event_bus_fill_ratio_low
+    assert data.drain_timeout_seconds == settings.event_bus_drain_timeout_seconds
+
+
+def test_dashboard_event_bus_policy_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/event-bus-policy",
+            json={
+                "subscriber_capacity": 2048,
+                "fill_ratio_low": 0.6,
+                "fill_ratio_normal": 0.75,
+                "fill_ratio_high": 0.92,
+                "push_wait_timeout_seconds": 6.5,
+                "drain_timeout_seconds": 42.0,
+            },
+        )
+
+        assert response.status_code == 200
+        data = EventBusPolicySettingsDTO.model_validate(response.json())
+        assert data.subscriber_capacity == 2048
+        assert data.fill_ratio_low == 0.6
+        assert data.drain_timeout_seconds == 42.0
+
+        settings = get_settings()
+        assert settings.event_bus_subscriber_capacity == 2048
+        assert settings.event_bus_fill_ratio_low == 0.6
+        assert settings.event_bus_fill_ratio_normal == 0.75
+        assert settings.event_bus_fill_ratio_high == 0.92
+        assert settings.event_bus_push_wait_timeout_seconds == 6.5
+        assert settings.event_bus_drain_timeout_seconds == 42.0
+    finally:
+        reload_settings()
+
+
+def test_dashboard_manual_approval_policy_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/manual-approval-policy")
+
+    assert response.status_code == 200
+    data = ManualApprovalPolicySettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.approval_timeout_minutes == settings.manual_approval_timeout_minutes
+
+
+def test_dashboard_manual_approval_policy_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/manual-approval-policy",
+            json={
+                "approval_timeout_minutes": 9,
+            },
+        )
+
+        assert response.status_code == 200
+        data = ManualApprovalPolicySettingsDTO.model_validate(response.json())
+        assert data.approval_timeout_minutes == 9
+
+        settings = get_settings()
+        assert settings.manual_approval_timeout_minutes == 9
+    finally:
+        reload_settings()
+
+
+def test_dashboard_workflow_timeouts_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/workflow-timeouts")
+
+    assert response.status_code == 200
+    data = WorkflowTimeoutsSettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.manager_max_age_seconds == settings.workflow_manager_max_age_seconds
+    assert data.validation_max_age_seconds == settings.workflow_validation_max_age_seconds
+    assert data.paper_max_age_seconds == settings.workflow_paper_max_age_seconds
+    assert data.replay_max_age_seconds == settings.workflow_replay_max_age_seconds
+
+
+def test_dashboard_workflow_timeouts_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/workflow-timeouts",
+            json={
+                "manager_max_age_seconds": 4200,
+                "validation_max_age_seconds": 3900,
+                "paper_max_age_seconds": 4500,
+                "replay_max_age_seconds": 4800,
+            },
+        )
+
+        assert response.status_code == 200
+        data = WorkflowTimeoutsSettingsDTO.model_validate(response.json())
+        assert data.manager_max_age_seconds == 4200
+        assert data.validation_max_age_seconds == 3900
+        assert data.paper_max_age_seconds == 4500
+        assert data.replay_max_age_seconds == 4800
+
+        settings = get_settings()
+        assert settings.workflow_manager_max_age_seconds == 4200
+        assert settings.workflow_validation_max_age_seconds == 3900
+        assert settings.workflow_paper_max_age_seconds == 4500
+        assert settings.workflow_replay_max_age_seconds == 4800
+    finally:
+        reload_settings()
+
+
+def test_dashboard_live_feed_policy_settings_endpoint_returns_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/live-feed-policy")
+
+    assert response.status_code == 200
+    data = LiveFeedPolicySettingsDTO.model_validate(response.json())
+    settings = get_settings()
+    assert data.retry_delay_seconds == settings.live_feed_retry_delay_seconds
+
+
+def test_dashboard_live_feed_policy_settings_endpoint_updates_current_values() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    try:
+        response = client.put(
+            "/dashboard/settings/live-feed-policy",
+            json={
+                "retry_delay_seconds": 9,
+            },
+        )
+
+        assert response.status_code == 200
+        data = LiveFeedPolicySettingsDTO.model_validate(response.json())
+        assert data.retry_delay_seconds == 9
+
+        settings = get_settings()
+        assert settings.live_feed_retry_delay_seconds == 9
+    finally:
+        reload_settings()
 
 
 def test_dashboard_overview_endpoint_returns_snapshot_in_full_app_runtime() -> None:

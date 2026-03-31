@@ -13,7 +13,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from cryptotechnolog.config import get_logger
+from cryptotechnolog.config import get_logger, get_settings
 from cryptotechnolog.core.event import SystemEventSource
 
 from .bar_builder import BarBuilder, BarUpdateResult
@@ -73,6 +73,16 @@ class MarketDataRuntimeConfig:
     metrics: SymbolMetricsConfig = field(default_factory=SymbolMetricsConfig)
     universe_policy: UniversePolicyConfig = field(default_factory=UniversePolicyConfig)
     orderbook_max_levels: int = 20
+
+    @classmethod
+    def from_settings(cls) -> MarketDataRuntimeConfig:
+        """Собрать market-data runtime config из project settings."""
+        settings = get_settings()
+        return cls(
+            quality=DataQualityConfig(),
+            metrics=SymbolMetricsConfig(),
+            universe_policy=UniversePolicyConfig.from_settings(settings),
+        )
 
 
 @dataclass(slots=True)
@@ -161,7 +171,7 @@ class MarketDataRuntime:
         diagnostics_sink: Callable[[dict[str, object]], None] | None = None,
     ) -> None:
         self.event_bus = event_bus
-        self.config = config or MarketDataRuntimeConfig()
+        self.config = config or MarketDataRuntimeConfig.from_settings()
         self.controller = controller
         self._diagnostics_sink = diagnostics_sink
 

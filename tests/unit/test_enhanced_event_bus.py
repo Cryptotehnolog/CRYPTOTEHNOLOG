@@ -18,6 +18,7 @@ import uuid
 
 import pytest
 
+from cryptotechnolog.config import reload_settings, update_settings
 from cryptotechnolog.core.enhanced_event_bus import (
     AsyncEventReceiver,
     BackpressureStrategy,
@@ -858,6 +859,35 @@ class TestEnhancedEventBusHandlers:
 
         bus.on("TEST_EVENT", handler1)
         bus.off("TEST_EVENT", handler2)  # Не должен вызвать ошибку
+
+
+class TestEnhancedEventBusSettings:
+    """Тесты settings-backed параметров EnhancedEventBus."""
+
+    def test_init_uses_event_bus_policy_settings(self) -> None:
+        """EnhancedEventBus читает queue/backpressure policy из canonical settings."""
+        try:
+            update_settings(
+                {
+                    "event_bus_subscriber_capacity": 2048,
+                    "event_bus_fill_ratio_low": 0.61,
+                    "event_bus_fill_ratio_normal": 0.76,
+                    "event_bus_fill_ratio_high": 0.93,
+                    "event_bus_push_wait_timeout_seconds": 6.5,
+                    "event_bus_drain_timeout_seconds": 45.0,
+                }
+            )
+
+            bus = EnhancedEventBus(enable_persistence=False)
+
+            assert bus.subscriber_capacity == 2048
+            assert bus.fill_ratio_low == 0.61
+            assert bus.fill_ratio_normal == 0.76
+            assert bus.fill_ratio_high == 0.93
+            assert bus.push_wait_timeout_seconds == 6.5
+            assert bus.drain_timeout_seconds == 45.0
+        finally:
+            reload_settings()
 
 
 class TestBackpressureStrategies:

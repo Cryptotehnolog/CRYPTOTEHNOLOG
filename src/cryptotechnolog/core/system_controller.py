@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from cryptotechnolog.config import get_logger
+from cryptotechnolog.config import get_logger, get_settings
 
 from .circuit_breaker import CircuitBreaker, CircuitState
 from .event import Event, SystemEventSource, SystemEventType
@@ -342,9 +342,9 @@ class SystemController:
     def register_circuit_breaker(
         self,
         name: str,
-        failure_threshold: int = 5,
-        recovery_timeout: int = 60,
-        success_threshold: int = 3,
+        failure_threshold: int | None = None,
+        recovery_timeout: int | None = None,
+        success_threshold: int | None = None,
     ) -> CircuitBreaker:
         """
         Зарегистрировать circuit breaker.
@@ -362,6 +362,23 @@ class SystemController:
             logger.warning("Circuit breaker уже зарегистрирован", name=name)
             return self._circuit_breakers[name]
 
+        settings = get_settings()
+        resolved_failure_threshold = (
+            failure_threshold
+            if failure_threshold is not None
+            else settings.reliability_circuit_breaker_failure_threshold
+        )
+        resolved_recovery_timeout = (
+            recovery_timeout
+            if recovery_timeout is not None
+            else settings.reliability_circuit_breaker_recovery_timeout_seconds
+        )
+        resolved_success_threshold = (
+            success_threshold
+            if success_threshold is not None
+            else settings.reliability_circuit_breaker_success_threshold
+        )
+
         # Создаём circuit breaker с callback на переход в ERROR
         def on_state_change(old: CircuitState, new: CircuitState) -> None:
             logger.warning(
@@ -374,9 +391,9 @@ class SystemController:
 
         breaker = CircuitBreaker(
             name=name,
-            failure_threshold=failure_threshold,
-            recovery_timeout=recovery_timeout,
-            success_threshold=success_threshold,
+            failure_threshold=resolved_failure_threshold,
+            recovery_timeout=resolved_recovery_timeout,
+            success_threshold=resolved_success_threshold,
             on_state_change=on_state_change,
         )
 
@@ -638,26 +655,17 @@ class SystemController:
             if info.circuit_breaker_name:
                 self.register_circuit_breaker(
                     name=info.circuit_breaker_name,
-                    failure_threshold=5,
-                    recovery_timeout=60,
-                    success_threshold=3,
                 )
 
         # Всегда создаём circuit breakers для внешних зависимостей
         if self._db:
             self.register_circuit_breaker(
                 name="database",
-                failure_threshold=3,
-                recovery_timeout=30,
-                success_threshold=2,
             )
 
         if self._redis:
             self.register_circuit_breaker(
                 name="redis",
-                failure_threshold=3,
-                recovery_timeout=30,
-                success_threshold=2,
             )
 
         logger.info(

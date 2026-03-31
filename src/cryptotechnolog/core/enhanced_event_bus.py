@@ -50,12 +50,6 @@ class BackpressureStrategy(StrEnum):
     BLOCK_CRITICAL = "block_critical"  # Блокировать только CRITICAL
 
 
-# Threshold constants for backpressure fill ratios
-_FILL_RATIO_LOW = 0.7
-_FILL_RATIO_NORMAL = 0.8
-_FILL_RATIO_HIGH = 0.9
-
-
 class RateLimitError(Exception):
     """Ошибка превышения rate limit."""
 
@@ -560,8 +554,6 @@ class EnhancedEventBus:
     Реализует расширенную функциональность поверх базового EventBus.
     """
 
-    DEFAULT_SUBSCRIBER_CAPACITY = 1024
-
     def __init__(
         self,
         enable_persistence: bool = False,
@@ -582,10 +574,14 @@ class EnhancedEventBus:
             backpressure_strategy: Стратегия backpressure
             subscriber_capacity: Ёмкость очереди подписчика
         """
-        # Конфигурация subscriber queue
-        self.subscriber_capacity = subscriber_capacity or self.DEFAULT_SUBSCRIBER_CAPACITY
-        # Настройки из параметров или defaults
         settings = get_settings()
+        # Конфигурация subscriber queue
+        self.subscriber_capacity = subscriber_capacity or settings.event_bus_subscriber_capacity
+        self.fill_ratio_low = settings.event_bus_fill_ratio_low
+        self.fill_ratio_normal = settings.event_bus_fill_ratio_normal
+        self.fill_ratio_high = settings.event_bus_fill_ratio_high
+        self.push_wait_timeout_seconds = settings.event_bus_push_wait_timeout_seconds
+        self.drain_timeout_seconds = settings.event_bus_drain_timeout_seconds
 
         # Ёмкости очередей
         default_capacities = {
@@ -780,28 +776,28 @@ class EnhancedEventBus:
         if (
             self.backpressure_strategy == BackpressureStrategy.DROP_LOW
             and event.priority == Priority.LOW
-            and fill_ratio > _FILL_RATIO_LOW
+            and fill_ratio > self.fill_ratio_low
         ):
             return BackpressureStrategy.DROP_LOW
 
         elif (
             self.backpressure_strategy == BackpressureStrategy.OVERFLOW_NORMAL
             and event.priority == Priority.NORMAL
-            and fill_ratio > _FILL_RATIO_NORMAL
+            and fill_ratio > self.fill_ratio_normal
         ):
             return BackpressureStrategy.OVERFLOW_NORMAL
 
         elif (
             self.backpressure_strategy == BackpressureStrategy.DROP_NORMAL
             and event.priority in (Priority.NORMAL, Priority.LOW)
-            and fill_ratio > _FILL_RATIO_HIGH
+            and fill_ratio > self.fill_ratio_high
         ):
             return BackpressureStrategy.DROP_NORMAL
 
         elif (
             self.backpressure_strategy == BackpressureStrategy.BLOCK_CRITICAL
             and event.priority == Priority.CRITICAL
-            and fill_ratio > _FILL_RATIO_HIGH
+            and fill_ratio > self.fill_ratio_high
         ):
             return BackpressureStrategy.BLOCK_CRITICAL
 
@@ -949,7 +945,7 @@ class EnhancedEventBus:
             fill_ratio = self.priority_queue.size(Priority.LOW) / self.priority_queue.capacity(
                 Priority.LOW
             )
-            if fill_ratio > _FILL_RATIO_LOW:
+            if fill_ratio > self.fill_ratio_low:
                 self.metrics["dropped"] += 1
                 logger.warning(
                     "LOW событие отброшено (backpressure)",
@@ -972,7 +968,10 @@ class EnhancedEventBus:
         # 4. Добавить событие в очередь
         if backpressure_action == BackpressureStrategy.BLOCK_CRITICAL:
             # Для CRITICAL - ждать с таймаутом
-            success = await self.priority_queue.push_wait(event, timeout=5.0)
+            success = await self.priority_queue.push_wait(
+                event,
+                timeout=self.push_wait_timeout_seconds,
+            )
             if not success:
                 raise PublishError("Таймаут добавления CRITICAL события в очередь") from None
         elif backpressure_action == BackpressureStrategy.OVERFLOW_NORMAL:
@@ -1307,7 +1306,7 @@ class EnhancedEventBus:
                 f"{listener_name} конфликтует с уже зарегистрированными [{joined_conflicts}]"
             )
 
-    async def drain(self, timeout: float = 30.0) -> bool:
+    async def drain(self, timeout: float | None = None) -> bool:
         """
         Дождаться обработки всех ожидающих событий.
 
@@ -1317,7 +1316,10 @@ class EnhancedEventBus:
         Возвращает:
             True если все события обработаны, False при таймауте
         """
-        logger.info("Начало drain EnhancedEventBus", timeout=timeout)
+        effective_timeout = (
+            timeout if timeout is not None else self.drain_timeout_seconds
+        )
+        logger.info("Начало drain EnhancedEventBus", timeout=effective_timeout)
 
         loop = asyncio.get_running_loop()
         start_time = loop.time()
@@ -1340,7 +1342,7 @@ class EnhancedEventBus:
 
             # Проверить таймаут
             elapsed = loop.time() - start_time
-            if elapsed >= timeout:
+            if elapsed >= effective_timeout:
                 logger.warning(
                     "EnhancedEventBus drain - таймаут",
                     pending=total_pending,

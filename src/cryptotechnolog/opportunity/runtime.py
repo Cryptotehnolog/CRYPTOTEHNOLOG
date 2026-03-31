@@ -18,6 +18,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
+from cryptotechnolog.config import get_settings
 from cryptotechnolog.execution import ExecutionOrderIntent, ExecutionStatus
 from cryptotechnolog.market_data import MarketDataTimeframe
 
@@ -35,6 +36,8 @@ from .models import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from cryptotechnolog.config.settings import Settings
 
 
 type OpportunityStateKey = tuple[str, str, MarketDataTimeframe, str, str]
@@ -69,6 +72,15 @@ class OpportunityRuntimeConfig:
             )
         if not (Decimal("0") <= self.min_priority_score_for_selected <= Decimal("1")):
             raise ValueError("min_priority_score_for_selected должен находиться в диапазоне [0, 1]")
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> OpportunityRuntimeConfig:
+        """Build opportunity runtime config from canonical project settings."""
+        return cls(
+            max_selection_age_seconds=settings.opportunity_max_age_seconds,
+            min_intent_confidence_for_selection=Decimal(str(settings.opportunity_min_confidence)),
+            min_priority_score_for_selected=Decimal(str(settings.opportunity_min_priority)),
+        )
 
 
 @dataclass(slots=True)
@@ -695,7 +707,7 @@ def create_opportunity_runtime(
 ) -> OpportunityRuntime:
     """Фабрика explicit runtime foundation opportunity layer."""
     return OpportunityRuntime(
-        config=config,
+        config=config or OpportunityRuntimeConfig.from_settings(get_settings()),
         diagnostics_sink=diagnostics_sink,
     )
 

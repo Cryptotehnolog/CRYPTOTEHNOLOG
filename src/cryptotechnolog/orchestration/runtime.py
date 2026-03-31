@@ -18,6 +18,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
+from cryptotechnolog.config import get_settings
 from cryptotechnolog.market_data import MarketDataTimeframe
 from cryptotechnolog.opportunity import OpportunitySelectionCandidate, OpportunityStatus
 
@@ -36,6 +37,8 @@ from .models import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from cryptotechnolog.config.settings import Settings
 
 
 type OrchestrationStateKey = tuple[str, str, MarketDataTimeframe, str, str]
@@ -70,6 +73,17 @@ class OrchestrationRuntimeConfig:
             )
         if not (Decimal("0") <= self.min_priority_score_for_forward <= Decimal("1")):
             raise ValueError("min_priority_score_for_forward должен находиться в диапазоне [0, 1]")
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> OrchestrationRuntimeConfig:
+        """Build orchestration runtime config from canonical project settings."""
+        return cls(
+            max_decision_age_seconds=settings.orchestration_max_decision_age_seconds,
+            min_selection_confidence_for_forward=Decimal(
+                str(settings.orchestration_min_confidence)
+            ),
+            min_priority_score_for_forward=Decimal(str(settings.orchestration_min_priority)),
+        )
 
 
 @dataclass(slots=True)
@@ -720,7 +734,7 @@ def create_orchestration_runtime(
 ) -> OrchestrationRuntime:
     """Фабрика explicit runtime foundation orchestration layer."""
     return OrchestrationRuntime(
-        config=config,
+        config=config or OrchestrationRuntimeConfig.from_settings(get_settings()),
         diagnostics_sink=diagnostics_sink,
     )
 

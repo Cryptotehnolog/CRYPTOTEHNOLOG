@@ -5,6 +5,7 @@ from contextlib import suppress
 
 import pytest
 
+from cryptotechnolog.config import reload_settings, update_settings
 from cryptotechnolog.core.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerError,
@@ -61,6 +62,23 @@ class TestCircuitBreaker:
         assert cb._failure_threshold == 10
         assert cb._recovery_timeout == 30
         assert cb._success_threshold == 5
+
+    def test_init_uses_reliability_settings_defaults(self):
+        """Test default circuit breaker policy comes from canonical settings."""
+        try:
+            update_settings(
+                {
+                    "reliability_circuit_breaker_failure_threshold": 7,
+                    "reliability_circuit_breaker_recovery_timeout_seconds": 45,
+                    "reliability_circuit_breaker_success_threshold": 4,
+                }
+            )
+            cb = CircuitBreaker(name="settings-defaults")
+            assert cb._failure_threshold == 7
+            assert cb._recovery_timeout == 45
+            assert cb._success_threshold == 4
+        finally:
+            reload_settings()
 
     def test_properties(self):
         """Test all property getters."""

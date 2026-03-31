@@ -494,3 +494,145 @@ export type PositionHistoryRecordResponse = {
 export type PositionHistoryResponse = {
   positions: PositionHistoryRecordResponse[];
 };
+
+export type UniversePolicySettingsResponse = {
+  max_spread_bps: number;
+  min_top_depth_usd: number;
+  min_depth_5bps_usd: number;
+  max_latency_ms: number;
+  min_coverage_ratio: number;
+  max_data_age_ms: number;
+  min_quality_score: number;
+  min_ready_instruments: number;
+  min_degraded_instruments_ratio: number;
+  min_ready_confidence: number;
+  min_degraded_confidence: number;
+};
+
+export type DecisionChainSettingsResponse = {
+  signal_min_trend_strength: number;
+  signal_min_regime_confidence: number;
+  signal_target_risk_reward: number;
+  signal_max_age_seconds: number;
+  strategy_min_signal_confidence: number;
+  strategy_max_candidate_age_seconds: number;
+  execution_min_strategy_confidence: number;
+  execution_max_intent_age_seconds: number;
+  opportunity_min_confidence: number;
+  opportunity_min_priority: number;
+  opportunity_max_age_seconds: number;
+  orchestration_min_confidence: number;
+  orchestration_min_priority: number;
+  orchestration_max_decision_age_seconds: number;
+};
+
+export type RiskLimitsSettingsResponse = {
+  base_r_percent: number;
+  max_r_per_trade: number;
+  max_portfolio_r: number;
+  risk_max_total_exposure_usd: number;
+  max_position_size: number;
+  risk_starting_equity: number;
+};
+
+export type TrailingPolicySettingsResponse = {
+  arm_at_pnl_r: number;
+  t2_at_pnl_r: number;
+  t3_at_pnl_r: number;
+  t4_at_pnl_r: number;
+  t1_atr_multiplier: number;
+  t2_atr_multiplier: number;
+  t3_atr_multiplier: number;
+  t4_atr_multiplier: number;
+  emergency_buffer_bps: number;
+  structural_min_adx: number;
+  structural_confirmed_highs: number;
+  structural_confirmed_lows: number;
+};
+
+export type CorrelationPolicySettingsResponse = {
+  correlation_limit: number;
+  same_group_correlation: number;
+  cross_group_correlation: number;
+};
+
+export type ProtectionPolicySettingsResponse = {
+  halt_priority_threshold: number;
+  freeze_priority_threshold: number;
+};
+
+export type FundingPolicySettingsResponse = {
+  min_arbitrage_spread: number;
+  min_annualized_spread: number;
+  max_acceptable_funding: number;
+  min_exchange_improvement: number;
+  min_quotes_for_opportunity: number;
+};
+
+export type SystemStatePolicySettingsResponse = {
+  trading_risk_multiplier: number;
+  trading_max_positions: number;
+  trading_max_order_size: number;
+  degraded_risk_multiplier: number;
+  degraded_max_positions: number;
+  degraded_max_order_size: number;
+  risk_reduction_risk_multiplier: number;
+  risk_reduction_max_positions: number;
+  risk_reduction_max_order_size: number;
+  survival_risk_multiplier: number;
+  survival_max_positions: number;
+  survival_max_order_size: number;
+};
+
+export type SystemStateTimeoutSettingsResponse = {
+  boot_max_seconds: number;
+  init_max_seconds: number;
+  ready_max_seconds: number;
+  risk_reduction_max_seconds: number;
+  degraded_max_seconds: number;
+  survival_max_seconds: number;
+  error_max_seconds: number;
+  recovery_max_seconds: number;
+};
+
+export type ReliabilityPolicySettingsResponse = {
+  circuit_breaker_failure_threshold: number;
+  circuit_breaker_recovery_timeout_seconds: number;
+  circuit_breaker_success_threshold: number;
+  watchdog_failure_threshold: number;
+  watchdog_backoff_base_seconds: number;
+  watchdog_backoff_multiplier: number;
+  watchdog_max_backoff_seconds: number;
+  watchdog_jitter_factor: number;
+  watchdog_check_interval_seconds: number;
+};
+
+export type HealthPolicySettingsResponse = {
+  check_timeout_seconds: number;
+  background_check_interval_seconds: number;
+  check_and_wait_timeout_seconds: number;
+};
+
+export type EventBusPolicySettingsResponse = {
+  subscriber_capacity: number;
+  fill_ratio_low: number;
+  fill_ratio_normal: number;
+  fill_ratio_high: number;
+  push_wait_timeout_seconds: number;
+  drain_timeout_seconds: number;
+};
+
+export type ManualApprovalPolicySettingsResponse = {
+  approval_timeout_minutes: number;
+};
+
+export type WorkflowTimeoutsSettingsResponse = {
+  manager_max_age_seconds: number;
+  validation_max_age_seconds: number;
+  paper_max_age_seconds: number;
+  replay_max_age_seconds: number;
+};
+
+export type LiveFeedPolicySettingsResponse = {
+  retry_delay_seconds: number;
+};

@@ -16,11 +16,12 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import suppress
+from datetime import UTC, datetime, timedelta
 import threading
 from typing import TYPE_CHECKING, Any
 import uuid
 
-from cryptotechnolog.config import get_logger
+from cryptotechnolog.config import get_logger, get_settings
 
 from .dual_control import (
     CRITICAL_OPERATIONS,
@@ -193,7 +194,7 @@ class OperatorGate:
         self,
         event_bus: EnhancedEventBus | None = None,
         authenticator: TokenAuthenticator | DenyAllAuthenticator | None = None,
-        request_timeout: int = DEFAULT_REQUEST_TIMEOUT_MINUTES,
+        request_timeout: int | None = None,
         environment: str = "production",
         allow_dev_stub_auth: bool = False,
     ) -> None:
@@ -203,7 +204,11 @@ class OperatorGate:
             environment=environment,
             allow_dev_stub_auth=allow_dev_stub_auth,
         )
-        self._request_timeout = request_timeout
+        self._request_timeout = (
+            request_timeout
+            if request_timeout is not None
+            else get_settings().manual_approval_timeout_minutes
+        )
 
         # Active requests
         self._requests: dict[uuid.UUID, DualControlRequest] = {}
@@ -319,6 +324,7 @@ class OperatorGate:
             operation_type=operation,
             requested_by=operator,
             target_state=target_state,
+            expires_at=datetime.now(UTC) + timedelta(minutes=self._request_timeout),
             metadata=metadata or {},
         )
 

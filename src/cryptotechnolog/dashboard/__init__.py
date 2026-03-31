@@ -14,6 +14,23 @@ from .dto.position_expansion import PositionExpansionSummaryDTO
 from .dto.positions import OpenPositionsDTO, PositionHistoryDTO
 from .dto.reporting import ReportingSummaryDTO
 from .dto.risk import RiskSummaryDTO
+from .dto.settings import (
+    CorrelationPolicySettingsDTO,
+    DecisionChainSettingsDTO,
+    EventBusPolicySettingsDTO,
+    FundingPolicySettingsDTO,
+    HealthPolicySettingsDTO,
+    LiveFeedPolicySettingsDTO,
+    ManualApprovalPolicySettingsDTO,
+    ProtectionPolicySettingsDTO,
+    ReliabilityPolicySettingsDTO,
+    RiskLimitsSettingsDTO,
+    SystemStatePolicySettingsDTO,
+    SystemStateTimeoutSettingsDTO,
+    TrailingPolicySettingsDTO,
+    UniversePolicySettingsDTO,
+    WorkflowTimeoutsSettingsDTO,
+)
 from .dto.signals import SignalsSummaryDTO
 from .dto.strategy import StrategySummaryDTO
 from .dto.validation import ValidationSummaryDTO
@@ -29,10 +46,17 @@ from .runtime import DashboardRuntime, create_dashboard_runtime
 
 __all__ = [
     "BacktestSummaryDTO",
+    "CorrelationPolicySettingsDTO",
     "DashboardModuleDefinition",
     "DashboardModuleStatus",
     "DashboardRuntime",
+    "DecisionChainSettingsDTO",
+    "EventBusPolicySettingsDTO",
     "ExecutionSummaryDTO",
+    "FundingPolicySettingsDTO",
+    "HealthPolicySettingsDTO",
+    "LiveFeedPolicySettingsDTO",
+    "ManualApprovalPolicySettingsDTO",
     "ManagerSummaryDTO",
     "ModuleAvailabilityRegistry",
     "OmsSummaryDTO",
@@ -45,11 +69,19 @@ __all__ = [
     "PortfolioGovernorSummaryDTO",
     "PositionExpansionSummaryDTO",
     "PositionHistoryDTO",
+    "ProtectionPolicySettingsDTO",
+    "ReliabilityPolicySettingsDTO",
     "ReportingSummaryDTO",
+    "RiskLimitsSettingsDTO",
     "RiskSummaryDTO",
     "SignalsSummaryDTO",
     "StrategySummaryDTO",
+    "SystemStatePolicySettingsDTO",
+    "SystemStateTimeoutSettingsDTO",
+    "TrailingPolicySettingsDTO",
+    "UniversePolicySettingsDTO",
     "ValidationSummaryDTO",
+    "WorkflowTimeoutsSettingsDTO",
     "create_dashboard_app",
     "create_dashboard_router",
     "create_dashboard_runtime",

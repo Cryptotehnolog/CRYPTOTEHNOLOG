@@ -185,6 +185,346 @@ class Settings(BaseSettings):
     # Starting equity baseline for DrawdownMonitor runtime
     risk_starting_equity: float = 10000.0
 
+    # ==================== Trailing Policy Settings ====================
+    trailing_arm_at_pnl_r: float = Field(
+        default=1.0,
+        description=(
+            "Recommended baseline: 1.0 R. Profit threshold at which trailing becomes armed."
+        ),
+    )
+    trailing_t2_at_pnl_r: float = Field(
+        default=2.0,
+        description=("Recommended baseline: 2.0 R. Profit threshold for trailing tier 2."),
+    )
+    trailing_t3_at_pnl_r: float = Field(
+        default=4.0,
+        description=("Recommended baseline: 4.0 R. Profit threshold for trailing tier 3."),
+    )
+    trailing_t4_at_pnl_r: float = Field(
+        default=6.0,
+        description=("Recommended baseline: 6.0 R. Profit threshold for trailing tier 4."),
+    )
+    trailing_t1_atr_multiplier: float = Field(
+        default=2.0,
+        description=("Recommended baseline: 2.0. ATR multiplier used for trailing tier 1."),
+    )
+    trailing_t2_atr_multiplier: float = Field(
+        default=1.5,
+        description=("Recommended baseline: 1.5. ATR multiplier used for trailing tier 2."),
+    )
+    trailing_t3_atr_multiplier: float = Field(
+        default=1.1,
+        description=("Recommended baseline: 1.1. ATR multiplier used for trailing tier 3."),
+    )
+    trailing_t4_atr_multiplier: float = Field(
+        default=0.8,
+        description=("Recommended baseline: 0.8. ATR multiplier used for trailing tier 4."),
+    )
+    trailing_emergency_buffer_bps: float = Field(
+        default=50.0,
+        description=(
+            "Recommended baseline: 50 bps. Emergency protective buffer for forced stop movement."
+        ),
+    )
+    trailing_structural_min_adx: float = Field(
+        default=25.0,
+        description=(
+            "Recommended baseline: 25.0. Minimum trend strength required for structural trailing."
+        ),
+    )
+    trailing_structural_confirmed_highs: int = Field(
+        default=2,
+        description=(
+            "Recommended baseline: 2. Minimum confirmed highs required for structural trailing."
+        ),
+    )
+    trailing_structural_confirmed_lows: int = Field(
+        default=2,
+        description=(
+            "Recommended baseline: 2. Minimum confirmed lows required for structural trailing."
+        ),
+    )
+
+    # ==================== Correlation Policy Settings ====================
+    correlation_limit: float = Field(
+        default=0.80,
+        description=(
+            "Recommended baseline: 0.80. Maximum allowed correlation between positions."
+        ),
+    )
+    same_group_correlation: float = Field(
+        default=0.65,
+        description=(
+            "Recommended baseline: 0.65. Allowed correlation inside the same instrument group."
+        ),
+    )
+    cross_group_correlation: float = Field(
+        default=0.25,
+        description=(
+            "Recommended baseline: 0.25. Allowed correlation between different instrument groups."
+        ),
+    )
+
+    # ==================== Protection Policy Settings ====================
+    protection_halt_priority_threshold: float = Field(
+        default=0.90,
+        description=(
+            "Recommended baseline: 0.90. Priority threshold after which the system enters "
+            "hard protection mode."
+        ),
+    )
+    protection_freeze_priority_threshold: float = Field(
+        default=0.975,
+        description=(
+            "Recommended baseline: 0.975. Priority threshold after which the system freezes "
+            "new actions."
+        ),
+    )
+
+    # ==================== Funding Policy Settings ====================
+    funding_min_arbitrage_spread: float = Field(
+        default=0.002,
+        description=(
+            "Recommended baseline: 0.002. Minimum funding spread per period for arbitrage "
+            "opportunity detection."
+        ),
+    )
+    funding_min_annualized_spread: float = Field(
+        default=0.05,
+        description=(
+            "Recommended baseline: 0.05. Minimum annualized funding spread for arbitrage "
+            "opportunity detection."
+        ),
+    )
+    funding_max_acceptable_rate: float = Field(
+        default=0.003,
+        description=(
+            "Recommended baseline: 0.003. Maximum acceptable funding rate for opening a new "
+            "position."
+        ),
+    )
+    funding_min_exchange_improvement: float = Field(
+        default=0.0005,
+        description=(
+            "Recommended baseline: 0.0005. Minimum rate improvement required to justify an "
+            "exchange switch."
+        ),
+    )
+    funding_min_quotes_for_opportunity: int = Field(
+        default=2,
+        description=(
+            "Recommended baseline: 2. Minimum number of exchange quotes required to detect a "
+            "funding opportunity."
+        ),
+    )
+
+    # ==================== System State Policy Settings ====================
+    system_trading_risk_multiplier: float = Field(
+        default=1.0,
+        description="Recommended baseline: 1.0. Risk multiplier for normal trading mode.",
+    )
+    system_trading_max_positions: int = Field(
+        default=100,
+        description="Recommended baseline: 100. Maximum open positions in normal trading mode.",
+    )
+    system_trading_max_order_size: float = Field(
+        default=0.1,
+        description="Recommended baseline: 0.10. Maximum new position size in trading mode.",
+    )
+    system_degraded_risk_multiplier: float = Field(
+        default=0.5,
+        description="Recommended baseline: 0.50. Risk multiplier for degraded mode.",
+    )
+    system_degraded_max_positions: int = Field(
+        default=50,
+        description="Recommended baseline: 50. Maximum open positions in degraded mode.",
+    )
+    system_degraded_max_order_size: float = Field(
+        default=0.05,
+        description="Recommended baseline: 0.05. Maximum new position size in degraded mode.",
+    )
+    system_risk_reduction_risk_multiplier: float = Field(
+        default=0.25,
+        description="Recommended baseline: 0.25. Risk multiplier for risk-reduction mode.",
+    )
+    system_risk_reduction_max_positions: int = Field(
+        default=20,
+        description="Recommended baseline: 20. Maximum open positions in risk-reduction mode.",
+    )
+    system_risk_reduction_max_order_size: float = Field(
+        default=0.02,
+        description="Recommended baseline: 0.02. Maximum new position size in risk-reduction mode.",
+    )
+    system_survival_risk_multiplier: float = Field(
+        default=0.1,
+        description="Recommended baseline: 0.10. Risk multiplier for survival mode.",
+    )
+    system_survival_max_positions: int = Field(
+        default=0,
+        description="Recommended baseline: 0. Maximum open positions in survival mode.",
+    )
+    system_survival_max_order_size: float = Field(
+        default=0.01,
+        description="Recommended baseline: 0.01. Maximum new position size in survival mode.",
+    )
+
+    # ==================== System State Timeout Settings ====================
+    system_boot_max_seconds: int = Field(
+        default=60,
+        description="Recommended baseline: 60 seconds. Maximum time allowed in BOOT state.",
+    )
+    system_init_max_seconds: int = Field(
+        default=120,
+        description="Recommended baseline: 120 seconds. Maximum time allowed in INIT state.",
+    )
+    system_ready_max_seconds: int = Field(
+        default=3600,
+        description="Recommended baseline: 3600 seconds. Maximum time allowed in READY state.",
+    )
+    system_risk_reduction_max_seconds: int = Field(
+        default=1800,
+        description=(
+            "Recommended baseline: 1800 seconds. Maximum time allowed in RISK_REDUCTION state."
+        ),
+    )
+    system_degraded_max_seconds: int = Field(
+        default=3600,
+        description="Recommended baseline: 3600 seconds. Maximum time allowed in DEGRADED state.",
+    )
+    system_survival_max_seconds: int = Field(
+        default=1800,
+        description="Recommended baseline: 1800 seconds. Maximum time allowed in SURVIVAL state.",
+    )
+    system_error_max_seconds: int = Field(
+        default=300,
+        description="Recommended baseline: 300 seconds. Maximum time allowed in ERROR state.",
+    )
+    system_recovery_max_seconds: int = Field(
+        default=600,
+        description="Recommended baseline: 600 seconds. Maximum time allowed in RECOVERY state.",
+    )
+
+    # ==================== Reliability Policy Settings ====================
+    reliability_circuit_breaker_failure_threshold: int = Field(
+        default=5,
+        description=(
+            "Recommended baseline: 5. Consecutive failures allowed before circuit breaker opens."
+        ),
+    )
+    reliability_circuit_breaker_recovery_timeout_seconds: int = Field(
+        default=60,
+        description=(
+            "Recommended baseline: 60 seconds. Delay before circuit breaker attempts recovery."
+        ),
+    )
+    reliability_circuit_breaker_success_threshold: int = Field(
+        default=3,
+        description=(
+            "Recommended baseline: 3. Successful attempts needed to close circuit breaker."
+        ),
+    )
+    reliability_watchdog_failure_threshold: int = Field(
+        default=3,
+        description=(
+            "Recommended baseline: 3. Consecutive watchdog failures treated as a problem."
+        ),
+    )
+    reliability_watchdog_backoff_base_seconds: float = Field(
+        default=1.0,
+        description=(
+            "Recommended baseline: 1.0 seconds. Base retry delay for watchdog recovery."
+        ),
+    )
+    reliability_watchdog_backoff_multiplier: float = Field(
+        default=2.0,
+        description=(
+            "Recommended baseline: 2.0. Multiplier for watchdog exponential backoff."
+        ),
+    )
+    reliability_watchdog_max_backoff_seconds: float = Field(
+        default=60.0,
+        description=(
+            "Recommended baseline: 60.0 seconds. Maximum watchdog retry delay."
+        ),
+    )
+    reliability_watchdog_jitter_factor: float = Field(
+        default=0.5,
+        description=(
+            "Recommended baseline: 0.5. Jitter factor for spreading watchdog retries."
+        ),
+    )
+    reliability_watchdog_check_interval_seconds: float = Field(
+        default=30.0,
+        description=(
+            "Recommended baseline: 30.0 seconds. Interval between watchdog health checks."
+        ),
+    )
+
+    # ==================== Health Policy Settings ====================
+    health_check_timeout_seconds: float = Field(
+        default=5.0,
+        description=(
+            "Recommended baseline: 5.0 seconds. Timeout for a single health check."
+        ),
+    )
+    health_background_check_interval_seconds: float = Field(
+        default=60.0,
+        description=(
+            "Recommended baseline: 60.0 seconds. Interval between background health checks."
+        ),
+    )
+    health_check_and_wait_timeout_seconds: float = Field(
+        default=30.0,
+        description=(
+            "Recommended baseline: 30.0 seconds. Maximum wait for overall readiness check."
+        ),
+    )
+
+    # ==================== Manual Approval Policy Settings ====================
+    manual_approval_timeout_minutes: int = Field(
+        default=5,
+        description=(
+            "Recommended baseline: 5 minutes. How long a manual approval request stays active "
+            "before it expires."
+        ),
+    )
+
+    # ==================== Workflow Timeout Settings ====================
+    workflow_manager_max_age_seconds: int = Field(
+        default=3600,
+        description=(
+            "Recommended baseline: 3600 seconds. Maximum lifetime of a manager workflow "
+            "before it expires."
+        ),
+    )
+    workflow_validation_max_age_seconds: int = Field(
+        default=3600,
+        description=(
+            "Recommended baseline: 3600 seconds. Maximum lifetime of a validation review "
+            "before it expires."
+        ),
+    )
+    workflow_paper_max_age_seconds: int = Field(
+        default=3600,
+        description=(
+            "Recommended baseline: 3600 seconds. Maximum lifetime of a paper rehearsal "
+            "before it expires."
+        ),
+    )
+    workflow_replay_max_age_seconds: int = Field(
+        default=3600,
+        description=(
+            "Recommended baseline: 3600 seconds. Maximum lifetime of a replay/backtest "
+            "session before it expires."
+        ),
+    )
+    live_feed_retry_delay_seconds: int = Field(
+        default=5,
+        description=(
+            "Recommended baseline: 5 seconds. Base delay before reconnecting to the live feed."
+        ),
+    )
+
     # ==================== Trading Settings ====================
     # Default leverage
     default_leverage: float = 1.0
@@ -197,6 +537,178 @@ class Settings(BaseSettings):
 
     # Slippage tolerance (percentage)
     slippage_tolerance: float = 0.001
+
+    # ==================== Market Data Universe Policy ====================
+    universe_max_spread_bps: float = Field(
+        default=25.0,
+        description=(
+            "Recommended baseline: 25 bps. Maximum allowed bid/ask spread for an instrument "
+            "to remain admissible in the market-data universe."
+        ),
+    )
+    universe_min_top_depth_usd: float = Field(
+        default=75000.0,
+        description=(
+            "Recommended baseline: 75,000 USD. Minimum top-of-book depth required for an "
+            "instrument to be considered liquid enough for admission."
+        ),
+    )
+    universe_min_depth_5bps_usd: float = Field(
+        default=200000.0,
+        description=(
+            "Recommended baseline: 200,000 USD. Minimum cumulative depth inside the 5 bps "
+            "range required for stable admissibility."
+        ),
+    )
+    universe_max_latency_ms: float = Field(
+        default=250.0,
+        description=(
+            "Recommended baseline: 250 ms. Maximum tolerated market-data latency before the "
+            "instrument is treated as low-confidence."
+        ),
+    )
+    universe_min_coverage_ratio: float = Field(
+        default=0.90,
+        description=(
+            "Recommended baseline: 0.90. Minimum required data coverage ratio for an "
+            "instrument to remain admissible."
+        ),
+    )
+    universe_max_data_age_ms: int = Field(
+        default=3000,
+        description=(
+            "Recommended baseline: 3000 ms. Maximum allowed market-data staleness before the "
+            "instrument is excluded as stale."
+        ),
+    )
+    universe_min_quality_score: float = Field(
+        default=0.60,
+        description=(
+            "Recommended baseline: 0.60. Minimum quality score required for an instrument to "
+            "be admitted into the active universe."
+        ),
+    )
+    universe_min_ready_instruments: int = Field(
+        default=5,
+        description=(
+            "Recommended baseline: 5 instruments. Minimum admissible instrument count required "
+            "for universe state READY."
+        ),
+    )
+    universe_min_degraded_instruments_ratio: float = Field(
+        default=0.10,
+        description=(
+            "Recommended baseline: 0.10. Minimum admissible share of the raw universe required "
+            "to stay in DEGRADED instead of BLOCKED."
+        ),
+    )
+    universe_min_ready_confidence: float = Field(
+        default=0.70,
+        description=(
+            "Recommended baseline: 0.70. Minimum universe confidence required for state READY."
+        ),
+    )
+    universe_min_degraded_confidence: float = Field(
+        default=0.45,
+        description=(
+            "Recommended baseline: 0.45. Minimum universe confidence required to stay in "
+            "DEGRADED instead of BLOCKED."
+        ),
+    )
+
+    # ==================== Decision Chain Thresholds ====================
+    signal_min_trend_strength: float = Field(
+        default=20.0,
+        description=(
+            "Recommended baseline: 20.0. Minimum trend strength required before a signal can "
+            "activate."
+        ),
+    )
+    signal_min_regime_confidence: float = Field(
+        default=0.50,
+        description=(
+            "Recommended baseline: 0.50. Minimum regime confidence required for signal "
+            "activation."
+        ),
+    )
+    signal_target_risk_reward: float = Field(
+        default=2.0,
+        description=(
+            "Recommended baseline: 2.0. Target risk/reward multiple used by the signal layer."
+        ),
+    )
+    signal_max_age_seconds: int = Field(
+        default=300,
+        description=(
+            "Recommended baseline: 300 seconds. Maximum age of a signal before it expires."
+        ),
+    )
+    strategy_min_signal_confidence: float = Field(
+        default=0.50,
+        description=(
+            "Recommended baseline: 0.50. Minimum signal confidence required for a strategy "
+            "candidate to become actionable."
+        ),
+    )
+    strategy_max_candidate_age_seconds: int = Field(
+        default=300,
+        description=(
+            "Recommended baseline: 300 seconds. Maximum lifetime of a strategy candidate."
+        ),
+    )
+    execution_min_strategy_confidence: float = Field(
+        default=0.50,
+        description=(
+            "Recommended baseline: 0.50. Minimum strategy confidence required to form an "
+            "execution intent."
+        ),
+    )
+    execution_max_intent_age_seconds: int = Field(
+        default=300,
+        description=(
+            "Recommended baseline: 300 seconds. Maximum lifetime of an execution intent."
+        ),
+    )
+    opportunity_min_confidence: float = Field(
+        default=0.50,
+        description=(
+            "Recommended baseline: 0.50. Minimum intent confidence required for opportunity "
+            "selection."
+        ),
+    )
+    opportunity_min_priority: float = Field(
+        default=0.50,
+        description=(
+            "Recommended baseline: 0.50. Minimum priority score required for opportunity "
+            "selection."
+        ),
+    )
+    opportunity_max_age_seconds: int = Field(
+        default=300,
+        description=(
+            "Recommended baseline: 300 seconds. Maximum lifetime of a selected opportunity."
+        ),
+    )
+    orchestration_min_confidence: float = Field(
+        default=0.50,
+        description=(
+            "Recommended baseline: 0.50. Minimum selection confidence required for orchestration "
+            "forwarding."
+        ),
+    )
+    orchestration_min_priority: float = Field(
+        default=0.50,
+        description=(
+            "Recommended baseline: 0.50. Minimum priority score required for orchestration "
+            "forwarding."
+        ),
+    )
+    orchestration_max_decision_age_seconds: int = Field(
+        default=300,
+        description=(
+            "Recommended baseline: 300 seconds. Maximum lifetime of an orchestration decision."
+        ),
+    )
 
     # ==================== Observability ====================
     # Logging Level
@@ -284,6 +796,49 @@ class Settings(BaseSettings):
 
     # Backpressure strategy
     event_bus_backpressure_strategy: str = "drop_low"
+
+    event_bus_subscriber_capacity: int = Field(
+        default=1024,
+        description=(
+            "Recommended baseline: 1024 events. Default capacity of a subscriber queue before "
+            "backpressure starts to matter."
+        ),
+    )
+    event_bus_fill_ratio_low: float = Field(
+        default=0.7,
+        description=(
+            "Recommended baseline: 0.70. Lower queue fill threshold where the bus starts "
+            "treating low-priority pressure as noticeable."
+        ),
+    )
+    event_bus_fill_ratio_normal: float = Field(
+        default=0.8,
+        description=(
+            "Recommended baseline: 0.80. Normal queue fill threshold used for medium "
+            "backpressure escalation."
+        ),
+    )
+    event_bus_fill_ratio_high: float = Field(
+        default=0.9,
+        description=(
+            "Recommended baseline: 0.90. High queue fill threshold where strong backpressure "
+            "actions are allowed."
+        ),
+    )
+    event_bus_push_wait_timeout_seconds: float = Field(
+        default=5.0,
+        description=(
+            "Recommended baseline: 5.0 seconds. Maximum wait when publishing into a pressured "
+            "queue before the bus gives up."
+        ),
+    )
+    event_bus_drain_timeout_seconds: float = Field(
+        default=30.0,
+        description=(
+            "Recommended baseline: 30.0 seconds. Maximum wait for draining remaining events "
+            "before shutdown or controlled stop reports timeout."
+        ),
+    )
 
     @field_validator("event_bus_backpressure_strategy")
     @classmethod
@@ -422,6 +977,14 @@ def _collect_domain_validation_errors(settings_to_validate: Settings) -> list[st
     """Collect domain validation errors for risk and trading settings."""
     validation_errors: list[str] = []
 
+    def append_positive_error(field_name: str, value: int | float) -> None:
+        if value <= 0:
+            validation_errors.append(f"{field_name} must be positive")
+
+    def append_unit_interval_error(field_name: str, value: int | float) -> None:
+        if value < 0 or value > 1:
+            validation_errors.append(f"{field_name} must be between 0 and 1")
+
     if settings_to_validate.base_r_percent <= 0 or settings_to_validate.base_r_percent > 1:
         validation_errors.append("base_r_percent must be between 0 and 1")
 
@@ -440,8 +1003,337 @@ def _collect_domain_validation_errors(settings_to_validate: Settings) -> list[st
             f"max_leverage ({settings_to_validate.max_leverage})"
         )
 
-    if settings_to_validate.slippage_tolerance < 0 or settings_to_validate.slippage_tolerance > 1:
-        validation_errors.append("slippage_tolerance must be between 0 and 1")
+    append_unit_interval_error("slippage_tolerance", settings_to_validate.slippage_tolerance)
+    append_positive_error("universe_max_spread_bps", settings_to_validate.universe_max_spread_bps)
+    append_positive_error(
+        "universe_min_top_depth_usd",
+        settings_to_validate.universe_min_top_depth_usd,
+    )
+    append_positive_error(
+        "universe_min_depth_5bps_usd",
+        settings_to_validate.universe_min_depth_5bps_usd,
+    )
+    append_positive_error("universe_max_latency_ms", settings_to_validate.universe_max_latency_ms)
+    append_unit_interval_error(
+        "universe_min_coverage_ratio",
+        settings_to_validate.universe_min_coverage_ratio,
+    )
+    append_positive_error("universe_max_data_age_ms", settings_to_validate.universe_max_data_age_ms)
+    append_unit_interval_error(
+        "universe_min_quality_score",
+        settings_to_validate.universe_min_quality_score,
+    )
+    append_positive_error(
+        "universe_min_ready_instruments",
+        settings_to_validate.universe_min_ready_instruments,
+    )
+    append_unit_interval_error(
+        "universe_min_degraded_instruments_ratio",
+        settings_to_validate.universe_min_degraded_instruments_ratio,
+    )
+    append_unit_interval_error(
+        "universe_min_ready_confidence",
+        settings_to_validate.universe_min_ready_confidence,
+    )
+    append_unit_interval_error(
+        "universe_min_degraded_confidence",
+        settings_to_validate.universe_min_degraded_confidence,
+    )
+    append_positive_error("signal_min_trend_strength", settings_to_validate.signal_min_trend_strength)
+    append_unit_interval_error(
+        "signal_min_regime_confidence",
+        settings_to_validate.signal_min_regime_confidence,
+    )
+    append_positive_error("signal_target_risk_reward", settings_to_validate.signal_target_risk_reward)
+    append_positive_error("signal_max_age_seconds", settings_to_validate.signal_max_age_seconds)
+    append_unit_interval_error(
+        "strategy_min_signal_confidence",
+        settings_to_validate.strategy_min_signal_confidence,
+    )
+    append_positive_error(
+        "strategy_max_candidate_age_seconds",
+        settings_to_validate.strategy_max_candidate_age_seconds,
+    )
+    append_unit_interval_error(
+        "execution_min_strategy_confidence",
+        settings_to_validate.execution_min_strategy_confidence,
+    )
+    append_positive_error(
+        "execution_max_intent_age_seconds",
+        settings_to_validate.execution_max_intent_age_seconds,
+    )
+    append_unit_interval_error(
+        "opportunity_min_confidence",
+        settings_to_validate.opportunity_min_confidence,
+    )
+    append_unit_interval_error("opportunity_min_priority", settings_to_validate.opportunity_min_priority)
+    append_positive_error(
+        "opportunity_max_age_seconds",
+        settings_to_validate.opportunity_max_age_seconds,
+    )
+    append_unit_interval_error(
+        "orchestration_min_confidence",
+        settings_to_validate.orchestration_min_confidence,
+    )
+    append_unit_interval_error(
+        "orchestration_min_priority",
+        settings_to_validate.orchestration_min_priority,
+    )
+    append_positive_error(
+        "orchestration_max_decision_age_seconds",
+        settings_to_validate.orchestration_max_decision_age_seconds,
+    )
+    append_positive_error("trailing_arm_at_pnl_r", settings_to_validate.trailing_arm_at_pnl_r)
+    append_positive_error("trailing_t2_at_pnl_r", settings_to_validate.trailing_t2_at_pnl_r)
+    append_positive_error("trailing_t3_at_pnl_r", settings_to_validate.trailing_t3_at_pnl_r)
+    append_positive_error("trailing_t4_at_pnl_r", settings_to_validate.trailing_t4_at_pnl_r)
+    append_positive_error(
+        "trailing_t1_atr_multiplier",
+        settings_to_validate.trailing_t1_atr_multiplier,
+    )
+    append_positive_error(
+        "trailing_t2_atr_multiplier",
+        settings_to_validate.trailing_t2_atr_multiplier,
+    )
+    append_positive_error(
+        "trailing_t3_atr_multiplier",
+        settings_to_validate.trailing_t3_atr_multiplier,
+    )
+    append_positive_error(
+        "trailing_t4_atr_multiplier",
+        settings_to_validate.trailing_t4_atr_multiplier,
+    )
+    append_positive_error(
+        "trailing_emergency_buffer_bps",
+        settings_to_validate.trailing_emergency_buffer_bps,
+    )
+    append_positive_error(
+        "trailing_structural_min_adx",
+        settings_to_validate.trailing_structural_min_adx,
+    )
+    append_positive_error(
+        "trailing_structural_confirmed_highs",
+        settings_to_validate.trailing_structural_confirmed_highs,
+    )
+    append_positive_error(
+        "trailing_structural_confirmed_lows",
+        settings_to_validate.trailing_structural_confirmed_lows,
+    )
+    append_unit_interval_error("correlation_limit", settings_to_validate.correlation_limit)
+    append_unit_interval_error(
+        "same_group_correlation",
+        settings_to_validate.same_group_correlation,
+    )
+    append_unit_interval_error(
+        "cross_group_correlation",
+        settings_to_validate.cross_group_correlation,
+    )
+    append_unit_interval_error(
+        "protection_halt_priority_threshold",
+        settings_to_validate.protection_halt_priority_threshold,
+    )
+    append_unit_interval_error(
+        "protection_freeze_priority_threshold",
+        settings_to_validate.protection_freeze_priority_threshold,
+    )
+    if (
+        settings_to_validate.protection_freeze_priority_threshold
+        < settings_to_validate.protection_halt_priority_threshold
+    ):
+        validation_errors.append(
+            "protection_freeze_priority_threshold must be greater than or equal to "
+            "protection_halt_priority_threshold"
+        )
+    append_positive_error(
+        "funding_min_arbitrage_spread",
+        settings_to_validate.funding_min_arbitrage_spread,
+    )
+    append_positive_error(
+        "funding_min_annualized_spread",
+        settings_to_validate.funding_min_annualized_spread,
+    )
+    append_positive_error(
+        "funding_max_acceptable_rate",
+        settings_to_validate.funding_max_acceptable_rate,
+    )
+    append_positive_error(
+        "funding_min_exchange_improvement",
+        settings_to_validate.funding_min_exchange_improvement,
+    )
+    append_positive_error(
+        "funding_min_quotes_for_opportunity",
+        settings_to_validate.funding_min_quotes_for_opportunity,
+    )
+    append_positive_error(
+        "system_trading_risk_multiplier",
+        settings_to_validate.system_trading_risk_multiplier,
+    )
+    append_positive_error(
+        "system_trading_max_positions",
+        settings_to_validate.system_trading_max_positions,
+    )
+    append_positive_error(
+        "system_trading_max_order_size",
+        settings_to_validate.system_trading_max_order_size,
+    )
+    append_positive_error(
+        "system_degraded_risk_multiplier",
+        settings_to_validate.system_degraded_risk_multiplier,
+    )
+    append_positive_error(
+        "system_degraded_max_positions",
+        settings_to_validate.system_degraded_max_positions,
+    )
+    append_positive_error(
+        "system_degraded_max_order_size",
+        settings_to_validate.system_degraded_max_order_size,
+    )
+    append_positive_error(
+        "system_risk_reduction_risk_multiplier",
+        settings_to_validate.system_risk_reduction_risk_multiplier,
+    )
+    append_positive_error(
+        "system_risk_reduction_max_positions",
+        settings_to_validate.system_risk_reduction_max_positions,
+    )
+    append_positive_error(
+        "system_risk_reduction_max_order_size",
+        settings_to_validate.system_risk_reduction_max_order_size,
+    )
+    append_positive_error(
+        "system_survival_risk_multiplier",
+        settings_to_validate.system_survival_risk_multiplier,
+    )
+    if settings_to_validate.system_survival_max_positions < 0:
+        validation_errors.append("system_survival_max_positions must be non-negative")
+    append_positive_error(
+        "system_survival_max_order_size",
+        settings_to_validate.system_survival_max_order_size,
+    )
+    append_positive_error("system_boot_max_seconds", settings_to_validate.system_boot_max_seconds)
+    append_positive_error("system_init_max_seconds", settings_to_validate.system_init_max_seconds)
+    append_positive_error("system_ready_max_seconds", settings_to_validate.system_ready_max_seconds)
+    append_positive_error(
+        "system_risk_reduction_max_seconds",
+        settings_to_validate.system_risk_reduction_max_seconds,
+    )
+    append_positive_error(
+        "system_degraded_max_seconds",
+        settings_to_validate.system_degraded_max_seconds,
+    )
+    append_positive_error(
+        "system_survival_max_seconds",
+        settings_to_validate.system_survival_max_seconds,
+    )
+    append_positive_error("system_error_max_seconds", settings_to_validate.system_error_max_seconds)
+    append_positive_error(
+        "system_recovery_max_seconds",
+        settings_to_validate.system_recovery_max_seconds,
+    )
+    append_positive_error(
+        "reliability_circuit_breaker_failure_threshold",
+        settings_to_validate.reliability_circuit_breaker_failure_threshold,
+    )
+    append_positive_error(
+        "reliability_circuit_breaker_recovery_timeout_seconds",
+        settings_to_validate.reliability_circuit_breaker_recovery_timeout_seconds,
+    )
+    append_positive_error(
+        "reliability_circuit_breaker_success_threshold",
+        settings_to_validate.reliability_circuit_breaker_success_threshold,
+    )
+    append_positive_error(
+        "reliability_watchdog_failure_threshold",
+        settings_to_validate.reliability_watchdog_failure_threshold,
+    )
+    append_positive_error(
+        "reliability_watchdog_backoff_base_seconds",
+        settings_to_validate.reliability_watchdog_backoff_base_seconds,
+    )
+    append_positive_error(
+        "reliability_watchdog_backoff_multiplier",
+        settings_to_validate.reliability_watchdog_backoff_multiplier,
+    )
+    append_positive_error(
+        "reliability_watchdog_max_backoff_seconds",
+        settings_to_validate.reliability_watchdog_max_backoff_seconds,
+    )
+    append_unit_interval_error(
+        "reliability_watchdog_jitter_factor",
+        settings_to_validate.reliability_watchdog_jitter_factor,
+    )
+    append_positive_error(
+        "reliability_watchdog_check_interval_seconds",
+        settings_to_validate.reliability_watchdog_check_interval_seconds,
+    )
+    append_positive_error(
+        "health_check_timeout_seconds",
+        settings_to_validate.health_check_timeout_seconds,
+    )
+    append_positive_error(
+        "health_background_check_interval_seconds",
+        settings_to_validate.health_background_check_interval_seconds,
+    )
+    append_positive_error(
+        "health_check_and_wait_timeout_seconds",
+        settings_to_validate.health_check_and_wait_timeout_seconds,
+    )
+    append_positive_error(
+        "manual_approval_timeout_minutes",
+        settings_to_validate.manual_approval_timeout_minutes,
+    )
+    append_positive_error(
+        "workflow_manager_max_age_seconds",
+        settings_to_validate.workflow_manager_max_age_seconds,
+    )
+    append_positive_error(
+        "workflow_validation_max_age_seconds",
+        settings_to_validate.workflow_validation_max_age_seconds,
+    )
+    append_positive_error(
+        "workflow_paper_max_age_seconds",
+        settings_to_validate.workflow_paper_max_age_seconds,
+    )
+    append_positive_error(
+        "workflow_replay_max_age_seconds",
+        settings_to_validate.workflow_replay_max_age_seconds,
+    )
+    append_positive_error(
+        "live_feed_retry_delay_seconds",
+        settings_to_validate.live_feed_retry_delay_seconds,
+    )
+    append_positive_error(
+        "event_bus_subscriber_capacity",
+        settings_to_validate.event_bus_subscriber_capacity,
+    )
+    append_unit_interval_error(
+        "event_bus_fill_ratio_low",
+        settings_to_validate.event_bus_fill_ratio_low,
+    )
+    append_unit_interval_error(
+        "event_bus_fill_ratio_normal",
+        settings_to_validate.event_bus_fill_ratio_normal,
+    )
+    append_unit_interval_error(
+        "event_bus_fill_ratio_high",
+        settings_to_validate.event_bus_fill_ratio_high,
+    )
+    append_positive_error(
+        "event_bus_push_wait_timeout_seconds",
+        settings_to_validate.event_bus_push_wait_timeout_seconds,
+    )
+    append_positive_error(
+        "event_bus_drain_timeout_seconds",
+        settings_to_validate.event_bus_drain_timeout_seconds,
+    )
+    if not (
+        settings_to_validate.event_bus_fill_ratio_low
+        < settings_to_validate.event_bus_fill_ratio_normal
+        < settings_to_validate.event_bus_fill_ratio_high
+    ):
+        validation_errors.append(
+            "event_bus fill ratios must satisfy low < normal < high"
+        )
 
     return validation_errors
 
@@ -506,6 +1398,30 @@ def get_settings() -> Settings:
     with _settings_lock:
         if _settings is None:
             _settings = Settings()
+        return _settings
+
+
+def update_settings(updates: dict[str, Any]) -> Settings:
+    """
+    Update the cached settings instance with validated values.
+
+    This is a process-backed write path for product settings APIs.
+    It updates the canonical in-memory Settings singleton used by the current backend runtime.
+    """
+    global _settings  # noqa: PLW0603 - Required for cached singleton mutation
+    with _settings_lock:
+        current = _settings or Settings()
+        candidate_payload = current.model_dump(mode="python")
+        candidate_payload.update(updates)
+        candidate = Settings.model_validate(candidate_payload)
+
+        validation_errors: list[str] = []
+        validation_errors.extend(_collect_runtime_secret_validation_errors(candidate))
+        validation_errors.extend(_collect_domain_validation_errors(candidate))
+        if validation_errors:
+            raise ValueError("; ".join(validation_errors))
+
+        _settings = candidate
         return _settings
 
 

@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from cryptotechnolog.config import reload_settings, update_settings
 from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
 from cryptotechnolog.core.global_instances import reset_event_bus, set_event_bus
 from cryptotechnolog.core.watchdog import (
@@ -165,6 +166,25 @@ class TestRecoveryStrategy:
         # Should return exact backoff without jitter
         assert strategy.get_backoff_delay() == 1.0  # 1.0 * 2^0 = 1.0
 
+    def test_defaults_follow_reliability_settings(self):
+        """Тест что defaults RecoveryStrategy читаются из canonical settings."""
+        try:
+            update_settings(
+                {
+                    "reliability_watchdog_backoff_base_seconds": 1.5,
+                    "reliability_watchdog_backoff_multiplier": 2.5,
+                    "reliability_watchdog_max_backoff_seconds": 90.0,
+                    "reliability_watchdog_jitter_factor": 0.25,
+                }
+            )
+            strategy = RecoveryStrategy()
+            assert strategy.backoff_base == 1.5
+            assert strategy.backoff_multiplier == 2.5
+            assert strategy.max_backoff == 90.0
+            assert strategy.jitter_factor == 0.25
+        finally:
+            reload_settings()
+
 
 class TestComponentChecker:
     """Тесты ComponentChecker."""
@@ -249,6 +269,21 @@ class TestComponentChecker:
 
 class TestWatchdog:
     """Тесты Watchdog."""
+
+    def test_defaults_follow_reliability_settings(self):
+        """Тест что Watchdog default policy читается из canonical settings."""
+        try:
+            update_settings(
+                {
+                    "reliability_watchdog_failure_threshold": 4,
+                    "reliability_watchdog_check_interval_seconds": 12.5,
+                }
+            )
+            watchdog = Watchdog()
+            assert watchdog._failure_threshold == 4
+            assert watchdog._check_interval == 12.5
+        finally:
+            reload_settings()
 
     @pytest.mark.asyncio
     async def test_register_component(self):

@@ -18,6 +18,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
+from cryptotechnolog.config import get_settings
 from cryptotechnolog.market_data import MarketDataTimeframe
 from cryptotechnolog.strategy import StrategyActionCandidate, StrategyStatus
 
@@ -34,6 +35,8 @@ from .models import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from cryptotechnolog.config.settings import Settings
 
 
 type ExecutionStateKey = tuple[str, str, MarketDataTimeframe, str, str]
@@ -65,6 +68,16 @@ class ExecutionRuntimeConfig:
             raise ValueError(
                 "min_candidate_confidence_for_execution должен находиться в диапазоне [0, 1]"
             )
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> ExecutionRuntimeConfig:
+        """Build execution runtime config from canonical project settings."""
+        return cls(
+            max_intent_age_seconds=settings.execution_max_intent_age_seconds,
+            min_candidate_confidence_for_execution=Decimal(
+                str(settings.execution_min_strategy_confidence)
+            ),
+        )
 
 
 @dataclass(slots=True)
@@ -669,7 +682,7 @@ def create_execution_runtime(
 ) -> ExecutionRuntime:
     """Собрать explicit execution runtime foundation."""
     return ExecutionRuntime(
-        config=config,
+        config=config or ExecutionRuntimeConfig.from_settings(get_settings()),
         diagnostics_sink=diagnostics_sink,
     )
 

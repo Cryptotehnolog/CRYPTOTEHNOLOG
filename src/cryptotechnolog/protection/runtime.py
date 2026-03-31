@@ -18,6 +18,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
+from cryptotechnolog.config import get_settings
 from cryptotechnolog.market_data import MarketDataTimeframe
 from cryptotechnolog.portfolio_governor import GovernorStatus, PortfolioGovernorCandidate
 
@@ -36,6 +37,8 @@ from .models import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from cryptotechnolog.config.settings import Settings
 
 
 type ProtectionStateKey = tuple[str, str, MarketDataTimeframe, str, str]
@@ -72,6 +75,14 @@ class ProtectionRuntimeConfig:
             raise ValueError(
                 "freeze_priority_threshold не должен быть меньше halt_priority_threshold"
             )
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> ProtectionRuntimeConfig:
+        """Собрать protection runtime config из canonical project settings."""
+        return cls(
+            halt_priority_threshold=Decimal(str(settings.protection_halt_priority_threshold)),
+            freeze_priority_threshold=Decimal(str(settings.protection_freeze_priority_threshold)),
+        )
 
 
 @dataclass(slots=True)
@@ -741,7 +752,7 @@ def create_protection_runtime(
 ) -> ProtectionRuntime:
     """Фабрика explicit runtime foundation protection layer."""
     return ProtectionRuntime(
-        config=config,
+        config=config or ProtectionRuntimeConfig.from_settings(get_settings()),
         diagnostics_sink=diagnostics_sink,
     )
 

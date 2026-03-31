@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e:settings": "playwright test tests/e2e/terminal-settings.spec.ts",
+    "test:e2e:positions": "playwright test tests/e2e/terminal-positions.spec.ts",
+    "test:e2e:terminal-home": "playwright test tests/e2e/terminal-home.spec.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -25,6 +28,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vanilla-extract/vite-plugin": "^5.0.1",
