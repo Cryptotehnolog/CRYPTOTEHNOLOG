@@ -146,6 +146,8 @@ def make_position_closed_event() -> Event:
         {
             "position_id": "pos-1",
             "symbol": "BTC/USDT",
+            "exit_price": "107.50",
+            "exit_reason": "take_profit",
             "realized_pnl_r": "1.5",
             "realized_pnl_usd": "150",
             "realized_pnl_percent": "3.0",

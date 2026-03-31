@@ -312,11 +312,13 @@ class RiskPersistenceRepository(IRiskPersistenceRepository):
                 trailing_state,
                 opened_at,
                 closed_at,
+                exit_price,
+                exit_reason,
                 realized_pnl_r,
                 realized_pnl_usd,
                 realized_pnl_percent
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
             )
             ON CONFLICT (position_id) DO UPDATE SET
                 symbol = EXCLUDED.symbol,
@@ -330,6 +332,8 @@ class RiskPersistenceRepository(IRiskPersistenceRepository):
                 trailing_state = EXCLUDED.trailing_state,
                 opened_at = EXCLUDED.opened_at,
                 closed_at = EXCLUDED.closed_at,
+                exit_price = EXCLUDED.exit_price,
+                exit_reason = EXCLUDED.exit_reason,
                 realized_pnl_r = EXCLUDED.realized_pnl_r,
                 realized_pnl_usd = EXCLUDED.realized_pnl_usd,
                 realized_pnl_percent = EXCLUDED.realized_pnl_percent
@@ -349,6 +353,8 @@ class RiskPersistenceRepository(IRiskPersistenceRepository):
             record.trailing_state,
             record.opened_at,
             record.closed_at,
+            record.exit_price,
+            record.exit_reason,
             record.realized_pnl_r,
             record.realized_pnl_usd,
             record.realized_pnl_percent,
@@ -374,6 +380,8 @@ class RiskPersistenceRepository(IRiskPersistenceRepository):
                 trailing_state,
                 opened_at,
                 closed_at,
+                exit_price,
+                exit_reason,
                 realized_pnl_r,
                 realized_pnl_usd,
                 realized_pnl_percent
@@ -400,6 +408,8 @@ class RiskPersistenceRepository(IRiskPersistenceRepository):
                 trailing_state=row["trailing_state"],
                 opened_at=row["opened_at"],
                 closed_at=row["closed_at"],
+                exit_price=row["exit_price"],
+                exit_reason=row["exit_reason"],
                 realized_pnl_r=row["realized_pnl_r"],
                 realized_pnl_usd=row["realized_pnl_usd"],
                 realized_pnl_percent=row["realized_pnl_percent"],

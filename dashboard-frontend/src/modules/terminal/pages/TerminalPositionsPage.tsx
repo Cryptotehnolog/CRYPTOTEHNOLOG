@@ -286,6 +286,7 @@ export function TerminalPositionsPage() {
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
   const [historyPairQuery, setHistoryPairQuery] = useState("");
   const [historyExchangeFilter, setHistoryExchangeFilter] = useState("all");
+  const [historyStrategyFilter, setHistoryStrategyFilter] = useState("all");
   const [historySort, setHistorySort] = useState<"recent" | "result-desc" | "result-asc">(
     "recent",
   );
@@ -317,11 +318,16 @@ export function TerminalPositionsPage() {
     () => openPositionsQuery.data?.positions.map(mapOpenPositionToTerminalRow) ?? [],
     [openPositionsQuery.data?.positions],
   );
-  const { rows: positionHistoryRows, exchangeOptions: historyExchangeOptions } =
+  const {
+    rows: positionHistoryRows,
+    exchangeOptions: historyExchangeOptions,
+    strategyOptions: historyStrategyOptions,
+  } =
     usePositionHistoryViewModel({
       data: positionHistoryQuery.data,
       pairQuery: historyPairQuery,
       exchangeFilter: historyExchangeFilter,
+      strategyFilter: historyStrategyFilter,
       sortMode: historySort,
       terminalExchanges,
     });
@@ -633,6 +639,16 @@ export function TerminalPositionsPage() {
           </div>
         ),
       }),
+      historyColumnHelper.accessor("exitPrice", {
+        id: "exit",
+        header: positionHistoryColumnLabels.exit,
+        meta: { grid: "minmax(120px, 0.82fr)" },
+        cell: ({ row }) => (
+          <div className={joinClassNames(positionMetricCell, positionsPageCenteredValueCell)}>
+            <span className={positionStatusValue}>{row.original.exitPrice}</span>
+          </div>
+        ),
+      }),
       historyColumnHelper.accessor("quantity", {
         id: "size",
         header: positionHistoryColumnLabels.size,
@@ -752,6 +768,16 @@ export function TerminalPositionsPage() {
         cell: ({ row }) => (
           <div className={joinClassNames(positionTimestampCell, positionsPageCenteredValueCell)}>
             <span className={positionStatusValue}>{row.original.closedAt}</span>
+          </div>
+        ),
+      }),
+      historyColumnHelper.accessor("exitReason", {
+        id: "exit_reason",
+        header: positionHistoryColumnLabels.exit_reason,
+        meta: { grid: "minmax(148px, 1fr)" },
+        cell: ({ row }) => (
+          <div className={joinClassNames(positionStatusCell, positionsPageCenteredValueCell)}>
+            <span className={positionStatusValue}>{row.original.exitReason}</span>
           </div>
         ),
       }),
@@ -995,6 +1021,20 @@ export function TerminalPositionsPage() {
                       {historyExchangeOptions.map((exchange) => (
                         <option key={exchange} value={exchange}>
                           {exchange}
+                        </option>
+                        ))}
+                    </select>
+                    <select
+                      className={positionsHistorySelect}
+                      aria-label="Фильтр истории позиций по стратегии"
+                      name="positions-page-history-strategy"
+                      value={historyStrategyFilter}
+                      onChange={(event) => setHistoryStrategyFilter(event.target.value)}
+                    >
+                      <option value="all">Все стратегии</option>
+                      {historyStrategyOptions.map((strategy) => (
+                        <option key={strategy} value={strategy.toLowerCase()}>
+                          {strategy}
                         </option>
                       ))}
                     </select>

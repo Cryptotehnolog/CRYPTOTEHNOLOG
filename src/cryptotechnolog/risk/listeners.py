@@ -328,6 +328,16 @@ class RiskEngineListener(BaseListener):
         """Преобразовать payload POSITION_CLOSED в типизированный вход."""
         return ClosedPositionInput(
             position_id=RiskEngineListener._require_str(payload, "position_id"),
+            exit_price=RiskEngineListener._optional_decimal_from_aliases(
+                payload,
+                "exit_price",
+                "close_price",
+            ),
+            exit_reason=RiskEngineListener._optional_str_from_aliases(
+                payload,
+                "exit_reason",
+                "close_reason",
+            ),
             realized_pnl_r=RiskEngineListener._optional_decimal(payload, "realized_pnl_r"),
             realized_pnl_usd=RiskEngineListener._optional_decimal(payload, "realized_pnl_usd"),
             realized_pnl_percent=RiskEngineListener._optional_decimal(
@@ -468,6 +478,14 @@ class RiskEngineListener(BaseListener):
         return value
 
     @staticmethod
+    def _optional_str_from_aliases(payload: dict[str, Any], *keys: str) -> str | None:
+        """Извлечь необязательную строку из первого найденного ключа-алиаса."""
+        for key in keys:
+            if key in payload and payload[key] is not None:
+                return RiskEngineListener._optional_str(payload, key)
+        return None
+
+    @staticmethod
     def _map_reject_reason_to_limit_type(result: RiskCheckResult) -> str:
         """Стабилизировать тип нарушения для downstream listeners и audit semantics."""
         mapping = {
@@ -561,6 +579,14 @@ class RiskEngineListener(BaseListener):
         if value is None:
             return None
         return RiskEngineListener._coerce_decimal(value, key)
+
+    @staticmethod
+    def _optional_decimal_from_aliases(payload: dict[str, Any], *keys: str) -> Decimal | None:
+        """Извлечь необязательный Decimal из первого найденного ключа-алиаса."""
+        for key in keys:
+            if key in payload and payload[key] is not None:
+                return RiskEngineListener._coerce_decimal(payload[key], key)
+        return None
 
     @staticmethod
     def _coerce_decimal(value: Any, field_name: str) -> Decimal:

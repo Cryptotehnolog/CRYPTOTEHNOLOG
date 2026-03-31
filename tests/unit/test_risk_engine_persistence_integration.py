@@ -176,6 +176,8 @@ def make_position_closed_event() -> Event:
         {
             "position_id": "pos-1",
             "symbol": "BTC/USDT",
+            "exit_price": "107.00",
+            "exit_reason": "trailing_stop",
             "realized_pnl_r": "1.2",
             "realized_pnl_usd": "120",
             "realized_pnl_percent": "2.4",
@@ -289,6 +291,8 @@ class TestRiskEnginePersistenceIntegration:
         assert history_record.strategy_id == "breakout-trend"
         assert history_record.side == "long"
         assert history_record.trailing_state == "terminated"
+        assert history_record.exit_price == Decimal("107.00")
+        assert history_record.exit_reason == "trailing_stop"
         assert history_record.realized_pnl_r == Decimal("1.2")
         assert history_record.realized_pnl_usd == Decimal("120")
         assert history_record.realized_pnl_percent == Decimal("2.4")
@@ -372,6 +376,8 @@ class TestRiskEnginePersistenceIntegration:
                 "EXECUTION_CORE",
                 {
                     "position_id": "pos-2",
+                    "exit_price": "3155",
+                    "exit_reason": "manual_close",
                     "realized_pnl_r": "0.7",
                     "realized_pnl_usd": "70",
                     "realized_pnl_percent": "1.4",
@@ -383,6 +389,8 @@ class TestRiskEnginePersistenceIntegration:
         assert len(repository.closed_position_history) == 1
         assert repository.closed_position_history[0].exchange_id == "bybit"
         assert repository.closed_position_history[0].strategy_id == "mean-reversion-short"
+        assert repository.closed_position_history[0].exit_price == Decimal("3155")
+        assert repository.closed_position_history[0].exit_reason == "manual_close"
 
         bus.unregister_listener(listener.name)
         await bus.shutdown()

@@ -484,6 +484,8 @@ export type PositionHistoryRecordResponse = {
   trailing_state: string;
   opened_at: string;
   closed_at: string;
+  exit_price: string | number | null;
+  exit_reason: string | null;
   realized_pnl_r: string | number | null;
   realized_pnl_usd: string | number | null;
   realized_pnl_percent: string | number | null;

@@ -334,6 +334,8 @@ class OverviewFacade:
                     trailing_state=item.trailing_state,
                     opened_at=item.opened_at.isoformat(),
                     closed_at=item.closed_at.isoformat(),
+                    exit_price=item.exit_price,
+                    exit_reason=item.exit_reason,
                     realized_pnl_r=item.realized_pnl_r,
                     realized_pnl_usd=item.realized_pnl_usd,
                     realized_pnl_percent=item.realized_pnl_percent,

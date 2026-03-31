@@ -1004,6 +1004,8 @@ class RiskPersistencePositionHistorySource:
                     trailing_state=record.trailing_state,
                     opened_at=record.opened_at,
                     closed_at=record.closed_at,
+                    exit_price=record.exit_price,
+                    exit_reason=record.exit_reason,
                     realized_pnl_r=record.realized_pnl_r,
                     realized_pnl_usd=record.realized_pnl_usd,
                     realized_pnl_percent=record.realized_pnl_percent,

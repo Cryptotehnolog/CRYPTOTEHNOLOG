@@ -454,6 +454,8 @@ class _PositionHistorySource:
                     trailing_state="locked",
                     opened_at=datetime(2026, 3, 20, 8, 0, tzinfo=UTC),
                     closed_at=datetime(2026, 3, 21, 15, 30, tzinfo=UTC),
+                    exit_price=Decimal("3142"),
+                    exit_reason="trailing_stop",
                     realized_pnl_r=Decimal("1.80"),
                     realized_pnl_usd=Decimal("72.50"),
                     realized_pnl_percent=Decimal("1.81"),
@@ -1087,5 +1089,7 @@ async def test_overview_facade_builds_position_history_snapshot() -> None:
     assert snapshot.positions[0].strategy == "mean-reversion-short"
     assert snapshot.positions[0].side == "short"
     assert snapshot.positions[0].realized_pnl_r == Decimal("1.80")
+    assert snapshot.positions[0].exit_price == Decimal("3142")
+    assert snapshot.positions[0].exit_reason == "trailing_stop"
     assert snapshot.positions[0].realized_pnl_usd == Decimal("72.50")
     assert snapshot.positions[0].realized_pnl_percent == Decimal("1.81")

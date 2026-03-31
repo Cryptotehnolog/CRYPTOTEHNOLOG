@@ -246,6 +246,8 @@ class TestRiskPersistenceRepository:
         repo = RiskPersistenceRepository(pool)  # type: ignore[arg-type]
         record = ClosedPositionHistoryRecord.from_released_position(
             released_record=make_position_record(),
+            exit_price=Decimal("106"),
+            exit_reason="take_profit",
             realized_pnl_r=Decimal("1.2"),
             realized_pnl_usd=Decimal("12"),
             realized_pnl_percent=Decimal("6"),
@@ -262,9 +264,11 @@ class TestRiskPersistenceRepository:
         assert args[3] == "breakout-trend"
         assert args[4] == PositionSide.LONG.value
         assert args[9] == TrailingState.ACTIVE.value
-        assert args[12] == Decimal("1.2")
-        assert args[13] == Decimal("12")
-        assert args[14] == Decimal("6")
+        assert args[12] == Decimal("106")
+        assert args[13] == "take_profit"
+        assert args[14] == Decimal("1.2")
+        assert args[15] == Decimal("12")
+        assert args[16] == Decimal("6")
 
     @pytest.mark.asyncio
     async def test_lists_closed_position_history_records(self) -> None:
@@ -285,6 +289,8 @@ class TestRiskPersistenceRepository:
                 "trailing_state": "terminated",
                 "opened_at": datetime(2026, 3, 20, 8, 0, tzinfo=UTC),
                 "closed_at": datetime(2026, 3, 20, 12, 0, tzinfo=UTC),
+                "exit_price": Decimal("2988"),
+                "exit_reason": "stop_loss",
                 "realized_pnl_r": Decimal("-0.4"),
                 "realized_pnl_usd": Decimal("-33.0"),
                 "realized_pnl_percent": Decimal("-0.73"),
@@ -302,6 +308,8 @@ class TestRiskPersistenceRepository:
                 "trailing_state": "terminated",
                 "opened_at": datetime(2026, 3, 19, 8, 0, tzinfo=UTC),
                 "closed_at": datetime(2026, 3, 19, 12, 0, tzinfo=UTC),
+                "exit_price": Decimal("106"),
+                "exit_reason": "take_profit",
                 "realized_pnl_r": Decimal("1.2"),
                 "realized_pnl_usd": Decimal("12.0"),
                 "realized_pnl_percent": Decimal("6.0"),
@@ -319,6 +327,8 @@ class TestRiskPersistenceRepository:
         assert records[1].position_id == "pos-1"
         assert records[0].exchange_id == "bybit"
         assert records[0].strategy_id == "mean-reversion-short"
+        assert records[0].exit_price == Decimal("2988")
+        assert records[0].exit_reason == "stop_loss"
         assert records[0].realized_pnl_r == Decimal("-0.4")
         assert records[0].realized_pnl_usd == Decimal("-33.0")
         assert records[0].realized_pnl_percent == Decimal("-0.73")
@@ -331,6 +341,15 @@ class TestRiskPersistenceRepository:
 
         assert "ADD COLUMN IF NOT EXISTS realized_pnl_usd" in migration
         assert "ADD COLUMN IF NOT EXISTS realized_pnl_percent" in migration
+
+    def test_position_history_exit_truth_migration_adds_columns(self) -> None:
+        """Следующая миграция должна surface-ить canonical exit truth в history foundation."""
+        migration = Path(
+            "scripts/migrations/017_position_history_exit_truth.sql"
+        ).read_text(encoding="utf-8")
+
+        assert "ADD COLUMN IF NOT EXISTS exit_price" in migration
+        assert "ADD COLUMN IF NOT EXISTS exit_reason" in migration
 
 
 class TestRiskPersistenceMigration:

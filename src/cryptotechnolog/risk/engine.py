@@ -116,6 +116,8 @@ class ClosedPositionInput:
     """Типизированный вход для обработки POSITION_CLOSED."""
 
     position_id: str
+    exit_price: Decimal | None = None
+    exit_reason: str | None = None
     realized_pnl_r: Decimal | None = None
     realized_pnl_usd: Decimal | None = None
     realized_pnl_percent: Decimal | None = None
@@ -715,6 +717,8 @@ class RiskEngine:
         await self._persistence_repository.append_closed_position_history(
             ClosedPositionHistoryRecord.from_released_position(
                 released_record=released_record,
+                exit_price=close_input.exit_price,
+                exit_reason=close_input.exit_reason,
                 realized_pnl_r=close_input.realized_pnl_r,
                 realized_pnl_usd=close_input.realized_pnl_usd,
                 realized_pnl_percent=close_input.realized_pnl_percent,

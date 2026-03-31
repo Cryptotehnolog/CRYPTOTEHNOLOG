@@ -263,6 +263,8 @@ class ClosedPositionHistoryRecord:
     trailing_state: str
     opened_at: datetime
     closed_at: datetime
+    exit_price: Decimal | None = None
+    exit_reason: str | None = None
     realized_pnl_r: Decimal | None = None
     realized_pnl_usd: Decimal | None = None
     realized_pnl_percent: Decimal | None = None
@@ -272,6 +274,8 @@ class ClosedPositionHistoryRecord:
         cls,
         *,
         released_record: PositionRiskRecord,
+        exit_price: Decimal | None = None,
+        exit_reason: str | None = None,
         realized_pnl_r: Decimal | None,
         realized_pnl_usd: Decimal | None = None,
         realized_pnl_percent: Decimal | None = None,
@@ -291,6 +295,8 @@ class ClosedPositionHistoryRecord:
             trailing_state=released_record.trailing_state.value,
             opened_at=released_record.opened_at,
             closed_at=closed_at or datetime.now(UTC),
+            exit_price=exit_price,
+            exit_reason=exit_reason,
             realized_pnl_r=realized_pnl_r,
             realized_pnl_usd=realized_pnl_usd,
             realized_pnl_percent=realized_pnl_percent,

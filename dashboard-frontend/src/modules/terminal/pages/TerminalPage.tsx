@@ -533,6 +533,7 @@ export function TerminalPage() {
   const [positionsView, setPositionsView] = useState<"open" | "history">("open");
   const [historyPairQuery, setHistoryPairQuery] = useState("");
   const [historyExchangeFilter, setHistoryExchangeFilter] = useState("all");
+  const [historyStrategyFilter, setHistoryStrategyFilter] = useState("all");
   const [historySort, setHistorySort] = useState<"recent" | "result-desc" | "result-asc">("recent");
   const [focusedWidgetId, setFocusedWidgetId] = useState<TerminalWidgetId | null>(null);
   const [isTimeframeMenuOpen, setIsTimeframeMenuOpen] = useState(false);
@@ -561,11 +562,16 @@ export function TerminalPage() {
 
   const openPositionsRows =
     openPositionsQuery.data?.positions.map(mapOpenPositionToTerminalRow) ?? [];
-  const { rows: historyRows, exchangeOptions: historyExchangeOptions } =
+  const {
+    rows: historyRows,
+    exchangeOptions: historyExchangeOptions,
+    strategyOptions: historyStrategyOptions,
+  } =
     usePositionHistoryViewModel({
       data: positionHistoryQuery.data,
       pairQuery: historyPairQuery,
       exchangeFilter: historyExchangeFilter,
+      strategyFilter: historyStrategyFilter,
       sortMode: historySort,
       terminalExchanges,
     });
@@ -1267,6 +1273,20 @@ export function TerminalPage() {
                           <option key={exchange} value={exchange}>
                             {exchange}
                           </option>
+                          ))}
+                      </select>
+                      <select
+                        className={positionsHistorySelect}
+                        aria-label="Фильтр истории позиций по стратегии"
+                        name="history-strategy"
+                        value={historyStrategyFilter}
+                        onChange={(event) => setHistoryStrategyFilter(event.target.value)}
+                      >
+                        <option value="all">Все стратегии</option>
+                        {historyStrategyOptions.map((strategy) => (
+                          <option key={strategy} value={strategy.toLowerCase()}>
+                            {strategy}
+                          </option>
                         ))}
                       </select>
                       <select
@@ -1570,6 +1590,7 @@ export function TerminalPage() {
 
                             const metricCellClassName =
                               columnKey === "entry" ||
+                              columnKey === "exit" ||
                               columnKey === "size" ||
                               columnKey === "initial_stop" ||
                               columnKey === "exit_stop"

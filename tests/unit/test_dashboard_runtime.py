@@ -647,3 +647,15 @@ async def test_create_dashboard_runtime_uses_controlled_positions_dev_seed_when_
         "range-continuation",
         "funding-rotation",
     }
+    assert {item.exit_reason for item in position_history.positions} == {
+        "take_profit",
+        "trailing_stop",
+        "stop_loss",
+        "manual_close",
+    }
+    assert {item.exit_price for item in position_history.positions} == {
+        Decimal("67960"),
+        Decimal("3444"),
+        Decimal("169.8"),
+        Decimal("614.2"),
+    }

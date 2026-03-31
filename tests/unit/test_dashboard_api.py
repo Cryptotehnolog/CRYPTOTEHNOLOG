@@ -548,6 +548,8 @@ class _StubFacade:
                     trailing_state="locked",
                     opened_at="2026-03-20T08:00:00+00:00",
                     closed_at="2026-03-21T15:30:00+00:00",
+                    exit_price="3142",
+                    exit_reason="trailing_stop",
                     realized_pnl_r="1.80",
                     realized_pnl_usd="72.50",
                     realized_pnl_percent="1.81",
@@ -816,6 +818,8 @@ def test_dashboard_position_history_endpoint_returns_snapshot() -> None:
     assert data["positions"][0]["symbol"] == "ETH/USDT"
     assert data["positions"][0]["exchange"] == "bybit"
     assert data["positions"][0]["strategy"] == "mean-reversion-short"
+    assert data["positions"][0]["exit_price"] == "3142"
+    assert data["positions"][0]["exit_reason"] == "trailing_stop"
     assert data["positions"][0]["realized_pnl_usd"] == "72.50"
     assert data["positions"][0]["realized_pnl_percent"] == "1.81"
 

@@ -50,6 +50,8 @@ class PositionHistoryRecordDTO(BaseModel):
     trailing_state: str
     opened_at: str
     closed_at: str
+    exit_price: Decimal | None = None
+    exit_reason: str | None = None
     realized_pnl_r: Decimal | None = None
     realized_pnl_usd: Decimal | None = None
     realized_pnl_percent: Decimal | None = None

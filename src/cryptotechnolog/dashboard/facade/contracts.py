@@ -410,6 +410,8 @@ class PositionHistoryRecordSnapshot:
     trailing_state: str
     opened_at: datetime
     closed_at: datetime
+    exit_price: Decimal | None
+    exit_reason: str | None
     realized_pnl_r: Decimal | None
     realized_pnl_usd: Decimal | None
     realized_pnl_percent: Decimal | None
