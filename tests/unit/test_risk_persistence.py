@@ -344,9 +344,9 @@ class TestRiskPersistenceRepository:
 
     def test_position_history_exit_truth_migration_adds_columns(self) -> None:
         """Следующая миграция должна surface-ить canonical exit truth в history foundation."""
-        migration = Path(
-            "scripts/migrations/017_position_history_exit_truth.sql"
-        ).read_text(encoding="utf-8")
+        migration = Path("scripts/migrations/017_position_history_exit_truth.sql").read_text(
+            encoding="utf-8"
+        )
 
         assert "ADD COLUMN IF NOT EXISTS exit_price" in migration
         assert "ADD COLUMN IF NOT EXISTS exit_reason" in migration
