@@ -17,12 +17,6 @@ from .overview import (
     SystemStateSummaryDTO,
 )
 from .paper import PaperAvailabilityItemDTO, PaperSummaryDTO
-from .positions import (
-    OpenPositionDTO,
-    OpenPositionsDTO,
-    PositionHistoryDTO,
-    PositionHistoryRecordDTO,
-)
 from .portfolio_governor import (
     PortfolioGovernorAvailabilityItemDTO,
     PortfolioGovernorSummaryDTO,
@@ -30,6 +24,12 @@ from .portfolio_governor import (
 from .position_expansion import (
     PositionExpansionAvailabilityItemDTO,
     PositionExpansionSummaryDTO,
+)
+from .positions import (
+    OpenPositionDTO,
+    OpenPositionsDTO,
+    PositionHistoryDTO,
+    PositionHistoryRecordDTO,
 )
 from .reporting import (
     ReportingCatalogCountsDTO,
@@ -58,8 +58,6 @@ __all__ = [
     "OmsSummaryDTO",
     "OpenPositionDTO",
     "OpenPositionsDTO",
-    "PositionHistoryDTO",
-    "PositionHistoryRecordDTO",
     "OpportunityAvailabilityItemDTO",
     "OpportunitySummaryDTO",
     "OrchestrationAvailabilityItemDTO",
@@ -72,6 +70,8 @@ __all__ = [
     "PortfolioGovernorSummaryDTO",
     "PositionExpansionAvailabilityItemDTO",
     "PositionExpansionSummaryDTO",
+    "PositionHistoryDTO",
+    "PositionHistoryRecordDTO",
     "ReportingCatalogCountsDTO",
     "ReportingLastArtifactDTO",
     "ReportingLastBundleDTO",
