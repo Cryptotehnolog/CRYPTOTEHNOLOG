@@ -1354,7 +1354,9 @@ def test_dashboard_health_policy_settings_endpoint_returns_current_values() -> N
     data = HealthPolicySettingsDTO.model_validate(response.json())
     settings = get_settings()
     assert data.check_timeout_seconds == settings.health_check_timeout_seconds
-    assert data.background_check_interval_seconds == settings.health_background_check_interval_seconds
+    assert (
+        data.background_check_interval_seconds == settings.health_background_check_interval_seconds
+    )
     assert data.check_and_wait_timeout_seconds == settings.health_check_and_wait_timeout_seconds
 
 

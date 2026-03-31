@@ -25,7 +25,6 @@ from cryptotechnolog.config import get_logger, get_settings
 
 from .dual_control import (
     CRITICAL_OPERATIONS,
-    DEFAULT_REQUEST_TIMEOUT_MINUTES,
     DUAL_CONTROL_OPERATIONS,
     DualControlRequest,
     OperationType,

@@ -1316,9 +1316,7 @@ class EnhancedEventBus:
         Возвращает:
             True если все события обработаны, False при таймауте
         """
-        effective_timeout = (
-            timeout if timeout is not None else self.drain_timeout_seconds
-        )
+        effective_timeout = timeout if timeout is not None else self.drain_timeout_seconds
         logger.info("Начало drain EnhancedEventBus", timeout=effective_timeout)
 
         loop = asyncio.get_running_loop()

@@ -28,6 +28,7 @@ from .models import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
     from cryptotechnolog.config.settings import Settings
 
 

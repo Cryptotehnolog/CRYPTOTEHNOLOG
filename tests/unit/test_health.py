@@ -439,13 +439,11 @@ class TestHealthChecker:
     def test_init_uses_health_policy_settings(self) -> None:
         """HealthChecker должен читать operational defaults из canonical settings."""
         try:
-            update_settings(
-                {
-                    "health_check_timeout_seconds": 6.5,
-                    "health_background_check_interval_seconds": 45.0,
-                    "health_check_and_wait_timeout_seconds": 20.0,
-                }
-            )
+            update_settings({
+                "health_check_timeout_seconds": 6.5,
+                "health_background_check_interval_seconds": 45.0,
+                "health_check_and_wait_timeout_seconds": 20.0,
+            })
             checker = HealthChecker()
             check = DatabaseHealthCheck()
             assert checker._check_interval == 45.0

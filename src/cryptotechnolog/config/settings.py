@@ -248,9 +248,7 @@ class Settings(BaseSettings):
     # ==================== Correlation Policy Settings ====================
     correlation_limit: float = Field(
         default=0.80,
-        description=(
-            "Recommended baseline: 0.80. Maximum allowed correlation between positions."
-        ),
+        description=("Recommended baseline: 0.80. Maximum allowed correlation between positions."),
     )
     same_group_correlation: float = Field(
         default=0.65,
@@ -431,27 +429,19 @@ class Settings(BaseSettings):
     )
     reliability_watchdog_backoff_base_seconds: float = Field(
         default=1.0,
-        description=(
-            "Recommended baseline: 1.0 seconds. Base retry delay for watchdog recovery."
-        ),
+        description=("Recommended baseline: 1.0 seconds. Base retry delay for watchdog recovery."),
     )
     reliability_watchdog_backoff_multiplier: float = Field(
         default=2.0,
-        description=(
-            "Recommended baseline: 2.0. Multiplier for watchdog exponential backoff."
-        ),
+        description=("Recommended baseline: 2.0. Multiplier for watchdog exponential backoff."),
     )
     reliability_watchdog_max_backoff_seconds: float = Field(
         default=60.0,
-        description=(
-            "Recommended baseline: 60.0 seconds. Maximum watchdog retry delay."
-        ),
+        description=("Recommended baseline: 60.0 seconds. Maximum watchdog retry delay."),
     )
     reliability_watchdog_jitter_factor: float = Field(
         default=0.5,
-        description=(
-            "Recommended baseline: 0.5. Jitter factor for spreading watchdog retries."
-        ),
+        description=("Recommended baseline: 0.5. Jitter factor for spreading watchdog retries."),
     )
     reliability_watchdog_check_interval_seconds: float = Field(
         default=30.0,
@@ -463,9 +453,7 @@ class Settings(BaseSettings):
     # ==================== Health Policy Settings ====================
     health_check_timeout_seconds: float = Field(
         default=5.0,
-        description=(
-            "Recommended baseline: 5.0 seconds. Timeout for a single health check."
-        ),
+        description=("Recommended baseline: 5.0 seconds. Timeout for a single health check."),
     )
     health_background_check_interval_seconds: float = Field(
         default=60.0,
@@ -627,8 +615,7 @@ class Settings(BaseSettings):
     signal_min_regime_confidence: float = Field(
         default=0.50,
         description=(
-            "Recommended baseline: 0.50. Minimum regime confidence required for signal "
-            "activation."
+            "Recommended baseline: 0.50. Minimum regime confidence required for signal activation."
         ),
     )
     signal_target_risk_reward: float = Field(
@@ -665,9 +652,7 @@ class Settings(BaseSettings):
     )
     execution_max_intent_age_seconds: int = Field(
         default=300,
-        description=(
-            "Recommended baseline: 300 seconds. Maximum lifetime of an execution intent."
-        ),
+        description=("Recommended baseline: 300 seconds. Maximum lifetime of an execution intent."),
     )
     opportunity_min_confidence: float = Field(
         default=0.50,
@@ -679,8 +664,7 @@ class Settings(BaseSettings):
     opportunity_min_priority: float = Field(
         default=0.50,
         description=(
-            "Recommended baseline: 0.50. Minimum priority score required for opportunity "
-            "selection."
+            "Recommended baseline: 0.50. Minimum priority score required for opportunity selection."
         ),
     )
     opportunity_max_age_seconds: int = Field(
@@ -1039,12 +1023,16 @@ def _collect_domain_validation_errors(settings_to_validate: Settings) -> list[st
         "universe_min_degraded_confidence",
         settings_to_validate.universe_min_degraded_confidence,
     )
-    append_positive_error("signal_min_trend_strength", settings_to_validate.signal_min_trend_strength)
+    append_positive_error(
+        "signal_min_trend_strength", settings_to_validate.signal_min_trend_strength
+    )
     append_unit_interval_error(
         "signal_min_regime_confidence",
         settings_to_validate.signal_min_regime_confidence,
     )
-    append_positive_error("signal_target_risk_reward", settings_to_validate.signal_target_risk_reward)
+    append_positive_error(
+        "signal_target_risk_reward", settings_to_validate.signal_target_risk_reward
+    )
     append_positive_error("signal_max_age_seconds", settings_to_validate.signal_max_age_seconds)
     append_unit_interval_error(
         "strategy_min_signal_confidence",
@@ -1066,7 +1054,9 @@ def _collect_domain_validation_errors(settings_to_validate: Settings) -> list[st
         "opportunity_min_confidence",
         settings_to_validate.opportunity_min_confidence,
     )
-    append_unit_interval_error("opportunity_min_priority", settings_to_validate.opportunity_min_priority)
+    append_unit_interval_error(
+        "opportunity_min_priority", settings_to_validate.opportunity_min_priority
+    )
     append_positive_error(
         "opportunity_max_age_seconds",
         settings_to_validate.opportunity_max_age_seconds,
@@ -1331,9 +1321,7 @@ def _collect_domain_validation_errors(settings_to_validate: Settings) -> list[st
         < settings_to_validate.event_bus_fill_ratio_normal
         < settings_to_validate.event_bus_fill_ratio_high
     ):
-        validation_errors.append(
-            "event_bus fill ratios must satisfy low < normal < high"
-        )
+        validation_errors.append("event_bus fill ratios must satisfy low < normal < high")
 
     return validation_errors
 

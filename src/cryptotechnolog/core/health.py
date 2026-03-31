@@ -122,9 +122,7 @@ class HealthCheck:
         """
         settings = get_settings()
         self.name = name
-        self.timeout = (
-            timeout if timeout is not None else settings.health_check_timeout_seconds
-        )
+        self.timeout = timeout if timeout is not None else settings.health_check_timeout_seconds
 
     async def check(self) -> ComponentHealth:
         """

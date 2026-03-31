@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from cryptotechnolog.config import get_settings, reload_settings, update_settings
 from cryptotechnolog.live_feed import (
     FeedConnectionStatus,
     FeedConnectivityRuntime,
@@ -11,7 +12,6 @@ from cryptotechnolog.live_feed import (
     FeedSessionIdentity,
     create_live_feed_runtime,
 )
-from cryptotechnolog.config import get_settings, reload_settings, update_settings
 
 
 def _now() -> datetime:
