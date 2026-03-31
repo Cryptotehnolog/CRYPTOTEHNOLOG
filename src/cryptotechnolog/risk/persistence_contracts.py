@@ -37,6 +37,16 @@ class IRiskPersistenceRepository(Protocol):
     async def append_trailing_stop_movement(self, record: TrailingStopMovementRecord) -> None:
         """Сохранить audit-запись оценки/движения trailing stop."""
 
+    async def append_closed_position_history(self, record: ClosedPositionHistoryRecord) -> None:
+        """Сохранить запись истории закрытой позиции."""
+
+    async def list_closed_position_history(
+        self,
+        *,
+        limit: int | None = None,
+    ) -> tuple[ClosedPositionHistoryRecord, ...]:
+        """Получить closed-position history records в порядке от новых к старым."""
+
     async def delete_position_risk_record(self, position_id: str) -> None:
         """Удалить snapshot закрытой позиции из position_risk_ledger."""
 
@@ -234,4 +244,54 @@ class TrailingStopMovementRecord:
             should_execute=update.should_execute,
             reason=update.reason,
             created_at=created_at or datetime.now(UTC),
+        )
+
+
+@dataclass(slots=True, frozen=True)
+class ClosedPositionHistoryRecord:
+    """Каноническая запись истории закрытой позиции для risk contour."""
+
+    position_id: str
+    symbol: str
+    exchange_id: str
+    strategy_id: str | None
+    side: str
+    entry_price: Decimal
+    quantity: Decimal
+    initial_stop: Decimal
+    current_stop: Decimal
+    trailing_state: str
+    opened_at: datetime
+    closed_at: datetime
+    realized_pnl_r: Decimal | None = None
+    realized_pnl_usd: Decimal | None = None
+    realized_pnl_percent: Decimal | None = None
+
+    @classmethod
+    def from_released_position(
+        cls,
+        *,
+        released_record: PositionRiskRecord,
+        realized_pnl_r: Decimal | None,
+        realized_pnl_usd: Decimal | None = None,
+        realized_pnl_percent: Decimal | None = None,
+        closed_at: datetime | None = None,
+    ) -> ClosedPositionHistoryRecord:
+        """Построить history record из канонической released position truth."""
+        return cls(
+            position_id=released_record.position_id,
+            symbol=released_record.symbol,
+            exchange_id=released_record.exchange_id,
+            strategy_id=released_record.strategy_id,
+            side=released_record.side.value,
+            entry_price=released_record.entry_price,
+            quantity=released_record.quantity,
+            initial_stop=released_record.initial_stop,
+            current_stop=released_record.current_stop,
+            trailing_state=released_record.trailing_state.value,
+            opened_at=released_record.opened_at,
+            closed_at=closed_at or datetime.now(UTC),
+            realized_pnl_r=realized_pnl_r,
+            realized_pnl_usd=realized_pnl_usd,
+            realized_pnl_percent=realized_pnl_percent,
         )

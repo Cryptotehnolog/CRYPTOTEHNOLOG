@@ -124,31 +124,50 @@ navigation layer:
 ### 11_ФАЗА_10_EXECUTION_LAYER_PROMPT.md
 ### 12_ФАЗА_11_OMS_PROMPT.md
 
-- Статус: `deferred`
-- Deferred line:
-  - `Execution semantics beyond signal foundation`
+- Статус: `normalized`
+- Authoritative replacement:
+  - `prompts/plan/P_10.md`
+  - `prompts/plan/P_10_RESULT.md`
+  - `prompts/plan/P_16.md`
+  - `prompts/plan/P_16_RESULT.md`
+- Deferred remainder:
+  - broader execution / OMS expansion beyond already closed foundations
 
 ### 13_ФАЗА_12_KILL_SWITCH_PROMPT.md
 ### 14_ФАЗА_13_NOTIFICATIONS_PROMPT.md
 
-- Статус: `future line`
-- Role:
-  - later protective/operational expansion
+- Статус: `normalized + deferred remainder`
+- Authoritative replacement:
+  - `prompts/plan/P_15.md`
+  - `prompts/plan/P_15_RESULT.md`
+- Deferred remainder:
+  - broader operational / notification / approval expansion beyond `P_15`
 
 ### 15_ФАЗА_14_STRATEGY_MANAGER_PROMPT.md
 
-- Статус: `deferred`
-- Deferred line:
-  - `StrategyManager`
-  - `Multi-strategy orchestration`
+- Статус: `normalized + deferred remainder`
+- Authoritative replacement:
+  - `prompts/plan/P_17.md`
+  - `prompts/plan/P_17_RESULT.md`
+- Deferred remainder:
+  - broader `StrategyManager`
+  - full multi-strategy orchestration beyond already closed workflow foundation
 
 ### 16_ФАЗА_15_PERFORMANCE_ANALYTICS_PROMPT.md
 ### 17_ФАЗА_16_BACKTESTING_PROMPT.md
 ### 18_ФАЗА_17_PAPER_TRADING_PROMPT.md
 
-- Статус: `deferred`
-- Deferred line:
-  - `Backtesting / paper trading / performance analytics`
+- Статус: `normalized + deferred remainder`
+- Authoritative replacement:
+  - `prompts/plan/P_18.md`
+  - `prompts/plan/P_18_RESULT.md`
+  - `prompts/plan/P_19.md`
+  - `prompts/plan/P_19_RESULT.md`
+  - `prompts/plan/P_20.md`
+  - `prompts/plan/P_20_RESULT.md`
+- Deferred remainder:
+  - broader performance analytics
+  - optimization / research-lab territory beyond already closed foundations
 
 ### 19_ФАЗА_18_DISTRIBUTED_DEPLOYMENT_PROMPT.md
 
@@ -167,6 +186,8 @@ navigation layer:
 ### 23_ФАЗА_22_WEB_UI_DASHBOARD_PROMPT.md
 
 - Статус: `parallel track`
+- Historical note:
+  - prompt numbering больше не должен читаться как future `P_22`, потому что authoritative `P_22` уже закрыта как `Live Feed Connectivity Foundation`
 - Deferred line:
   - `Dashboard / UI line`
 - Rule:
@@ -188,4 +209,3 @@ navigation layer:
 - не потерять идеи;
 - не давать historical prompt диктовать текущий scope напрямую;
 - быстро видеть, какие блоки уже ждут своей будущей фазы.
-

@@ -825,31 +825,36 @@ export const positionsTable = style({
   display: "grid",
   gridTemplateRows: "auto auto minmax(0, 1fr)",
   gap: "1px",
-  borderRadius: "18px",
+  borderRadius: "20px",
+  width: "max-content",
+  minWidth: "100%",
   overflow: "hidden",
   background: terminalTheme.dark.border,
+  boxShadow: `0 0 0 1px ${terminalTheme.dark.border}, 0 16px 32px rgba(5, 10, 24, 0.18)`,
   selectors: {
     [`${shellTone.light} &`]: {
       background: terminalTheme.light.border,
+      boxShadow: `0 0 0 1px ${terminalTheme.light.border}, 0 14px 28px rgba(15, 23, 42, 0.08)`,
     },
   },
 });
 
 export const positionsHistoryControls = style({
-  display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) auto",
-  gap: vars.space[2],
+  display: "flex",
+  justifyContent: "flex-start",
+  flexWrap: "wrap",
+  gap: "8px",
   alignItems: "center",
-  padding: "12px 16px",
+  minHeight: "56px",
+  padding: "12px 16px 11px",
   background: terminalTheme.dark.nestedSurface,
+  boxShadow: `inset 0 -1px 0 ${terminalTheme.dark.border}`,
+  borderBottom: `1px solid ${terminalTheme.dark.border}`,
   selectors: {
     [`${shellTone.light} &`]: {
       background: terminalTheme.light.nestedSurface,
-    },
-  },
-  "@media": {
-    "screen and (max-width: 1080px)": {
-      gridTemplateColumns: "1fr",
+      boxShadow: `inset 0 -1px 0 ${terminalTheme.light.border}`,
+      borderBottom: `1px solid ${terminalTheme.light.border}`,
     },
   },
 });
@@ -857,14 +862,9 @@ export const positionsHistoryControls = style({
 export const positionsHistoryControlsGroup = style({
   display: "flex",
   alignItems: "center",
-  justifyContent: "flex-end",
+  justifyContent: "flex-start",
   flexWrap: "wrap",
-  gap: vars.space[2],
-  "@media": {
-    "screen and (max-width: 1080px)": {
-      justifyContent: "flex-start",
-    },
-  },
+  gap: "8px",
 });
 
 const historyControlBase = style({
@@ -889,6 +889,8 @@ export const positionsHistorySearchInput = style([
   {
     width: "100%",
     minWidth: 0,
+    maxWidth: "160px",
+    flex: "0 1 160px",
   },
 ]);
 
@@ -902,7 +904,7 @@ export const positionsHistorySelect = style([
 const tableGrid = {
   display: "grid",
   gridTemplateColumns: "0.8fr 1fr 1fr 0.85fr 1.05fr 0.9fr 0.95fr 0.9fr",
-  gap: vars.space[2],
+  gap: "12px",
   alignItems: "center",
   "@media": {
     "screen and (max-width: 1240px)": {
@@ -919,18 +921,23 @@ const tableGrid = {
 
 export const tableHeader = style({
   ...tableGrid,
-  padding: "14px 16px",
+  minHeight: "52px",
+  padding: "10px 16px 11px",
   background: terminalTheme.dark.nestedSurface,
   color: terminalTheme.dark.textMuted,
   fontSize: vars.font.size[1],
+  fontWeight: vars.font.weight.semibold,
+  textAlign: "center",
   textTransform: "uppercase",
   letterSpacing: "0.08em",
-  boxShadow: `0 1px 0 ${terminalTheme.dark.border}`,
+  boxShadow: `inset 0 -1px 0 ${terminalTheme.dark.border}`,
+  overflow: "hidden",
+  alignItems: "start",
   selectors: {
     [`${shellTone.light} &`]: {
       background: terminalTheme.light.nestedSurface,
       color: terminalTheme.light.textMuted,
-      boxShadow: `0 1px 0 ${terminalTheme.light.border}`,
+      boxShadow: `inset 0 -1px 0 ${terminalTheme.light.border}`,
     },
   },
 });
@@ -940,15 +947,107 @@ export const positionsTableBodyViewport = style({
   minHeight: 0,
   height: "100%",
   overflowY: "auto",
-  overflowX: "hidden",
+  overflowX: "visible",
   paddingRight: "2px",
+  background: terminalTheme.dark.panelRaised,
   scrollbarWidth: "thin",
   scrollbarColor: `${terminalTheme.dark.borderStrong} transparent`,
   selectors: {
     [`${shellTone.light} &`]: {
+      background: terminalTheme.light.panelRaised,
       scrollbarColor: `${terminalTheme.light.borderStrong} transparent`,
     },
   },
+});
+
+export const positionsEmptyState = style({
+  display: "grid",
+  gap: "6px",
+  alignContent: "start",
+  justifyItems: "stretch",
+  minHeight: "152px",
+  padding: "16px 18px 18px",
+  background: terminalTheme.dark.panelRaised,
+  selectors: {
+    [`${shellTone.light} &`]: {
+      background: terminalTheme.light.panelRaised,
+    },
+  },
+});
+
+export const positionsEmptyStateCentered = style({
+  width: "100%",
+  justifyItems: "start",
+  alignItems: "start",
+  alignContent: "start",
+  textAlign: "left",
+});
+
+export const positionsCompactHeaderCell = style({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: "32px",
+  padding: "2px 6px",
+  textAlign: "center",
+  lineHeight: 1.35,
+  whiteSpace: "normal",
+  minWidth: 0,
+});
+
+export const positionsCompactHeaderDragHandle = style({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: "32px",
+  width: "100%",
+  minWidth: 0,
+  padding: "2px 8px",
+  borderRadius: "10px",
+  cursor: "grab",
+  userSelect: "none",
+  transition: "background 140ms ease, color 140ms ease, opacity 140ms ease",
+  selectors: {
+    "&:hover": {
+      background: terminalTheme.dark.nestedSurface,
+      color: terminalTheme.dark.textPrimary,
+    },
+    "&:active": {
+      cursor: "grabbing",
+    },
+    [`${shellTone.light} &`]: {
+      color: terminalTheme.light.textMuted,
+    },
+    [`${shellTone.light} &:hover`]: {
+      background: terminalTheme.light.nestedSurface,
+      color: terminalTheme.light.textPrimary,
+    },
+  },
+});
+
+export const positionsCompactHeaderDragging = style({
+  opacity: 0.48,
+});
+
+export const positionsCompactHeaderDropTarget = style({
+  background: terminalTheme.dark.accentSoft,
+  color: terminalTheme.dark.accent,
+  selectors: {
+    [`${shellTone.light} &`]: {
+      background: terminalTheme.light.accentSoft,
+      color: terminalTheme.light.accent,
+    },
+  },
+});
+
+export const positionsCompactCenteredValueCell = style({
+  justifyItems: "center",
+  textAlign: "center",
+});
+
+export const positionsCompactCenteredSimpleCell = style({
+  justifyContent: "center",
+  textAlign: "center",
 });
 
 export const tableRow = style({
@@ -1139,36 +1238,23 @@ export const positionTimestampCell = style([
   },
 ]);
 
-const pnlBase = style({
-  display: "grid",
-  gap: "4px",
-  justifyItems: "end",
-  textAlign: "right",
+export const positionPnlPositiveText = style({
+  color: terminalTheme.dark.success,
+  selectors: {
+    [`${shellTone.light} &`]: {
+      color: terminalTheme.light.success,
+    },
+  },
 });
 
-export const positionPnlPositive = style([
-  pnlBase,
-  {
-    color: terminalTheme.dark.success,
-    selectors: {
-      [`${shellTone.light} &`]: {
-        color: terminalTheme.light.success,
-      },
+export const positionPnlNegativeText = style({
+  color: terminalTheme.dark.error,
+  selectors: {
+    [`${shellTone.light} &`]: {
+      color: terminalTheme.light.error,
     },
   },
-]);
-
-export const positionPnlNegative = style([
-  pnlBase,
-  {
-    color: terminalTheme.dark.error,
-    selectors: {
-      [`${shellTone.light} &`]: {
-        color: terminalTheme.light.error,
-      },
-    },
-  },
-]);
+});
 
 export const positionActionsCell = style({
   position: "relative",
@@ -1631,31 +1717,16 @@ export const positionsTableViewport = style([
     position: "relative",
     minHeight: 0,
     height: "100%",
-    overflow: "hidden",
+    overflowX: "auto",
+    overflowY: "hidden",
+    scrollbarGutter: "stable",
   },
 ]);
 
-export const positionsTableViewportActionOpen = style({
-  overflow: "visible",
-});
-
-export const positionsTableActionOpen = style({
-  overflow: "visible",
-});
-
-export const positionsWidgetFrameExpanded = style({
-  overflow: "visible",
-  zIndex: 7,
-});
-
-export const positionsWidgetContentExpanded = style({
-  overflow: "visible",
-});
-
 export const positionActionOverlayLayer = style({
-  position: "absolute",
-  zIndex: 10,
-  maxWidth: "calc(100% - 24px)",
+  position: "fixed",
+  zIndex: 60,
+  maxWidth: "calc(100vw - 24px)",
   display: "grid",
   pointerEvents: "auto",
 });

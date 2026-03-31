@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import asyncpg
 
 from .persistence_contracts import (
+    ClosedPositionHistoryRecord,
     IRiskPersistenceRepository,
     PositionRiskLedgerAuditRecord,
     RiskCheckAuditRecord,
@@ -98,6 +99,8 @@ class RiskPersistenceRepository(IRiskPersistenceRepository):
             INSERT INTO position_risk_ledger (
                 position_id,
                 symbol,
+                exchange_id,
+                strategy_id,
                 side,
                 entry_price,
                 initial_stop,
@@ -108,15 +111,20 @@ class RiskPersistenceRepository(IRiskPersistenceRepository):
                 initial_risk_r,
                 current_risk_usd,
                 current_risk_r,
+                current_price,
+                unrealized_pnl_usd,
+                unrealized_pnl_percent,
                 trailing_state,
                 opened_at,
                 updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8,
-                $9, $10, $11, $12, $13, $14, $15
+                $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
             )
             ON CONFLICT (position_id) DO UPDATE SET
                 symbol = EXCLUDED.symbol,
+                exchange_id = EXCLUDED.exchange_id,
+                strategy_id = EXCLUDED.strategy_id,
                 side = EXCLUDED.side,
                 entry_price = EXCLUDED.entry_price,
                 initial_stop = EXCLUDED.initial_stop,
@@ -127,6 +135,9 @@ class RiskPersistenceRepository(IRiskPersistenceRepository):
                 initial_risk_r = EXCLUDED.initial_risk_r,
                 current_risk_usd = EXCLUDED.current_risk_usd,
                 current_risk_r = EXCLUDED.current_risk_r,
+                current_price = EXCLUDED.current_price,
+                unrealized_pnl_usd = EXCLUDED.unrealized_pnl_usd,
+                unrealized_pnl_percent = EXCLUDED.unrealized_pnl_percent,
                 trailing_state = EXCLUDED.trailing_state,
                 opened_at = EXCLUDED.opened_at,
                 updated_at = EXCLUDED.updated_at
@@ -136,6 +147,8 @@ class RiskPersistenceRepository(IRiskPersistenceRepository):
             query,
             record.position_id,
             record.symbol,
+            record.exchange_id,
+            record.strategy_id,
             record.side.value,
             record.entry_price,
             record.initial_stop,
@@ -146,6 +159,9 @@ class RiskPersistenceRepository(IRiskPersistenceRepository):
             record.initial_risk_r,
             record.current_risk_usd,
             record.current_risk_r,
+            record.current_price,
+            record.unrealized_pnl_usd,
+            record.unrealized_pnl_percent,
             record.trailing_state.value,
             record.opened_at,
             record.updated_at,
@@ -280,6 +296,117 @@ class RiskPersistenceRepository(IRiskPersistenceRepository):
             record.created_at,
         )
 
+    async def append_closed_position_history(self, record: ClosedPositionHistoryRecord) -> None:
+        """Сохранить каноническую запись истории закрытой позиции."""
+        query = """
+            INSERT INTO closed_position_history (
+                position_id,
+                symbol,
+                exchange_id,
+                strategy_id,
+                side,
+                entry_price,
+                quantity,
+                initial_stop,
+                current_stop,
+                trailing_state,
+                opened_at,
+                closed_at,
+                realized_pnl_r,
+                realized_pnl_usd,
+                realized_pnl_percent
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+            )
+            ON CONFLICT (position_id) DO UPDATE SET
+                symbol = EXCLUDED.symbol,
+                exchange_id = EXCLUDED.exchange_id,
+                strategy_id = EXCLUDED.strategy_id,
+                side = EXCLUDED.side,
+                entry_price = EXCLUDED.entry_price,
+                quantity = EXCLUDED.quantity,
+                initial_stop = EXCLUDED.initial_stop,
+                current_stop = EXCLUDED.current_stop,
+                trailing_state = EXCLUDED.trailing_state,
+                opened_at = EXCLUDED.opened_at,
+                closed_at = EXCLUDED.closed_at,
+                realized_pnl_r = EXCLUDED.realized_pnl_r,
+                realized_pnl_usd = EXCLUDED.realized_pnl_usd,
+                realized_pnl_percent = EXCLUDED.realized_pnl_percent
+        """
+        await self._execute(
+            "append_closed_position_history",
+            query,
+            record.position_id,
+            record.symbol,
+            record.exchange_id,
+            record.strategy_id,
+            record.side,
+            record.entry_price,
+            record.quantity,
+            record.initial_stop,
+            record.current_stop,
+            record.trailing_state,
+            record.opened_at,
+            record.closed_at,
+            record.realized_pnl_r,
+            record.realized_pnl_usd,
+            record.realized_pnl_percent,
+        )
+
+    async def list_closed_position_history(
+        self,
+        *,
+        limit: int | None = None,
+    ) -> tuple[ClosedPositionHistoryRecord, ...]:
+        """Получить history закрытых позиций в порядке от новых к старым."""
+        query = """
+            SELECT
+                position_id,
+                symbol,
+                exchange_id,
+                strategy_id,
+                side,
+                entry_price,
+                quantity,
+                initial_stop,
+                current_stop,
+                trailing_state,
+                opened_at,
+                closed_at,
+                realized_pnl_r,
+                realized_pnl_usd,
+                realized_pnl_percent
+            FROM closed_position_history
+            ORDER BY closed_at DESC, position_id DESC
+        """
+        if limit is not None:
+            query += " LIMIT $1"
+            rows = await self._fetch("list_closed_position_history", query, limit)
+        else:
+            rows = await self._fetch("list_closed_position_history", query)
+
+        return tuple(
+            ClosedPositionHistoryRecord(
+                position_id=row["position_id"],
+                symbol=row["symbol"],
+                exchange_id=row["exchange_id"],
+                strategy_id=row["strategy_id"],
+                side=row["side"],
+                entry_price=row["entry_price"],
+                quantity=row["quantity"],
+                initial_stop=row["initial_stop"],
+                current_stop=row["current_stop"],
+                trailing_state=row["trailing_state"],
+                opened_at=row["opened_at"],
+                closed_at=row["closed_at"],
+                realized_pnl_r=row["realized_pnl_r"],
+                realized_pnl_usd=row["realized_pnl_usd"],
+                realized_pnl_percent=row["realized_pnl_percent"],
+            )
+            for row in rows
+        )
+
     async def delete_position_risk_record(self, position_id: str) -> None:
         """Удалить snapshot закрытой позиции из position_risk_ledger."""
         await self._execute(
@@ -301,6 +428,17 @@ class RiskPersistenceRepository(IRiskPersistenceRepository):
         try:
             async with self._pool.acquire() as conn:
                 await conn.execute(query, *args)
+        except asyncpg.PostgresError as error:
+            raise RiskPersistenceError(operation, str(error)) from error
+        except Exception as error:
+            raise RiskPersistenceError(operation, str(error)) from error
+
+    async def _fetch(self, operation: str, query: str, *args: Any) -> list[Any]:
+        """Выполнить query/fetch и обернуть ошибки в доменное исключение persistence-слоя."""
+        try:
+            async with self._pool.acquire() as conn:
+                rows = await conn.fetch(query, *args)
+                return list(rows)
         except asyncpg.PostgresError as error:
             raise RiskPersistenceError(operation, str(error)) from error
         except Exception as error:

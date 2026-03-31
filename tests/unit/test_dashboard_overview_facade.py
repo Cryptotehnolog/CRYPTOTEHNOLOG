@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
 
@@ -15,6 +16,10 @@ from cryptotechnolog.dashboard.facade.contracts import (
     ExecutionSummarySnapshot,
     ManagerSummarySnapshot,
     OmsSummarySnapshot,
+    OpenPositionSnapshot,
+    OpenPositionsSnapshot,
+    PositionHistoryRecordSnapshot,
+    PositionHistorySnapshot,
     OpportunitySummarySnapshot,
     OrchestrationSummarySnapshot,
     PaperSummarySnapshot,
@@ -405,6 +410,58 @@ class _ReportingSummarySource:
         )
 
 
+class _OpenPositionsSource:
+    async def get_open_positions_snapshot(self) -> OpenPositionsSnapshot:
+        return OpenPositionsSnapshot(
+            positions=(
+                OpenPositionSnapshot(
+                    position_id="pos-1",
+                    symbol="BTC/USDT",
+                    exchange="okx",
+                    strategy="breakout-trend",
+                    side="long",
+                    entry_price=Decimal("62500"),
+                    quantity=Decimal("0.15"),
+                    initial_stop=Decimal("61000"),
+                    current_stop=Decimal("61850"),
+                    current_risk_usd=Decimal("97.50"),
+                    current_risk_r=Decimal("0.65"),
+                    current_price=Decimal("63125"),
+                    unrealized_pnl_usd=Decimal("93.75"),
+                    unrealized_pnl_percent=Decimal("1.00"),
+                    trailing_state="armed",
+                    opened_at=datetime(2026, 3, 26, 10, 0, tzinfo=UTC),
+                    updated_at=datetime(2026, 3, 26, 12, 15, tzinfo=UTC),
+                ),
+            )
+        )
+
+
+class _PositionHistorySource:
+    async def get_position_history_snapshot(self) -> PositionHistorySnapshot:
+        return PositionHistorySnapshot(
+            positions=(
+                PositionHistoryRecordSnapshot(
+                    position_id="closed-1",
+                    symbol="ETH/USDT",
+                    exchange="bybit",
+                    strategy="mean-reversion-short",
+                    side="short",
+                    entry_price=Decimal("3200"),
+                    quantity=Decimal("1.25"),
+                    initial_stop=Decimal("3340"),
+                    current_stop=Decimal("3260"),
+                    trailing_state="locked",
+                    opened_at=datetime(2026, 3, 20, 8, 0, tzinfo=UTC),
+                    closed_at=datetime(2026, 3, 21, 15, 30, tzinfo=UTC),
+                    realized_pnl_r=Decimal("1.80"),
+                    realized_pnl_usd=Decimal("72.50"),
+                    realized_pnl_percent=Decimal("1.81"),
+                ),
+            )
+        )
+
+
 @dataclass
 class _ModuleSource:
     registry: object
@@ -433,6 +490,7 @@ async def test_overview_facade_aggregates_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
         )
     )
 
@@ -466,6 +524,7 @@ async def test_overview_facade_builds_fallback_health_when_source_absent() -> No
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
         )
     )
 
@@ -495,6 +554,7 @@ async def test_overview_facade_builds_risk_summary_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
         )
     )
 
@@ -527,6 +587,7 @@ async def test_overview_facade_builds_signals_summary_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
         )
     )
 
@@ -559,6 +620,7 @@ async def test_overview_facade_builds_strategy_summary_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
         )
     )
 
@@ -592,6 +654,7 @@ async def test_overview_facade_builds_execution_summary_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
         )
     )
 
@@ -625,6 +688,7 @@ async def test_overview_facade_builds_opportunity_summary_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
         )
     )
 
@@ -658,6 +722,7 @@ async def test_overview_facade_builds_orchestration_summary_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
             orchestration_summary_source=_OrchestrationSummarySource(),
         )
     )
@@ -693,6 +758,7 @@ async def test_overview_facade_builds_position_expansion_summary_snapshot() -> N
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
         )
     )
 
@@ -726,6 +792,7 @@ async def test_overview_facade_builds_portfolio_governor_summary_snapshot() -> N
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
             portfolio_governor_summary_source=_PortfolioGovernorSummarySource(),
         )
     )
@@ -760,6 +827,7 @@ async def test_overview_facade_builds_oms_summary_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
         )
     )
 
@@ -793,6 +861,7 @@ async def test_overview_facade_builds_manager_summary_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
         )
     )
 
@@ -826,6 +895,7 @@ async def test_overview_facade_builds_validation_summary_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
         )
     )
 
@@ -859,6 +929,7 @@ async def test_overview_facade_builds_paper_summary_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
         )
     )
 
@@ -892,6 +963,7 @@ async def test_overview_facade_builds_backtest_summary_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
             backtest_summary_source=_BacktestSummarySource(),
         )
     )
@@ -926,6 +998,7 @@ async def test_overview_facade_builds_reporting_summary_snapshot() -> None:
             manager_summary_source=_ManagerSummarySource(),
             validation_summary_source=_ValidationSummarySource(),
             paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
             backtest_summary_source=_BacktestSummarySource(),
             reporting_summary_source=_ReportingSummarySource(),
         )
@@ -940,3 +1013,79 @@ async def test_overview_facade_builds_reporting_summary_snapshot() -> None:
     assert snapshot.last_artifact_snapshot is not None
     assert snapshot.last_artifact_snapshot.kind == "paper_report"
     assert snapshot.summary_reason == "paper_warming"
+
+
+@pytest.mark.asyncio
+async def test_overview_facade_builds_open_positions_snapshot() -> None:
+    registry = create_default_module_registry()
+    facade = OverviewFacade(
+        OverviewCompositionRoot(
+            system_status_source=_SystemStatusSource(),
+            health_snapshot_source=_HealthSource(),
+            pending_approvals_source=_ApprovalsSource(),
+            event_summary_source=_EventSource(),
+            module_availability_source=_ModuleSource(registry=registry),
+            risk_runtime_source=_RiskRuntimeSource(),
+            risk_config_source=_RiskConfigSource(),
+            signal_summary_source=_SignalSummarySource(),
+            strategy_summary_source=_StrategySummarySource(),
+            execution_summary_source=_ExecutionSummarySource(),
+            opportunity_summary_source=_OpportunitySummarySource(),
+            oms_summary_source=_OmsSummarySource(),
+            manager_summary_source=_ManagerSummarySource(),
+            validation_summary_source=_ValidationSummarySource(),
+            paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
+        )
+    )
+
+    snapshot = await facade.get_open_positions()
+
+    assert len(snapshot.positions) == 1
+    assert snapshot.positions[0].position_id == "pos-1"
+    assert snapshot.positions[0].symbol == "BTC/USDT"
+    assert snapshot.positions[0].exchange == "okx"
+    assert snapshot.positions[0].strategy == "breakout-trend"
+    assert snapshot.positions[0].side == "long"
+    assert snapshot.positions[0].trailing_state == "armed"
+    assert snapshot.positions[0].current_price == Decimal("63125")
+    assert snapshot.positions[0].unrealized_pnl_usd == Decimal("93.75")
+    assert snapshot.positions[0].unrealized_pnl_percent == Decimal("1.00")
+
+
+@pytest.mark.asyncio
+async def test_overview_facade_builds_position_history_snapshot() -> None:
+    registry = create_default_module_registry()
+    facade = OverviewFacade(
+        OverviewCompositionRoot(
+            system_status_source=_SystemStatusSource(),
+            health_snapshot_source=_HealthSource(),
+            pending_approvals_source=_ApprovalsSource(),
+            event_summary_source=_EventSource(),
+            module_availability_source=_ModuleSource(registry=registry),
+            risk_runtime_source=_RiskRuntimeSource(),
+            risk_config_source=_RiskConfigSource(),
+            signal_summary_source=_SignalSummarySource(),
+            strategy_summary_source=_StrategySummarySource(),
+            execution_summary_source=_ExecutionSummarySource(),
+            opportunity_summary_source=_OpportunitySummarySource(),
+            oms_summary_source=_OmsSummarySource(),
+            manager_summary_source=_ManagerSummarySource(),
+            validation_summary_source=_ValidationSummarySource(),
+            paper_summary_source=_PaperSummarySource(),
+            open_positions_source=_OpenPositionsSource(),
+            position_history_source=_PositionHistorySource(),
+        )
+    )
+
+    snapshot = await facade.get_position_history()
+
+    assert len(snapshot.positions) == 1
+    assert snapshot.positions[0].position_id == "closed-1"
+    assert snapshot.positions[0].symbol == "ETH/USDT"
+    assert snapshot.positions[0].exchange == "bybit"
+    assert snapshot.positions[0].strategy == "mean-reversion-short"
+    assert snapshot.positions[0].side == "short"
+    assert snapshot.positions[0].realized_pnl_r == Decimal("1.80")
+    assert snapshot.positions[0].realized_pnl_usd == Decimal("72.50")
+    assert snapshot.positions[0].realized_pnl_percent == Decimal("1.81")

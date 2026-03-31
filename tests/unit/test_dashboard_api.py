@@ -20,6 +20,12 @@ from cryptotechnolog.dashboard.dto.manager import (
     ManagerSummaryDTO,
 )
 from cryptotechnolog.dashboard.dto.oms import OmsAvailabilityItemDTO, OmsSummaryDTO
+from cryptotechnolog.dashboard.dto.positions import (
+    OpenPositionDTO,
+    OpenPositionsDTO,
+    PositionHistoryDTO,
+    PositionHistoryRecordDTO,
+)
 from cryptotechnolog.dashboard.dto.opportunity import (
     OpportunityAvailabilityItemDTO,
     OpportunitySummaryDTO,
@@ -501,6 +507,54 @@ class _StubFacade:
             summary_reason="review_warming",
         )
 
+    async def get_open_positions(self) -> OpenPositionsDTO:
+        return OpenPositionsDTO(
+            positions=[
+                OpenPositionDTO(
+                    position_id="pos-1",
+                    symbol="BTC/USDT",
+                    exchange="okx",
+                    strategy="breakout-trend",
+                    side="long",
+                    entry_price="62500",
+                    quantity="0.15",
+                    initial_stop="61000",
+                    current_stop="61850",
+                    current_risk_usd="97.50",
+                    current_risk_r="0.65",
+                    current_price="63125",
+                    unrealized_pnl_usd="93.75",
+                    unrealized_pnl_percent="1.00",
+                    trailing_state="armed",
+                    opened_at="2026-03-26T10:00:00+00:00",
+                    updated_at="2026-03-26T12:15:00+00:00",
+                )
+            ]
+        )
+
+    async def get_position_history(self) -> PositionHistoryDTO:
+        return PositionHistoryDTO(
+            positions=[
+                PositionHistoryRecordDTO(
+                    position_id="closed-1",
+                    symbol="ETH/USDT",
+                    exchange="bybit",
+                    strategy="mean-reversion-short",
+                    side="short",
+                    entry_price="3200",
+                    quantity="1.25",
+                    initial_stop="3340",
+                    current_stop="3260",
+                    trailing_state="locked",
+                    opened_at="2026-03-20T08:00:00+00:00",
+                    closed_at="2026-03-21T15:30:00+00:00",
+                    realized_pnl_r="1.80",
+                    realized_pnl_usd="72.50",
+                    realized_pnl_percent="1.81",
+                )
+            ]
+        )
+
 
 def test_dashboard_overview_endpoint_returns_snapshot() -> None:
     app = FastAPI()
@@ -729,6 +783,43 @@ def test_dashboard_reporting_summary_endpoint_returns_snapshot() -> None:
     assert data["last_artifact_snapshot"]["kind"] == "validation_report"
 
 
+def test_dashboard_open_positions_endpoint_returns_snapshot() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/open-positions")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["positions"]) == 1
+    assert data["positions"][0]["position_id"] == "pos-1"
+    assert data["positions"][0]["symbol"] == "BTC/USDT"
+    assert data["positions"][0]["exchange"] == "okx"
+    assert data["positions"][0]["strategy"] == "breakout-trend"
+    assert data["positions"][0]["current_price"] == "63125"
+    assert data["positions"][0]["unrealized_pnl_usd"] == "93.75"
+    assert data["positions"][0]["unrealized_pnl_percent"] == "1.00"
+
+
+def test_dashboard_position_history_endpoint_returns_snapshot() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/position-history")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["positions"]) == 1
+    assert data["positions"][0]["position_id"] == "closed-1"
+    assert data["positions"][0]["symbol"] == "ETH/USDT"
+    assert data["positions"][0]["exchange"] == "bybit"
+    assert data["positions"][0]["strategy"] == "mean-reversion-short"
+    assert data["positions"][0]["realized_pnl_usd"] == "72.50"
+    assert data["positions"][0]["realized_pnl_percent"] == "1.81"
+
+
 def test_dashboard_overview_endpoint_returns_snapshot_in_full_app_runtime() -> None:
     app = create_dashboard_app()
 
@@ -939,3 +1030,25 @@ def test_dashboard_reporting_summary_endpoint_returns_snapshot_in_full_app_runti
     assert data["global_status"] == "inactive"
     assert data["catalog_counts"]["total_artifacts"] == 0
     assert data["last_artifact_snapshot"] is None
+
+
+def test_dashboard_open_positions_endpoint_returns_snapshot_in_full_app_runtime() -> None:
+    app = create_dashboard_app()
+
+    with TestClient(app) as client:
+        response = client.get("/dashboard/open-positions")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data["positions"], list)
+
+
+def test_dashboard_position_history_endpoint_returns_snapshot_in_full_app_runtime() -> None:
+    app = create_dashboard_app()
+
+    with TestClient(app) as client:
+        response = client.get("/dashboard/position-history")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data["positions"], list)

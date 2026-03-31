@@ -20,6 +20,7 @@ from cryptotechnolog.risk.trailing_policy import TrailingPolicy
 
 if TYPE_CHECKING:
     from cryptotechnolog.risk.persistence_contracts import (
+        ClosedPositionHistoryRecord,
         PositionRiskLedgerAuditRecord,
         RiskCheckAuditRecord,
         TrailingStopMovementRecord,
@@ -36,6 +37,7 @@ class InMemoryRiskRepository:
         self.position_audits: list[PositionRiskLedgerAuditRecord] = []
         self.trailing_snapshots: dict[str, TrailingStopSnapshotRecord] = {}
         self.trailing_movements: list[TrailingStopMovementRecord] = []
+        self.closed_position_history: list[ClosedPositionHistoryRecord] = []
         self.deleted_positions: list[str] = []
         self.deleted_trailing_snapshots: list[str] = []
 
@@ -54,6 +56,19 @@ class InMemoryRiskRepository:
 
     async def append_trailing_stop_movement(self, record: TrailingStopMovementRecord) -> None:
         self.trailing_movements.append(record)
+
+    async def append_closed_position_history(self, record: ClosedPositionHistoryRecord) -> None:
+        self.closed_position_history.append(record)
+
+    async def list_closed_position_history(
+        self,
+        *,
+        limit: int | None = None,
+    ) -> tuple[ClosedPositionHistoryRecord, ...]:
+        items = tuple(reversed(self.closed_position_history))
+        if limit is None:
+            return items
+        return items[:limit]
 
     async def delete_position_risk_record(self, position_id: str) -> None:
         self.deleted_positions.append(position_id)
@@ -123,10 +138,31 @@ def make_order_filled_event() -> Event:
         {
             "position_id": "pos-1",
             "symbol": "BTC/USDT",
+            "exchange_id": "okx",
+            "strategy_id": "breakout-trend",
             "side": "buy",
             "filled_qty": "2",
             "avg_price": "100",
             "stop_loss": "95",
+            "risk_capital_usd": "10000",
+        },
+    )
+
+
+def make_order_filled_event_with_exchange_alias() -> Event:
+    """Создать ORDER_FILLED, где exchange приходит под upstream alias `exchange`."""
+    return Event.new(
+        SystemEventType.ORDER_FILLED,
+        "EXECUTION_CORE",
+        {
+            "position_id": "pos-2",
+            "symbol": "ETH/USDT",
+            "exchange": "bybit",
+            "strategy_id": "mean-reversion-short",
+            "side": "sell",
+            "filled_qty": "1.5",
+            "avg_price": "3200",
+            "stop_loss": "3340",
             "risk_capital_usd": "10000",
         },
     )
@@ -141,6 +177,8 @@ def make_position_closed_event() -> Event:
             "position_id": "pos-1",
             "symbol": "BTC/USDT",
             "realized_pnl_r": "1.2",
+            "realized_pnl_usd": "120",
+            "realized_pnl_percent": "2.4",
             "current_equity": "10120",
         },
     )
@@ -226,7 +264,7 @@ class TestRiskEnginePersistenceIntegration:
         await bus.shutdown()
 
     async def test_position_closed_persists_release_audit_and_cleans_snapshots(self) -> None:
-        """POSITION_CLOSED должен писать release audit и удалять active snapshots."""
+        """POSITION_CLOSED должен писать history, release audit и удалять active snapshots."""
         repository = InMemoryRiskRepository()
         engine = make_engine(repository=repository)
         bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
@@ -243,6 +281,17 @@ class TestRiskEnginePersistenceIntegration:
 
         assert any(audit.operation == "TERMINATE" for audit in repository.position_audits)
         assert repository.position_audits[-1].operation == "RELEASE"
+        assert len(repository.closed_position_history) == 1
+        history_record = repository.closed_position_history[0]
+        assert history_record.position_id == "pos-1"
+        assert history_record.symbol == "BTC/USDT"
+        assert history_record.exchange_id == "okx"
+        assert history_record.strategy_id == "breakout-trend"
+        assert history_record.side == "long"
+        assert history_record.trailing_state == "terminated"
+        assert history_record.realized_pnl_r == Decimal("1.2")
+        assert history_record.realized_pnl_usd == Decimal("120")
+        assert history_record.realized_pnl_percent == Decimal("2.4")
         assert "pos-1" in repository.deleted_positions
         assert "pos-1" in repository.deleted_trailing_snapshots
 
@@ -298,6 +347,40 @@ class TestRiskEnginePersistenceIntegration:
         assert repository.trailing_snapshots["pos-1"].last_evaluation_type == "BLOCKED"
         assert len(repository.position_audits) == 1
         assert repository.position_audits[0].operation == "REGISTER"
+
+        bus.unregister_listener(listener.name)
+        await bus.shutdown()
+
+    async def test_order_filled_accepts_upstream_exchange_alias_without_default_fallback(self) -> None:
+        """Risk listener должен принимать канонический upstream alias `exchange` без default enrichment."""
+        repository = InMemoryRiskRepository()
+        engine = make_engine(repository=repository)
+        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
+        listener = RiskEngineListener(
+            risk_engine=engine,
+            publisher=bus.publish,
+            config=RiskEngineListenerConfig(name="risk_listener_exchange_alias"),
+        )
+        bus.register_listener(listener)
+
+        await bus.publish(make_order_filled_event_with_exchange_alias())
+        await bus.publish(
+            Event.new(
+                "POSITION_CLOSED",
+                "EXECUTION_CORE",
+                {
+                    "position_id": "pos-2",
+                    "realized_pnl_r": "0.7",
+                    "realized_pnl_usd": "70",
+                    "realized_pnl_percent": "1.4",
+                    "current_equity": "10070",
+                },
+            )
+        )
+
+        assert len(repository.closed_position_history) == 1
+        assert repository.closed_position_history[0].exchange_id == "bybit"
+        assert repository.closed_position_history[0].strategy_id == "mean-reversion-short"
 
         bus.unregister_listener(listener.name)
         await bus.shutdown()

@@ -17,6 +17,12 @@ from .overview import (
     SystemStateSummaryDTO,
 )
 from .paper import PaperAvailabilityItemDTO, PaperSummaryDTO
+from .positions import (
+    OpenPositionDTO,
+    OpenPositionsDTO,
+    PositionHistoryDTO,
+    PositionHistoryRecordDTO,
+)
 from .portfolio_governor import (
     PortfolioGovernorAvailabilityItemDTO,
     PortfolioGovernorSummaryDTO,
@@ -50,6 +56,10 @@ __all__ = [
     "ModuleAvailabilityDTO",
     "OmsAvailabilityItemDTO",
     "OmsSummaryDTO",
+    "OpenPositionDTO",
+    "OpenPositionsDTO",
+    "PositionHistoryDTO",
+    "PositionHistoryRecordDTO",
     "OpportunityAvailabilityItemDTO",
     "OpportunitySummaryDTO",
     "OrchestrationAvailabilityItemDTO",

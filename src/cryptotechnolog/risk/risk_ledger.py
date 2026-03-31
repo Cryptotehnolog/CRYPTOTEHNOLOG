@@ -91,6 +91,8 @@ class RiskLedger:
         record = PositionRiskRecord(
             position_id=position.position_id,
             symbol=position.symbol,
+            exchange_id=position.exchange_id,
+            strategy_id=position.strategy_id,
             side=position.side,
             entry_price=position.entry_price,
             initial_stop=position.initial_stop,
@@ -101,6 +103,9 @@ class RiskLedger:
             initial_risk_r=initial_risk_r,
             current_risk_usd=current_risk_usd,
             current_risk_r=current_risk_r,
+            current_price=position.entry_price,
+            unrealized_pnl_usd=Decimal("0"),
+            unrealized_pnl_percent=Decimal("0"),
             trailing_state=position.trailing_state,
             opened_at=position.opened_at,
             updated_at=position.updated_at,
@@ -159,6 +164,40 @@ class RiskLedger:
         )
         self._records[position_id] = new_record
         self._recalculate_total_risk()
+        return new_record
+
+    def update_position_market(
+        self,
+        *,
+        position_id: str,
+        mark_price: Decimal,
+        updated_at: datetime | None = None,
+    ) -> PositionRiskRecord:
+        """Синхронизировать текущую market truth позиции без изменения стопа/риска."""
+        record = self.get_position_record(position_id)
+        if mark_price <= 0:
+            raise InvalidLedgerOperationError("Текущая цена должна быть положительной")
+
+        pnl_usd = self._calculate_unrealized_pnl_usd(
+            side=record.side,
+            entry_price=record.entry_price,
+            mark_price=mark_price,
+            quantity=record.quantity,
+        )
+        pnl_percent = self._calculate_unrealized_pnl_percent(
+            entry_price=record.entry_price,
+            quantity=record.quantity,
+            pnl_usd=pnl_usd,
+        )
+
+        new_record = replace(
+            record,
+            current_price=mark_price,
+            unrealized_pnl_usd=pnl_usd,
+            unrealized_pnl_percent=pnl_percent,
+            updated_at=updated_at or datetime.now(UTC),
+        )
+        self._records[position_id] = new_record
         return new_record
 
     def release_position(self, position_id: str) -> PositionRiskRecord:
@@ -239,3 +278,29 @@ class RiskLedger:
     ) -> Decimal:
         """Рассчитать риск позиции в R относительно риск-капитала."""
         return risk_usd / risk_capital_usd
+
+    @staticmethod
+    def _calculate_unrealized_pnl_usd(
+        *,
+        side: PositionSide,
+        entry_price: Decimal,
+        mark_price: Decimal,
+        quantity: Decimal,
+    ) -> Decimal:
+        """Рассчитать нереализованный PnL позиции в USD."""
+        if side is PositionSide.LONG:
+            return (mark_price - entry_price) * quantity
+        return (entry_price - mark_price) * quantity
+
+    @staticmethod
+    def _calculate_unrealized_pnl_percent(
+        *,
+        entry_price: Decimal,
+        quantity: Decimal,
+        pnl_usd: Decimal,
+    ) -> Decimal:
+        """Рассчитать нереализованный PnL как процент от входного номинала позиции."""
+        notional_usd = entry_price * quantity
+        if notional_usd <= 0:
+            return Decimal("0")
+        return (pnl_usd / notional_usd) * Decimal("100")

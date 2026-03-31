@@ -23,6 +23,7 @@ from cryptotechnolog.risk.models import (
     TrailingTier,
 )
 from cryptotechnolog.risk.persistence import (
+    ClosedPositionHistoryRecord,
     PositionRiskLedgerAuditRecord,
     RiskCheckAuditRecord,
     RiskPersistenceRepository,
@@ -36,10 +37,15 @@ class FakeConnection:
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, tuple[object, ...]]] = []
+        self.fetch_rows: list[dict[str, object]] = []
 
     async def execute(self, query: str, *args: object) -> str:
         self.calls.append((query, args))
         return "INSERT 1"
+
+    async def fetch(self, query: str, *args: object) -> list[dict[str, object]]:
+        self.calls.append((query, args))
+        return list(self.fetch_rows)
 
 
 class FakePool:
@@ -59,6 +65,8 @@ def make_position_record() -> PositionRiskRecord:
     return PositionRiskRecord(
         position_id="pos-1",
         symbol="BTC/USDT",
+        exchange_id="okx",
+        strategy_id="breakout-trend",
         side=PositionSide.LONG,
         entry_price=Decimal("100"),
         initial_stop=Decimal("95"),
@@ -69,6 +77,9 @@ def make_position_record() -> PositionRiskRecord:
         initial_risk_r=Decimal("0.001"),
         current_risk_usd=Decimal("4"),
         current_risk_r=Decimal("0.0004"),
+        current_price=Decimal("102"),
+        unrealized_pnl_usd=Decimal("4"),
+        unrealized_pnl_percent=Decimal("2"),
         trailing_state=TrailingState.ACTIVE,
         opened_at=now,
         updated_at=now,
@@ -150,8 +161,13 @@ class TestRiskPersistenceRepository:
         assert "ON CONFLICT (position_id) DO UPDATE" in query
         assert "INSERT INTO risk_ledger (" not in query
         assert args[0] == "pos-1"
-        assert args[2] == PositionSide.LONG.value
-        assert args[12] == TrailingState.ACTIVE.value
+        assert args[2] == "okx"
+        assert args[3] == "breakout-trend"
+        assert args[4] == PositionSide.LONG.value
+        assert args[14] == Decimal("102")
+        assert args[15] == Decimal("4")
+        assert args[16] == Decimal("2")
+        assert args[17] == TrailingState.ACTIVE.value
 
     @pytest.mark.asyncio
     async def test_appends_position_risk_audit_record(self) -> None:
@@ -223,6 +239,99 @@ class TestRiskPersistenceRepository:
         assert args[6] == TrailingTier.T1.value
         assert args[11] is True
 
+    @pytest.mark.asyncio
+    async def test_appends_closed_position_history_record(self) -> None:
+        """Закрытая позиция должна сохраняться как отдельная каноническая history-запись."""
+        pool = FakePool()
+        repo = RiskPersistenceRepository(pool)  # type: ignore[arg-type]
+        record = ClosedPositionHistoryRecord.from_released_position(
+            released_record=make_position_record(),
+            realized_pnl_r=Decimal("1.2"),
+            realized_pnl_usd=Decimal("12"),
+            realized_pnl_percent=Decimal("6"),
+            closed_at=datetime(2026, 3, 20, tzinfo=UTC),
+        )
+
+        await repo.append_closed_position_history(record)
+
+        query, args = pool.connection.calls[0]
+        assert "INSERT INTO closed_position_history" in query
+        assert "ON CONFLICT (position_id) DO UPDATE" in query
+        assert args[0] == "pos-1"
+        assert args[2] == "okx"
+        assert args[3] == "breakout-trend"
+        assert args[4] == PositionSide.LONG.value
+        assert args[9] == TrailingState.ACTIVE.value
+        assert args[12] == Decimal("1.2")
+        assert args[13] == Decimal("12")
+        assert args[14] == Decimal("6")
+
+    @pytest.mark.asyncio
+    async def test_lists_closed_position_history_records(self) -> None:
+        """Repository должен возвращать closed position history records от новых к старым."""
+        pool = FakePool()
+        repo = RiskPersistenceRepository(pool)  # type: ignore[arg-type]
+        pool.connection.fetch_rows = [
+            {
+                "position_id": "pos-2",
+                "symbol": "ETH/USDT",
+                "exchange_id": "bybit",
+                "strategy_id": "mean-reversion-short",
+                "side": "short",
+                "entry_price": Decimal("3000"),
+                "quantity": Decimal("1.5"),
+                "initial_stop": Decimal("3050"),
+                "current_stop": Decimal("3025"),
+                "trailing_state": "terminated",
+                "opened_at": datetime(2026, 3, 20, 8, 0, tzinfo=UTC),
+                "closed_at": datetime(2026, 3, 20, 12, 0, tzinfo=UTC),
+                "realized_pnl_r": Decimal("-0.4"),
+                "realized_pnl_usd": Decimal("-33.0"),
+                "realized_pnl_percent": Decimal("-0.73"),
+            },
+            {
+                "position_id": "pos-1",
+                "symbol": "BTC/USDT",
+                "exchange_id": "okx",
+                "strategy_id": "breakout-trend",
+                "side": "long",
+                "entry_price": Decimal("100"),
+                "quantity": Decimal("2"),
+                "initial_stop": Decimal("95"),
+                "current_stop": Decimal("98"),
+                "trailing_state": "terminated",
+                "opened_at": datetime(2026, 3, 19, 8, 0, tzinfo=UTC),
+                "closed_at": datetime(2026, 3, 19, 12, 0, tzinfo=UTC),
+                "realized_pnl_r": Decimal("1.2"),
+                "realized_pnl_usd": Decimal("12.0"),
+                "realized_pnl_percent": Decimal("6.0"),
+            },
+        ]
+
+        records = await repo.list_closed_position_history(limit=10)
+
+        query, args = pool.connection.calls[0]
+        assert "FROM closed_position_history" in query
+        assert "ORDER BY closed_at DESC" in query
+        assert args == (10,)
+        assert len(records) == 2
+        assert records[0].position_id == "pos-2"
+        assert records[1].position_id == "pos-1"
+        assert records[0].exchange_id == "bybit"
+        assert records[0].strategy_id == "mean-reversion-short"
+        assert records[0].realized_pnl_r == Decimal("-0.4")
+        assert records[0].realized_pnl_usd == Decimal("-33.0")
+        assert records[0].realized_pnl_percent == Decimal("-0.73")
+
+    def test_position_history_realized_pnl_truth_migration_adds_columns(self) -> None:
+        """Следующая миграция должна surface-ить realized pnl truth в history foundation."""
+        migration = Path("scripts/migrations/016_position_history_realized_pnl_truth.sql").read_text(
+            encoding="utf-8"
+        )
+
+        assert "ADD COLUMN IF NOT EXISTS realized_pnl_usd" in migration
+        assert "ADD COLUMN IF NOT EXISTS realized_pnl_percent" in migration
+
 
 class TestRiskPersistenceMigration:
     """Тесты структуры migration foundation для нового risk persistence слоя."""
@@ -247,3 +356,43 @@ class TestRiskPersistenceMigration:
 
         assert "CREATE TABLE IF NOT EXISTS risk_ledger (" not in migration
         assert "Новый позиционный ledger риска Фазы 5" in migration
+
+    def test_closed_position_history_migration_creates_foundation_table(self) -> None:
+        """Отдельная миграция должна вводить closed position history foundation."""
+        migration = Path("scripts/migrations/012_closed_position_history_foundation.sql").read_text(
+            encoding="utf-8"
+        )
+
+        assert "CREATE TABLE IF NOT EXISTS closed_position_history" in migration
+        assert "realized_pnl_r NUMERIC(20, 8)" in migration
+        assert "CHECK (side IN ('long', 'short'))" in migration
+
+    def test_positions_exchange_truth_migration_adds_exchange_columns(self) -> None:
+        """Следующая миграция должна surface-ить canonical exchange truth для positions."""
+        migration = Path("scripts/migrations/013_positions_exchange_truth.sql").read_text(
+            encoding="utf-8"
+        )
+
+        assert "ADD COLUMN IF NOT EXISTS exchange_id" in migration
+        assert "position_risk_ledger(exchange_id, symbol)" in migration
+        assert "closed_position_history(exchange_id, closed_at DESC)" in migration
+
+    def test_positions_strategy_truth_migration_adds_strategy_columns(self) -> None:
+        """Следующая миграция должна surface-ить canonical strategy truth для positions."""
+        migration = Path("scripts/migrations/014_positions_strategy_truth.sql").read_text(
+            encoding="utf-8"
+        )
+
+        assert "ADD COLUMN IF NOT EXISTS strategy_id" in migration
+        assert "position_risk_ledger(strategy_id, symbol)" in migration
+        assert "closed_position_history(strategy_id, closed_at DESC)" in migration
+
+    def test_open_positions_market_truth_migration_adds_runtime_columns(self) -> None:
+        """Следующая миграция должна surface-ить текущую цену и open PnL truth."""
+        migration = Path("scripts/migrations/015_open_positions_market_truth.sql").read_text(
+            encoding="utf-8"
+        )
+
+        assert "ADD COLUMN IF NOT EXISTS current_price" in migration
+        assert "ADD COLUMN IF NOT EXISTS unrealized_pnl_usd" in migration
+        assert "ADD COLUMN IF NOT EXISTS unrealized_pnl_percent" in migration

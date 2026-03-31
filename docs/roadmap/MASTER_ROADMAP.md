@@ -192,8 +192,7 @@
 - `P_7` закрыта как `v1.7.0`
 - `P_8` закрыта как `v1.8.0`
 - `P_9` закрыта как `v1.9.0`
-- sequencing ближайших будущих фаз нормализован так:
-  - `P_10` — `Execution Foundation`
-  - `P_11` — `Opportunity / Selection Foundation`
-  - `P_12` — `Strategy Orchestration / Meta Layer`
+- `P_10-P_22` уже закрыты как mainline truth через authoritative `P_X_RESULT.md`
+- roadmap/reference документы больше не должны описывать `P_10-P_22` как будущие, неоткрытые или только предварительно распределённые фазы
 - дальнейшие идеи и широкие prompt-линии должны использоваться через roadmap / deferred registry / reference archive, а не как текущая implementation truth
+- post-`P_22` future lines требуют отдельной нормализации и не открываются автоматически этим документом

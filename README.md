@@ -319,6 +319,99 @@ Deferred follow-up lines после `P_9`:
 
 ## Быстрый старт
 
+---
+
+## Dashboard / Terminal Positions
+
+Текущая архитектурная модель positions surfaces:
+
+- `Главная` (`/terminal`) — пользовательская projection positions surfaces.
+- full page [`/terminal/positions`](/D:/CRYPTOTEHNOLOG/dashboard-frontend/src/modules/terminal/pages/TerminalPositionsPage.tsx) — canonical master-table для `Открытых позиций` и `Истории позиций`.
+
+`dashboard` остаётся read-only facade над canonical typed truths и не должен фейкать поля, которых нет в source-of-truth path.
+
+### Открытые позиции: surfaced truth
+
+В current open positions path уже surfaced:
+
+- `position_id`
+- `symbol`
+- `exchange`
+- `strategy`
+- `side`
+- `entry_price`
+- `quantity`
+- `initial_stop`
+- `current_stop`
+- `current_risk_usd`
+- `current_risk_r`
+- `current_price`
+- `unrealized_pnl_usd`
+- `unrealized_pnl_percent`
+- `trailing_state`
+- `opened_at`
+- `updated_at`
+
+Эти поля проходят end-to-end через canonical source layers:
+
+- risk open-position truth
+- dashboard facade snapshots
+- dashboard DTO
+- frontend response/types
+- terminal UI tables
+
+### История позиций: surfaced truth
+
+В current position history path уже surfaced:
+
+- `position_id`
+- `symbol`
+- `exchange`
+- `strategy`
+- `side`
+- `entry_price`
+- `quantity`
+- `initial_stop`
+- `current_stop`
+- `trailing_state`
+- `opened_at`
+- `closed_at`
+- `realized_pnl_r`
+- `realized_pnl_usd`
+- `realized_pnl_percent`
+
+Эти поля также проходят end-to-end через canonical close/history path:
+
+- `POSITION_CLOSED` / risk history foundation
+- persistence
+- dashboard facade snapshots
+- dashboard DTO
+- frontend response/types
+- terminal history UI
+
+### Dev seed runtime
+
+Для локальной визуальной проверки positions tables/widgets и regression check по positions UI можно поднять dashboard runtime с seeded data:
+
+```powershell
+$env:CRYPTOTEHNOLOG_DASHBOARD_DEV_SEED='positions'
+$env:PYTHONPATH='D:\CRYPTOTEHNOLOG\src'
+D:\CRYPTOTEHNOLOG\.venv\Scripts\python.exe -m cryptotechnolog.dashboard
+```
+
+Этот seed path нужен для:
+
+- визуальной проверки `Главная -> Открытые позиции`
+- визуальной проверки `Главная -> История позиций`
+- визуальной проверки `/terminal/positions`
+- regression check по search / filter / sort / actions / column projection
+
+Важно:
+
+- `dashboard` остаётся read-only facade;
+- UI не должен вычислять или фейкать поля вне canonical truth path;
+- новые fields для positions были добавлены через canonical backend source layers, а не через UI-only workaround.
+
 ### Предварительные требования
 
 - `Windows 10/11` или `Linux` (`WSL2` для Windows)

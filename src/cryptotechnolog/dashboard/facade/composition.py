@@ -20,13 +20,17 @@ from .sources import (
     ModuleAvailabilitySource,
     ModuleRegistrySource,
     OmsSummarySource,
+    OpenPositionsSource,
     OperatorGateSummarySource,
     OpportunitySummarySource,
+    PortfolioStateOpenPositionsSource,
+    PositionHistorySource,
     OrchestrationSummarySource,
     PaperSummarySource,
     PendingApprovalsSource,
     PortfolioGovernorSummarySource,
     PositionExpansionSummarySource,
+    RiskPersistencePositionHistorySource,
     ReportingArtifactCatalogSummarySource,
     ReportingSummarySource,
     RiskConfigSource,
@@ -54,6 +58,8 @@ if TYPE_CHECKING:
     from cryptotechnolog.core.health import HealthChecker
     from cryptotechnolog.core.operator_gate import OperatorGate
     from cryptotechnolog.core.system_controller import SystemController
+    from cryptotechnolog.risk.persistence_contracts import IRiskPersistenceRepository
+    from cryptotechnolog.risk.portfolio_state import PortfolioState
 
     from ..registry.module_registry import ModuleAvailabilityRegistry
 
@@ -77,6 +83,8 @@ class OverviewCompositionRoot:
     manager_summary_source: ManagerSummarySource
     validation_summary_source: ValidationSummarySource
     paper_summary_source: PaperSummarySource
+    open_positions_source: OpenPositionsSource
+    position_history_source: PositionHistorySource | None = None
     backtest_summary_source: BacktestSummarySource | None = None
     reporting_summary_source: ReportingSummarySource | None = None
     orchestration_summary_source: OrchestrationSummarySource | None = None
@@ -103,6 +111,8 @@ class OverviewCompositionRoot:
         paper_runtime: Any,
         backtest_runtime: Any,
         reporting_catalog: Any,
+        portfolio_state: PortfolioState,
+        risk_persistence_repository: IRiskPersistenceRepository | None,
         module_registry: ModuleAvailabilityRegistry,
         health_checker: HealthChecker | None = None,
     ) -> OverviewCompositionRoot:
@@ -143,6 +153,12 @@ class OverviewCompositionRoot:
                 validation_runtime=validation_runtime
             ),
             paper_summary_source=RuntimePaperSummarySource(paper_runtime=paper_runtime),
+            open_positions_source=PortfolioStateOpenPositionsSource(
+                portfolio_state=portfolio_state
+            ),
+            position_history_source=RiskPersistencePositionHistorySource(
+                repository=risk_persistence_repository
+            ),
             backtest_summary_source=RuntimeBacktestSummarySource(backtest_runtime=backtest_runtime),
             reporting_summary_source=ReportingArtifactCatalogSummarySource(
                 catalog=reporting_catalog

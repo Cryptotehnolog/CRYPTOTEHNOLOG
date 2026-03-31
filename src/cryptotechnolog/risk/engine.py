@@ -32,6 +32,7 @@ from .models import (
     StopUpdate,
 )
 from .persistence_contracts import (
+    ClosedPositionHistoryRecord,
     IRiskPersistenceRepository,
     PositionRiskLedgerAuditRecord,
     RiskCheckAuditRecord,
@@ -101,6 +102,8 @@ class FilledPositionInput:
 
     position_id: str
     symbol: str
+    exchange_id: str
+    strategy_id: str | None
     side: PositionSide
     entry_price: Decimal
     stop_loss: Decimal
@@ -114,6 +117,8 @@ class ClosedPositionInput:
 
     position_id: str
     realized_pnl_r: Decimal | None = None
+    realized_pnl_usd: Decimal | None = None
+    realized_pnl_percent: Decimal | None = None
     current_equity: Decimal | None = None
 
 
@@ -443,6 +448,8 @@ class RiskEngine:
         position = Position(
             position_id=data.position_id,
             symbol=data.symbol,
+            exchange_id=data.exchange_id,
+            strategy_id=data.strategy_id,
             side=data.side,
             entry_price=data.entry_price,
             initial_stop=data.stop_loss,
@@ -488,6 +495,10 @@ class RiskEngine:
             terminated_record=terminated_record,
             terminate_update=terminate_update,
         )
+        await self._persist_closed_position_history_if_enabled(
+            released_record=record,
+            close_input=data,
+        )
         await self._persist_position_release_if_enabled(
             terminated_record=terminated_record,
             released_record=record,
@@ -509,9 +520,16 @@ class RiskEngine:
             if record.symbol != data.symbol:
                 continue
             previous_record = record
+            market_refreshed = self._risk_ledger.update_position_market(
+                position_id=record.position_id,
+                mark_price=data.market.mark_price,
+                updated_at=data.market.timestamp,
+            )
+            self._portfolio_state.sync_position_from_ledger(market_refreshed)
+            self._portfolio_state.assert_position_matches_ledger(market_refreshed)
 
             pnl_r = self._calculate_unrealized_pnl_r(
-                record=record, mark_price=data.market.mark_price
+                record=market_refreshed, mark_price=data.market.mark_price
             )
             effective_pnl_r = max(pnl_r, Decimal("0"))
 
@@ -684,6 +702,25 @@ class RiskEngine:
             released_record.position_id
         )
 
+    async def _persist_closed_position_history_if_enabled(
+        self,
+        *,
+        released_record: PositionRiskRecord,
+        close_input: ClosedPositionInput,
+    ) -> None:
+        """Сохранить каноническую history-запись закрытой позиции, если repository подключён."""
+        if self._persistence_repository is None:
+            return
+
+        await self._persistence_repository.append_closed_position_history(
+            ClosedPositionHistoryRecord.from_released_position(
+                released_record=released_record,
+                realized_pnl_r=close_input.realized_pnl_r,
+                realized_pnl_usd=close_input.realized_pnl_usd,
+                realized_pnl_percent=close_input.realized_pnl_percent,
+            )
+        )
+
     async def _persist_position_termination_if_enabled(
         self,
         *,
@@ -745,26 +782,34 @@ class RiskEngine:
             previous_record.current_stop != refreshed_record.current_stop
             or previous_record.current_risk_r != refreshed_record.current_risk_r
             or previous_record.trailing_state != refreshed_record.trailing_state
+            or previous_record.current_price != refreshed_record.current_price
+            or previous_record.unrealized_pnl_usd != refreshed_record.unrealized_pnl_usd
+            or previous_record.unrealized_pnl_percent != refreshed_record.unrealized_pnl_percent
         ):
-            operation = (
-                "UPDATE"
-                if previous_record.current_stop != refreshed_record.current_stop
-                else "STATE_SYNC"
-            )
-            reason = (
-                "Движение стопа синхронизировано с RiskLedger"
-                if update.should_execute
-                else "Состояние trailing синхронизировано без движения стопа"
-            )
             await self._persistence_repository.upsert_position_risk_record(refreshed_record)
-            await self._persistence_repository.append_position_risk_audit(
-                PositionRiskLedgerAuditRecord.from_records(
-                    operation=operation,
-                    current_record=previous_record,
-                    next_record=refreshed_record,
-                    reason=reason,
+            if (
+                previous_record.current_stop != refreshed_record.current_stop
+                or previous_record.current_risk_r != refreshed_record.current_risk_r
+                or previous_record.trailing_state != refreshed_record.trailing_state
+            ):
+                operation = (
+                    "UPDATE"
+                    if previous_record.current_stop != refreshed_record.current_stop
+                    else "STATE_SYNC"
                 )
-            )
+                reason = (
+                    "Движение стопа синхронизировано с RiskLedger"
+                    if update.should_execute
+                    else "Состояние trailing синхронизировано без движения стопа"
+                )
+                await self._persistence_repository.append_position_risk_audit(
+                    PositionRiskLedgerAuditRecord.from_records(
+                        operation=operation,
+                        current_record=previous_record,
+                        next_record=refreshed_record,
+                        reason=reason,
+                    )
+                )
 
     @staticmethod
     def _calculate_unrealized_pnl_r(

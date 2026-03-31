@@ -17,6 +17,12 @@
 - какие prerequisite нужны;
 - куда предварительно относится будущая работа.
 
+После closure `P_10-P_22` этот реестр больше не должен описывать already closed
+mainline lines как будущие неоткрытые фазы.
+
+Если часть historical territory уже была absorbed в `P_10-P_22`, здесь должен
+оставаться только promoted note или deferred remainder.
+
 ---
 
 ## Статусы
@@ -234,11 +240,24 @@
   - `prompts/reference/russian_archive/16_ФАЗА_15_PERFORMANCE_ANALYTICS_PROMPT.md`
   - `prompts/reference/russian_archive/17_ФАЗА_16_BACKTESTING_PROMPT.md`
   - `prompts/reference/russian_archive/18_ФАЗА_17_PAPER_TRADING_PROMPT.md`
-- Статус: `deferred`
-- Причина: это отдельные validation/analytics lines, а не часть текущего signal foundation
+- Статус: `revisit`
+- Причина: historical broad territory уже частично absorbed в `P_18 Validation Foundation`, `P_19 Paper Trading Foundation` и `P_20 Backtesting / Replay Foundation`, но broader performance-analytics territory остаётся вне closed mainline scope
 - Prerequisite:
-  - стабильные signal / strategy / execution contours
-- Предварительная цель: later validation phases
+  - stable `validation` / `paper` / `backtest` truths
+  - отдельная analytics decomposition
+- Уже нормализованная promoted territory:
+  - `P_18 Validation Foundation`
+  - `prompts/plan/P_18.md`
+  - `prompts/plan/P_18_RESULT.md`
+  - `P_19 Paper Trading Foundation`
+  - `prompts/plan/P_19.md`
+  - `prompts/plan/P_19_RESULT.md`
+  - `P_20 Backtesting / Replay Foundation`
+  - `prompts/plan/P_20.md`
+  - `prompts/plan/P_20_RESULT.md`
+- Deferred remainder:
+  - broader performance analytics
+  - comparison / ranking / optimization territory beyond already closed foundations
 
 ### Historical data / advanced execution / ML overlays
 

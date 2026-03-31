@@ -16,6 +16,7 @@ from ..dto.opportunity import OpportunitySummaryDTO
 from ..dto.orchestration import OrchestrationSummaryDTO
 from ..dto.overview import OverviewSnapshotDTO
 from ..dto.paper import PaperSummaryDTO
+from ..dto.positions import OpenPositionsDTO, PositionHistoryDTO
 from ..dto.portfolio_governor import PortfolioGovernorSummaryDTO
 from ..dto.position_expansion import PositionExpansionSummaryDTO
 from ..dto.reporting import ReportingSummaryDTO
@@ -110,6 +111,24 @@ def create_dashboard_router(facade: OverviewFacade) -> APIRouter:
     async def get_position_expansion_summary() -> PositionExpansionSummaryDTO:
         logger.debug("Запрошен position-expansion summary snapshot панели")
         return await facade.get_position_expansion_summary()
+
+    @router.get(
+        "/open-positions",
+        response_model=OpenPositionsDTO,
+        summary="Получить узкий snapshot открытых позиций панели",
+    )
+    async def get_open_positions() -> OpenPositionsDTO:
+        logger.debug("Запрошен open positions snapshot панели")
+        return await facade.get_open_positions()
+
+    @router.get(
+        "/position-history",
+        response_model=PositionHistoryDTO,
+        summary="Получить узкий snapshot истории закрытых позиций панели",
+    )
+    async def get_position_history() -> PositionHistoryDTO:
+        logger.debug("Запрошен position history snapshot панели")
+        return await facade.get_position_history()
 
     @router.get(
         "/portfolio-governor-summary",

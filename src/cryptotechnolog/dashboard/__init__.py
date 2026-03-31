@@ -6,6 +6,7 @@ from .dto.backtest import BacktestSummaryDTO
 from .dto.execution import ExecutionSummaryDTO
 from .dto.manager import ManagerSummaryDTO
 from .dto.oms import OmsSummaryDTO
+from .dto.positions import OpenPositionsDTO, PositionHistoryDTO
 from .dto.orchestration import OrchestrationSummaryDTO
 from .dto.overview import OverviewSnapshotDTO
 from .dto.paper import PaperSummaryDTO
@@ -35,6 +36,8 @@ __all__ = [
     "ManagerSummaryDTO",
     "ModuleAvailabilityRegistry",
     "OmsSummaryDTO",
+    "OpenPositionsDTO",
+    "PositionHistoryDTO",
     "OrchestrationSummaryDTO",
     "OverviewCompositionRoot",
     "OverviewFacade",

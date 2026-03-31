@@ -1,11 +1,35 @@
-import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode, type Ref, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode, type Ref, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import GridLayoutBase, { type Layout } from "react-grid-layout/legacy";
 
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
 import { TerminalChartSurface } from "../components/TerminalChartSurface";
+import { useOpenPositions } from "../hooks/useOpenPositions";
+import { usePositionActionsOverlay } from "../hooks/usePositionActionsOverlay";
+import { usePositionHistory } from "../hooks/usePositionHistory";
+import { usePositionHistoryViewModel } from "../hooks/usePositionHistoryViewModel";
+import {
+  getOpenPositionColumnValue,
+  getOpenPositionGridTemplate,
+  loadPersistedOpenPositionsHomeColumns,
+  mapOpenPositionToTerminalRow,
+  openPositionColumnLabels,
+  openPositionsHomeColumnsStorageKey,
+  type OpenPositionColumnKey,
+} from "../lib/openPositionsColumns";
+import {
+  getCompactPositionHistoryGridTemplate,
+  getPositionHistoryColumnValue,
+  getPositionHistoryGridTemplate,
+  loadPersistedPositionHistoryHomeColumns,
+  positionHistoryColumnLabels,
+  positionHistoryHomeColumnsStorageKey,
+  type PositionHistoryColumnKey,
+} from "../lib/positionHistoryColumns";
 import { useTerminalWidgetStore } from "../state/useTerminalWidgetStore";
+import { useTerminalUiStore } from "../state/useTerminalUiStore";
 import { type TerminalWidget, type TerminalWidgetId } from "../state/terminalWidgets";
 import {
   attentionHeader,
@@ -70,8 +94,14 @@ import {
   marketPriceCluster,
   marketPrimaryValue,
   pageRoot,
+  positionsEmptyState,
+  positionsEmptyStateCentered,
   positionsTable,
-  positionsTableActionOpen,
+  positionsCompactCenteredSimpleCell,
+  positionsCompactCenteredValueCell,
+  positionsCompactHeaderDragHandle,
+  positionsCompactHeaderDragging,
+  positionsCompactHeaderDropTarget,
   positionMetricCell,
   positionModeButton,
   positionModeButtonActive,
@@ -93,8 +123,8 @@ import {
   positionsWidgetHeader,
   positionsWidgetHeaderMain,
   positionPairCell,
-  positionPnlNegative,
-  positionPnlPositive,
+  positionPnlNegativeText,
+  positionPnlPositiveText,
   positionPrimaryValue,
   positionSecondaryValue,
   positionStrategyCell,
@@ -104,16 +134,14 @@ import {
   positionStatusMeta,
   positionStatusValue,
   positionsTableViewport,
-  positionsTableViewportActionOpen,
   positionsTableBodyViewport,
-  positionsWidgetContentExpanded,
-  positionsWidgetFrameExpanded,
   positionsWidgetContent,
   positionTimestampCell,
   positionsHistoryControls,
   positionsHistoryControlsGroup,
   positionsHistorySearchInput,
   positionsHistorySelect,
+  positionsCompactHeaderCell,
   tableCell,
   tableHeader,
   tableRow,
@@ -214,98 +242,9 @@ const marketWatch = [
   },
 ];
 
-const positions = [
-  {
-    pair: "BTC/USDT",
-    exchange: "OKX",
-    strategy: "Momentum Core",
-    side: "LONG",
-    entry: "66 910",
-    last: "67 420",
-    size: "0.42 BTC",
-    stop: "65 980",
-    risk: "в норме",
-    pnl: "+2.14%",
-    pnlValue: "+$1 436",
-    tone: "up",
-  },
-  {
-    pair: "ETH/USDT",
-    exchange: "Bybit",
-    strategy: "Session Follow",
-    side: "LONG",
-    entry: "3 488",
-    last: "3 540",
-    size: "3.10 ETH",
-    stop: "3 420",
-    risk: "под контролем",
-    pnl: "+1.47%",
-    pnlValue: "+$161",
-    tone: "up",
-  },
-  {
-    pair: "SOL/USDT",
-    exchange: "Binance",
-    strategy: "Risk Fade",
-    side: "SHORT",
-    entry: "179.9",
-    last: "178.4",
-    size: "124 SOL",
-    stop: "182.2",
-    risk: "наблюдение",
-    pnl: "-0.31%",
-    pnlValue: "-$69",
-    tone: "down",
-  },
-];
-
-const positionHistory = [
-  {
-    pair: "BTC/USDT",
-    exchange: "OKX",
-    strategy: "Breakout Pulse",
-    side: "LONG",
-    entry: "65 880",
-    exit: "66 540",
-    size: "0.35 BTC",
-    result: "+1.00%",
-    resultValue: "+$742",
-    closedAt: "сегодня · 14:28",
-    closedAtSort: "2026-03-29T14:28:00+03:00",
-    tone: "up",
-  },
-  {
-    pair: "ETH/USDT",
-    exchange: "Bybit",
-    strategy: "Range Return",
-    side: "SHORT",
-    entry: "3 612",
-    exit: "3 575",
-    size: "2.20 ETH",
-    result: "+0.82%",
-    resultValue: "+$81",
-    closedAt: "сегодня · 12:16",
-    closedAtSort: "2026-03-29T12:16:00+03:00",
-    tone: "up",
-  },
-  {
-    pair: "SOL/USDT",
-    exchange: "Binance",
-    strategy: "Risk Fade",
-    side: "LONG",
-    entry: "181.6",
-    exit: "180.9",
-    size: "96 SOL",
-    result: "-0.39%",
-    resultValue: "-$67",
-    closedAt: "вчера · 21:04",
-    closedAtSort: "2026-03-28T21:04:00+03:00",
-    tone: "down",
-  },
-];
-
 const positionQuickActions = ["закрыть", "перевернуть", "stop-loss", "в безубыток"] as const;
 type PositionQuickAction = (typeof positionQuickActions)[number];
+type HomeProjectionSurface = "open" | "history";
 const positionActionMenuEstimate = { width: 156, height: 156 };
 const positionActionConfirmEstimate = { width: 240, height: 158 };
 
@@ -325,6 +264,73 @@ const positionQuickActionDescriptions: Record<PositionQuickAction, string> = {
 
 function getInstrumentContextKey(pair: string, exchange: string) {
   return `${exchange}:${pair}`;
+}
+
+function getOpenPositionRowKey(positionId: string) {
+  return `open-position:${positionId}`;
+}
+
+function formatDecimalValue(value: string | number, maximumFractionDigits = 2) {
+  const numeric = typeof value === "number" ? value : Number.parseFloat(value);
+  if (!Number.isFinite(numeric)) {
+    return String(value);
+  }
+
+  return new Intl.NumberFormat("ru-RU", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  }).format(numeric);
+}
+
+function formatPriceValue(value: string | number) {
+  return formatDecimalValue(value, 4);
+}
+
+function formatQuantityValue(value: string | number) {
+  return formatDecimalValue(value, 8);
+}
+
+function formatUsdValue(value: string | number) {
+  return `$${formatDecimalValue(value, 2)}`;
+}
+
+function formatRiskRValue(value: string | number) {
+  return `${formatDecimalValue(value, 2)}R`;
+}
+
+function formatPositionTimestamp(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
+function formatPositionSideLabel(side: string) {
+  return side.trim().toUpperCase() === "SHORT" || side.trim().toLowerCase() === "short" ? "SHORT" : "LONG";
+}
+
+function formatTrailingStateLabel(state: string) {
+  const normalized = state.trim().toLowerCase();
+
+  switch (normalized) {
+    case "armed":
+      return "armed";
+    case "active":
+      return "active";
+    case "emergency":
+      return "emergency";
+    case "terminated":
+      return "terminated";
+    default:
+      return "inactive";
+  }
 }
 
 const attentionItems = [
@@ -525,13 +531,6 @@ export function TerminalPage() {
   );
   const [positionsSelectedInstrument, setPositionsSelectedInstrument] = useState<string | null>(null);
   const [positionsView, setPositionsView] = useState<"open" | "history">("open");
-  const [openPositionActionsFor, setOpenPositionActionsFor] = useState<string | null>(null);
-  const [pendingPositionAction, setPendingPositionAction] = useState<{
-    rowKey: string;
-    action: PositionQuickAction;
-  } | null>(null);
-  const [positionActionExpandPx, setPositionActionExpandPx] = useState(0);
-  const [positionActionOverlayPosition, setPositionActionOverlayPosition] = useState<{ top: number; left: number } | null>(null);
   const [historyPairQuery, setHistoryPairQuery] = useState("");
   const [historyExchangeFilter, setHistoryExchangeFilter] = useState("all");
   const [historySort, setHistorySort] = useState<"recent" | "result-desc" | "result-asc">("recent");
@@ -540,11 +539,62 @@ export function TerminalPage() {
   const [customTimeframeUnit, setCustomTimeframeUnit] = useState("m");
   const [customTimeframeValue, setCustomTimeframeValue] = useState("2");
   const [gridWidth, setGridWidth] = useState(1200);
+  const [homeProjectionColumns, setHomeProjectionColumns] = useState<OpenPositionColumnKey[]>(
+    () => loadPersistedOpenPositionsHomeColumns(),
+  );
+  const [historyHomeProjectionColumns, setHistoryHomeProjectionColumns] = useState<
+    PositionHistoryColumnKey[]
+  >(() => loadPersistedPositionHistoryHomeColumns());
+  const [draggedHomeColumn, setDraggedHomeColumn] = useState<{
+    surface: HomeProjectionSurface;
+    key: OpenPositionColumnKey | PositionHistoryColumnKey;
+  } | null>(null);
+  const [homeDropColumn, setHomeDropColumn] = useState<{
+    surface: HomeProjectionSurface;
+    key: OpenPositionColumnKey | PositionHistoryColumnKey;
+  } | null>(null);
   const timeframeMenuRef = useRef<HTMLDivElement | null>(null);
-  const positionActionsLayerRef = useRef<HTMLDivElement | null>(null);
-  const positionsTableViewportRef = useRef<HTMLDivElement | null>(null);
-  const positionActionAnchorRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const widgetCanvasRef = useRef<HTMLDivElement | null>(null);
+  const openPositionsQuery = useOpenPositions();
+  const positionHistoryQuery = usePositionHistory();
+  const terminalExchanges = useTerminalUiStore((state) => state.exchanges);
+
+  const openPositionsRows =
+    openPositionsQuery.data?.positions.map(mapOpenPositionToTerminalRow) ?? [];
+  const { rows: historyRows, exchangeOptions: historyExchangeOptions } =
+    usePositionHistoryViewModel({
+      data: positionHistoryQuery.data,
+      pairQuery: historyPairQuery,
+      exchangeFilter: historyExchangeFilter,
+      sortMode: historySort,
+      terminalExchanges,
+    });
+  const compactOpenPositionsGridTemplate = getOpenPositionGridTemplate(homeProjectionColumns, true);
+  const compactHistoryGridTemplate = useMemo(
+    () => getCompactPositionHistoryGridTemplate(historyHomeProjectionColumns),
+    [historyHomeProjectionColumns],
+  );
+  const hasOpenPositionRowKey = useMemo(
+    () => (rowKey: string) =>
+      openPositionsRows.some((row) => getOpenPositionRowKey(row.positionId) === rowKey),
+    [openPositionsRows],
+  );
+  const {
+    openPositionActionsFor,
+    pendingPositionAction,
+    positionActionOverlayPosition,
+    positionActionsLayerRef,
+    positionActionAnchorRefs,
+    clearPositionActions,
+    handlePositionActionsToggle,
+    handlePositionActionSelect,
+    handlePositionActionCancel,
+    handlePositionActionConfirm,
+  } = usePositionActionsOverlay<PositionQuickAction>({
+    hasRowKey: hasOpenPositionRowKey,
+    menuEstimate: positionActionMenuEstimate,
+    confirmEstimate: positionActionConfirmEstimate,
+  });
 
   const marketContext =
     marketWatch.find((item) => item.pair === activeInstrument && item.exchange === activeExchange) ??
@@ -597,76 +647,28 @@ export function TerminalPage() {
   }, [isTimeframeMenuOpen]);
 
   useEffect(() => {
-    if (!openPositionActionsFor && !pendingPositionAction) {
-      return undefined;
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      const activeRowKey = openPositionActionsFor ?? pendingPositionAction?.rowKey ?? null;
-      const activeAnchor = activeRowKey ? positionActionAnchorRefs.current[activeRowKey] : null;
-
-      if (!positionActionsLayerRef.current?.contains(target) && !activeAnchor?.contains(target)) {
-        setOpenPositionActionsFor(null);
-        setPendingPositionAction(null);
-        setPositionActionExpandPx(0);
-        setPositionActionOverlayPosition(null);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpenPositionActionsFor(null);
-        setPendingPositionAction(null);
-        setPositionActionExpandPx(0);
-        setPositionActionOverlayPosition(null);
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [openPositionActionsFor, pendingPositionAction]);
-
-  useEffect(() => {
     if (positionsView === "history") {
-      setOpenPositionActionsFor(null);
-      setPendingPositionAction(null);
-      setPositionActionExpandPx(0);
-      setPositionActionOverlayPosition(null);
+      clearPositionActions();
     }
-  }, [positionsView]);
+  }, [clearPositionActions, positionsView]);
 
   useEffect(() => {
-    const activeRowKey = pendingPositionAction?.rowKey ?? openPositionActionsFor;
-    if (!activeRowKey) {
-      return;
-    }
-
-    const frame = requestAnimationFrame(() => {
-      const layer = positionActionsLayerRef.current;
-      if (!layer) {
-        resolvePositionActionPlacement(
-          activeRowKey,
-          pendingPositionAction ? positionActionConfirmEstimate : positionActionMenuEstimate,
-        );
-        return;
+    const handleStorage = (event: StorageEvent) => {
+      if (!event.key || event.key === openPositionsHomeColumnsStorageKey) {
+        setHomeProjectionColumns(loadPersistedOpenPositionsHomeColumns());
       }
 
-      resolvePositionActionPlacement(activeRowKey, {
-        width: layer.offsetWidth,
-        height: layer.offsetHeight,
-      });
-    });
+      if (!event.key || event.key === positionHistoryHomeColumnsStorageKey) {
+        setHistoryHomeProjectionColumns(loadPersistedPositionHistoryHomeColumns());
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
 
     return () => {
-      cancelAnimationFrame(frame);
+      window.removeEventListener("storage", handleStorage);
     };
-  }, [openPositionActionsFor, pendingPositionAction]);
+  }, []);
 
   useEffect(() => {
     const syncWidth = () => {
@@ -715,36 +717,12 @@ export function TerminalPage() {
   const orderedSelectedTimeframes = orderedAllTimeframes.filter((item) =>
     selectedTimeframes.includes(item),
   );
-  const historyExchangeOptions = [...new Set(positionHistory.map((row) => row.exchange))].sort();
-  const filteredHistoryRows = positionHistory
-    .filter((row) => {
-      const normalizedQuery = historyPairQuery.trim().toLowerCase();
-      const matchesPair = normalizedQuery.length === 0 || row.pair.toLowerCase().includes(normalizedQuery);
-      const matchesExchange = historyExchangeFilter === "all" || row.exchange === historyExchangeFilter;
-      return matchesPair && matchesExchange;
-    })
-    .sort((left, right) => {
-      if (historySort === "recent") {
-        return new Date(right.closedAtSort).getTime() - new Date(left.closedAtSort).getTime();
-      }
-
-      const leftResult = Number.parseFloat(left.result.replace("%", ""));
-      const rightResult = Number.parseFloat(right.result.replace("%", ""));
-
-      if (historySort === "result-desc") {
-        return rightResult - leftResult;
-      }
-
-      return leftResult - rightResult;
-    });
   const visibleToolbarTimeframes = orderedSelectedTimeframes;
-  const activePositionActionRowKey = openPositionActionsFor ?? pendingPositionAction?.rowKey ?? null;
-  const isPositionActionLayerActive = activePositionActionRowKey !== null;
   const openPositionActionRow = openPositionActionsFor
-    ? positions.find((row) => `${row.exchange}-${row.pair}` === openPositionActionsFor) ?? null
+    ? openPositionsRows.find((row) => getOpenPositionRowKey(row.positionId) === openPositionActionsFor) ?? null
     : null;
   const pendingPositionRow = pendingPositionAction
-    ? positions.find((row) => `${row.exchange}-${row.pair}` === pendingPositionAction.rowKey) ?? null
+    ? openPositionsRows.find((row) => getOpenPositionRowKey(row.positionId) === pendingPositionAction.rowKey) ?? null
     : null;
   const visibleWidgets = widgets.filter((widget) => widget.visible);
   const gridLayout: Layout = visibleWidgets.map((widget) => ({
@@ -819,67 +797,6 @@ export function TerminalPage() {
     setCustomTimeframeValue("2");
   };
 
-  const resolvePositionActionPlacement = (
-    rowKey: string,
-    layerSize?: { width: number; height: number },
-  ) => {
-    const anchor = positionActionAnchorRefs.current[rowKey];
-    const viewport = positionsTableViewportRef.current;
-
-    if (!anchor || !viewport) {
-      setPositionActionExpandPx(0);
-      setPositionActionOverlayPosition(null);
-      return;
-    }
-
-    const overlayGap = 6;
-    const safeX = 12;
-    const safeY = 10;
-    const anchorRect = anchor.getBoundingClientRect();
-    const viewportRect = viewport.getBoundingClientRect();
-    const layerWidth = layerSize?.width ?? 240;
-    const layerHeight = layerSize?.height ?? 158;
-    const viewportWidth = viewportRect.width;
-    const viewportHeight = viewportRect.height;
-    const anchorTop = Math.min(
-      Math.max(anchorRect.top, viewportRect.top + safeY),
-      viewportRect.bottom - safeY - anchorRect.height,
-    );
-    const anchorBottom = anchorTop + anchorRect.height;
-    const preferredLeft = anchorRect.right - viewportRect.left - layerWidth;
-    const maxLeft = Math.max(safeX, viewportWidth - layerWidth - safeX);
-    const left = Math.min(Math.max(preferredLeft, safeX), maxLeft);
-    const topForDown = anchorBottom - viewportRect.top + overlayGap;
-    const topForUp = anchorTop - viewportRect.top - layerHeight - overlayGap;
-    const fitsBelow = topForDown + layerHeight <= viewportHeight - safeY;
-    const fitsAbove = topForUp >= safeY;
-
-    if (fitsBelow) {
-      setPositionActionExpandPx(0);
-      setPositionActionOverlayPosition({ top: topForDown, left });
-      return;
-    }
-
-    if (fitsAbove) {
-      setPositionActionExpandPx(0);
-      setPositionActionOverlayPosition({ top: topForUp, left });
-      return;
-    }
-
-    const clampedTop = Math.min(
-      Math.max(anchorTop - viewportRect.top - Math.max(layerHeight - anchorRect.height, 0) / 2, safeY),
-      Math.max(safeY, viewportHeight - layerHeight - safeY),
-    );
-    const expandPx = Math.max(
-      layerHeight + safeY * 2 - viewportHeight,
-      topForDown + layerHeight + safeY - viewportHeight + 4,
-      0,
-    );
-
-    setPositionActionExpandPx(expandPx);
-    setPositionActionOverlayPosition({ top: clampedTop, left });
-  };
-
   const handleInstrumentActivate = (pair: string, exchange: string, source: "market" | "positions") => {
     setActiveInstrument(pair);
     setActiveExchange(exchange);
@@ -890,6 +807,12 @@ export function TerminalPage() {
     }
 
     setPositionsSelectedInstrument(getInstrumentContextKey(pair, exchange));
+    setMarketSelectedInstrument(null);
+  };
+
+  const handleOpenPositionActivate = (positionId: string, pair: string) => {
+    setActiveInstrument(pair);
+    setPositionsSelectedInstrument(getOpenPositionRowKey(positionId));
     setMarketSelectedInstrument(null);
   };
 
@@ -905,49 +828,77 @@ export function TerminalPage() {
     }
   };
 
-  const handlePositionActionsToggle = (
-    event: ReactMouseEvent<HTMLButtonElement>,
-    rowKey: string,
+  const reorderColumns = <TColumnKey extends string>(
+    columns: TColumnKey[],
+    sourceKey: TColumnKey,
+    targetKey: TColumnKey,
   ) => {
-    event.stopPropagation();
-    const isClosingCurrent = openPositionActionsFor === rowKey && !pendingPositionAction;
+    if (sourceKey === targetKey) {
+      return columns;
+    }
 
-    if (isClosingCurrent) {
-      setOpenPositionActionsFor(null);
-      setPendingPositionAction(null);
-      setPositionActionExpandPx(0);
-      setPositionActionOverlayPosition(null);
+    const sourceIndex = columns.indexOf(sourceKey);
+    const targetIndex = columns.indexOf(targetKey);
+
+    if (sourceIndex === -1 || targetIndex === -1) {
+      return columns;
+    }
+
+    const next = [...columns];
+    const [moved] = next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, moved);
+    return next;
+  };
+
+  const handleHomeColumnDragStart = (
+    event: ReactDragEvent<HTMLElement>,
+    surface: HomeProjectionSurface,
+    key: OpenPositionColumnKey | PositionHistoryColumnKey,
+  ) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", `${surface}:${key}`);
+    setDraggedHomeColumn({ surface, key });
+    setHomeDropColumn(null);
+  };
+
+  const handleHomeColumnDragEnter = (
+    surface: HomeProjectionSurface,
+    key: OpenPositionColumnKey | PositionHistoryColumnKey,
+  ) => {
+    if (!draggedHomeColumn || draggedHomeColumn.surface !== surface || draggedHomeColumn.key === key) {
       return;
     }
 
-    setPendingPositionAction(null);
-    resolvePositionActionPlacement(rowKey, positionActionMenuEstimate);
-    setOpenPositionActionsFor(rowKey);
+    setHomeDropColumn({ surface, key });
   };
 
-  const handlePositionActionSelect = (
-    event: ReactMouseEvent<HTMLButtonElement>,
-    rowKey: string,
-    action: PositionQuickAction,
-  ) => {
-    event.stopPropagation();
-    setOpenPositionActionsFor(null);
-    resolvePositionActionPlacement(rowKey, positionActionConfirmEstimate);
-    setPendingPositionAction({ rowKey, action });
+  const handleHomeColumnDragEnd = () => {
+    setDraggedHomeColumn(null);
+    setHomeDropColumn(null);
   };
 
-  const handlePositionActionCancel = (event: ReactMouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    setPendingPositionAction(null);
-    setPositionActionExpandPx(0);
-    setPositionActionOverlayPosition(null);
+  const handleOpenHomeColumnDrop = (targetKey: OpenPositionColumnKey) => {
+    if (!draggedHomeColumn || draggedHomeColumn.surface !== "open") {
+      return;
+    }
+
+    setHomeProjectionColumns((current) =>
+      reorderColumns(current, draggedHomeColumn.key as OpenPositionColumnKey, targetKey),
+    );
+    setDraggedHomeColumn(null);
+    setHomeDropColumn(null);
   };
 
-  const handlePositionActionConfirm = (event: ReactMouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    setPendingPositionAction(null);
-    setPositionActionExpandPx(0);
-    setPositionActionOverlayPosition(null);
+  const handleHistoryHomeColumnDrop = (targetKey: PositionHistoryColumnKey) => {
+    if (!draggedHomeColumn || draggedHomeColumn.surface !== "history") {
+      return;
+    }
+
+    setHistoryHomeProjectionColumns((current) =>
+      reorderColumns(current, draggedHomeColumn.key as PositionHistoryColumnKey, targetKey),
+    );
+    setDraggedHomeColumn(null);
+    setHomeDropColumn(null);
   };
 
   const renderWidget = (widget: TerminalWidget) => {
@@ -1244,9 +1195,7 @@ export function TerminalPage() {
           <WidgetShell
             dragLabel="позиции"
             cardClassName={card}
-            contentClassName={`${positionsWidgetContent} ${isPositionActionLayerActive ? positionsWidgetContentExpanded : ""}`}
-            frameClassName={isPositionActionLayerActive ? positionsWidgetFrameExpanded : undefined}
-            frameStyle={positionActionExpandPx > 0 ? { minHeight: `calc(100% + ${positionActionExpandPx}px)` } : undefined}
+            contentClassName={positionsWidgetContent}
             isFocused={isFocused}
             onToggleFocus={handleToggleFocus}
           >
@@ -1291,11 +1240,9 @@ export function TerminalPage() {
             </div>
 
             <div
-              ref={positionsTableViewportRef}
-              className={`${positionsTableViewport} ${isPositionActionLayerActive ? positionsTableViewportActionOpen : ""} terminal-widget-no-drag`}
-              style={positionActionExpandPx > 0 ? { paddingBottom: `${positionActionExpandPx}px` } : undefined}
+              className={`${positionsTableViewport} terminal-widget-no-drag`}
             >
-              <div className={`${positionsTable} ${isPositionActionLayerActive ? positionsTableActionOpen : ""}`}>
+              <div className={positionsTable}>
                 {positionsView === "history" ? (
                   <div className={`${positionsHistoryControls} terminal-widget-no-drag`}>
                     <input
@@ -1310,7 +1257,7 @@ export function TerminalPage() {
                     <div className={positionsHistoryControlsGroup}>
                       <select
                         className={positionsHistorySelect}
-                        aria-label="Фильтр истории по бирже"
+                        aria-label="Фильтр истории позиций по бирже"
                         name="positions-history-exchange"
                         value={historyExchangeFilter}
                         onChange={(event) => setHistoryExchangeFilter(event.target.value)}
@@ -1336,206 +1283,402 @@ export function TerminalPage() {
                     </div>
                   </div>
                 ) : null}
-                <div className={tableHeader}>
-                  <span>Биржа</span>
-                  <span>Пара</span>
-                  <span>Стратегия</span>
-                  <span>Сторона</span>
-                  <span>{positionsView === "open" ? "Вход / рынок" : "Вход / выход"}</span>
-                  <span>Размер</span>
-                  <span>{positionsView === "open" ? "Стоп / риск" : "Закрыта"}</span>
-                  <span>Результат</span>
+                <div
+                  className={tableHeader}
+                  style={{
+                    gridTemplateColumns:
+                      positionsView === "open"
+                        ? compactOpenPositionsGridTemplate
+                        : compactHistoryGridTemplate,
+                  }}
+                >
+                  {positionsView === "open" ? (
+                    <>
+                      {homeProjectionColumns.map((columnKey) => (
+                        <span key={columnKey} className={positionsCompactHeaderCell}>
+                          <span
+                            className={`${positionsCompactHeaderDragHandle} ${
+                              draggedHomeColumn?.surface === "open" &&
+                              draggedHomeColumn.key === columnKey
+                                ? positionsCompactHeaderDragging
+                                : ""
+                            } ${
+                              homeDropColumn?.surface === "open" &&
+                              homeDropColumn.key === columnKey
+                                ? positionsCompactHeaderDropTarget
+                                : ""
+                            }`}
+                            draggable
+                            aria-label={`Перетащить колонку ${openPositionColumnLabels[columnKey]}`}
+                            aria-grabbed={
+                              draggedHomeColumn?.surface === "open" &&
+                              draggedHomeColumn.key === columnKey
+                            }
+                            onDragStart={(event) => handleHomeColumnDragStart(event, "open", columnKey)}
+                            onDragEnter={() => handleHomeColumnDragEnter("open", columnKey)}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              handleOpenHomeColumnDrop(columnKey);
+                            }}
+                            onDragEnd={handleHomeColumnDragEnd}
+                          >
+                            {openPositionColumnLabels[columnKey]}
+                          </span>
+                        </span>
+                      ))}
+                      <span className={positionsCompactHeaderCell}>Действия</span>
+                    </>
+                  ) : (
+                    <>
+                      {historyHomeProjectionColumns.map((columnKey) => (
+                        <span key={columnKey} className={positionsCompactHeaderCell}>
+                          <span
+                            className={`${positionsCompactHeaderDragHandle} ${
+                              draggedHomeColumn?.surface === "history" &&
+                              draggedHomeColumn.key === columnKey
+                                ? positionsCompactHeaderDragging
+                                : ""
+                            } ${
+                              homeDropColumn?.surface === "history" &&
+                              homeDropColumn.key === columnKey
+                                ? positionsCompactHeaderDropTarget
+                                : ""
+                            }`}
+                            draggable
+                            aria-label={`Перетащить колонку ${positionHistoryColumnLabels[columnKey]}`}
+                            aria-grabbed={
+                              draggedHomeColumn?.surface === "history" &&
+                              draggedHomeColumn.key === columnKey
+                            }
+                            onDragStart={(event) => handleHomeColumnDragStart(event, "history", columnKey)}
+                            onDragEnter={() => handleHomeColumnDragEnter("history", columnKey)}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              handleHistoryHomeColumnDrop(columnKey);
+                            }}
+                            onDragEnd={handleHomeColumnDragEnd}
+                          >
+                            {positionHistoryColumnLabels[columnKey]}
+                          </span>
+                        </span>
+                      ))}
+                    </>
+                  )}
                 </div>
 
                 <div className={`${positionsTableBodyViewport} terminal-widget-no-drag`}>
                     {positionsView === "open"
-                      ? positions.map((row) => {
-                        const rowKey = `${row.exchange}-${row.pair}`;
+                      ? openPositionsQuery.isLoading ? (
+                        <div className={`${positionsEmptyState} ${positionsEmptyStateCentered}`}>
+                          <span className={positionPrimaryValue}>Открытые позиции загружаются</span>
+                        </div>
+                      ) : openPositionsQuery.isError ? (
+                        <div className={`${positionsEmptyState} ${positionsEmptyStateCentered}`}>
+                          <span className={positionPrimaryValue}>Ошибка: открытые позиции недоступны</span>
+                        </div>
+                      ) : openPositionsRows.length === 0 ? (
+                        <div className={`${positionsEmptyState} ${positionsEmptyStateCentered}`}>
+                          <span className={positionPrimaryValue}>Открытых позиций нет</span>
+                        </div>
+                      ) : openPositionsRows.map((row) => {
+                        const rowKey = getOpenPositionRowKey(row.positionId);
                         const isActionsOpen = openPositionActionsFor === rowKey;
 
                         return (
-                        <div
-                          key={rowKey}
-                          className={`${tableRow} ${tableRowInteractive} terminal-widget-no-drag ${positionsSelectedInstrument === getInstrumentContextKey(row.pair, row.exchange) ? tableRowActive : ""}`}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`Открыть ${row.pair} на главном графике`}
-                          onClick={() => handleInstrumentActivate(row.pair, row.exchange, "positions")}
-                          onKeyDown={(event) => handleInstrumentKeyDown(event, row.pair, row.exchange, "positions")}
-                        >
-                        <div className={positionStrategyCell}>
-                          <span className={positionPrimaryValue}>{row.exchange}</span>
-                        </div>
-                        <div className={positionPairCell}>
-                          <span className={`${positionPrimaryValue} ${positionsSelectedInstrument === getInstrumentContextKey(row.pair, row.exchange) ? positionInstrumentActive : ""}`}>
-                            {row.pair}
-                          </span>
-                        </div>
-                        <div className={positionStrategyCell}>
-                          <span className={positionPrimaryValue}>{row.strategy}</span>
-                        </div>
-                        <div className={tableCell}>
-                          <span className={row.side === "LONG" ? positionSideLong : positionSideShort}>
-                            {row.side}
-                          </span>
-                        </div>
-                        <div className={positionMetricCell}>
-                          <span className={positionPrimaryValue}>{row.entry}</span>
-                          <span className={positionSecondaryValue}>рынок {row.last}</span>
-                        </div>
-                        <div className={positionMetricCell}>
-                          <span className={positionPrimaryValue}>{row.size}</span>
-                        </div>
-                        <div className={positionStatusCell}>
-                          <span className={positionStatusValue}>стоп {row.stop}</span>
-                          <span className={positionStatusMeta}>{row.risk}</span>
-                        </div>
-                        <div className={positionActionsCell}>
-                          <div className={row.tone === "up" ? positionPnlPositive : positionPnlNegative}>
-                            <span className={positionPrimaryValue}>{row.pnl}</span>
-                            <span className={positionSecondaryValue}>{row.pnlValue}</span>
-                          </div>
                           <div
-                            ref={(node) => {
-                              positionActionAnchorRefs.current[rowKey] = node;
+                            key={row.positionId}
+                            className={`${tableRow} ${tableRowInteractive} terminal-widget-no-drag ${positionsSelectedInstrument === rowKey ? tableRowActive : ""}`}
+                            style={{ gridTemplateColumns: compactOpenPositionsGridTemplate }}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Открыть ${row.symbol} на главном графике`}
+                            onClick={() => handleOpenPositionActivate(row.positionId, row.symbol)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                handleOpenPositionActivate(row.positionId, row.symbol);
+                              }
                             }}
-                            className={`${positionActionsAnchor} terminal-widget-no-drag`}
                           >
-                            <button
-                              type="button"
-                              className={`${positionActionsTrigger} terminal-widget-no-drag`}
-                              aria-label={`Быстрые действия для ${row.pair}`}
-                              aria-haspopup="menu"
-                              aria-expanded={isActionsOpen}
-                              onClick={(event) => handlePositionActionsToggle(event, rowKey)}
-                            >
-                              ⋯
-                            </button>
+                            {homeProjectionColumns.map((columnKey) => {
+                              const cell = getOpenPositionColumnValue(row, columnKey);
+
+                              if (columnKey === "instrument") {
+                                return (
+                                  <div key={columnKey} className={positionPairCell}>
+                                    <span className={`${positionPrimaryValue} ${positionsSelectedInstrument === rowKey ? positionInstrumentActive : ""}`}>
+                                      {cell.primary}
+                                    </span>
+                                    {cell.secondary ? (
+                                      <span className={positionSecondaryValue}>{cell.secondary}</span>
+                                    ) : null}
+                                  </div>
+                                );
+                              }
+
+                              if (columnKey === "direction") {
+                                return (
+                                  <div key={columnKey} className={`${tableCell} ${positionsCompactCenteredSimpleCell}`}>
+                                    <span className={row.sideLabel === "LONG" ? positionSideLong : positionSideShort}>
+                                      {cell.primary}
+                                    </span>
+                                  </div>
+                                );
+                              }
+
+                              const metricCellClassName =
+                                columnKey === "entry" ||
+                                columnKey === "current_price" ||
+                                columnKey === "size" ||
+                                columnKey === "initial_stop" ||
+                                columnKey === "current_stop"
+                                  ? positionMetricCell
+                                  : positionStatusCell;
+                              const pnlTextClassName =
+                                columnKey === "pnl_usd"
+                                  ? row.unrealizedPnlUsdRaw === null
+                                    ? undefined
+                                    : row.unrealizedPnlUsdRaw > 0
+                                      ? positionPnlPositiveText
+                                      : row.unrealizedPnlUsdRaw < 0
+                                        ? positionPnlNegativeText
+                                        : undefined
+                                  : columnKey === "pnl_percent"
+                                    ? row.unrealizedPnlPercentRaw === null
+                                      ? undefined
+                                      : row.unrealizedPnlPercentRaw > 0
+                                        ? positionPnlPositiveText
+                                        : row.unrealizedPnlPercentRaw < 0
+                                          ? positionPnlNegativeText
+                                          : undefined
+                                    : undefined;
+
+                              return (
+                                <div key={columnKey} className={`${metricCellClassName} ${positionsCompactCenteredValueCell}`}>
+                                  <span className={`${positionStatusValue} ${pnlTextClassName ?? ""}`}>{cell.primary}</span>
+                                  {cell.secondary ? (
+                                    <span className={positionStatusMeta}>{cell.secondary}</span>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                            <div className={positionActionsCell}>
+                              <div
+                                ref={(node) => {
+                                  positionActionAnchorRefs.current[rowKey] = node;
+                                }}
+                                className={`${positionActionsAnchor} terminal-widget-no-drag`}
+                                data-position-actions-anchor="true"
+                              >
+                                <button
+                                  type="button"
+                                  className={`${positionActionsTrigger} terminal-widget-no-drag`}
+                                  aria-label={`Действия пока недоступны для ${row.symbol}`}
+                                  aria-haspopup="menu"
+                                  aria-expanded={isActionsOpen}
+                                  onClick={(event) => handlePositionActionsToggle(event, rowKey)}
+                                >
+                                  ⋯
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
                         );
                       })
-                      : filteredHistoryRows.map((row) => (
+                      : positionHistoryQuery.isLoading ? (
+                        <div className={`${positionsEmptyState} ${positionsEmptyStateCentered}`}>
+                          <span className={positionPrimaryValue}>История позиций загружается</span>
+                        </div>
+                      ) : positionHistoryQuery.isError ? (
+                        <div className={`${positionsEmptyState} ${positionsEmptyStateCentered}`}>
+                          <span className={positionPrimaryValue}>Ошибка: история позиций недоступна</span>
+                        </div>
+                      ) : historyRows.length === 0 ? (
+                        <div className={`${positionsEmptyState} ${positionsEmptyStateCentered}`}>
+                          <span className={positionPrimaryValue}>Истории позиций нет</span>
+                        </div>
+                      ) : historyRows.map((row) => (
                         <div
-                          key={`${row.exchange}-${row.pair}-${row.closedAt}`}
-                        className={`${tableRow} ${tableRowInteractive} terminal-widget-no-drag ${positionsSelectedInstrument === getInstrumentContextKey(row.pair, row.exchange) ? tableRowActive : ""}`}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`Открыть ${row.pair} на главном графике`}
-                        onClick={() => handleInstrumentActivate(row.pair, row.exchange, "positions")}
-                        onKeyDown={(event) => handleInstrumentKeyDown(event, row.pair, row.exchange, "positions")}
+                          key={row.positionId}
+                          className={`${tableRow} terminal-widget-no-drag`}
+                          style={{ gridTemplateColumns: compactHistoryGridTemplate }}
                         >
-                        <div className={positionStrategyCell}>
-                          <span className={positionPrimaryValue}>{row.exchange}</span>
+                          {historyHomeProjectionColumns.map((columnKey) => {
+                            const cell = getPositionHistoryColumnValue(row, columnKey);
+
+                            if (columnKey === "instrument") {
+                              return (
+                                <div key={columnKey} className={positionPairCell}>
+                                  <span className={positionPrimaryValue}>{cell.primary}</span>
+                                  {cell.secondary ? (
+                                    <span className={positionSecondaryValue}>{cell.secondary}</span>
+                                  ) : null}
+                                </div>
+                              );
+                            }
+
+                            if (columnKey === "direction") {
+                              return (
+                                <div key={columnKey} className={`${tableCell} ${positionsCompactCenteredSimpleCell}`}>
+                                  <span className={row.sideLabel === "LONG" ? positionSideLong : positionSideShort}>
+                                    {cell.primary}
+                                  </span>
+                                </div>
+                              );
+                            }
+
+                            if (columnKey === "result_r") {
+                              return (
+                                <div
+                                  key={columnKey}
+                                  className={`${positionStatusCell} ${positionsCompactCenteredValueCell}`}
+                                >
+                                  <span className={positionStatusValue}>{cell.primary}</span>
+                                </div>
+                              );
+                            }
+
+                            if (columnKey === "result_usd" || columnKey === "result_percent") {
+                              const pnlRawValue =
+                                columnKey === "result_usd"
+                                  ? row.realizedPnlUsdRaw
+                                  : row.realizedPnlPercentRaw;
+                              const pnlTextClassName =
+                                pnlRawValue === null
+                                  ? undefined
+                                  : pnlRawValue > 0
+                                    ? positionPnlPositiveText
+                                    : pnlRawValue < 0
+                                      ? positionPnlNegativeText
+                                      : undefined;
+
+                              return (
+                                <div
+                                  key={columnKey}
+                                  className={`${positionStatusCell} ${positionsCompactCenteredValueCell}`}
+                                >
+                                  <span
+                                    className={`${positionStatusValue} ${pnlTextClassName ?? ""}`}
+                                  >
+                                    {cell.primary}
+                                  </span>
+                                </div>
+                              );
+                            }
+
+                            const metricCellClassName =
+                              columnKey === "entry" ||
+                              columnKey === "size" ||
+                              columnKey === "initial_stop" ||
+                              columnKey === "exit_stop"
+                                ? positionMetricCell
+                                : positionStatusCell;
+
+                            return (
+                              <div key={columnKey} className={`${metricCellClassName} ${positionsCompactCenteredValueCell}`}>
+                                <span className={positionStatusValue}>{cell.primary}</span>
+                                {cell.secondary ? (
+                                  <span className={positionStatusMeta}>{cell.secondary}</span>
+                                ) : null}
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className={positionPairCell}>
-                          <span className={`${positionPrimaryValue} ${positionsSelectedInstrument === getInstrumentContextKey(row.pair, row.exchange) ? positionInstrumentActive : ""}`}>
-                            {row.pair}
-                          </span>
-                        </div>
-                        <div className={positionStrategyCell}>
-                          <span className={positionPrimaryValue}>{row.strategy}</span>
-                        </div>
-                        <div className={tableCell}>
-                          <span className={row.side === "LONG" ? positionSideLong : positionSideShort}>
-                            {row.side}
-                          </span>
-                        </div>
-                        <div className={positionMetricCell}>
-                          <span className={positionPrimaryValue}>{row.entry}</span>
-                          <span className={positionSecondaryValue}>выход {row.exit}</span>
-                        </div>
-                        <div className={positionMetricCell}>
-                          <span className={positionPrimaryValue}>{row.size}</span>
-                        </div>
-                        <div className={positionTimestampCell}>
-                          <span className={positionStatusValue}>{row.closedAt}</span>
-                          <span className={positionStatusMeta}>зафиксировано</span>
-                        </div>
-                        <div className={row.tone === "up" ? positionPnlPositive : positionPnlNegative}>
-                          <span className={positionPrimaryValue}>{row.result}</span>
-                          <span className={positionSecondaryValue}>{row.resultValue}</span>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                 </div>
               </div>
-              {openPositionActionsFor && openPositionActionRow && positionActionOverlayPosition ? (
-                <div
-                  className={`${positionActionOverlayLayer} terminal-widget-no-drag`}
-                  style={{
-                    top: `${positionActionOverlayPosition.top}px`,
-                    left: `${positionActionOverlayPosition.left}px`,
-                    width: `${positionActionMenuEstimate.width}px`,
-                  }}
-                >
-                  <div
-                    ref={positionActionsLayerRef}
-                    className={`${positionActionsMenu} terminal-widget-no-drag`}
-                    role="menu"
-                    aria-label={`Действия для ${openPositionActionRow.pair}`}
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    {positionQuickActions.map((action) => (
-                      <button
-                        key={action}
-                        type="button"
-                        role="menuitem"
-                        className={`${positionActionsMenuItem} terminal-widget-no-drag`}
-                        onClick={(event) => handlePositionActionSelect(event, openPositionActionsFor, action)}
-                      >
-                        {action}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {pendingPositionAction && pendingPositionRow && positionActionOverlayPosition ? (
-                <div
-                  className={`${positionActionOverlayLayer} terminal-widget-no-drag`}
-                  style={{
-                    top: `${positionActionOverlayPosition.top}px`,
-                    left: `${positionActionOverlayPosition.left}px`,
-                    width: `${positionActionConfirmEstimate.width}px`,
-                  }}
-                >
-                  <div
-                    ref={positionActionsLayerRef}
-                    className={`${positionActionPanel} terminal-widget-no-drag`}
-                    role="dialog"
-                    aria-label={`${positionQuickActionLabels[pendingPositionAction.action]} для ${pendingPositionRow.pair}`}
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <div className={positionActionPanelMeta}>
-                      <div className={positionActionPanelTitle}>{positionQuickActionLabels[pendingPositionAction.action]}</div>
-                      <div className={positionActionPanelText}>
-                        {pendingPositionRow.pair} · {pendingPositionRow.exchange} · {pendingPositionRow.side}
-                      </div>
-                      <div className={positionActionPanelText}>
-                        {positionQuickActionDescriptions[pendingPositionAction.action]}
-                      </div>
-                    </div>
-                    <div className={positionActionPanelActions}>
-                      <button
-                        type="button"
-                        className={`${positionActionPanelCancel} terminal-widget-no-drag`}
-                        onClick={handlePositionActionCancel}
-                      >
-                        Отменить
-                      </button>
-                      <button
-                        type="button"
-                        className={`${positionActionPanelConfirm} terminal-widget-no-drag`}
-                        onClick={handlePositionActionConfirm}
-                      >
-                        Подтвердить
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
             </div>
+            {typeof document !== "undefined" &&
+            positionActionOverlayPosition &&
+            openPositionActionRow
+              ? createPortal(
+                  <div
+                    ref={positionActionsLayerRef}
+                    className={`${positionActionOverlayLayer} terminal-widget-no-drag`}
+                    style={{
+                      top: `${positionActionOverlayPosition.top}px`,
+                      left: `${positionActionOverlayPosition.left}px`,
+                      width: `${positionActionMenuEstimate.width}px`,
+                    }}
+                    role="menu"
+                    aria-label={`Действия для ${openPositionActionRow.symbol}`}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className={`${positionActionsMenu} terminal-widget-no-drag`}>
+                      {positionQuickActions.map((action) => (
+                        <button
+                          key={action}
+                          type="button"
+                          role="menuitem"
+                          className={`${positionActionsMenuItem} terminal-widget-no-drag`}
+                          onClick={(event) =>
+                            handlePositionActionSelect(
+                              event,
+                              getOpenPositionRowKey(openPositionActionRow.positionId),
+                              action,
+                            )
+                          }
+                        >
+                          {action}
+                        </button>
+                      ))}
+                    </div>
+                  </div>,
+                  document.body,
+                )
+              : null}
+            {typeof document !== "undefined" &&
+            positionActionOverlayPosition &&
+            pendingPositionRow &&
+            pendingPositionAction
+              ? createPortal(
+                  <div
+                    ref={positionActionsLayerRef}
+                    className={`${positionActionOverlayLayer} terminal-widget-no-drag`}
+                    style={{
+                      top: `${positionActionOverlayPosition.top}px`,
+                      left: `${positionActionOverlayPosition.left}px`,
+                      width: `${positionActionConfirmEstimate.width}px`,
+                    }}
+                    role="dialog"
+                    aria-label={`${positionQuickActionLabels[pendingPositionAction.action]} для ${pendingPositionRow.symbol}`}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className={`${positionActionPanel} terminal-widget-no-drag`}>
+                      <div className={positionActionPanelMeta}>
+                        <div className={positionActionPanelTitle}>
+                          {positionQuickActionLabels[pendingPositionAction.action]}
+                        </div>
+                        <div className={positionActionPanelText}>
+                          {pendingPositionRow.symbol} · {pendingPositionRow.sideLabel}
+                        </div>
+                        <div className={positionActionPanelText}>
+                          {positionQuickActionDescriptions[pendingPositionAction.action]}
+                        </div>
+                      </div>
+                      <div className={positionActionPanelActions}>
+                        <button
+                          type="button"
+                          className={`${positionActionPanelCancel} terminal-widget-no-drag`}
+                          onClick={handlePositionActionCancel}
+                        >
+                          Отменить
+                        </button>
+                        <button
+                          type="button"
+                          className={`${positionActionPanelConfirm} terminal-widget-no-drag`}
+                          onClick={handlePositionActionConfirm}
+                        >
+                          Подтвердить
+                        </button>
+                      </div>
+                    </div>
+                  </div>,
+                  document.body,
+                )
+              : null}
           </WidgetShell>
         );
 

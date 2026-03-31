@@ -437,6 +437,51 @@ Parallel track — это линия, которая:
 
 ---
 
+## Branch / Workstream Truth
+
+Branch/workstream truth нужна только для coordination clarity.
+
+Она не заменяет:
+
+- authoritative phase truth;
+- release truth;
+- roadmap truth;
+- architectural truth.
+
+Текущая рабочая branch/workstream схема проекта:
+
+- `master` — mainline truth branch;
+- `dashboard-foundation` — supporting/dashboard foundation track;
+- `terminal-ui` — terminal/control surface track.
+
+Что это означает practically:
+
+- наличие открытой ветки само по себе не открывает новую фазу;
+- наличие отдельного workstream не делает его автоматически authoritative phase truth;
+- supporting/terminal ветки не должны автоматически трактоваться как committed roadmap line;
+- merge/release decisions по этим веткам принимаются отдельно и не выводятся только из факта их существования.
+
+Phase truth по-прежнему определяется только через:
+
+- `README.md`;
+- `prompts/plan/P_X.md`;
+- `prompts/plan/P_X_RESULT.md`;
+- `docs/adr/*.md`;
+- фактический код.
+
+Правило чтения веток:
+
+- `master` читается как mainline integration/release branch;
+- `dashboard-foundation` читается как сознательно открытый supporting track;
+- `terminal-ui` читается как сознательно открытый terminal/control-surface track;
+- ни одна из этих веток не должна сама по себе подменять authoritative docs.
+
+Если branch reality и phase docs расходятся, выигрывает phase truth, а branch/workstream
+состояние должно описываться как operational/coordination context, а не как новая
+implementation truth.
+
+---
+
 ## Как не потерять идеи и не сломать проект
 
 Неправильный путь:

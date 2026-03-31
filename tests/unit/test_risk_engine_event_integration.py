@@ -60,6 +60,7 @@ def make_order_filled_event() -> Event:
         {
             "position_id": "pos-1",
             "symbol": "BTC/USDT",
+            "exchange": "okx",
             "side": "buy",
             "filled_qty": "2",
             "avg_price": "100",
@@ -86,6 +87,7 @@ def make_order_submitted_event(
         {
             "order_id": order_id,
             "symbol": symbol,
+            "exchange": "okx",
             "side": side,
             "price": price,
             "stop_loss": stop_loss,
@@ -145,6 +147,8 @@ def make_position_closed_event() -> Event:
             "position_id": "pos-1",
             "symbol": "BTC/USDT",
             "realized_pnl_r": "1.5",
+            "realized_pnl_usd": "150",
+            "realized_pnl_percent": "3.0",
             "current_equity": "10150",
         },
     )

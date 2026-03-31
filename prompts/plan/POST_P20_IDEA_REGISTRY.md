@@ -5,7 +5,8 @@
 
 ## Назначение
 
-Этот документ фиксирует post-`P_20` truth по сильным идеям проекта, чтобы:
+Этот документ фиксирует normalized post-`P_20` registry truth после уже закрытых
+`P_21` и `P_22`, чтобы:
 
 - не терять их между phase docs, README и historical prompts;
 - отделять уже реализованное от future candidates;
@@ -32,7 +33,7 @@
 - `status`: `future_candidate`
 - `safe_narrow_version`: `Reporting Artifact Foundation`
 - `why_not_now`: широкая analytics/reporting semantics всё ещё слишком легко расползается в dashboard, comparison, benchmarking, optimization и broader research platform
-- `likely_future_line`: future `P_21` candidate, но пока не open-ready
+- `likely_future_line`: possible richer reporting / analytics follow-up beyond already closed `P_21`
 
 #### Idea: broad dashboard-led operator platform
 - `type`: historical prompts / parallel future territory
@@ -138,15 +139,15 @@
 - `why_not_now`: broad NautilusTrader-style engine/platform semantics не соответствуют current phase-by-phase project boundary truth
 - `likely_future_line`: supporting architectural hardening only when a new concrete boundary drift appears
 
-#### Idea: OsEngine reconnect-aware subscription recovery / resubscribe truth
+#### Idea: reconnect-aware subscription recovery / resubscribe boundary
 - `type`: external borrowing discipline
 - `source`: OsEngine exchange-connectivity audit after `P_22`, [0035-live-feed-connectivity-foundation-boundary.md](/D:/CRYPTOTEHNOLOG/docs/adr/0035-live-feed-connectivity-foundation-boundary.md), [README.md](/D:/CRYPTOTEHNOLOG/README.md)
 - `status`: `future_candidate`
-- `safe_narrow_version`: explicit reconnect-aware subscription recovery / resubscribe boundary for live-feed session recovery without broad connector-platform semantics
+- `safe_narrow_version`: reconnect-aware subscription recovery / resubscribe boundary
 - `why_not_now`: после `P_22` идея уже выглядит сильной, но пока не должна открываться как full connector platform, adapter ecosystem или reliability/orchestration line
 - `likely_future_line`: narrow post-`P_22` connectivity follow-up around subscription recovery / resubscribe truth
 
-### Most probable future line
+### Post-`P_22` future candidates
 
 #### Idea: analytics / reporting
 - `type`: future phase candidate
@@ -157,7 +158,7 @@
 - `likely_future_line`: possible future richer reporting/runtime follow-up only after separate normalization
 
 #### Idea: Reporting Artifact Foundation
-- `type`: future phase candidate narrow core
+- `type`: implemented narrow core
 - `source`: post-`P_20` decomposition audits, [P_21.md](/D:/CRYPTOTEHNOLOG/prompts/plan/P_21.md), [P_21_RESULT.md](/D:/CRYPTOTEHNOLOG/prompts/plan/P_21_RESULT.md), [0034-reporting-artifact-foundation-boundary.md](/D:/CRYPTOTEHNOLOG/docs/adr/0034-reporting-artifact-foundation-boundary.md), [validation/models.py](/D:/CRYPTOTEHNOLOG/src/cryptotechnolog/validation/models.py), [paper/models.py](/D:/CRYPTOTEHNOLOG/src/cryptotechnolog/paper/models.py), [backtest/models.py](/D:/CRYPTOTEHNOLOG/src/cryptotechnolog/backtest/models.py)
 - `status`: `implemented`
 - `safe_narrow_version`: typed reporting contracts and report artifacts with read-only aggregation over `ValidationReviewCandidate`, `PaperRehearsalCandidate` and `ReplayCandidate`
@@ -177,5 +178,5 @@
 - `P_20 / v1.20.0`, `P_21 / v1.21.0` и `P_22 / v1.22.0` уже formalized.
 - broad analytics / reporting platform в исходной широкой форме по-прежнему не должна реализовываться напрямую.
 - `Reporting Artifact Foundation` уже absorbed в project truth как formalized `P_21`.
-- strongest new borrowing candidate после `P_22`: reconnect-aware subscription recovery / resubscribe truth из OsEngine audit.
+- strongest new borrowing candidate после `P_22`: `reconnect-aware subscription recovery / resubscribe boundary`.
 - эта borrowing idea пока не открывает новую фазу сама по себе и должна оставаться узким future candidate.

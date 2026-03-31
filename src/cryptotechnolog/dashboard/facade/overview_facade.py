@@ -26,6 +26,12 @@ from ..dto.overview import (
     SystemStateSummaryDTO,
 )
 from ..dto.paper import PaperAvailabilityItemDTO, PaperSummaryDTO
+from ..dto.positions import (
+    OpenPositionDTO,
+    OpenPositionsDTO,
+    PositionHistoryDTO,
+    PositionHistoryRecordDTO,
+)
 from ..dto.portfolio_governor import (
     PortfolioGovernorAvailabilityItemDTO,
     PortfolioGovernorSummaryDTO,
@@ -52,6 +58,7 @@ if TYPE_CHECKING:
         ExecutionSummarySnapshot,
         ManagerSummarySnapshot,
         OmsSummarySnapshot,
+        OpenPositionsSnapshot,
         OpportunitySummarySnapshot,
         OrchestrationSummarySnapshot,
         PaperSummarySnapshot,
@@ -274,6 +281,66 @@ class OverviewFacade:
                     note="Флаг берётся из state policy текущего состояния.",
                 ),
             ],
+        )
+
+    async def get_open_positions(self) -> OpenPositionsDTO:
+        """Получить узкий read-only snapshot открытых позиций."""
+        open_positions = (
+            await self._composition_root.open_positions_source.get_open_positions_snapshot()
+        )
+        return OpenPositionsDTO(
+            positions=[
+                OpenPositionDTO(
+                    position_id=item.position_id,
+                    symbol=item.symbol,
+                    exchange=item.exchange,
+                    strategy=item.strategy,
+                    side=item.side,
+                    entry_price=item.entry_price,
+                    quantity=item.quantity,
+                    initial_stop=item.initial_stop,
+                    current_stop=item.current_stop,
+                    current_risk_usd=item.current_risk_usd,
+                    current_risk_r=item.current_risk_r,
+                    current_price=item.current_price,
+                    unrealized_pnl_usd=item.unrealized_pnl_usd,
+                    unrealized_pnl_percent=item.unrealized_pnl_percent,
+                    trailing_state=item.trailing_state,
+                    opened_at=item.opened_at.isoformat(),
+                    updated_at=item.updated_at.isoformat(),
+                )
+                for item in open_positions.positions
+            ]
+        )
+
+    async def get_position_history(self) -> PositionHistoryDTO:
+        """Получить узкий read-only snapshot истории закрытых позиций."""
+        if self._composition_root.position_history_source is None:
+            raise RuntimeError("Position history source не подключён в composition root")
+        position_history = (
+            await self._composition_root.position_history_source.get_position_history_snapshot()
+        )
+        return PositionHistoryDTO(
+            positions=[
+                PositionHistoryRecordDTO(
+                    position_id=item.position_id,
+                    symbol=item.symbol,
+                    exchange=item.exchange,
+                    strategy=item.strategy,
+                    side=item.side,
+                    entry_price=item.entry_price,
+                    quantity=item.quantity,
+                    initial_stop=item.initial_stop,
+                    current_stop=item.current_stop,
+                    trailing_state=item.trailing_state,
+                    opened_at=item.opened_at.isoformat(),
+                    closed_at=item.closed_at.isoformat(),
+                    realized_pnl_r=item.realized_pnl_r,
+                    realized_pnl_usd=item.realized_pnl_usd,
+                    realized_pnl_percent=item.realized_pnl_percent,
+                )
+                for item in position_history.positions
+            ]
         )
 
     async def get_signals_summary(self) -> SignalsSummaryDTO:

@@ -303,6 +303,12 @@ class RiskEngineListener(BaseListener):
         return FilledPositionInput(
             position_id=RiskEngineListener._require_str(payload, "position_id"),
             symbol=RiskEngineListener._require_str(payload, "symbol"),
+            exchange_id=RiskEngineListener._require_str_from_aliases(
+                payload,
+                "exchange_id",
+                "exchange",
+            ),
+            strategy_id=RiskEngineListener._optional_str(payload, "strategy_id"),
             side=RiskEngineListener._parse_position_side(
                 RiskEngineListener._require_str(payload, "side")
             ),
@@ -323,6 +329,10 @@ class RiskEngineListener(BaseListener):
         return ClosedPositionInput(
             position_id=RiskEngineListener._require_str(payload, "position_id"),
             realized_pnl_r=RiskEngineListener._optional_decimal(payload, "realized_pnl_r"),
+            realized_pnl_usd=RiskEngineListener._optional_decimal(payload, "realized_pnl_usd"),
+            realized_pnl_percent=RiskEngineListener._optional_decimal(
+                payload, "realized_pnl_percent"
+            ),
             current_equity=RiskEngineListener._optional_decimal(payload, "current_equity"),
         )
 
@@ -407,7 +417,11 @@ class RiskEngineListener(BaseListener):
             quantity=RiskEngineListener._optional_decimal(payload, "quantity"),
             risk_usd=RiskEngineListener._optional_decimal(payload, "risk_usd"),
             strategy_id=RiskEngineListener._optional_str(payload, "strategy_id"),
-            exchange_id=RiskEngineListener._optional_str(payload, "exchange_id") or "bybit",
+            exchange_id=RiskEngineListener._require_str_from_aliases(
+                payload,
+                "exchange_id",
+                "exchange",
+            ),
         )
 
     def _parse_pre_trade_context(self, payload: dict[str, Any]) -> PreTradeContext:
@@ -518,6 +532,18 @@ class RiskEngineListener(BaseListener):
         if not isinstance(value, str) or not value.strip():
             raise RiskEngineListenerError(f"Поле {key} обязательно и должно быть непустой строкой")
         return value
+
+    @staticmethod
+    def _require_str_from_aliases(payload: dict[str, Any], *keys: str) -> str:
+        """Извлечь обязательную строку из первого найденного ключа-алиаса."""
+        for key in keys:
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value
+        joined_keys = ", ".join(keys)
+        raise RiskEngineListenerError(
+            f"Одно из полей [{joined_keys}] обязательно и должно быть непустой строкой"
+        )
 
     @staticmethod
     def _require_decimal(payload: dict[str, Any], *keys: str) -> Decimal:

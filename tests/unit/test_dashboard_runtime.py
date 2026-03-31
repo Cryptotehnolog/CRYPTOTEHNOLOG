@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from unittest.mock import AsyncMock, Mock
 
 from fastapi import FastAPI
 import pytest
+from cryptotechnolog.core import EnhancedEventBus
 
 from cryptotechnolog.dashboard.app import create_dashboard_app
+from cryptotechnolog.dashboard.dev_seed import DASHBOARD_DEV_SEED_ENV_VAR, POSITIONS_DEV_SEED_NAME
 from cryptotechnolog.dashboard.dto.backtest import (
     BacktestAvailabilityItemDTO,
     BacktestSummaryDTO,
@@ -19,6 +22,7 @@ from cryptotechnolog.dashboard.dto.manager import (
     ManagerSummaryDTO,
 )
 from cryptotechnolog.dashboard.dto.oms import OmsAvailabilityItemDTO, OmsSummaryDTO
+from cryptotechnolog.dashboard.dto.positions import OpenPositionsDTO, PositionHistoryDTO
 from cryptotechnolog.dashboard.dto.opportunity import (
     OpportunityAvailabilityItemDTO,
     OpportunitySummaryDTO,
@@ -57,6 +61,7 @@ from cryptotechnolog.dashboard.dto.validation import (
     ValidationAvailabilityItemDTO,
     ValidationSummaryDTO,
 )
+from cryptotechnolog.dashboard.runtime import create_dashboard_runtime
 from cryptotechnolog.runtime_identity import get_runtime_version
 
 
@@ -494,6 +499,12 @@ class _StubRuntime:
                 summary_reason=None,
             )
         )
+        self.overview_facade.get_open_positions = AsyncMock(
+            return_value=OpenPositionsDTO(positions=[])
+        )
+        self.overview_facade.get_position_history = AsyncMock(
+            return_value=PositionHistoryDTO(positions=[])
+        )
 
 
 def test_create_dashboard_app_registers_runtime_and_router() -> None:
@@ -520,6 +531,8 @@ def test_create_dashboard_app_registers_runtime_and_router() -> None:
     assert "/dashboard/paper-summary" in routes
     assert "/dashboard/backtest-summary" in routes
     assert "/dashboard/reporting-summary" in routes
+    assert "/dashboard/open-positions" in routes
+    assert "/dashboard/position-history" in routes
 
 
 def test_create_dashboard_app_builds_local_runtime_without_global_event_bus() -> None:
@@ -545,6 +558,8 @@ def test_create_dashboard_app_builds_local_runtime_without_global_event_bus() ->
     assert "/dashboard/paper-summary" in routes
     assert "/dashboard/backtest-summary" in routes
     assert "/dashboard/reporting-summary" in routes
+    assert "/dashboard/open-positions" in routes
+    assert "/dashboard/position-history" in routes
 
 
 @pytest.mark.asyncio
@@ -581,3 +596,54 @@ async def test_create_dashboard_app_local_runtime_lifecycle_starts_and_stops() -
     assert runtime.validation_runtime.is_started is False
     assert runtime.paper_runtime.is_started is False
     assert runtime.backtest_runtime.is_started is False
+
+
+@pytest.mark.asyncio
+async def test_create_dashboard_runtime_uses_controlled_positions_dev_seed_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(DASHBOARD_DEV_SEED_ENV_VAR, POSITIONS_DEV_SEED_NAME)
+    runtime = create_dashboard_runtime(
+        event_bus=EnhancedEventBus(
+            enable_persistence=False,
+            redis_url=None,
+            rate_limit=1000,
+        )
+    )
+
+    open_positions = await runtime.overview_facade.get_open_positions()
+    position_history = await runtime.overview_facade.get_position_history()
+
+    assert len(open_positions.positions) == 3
+    assert {item.exchange for item in open_positions.positions} == {
+        "OKX",
+        "Bybit",
+        "Binance",
+    }
+    assert {item.strategy for item in open_positions.positions} == {
+        "breakout-trend",
+        "mean-reversion-short",
+        "range-continuation",
+    }
+    assert {item.current_price for item in open_positions.positions} == {
+        Decimal("68125"),
+        Decimal("3462"),
+        Decimal("175.9"),
+    }
+    assert {item.unrealized_pnl_usd for item in open_positions.positions} == {
+        Decimal("246.75"),
+        Decimal("351.00"),
+        Decimal("-300.00"),
+    }
+    assert len(position_history.positions) == 4
+    assert {item.exchange for item in position_history.positions} == {
+        "OKX",
+        "Bybit",
+        "Binance",
+    }
+    assert {item.strategy for item in position_history.positions} == {
+        "breakout-trend",
+        "mean-reversion-short",
+        "range-continuation",
+        "funding-rotation",
+    }

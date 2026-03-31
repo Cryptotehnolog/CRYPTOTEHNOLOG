@@ -26,16 +26,19 @@ from cryptotechnolog.position_expansion import (
     create_position_expansion_runtime,
 )
 from cryptotechnolog.reporting import ReportingArtifactCatalog, build_reporting_artifact_catalog
+from cryptotechnolog.risk.portfolio_state import PortfolioState
 from cryptotechnolog.signals import SignalRuntime, create_signal_runtime
 from cryptotechnolog.strategy import StrategyRuntime, create_strategy_runtime
 from cryptotechnolog.validation import ValidationRuntime, create_validation_runtime
 
+from .dev_seed import maybe_build_dashboard_dev_seed
 from .facade.composition import OverviewCompositionRoot
 from .facade.overview_facade import OverviewFacade
 from .registry.module_registry import ModuleAvailabilityRegistry, create_default_module_registry
 
 if TYPE_CHECKING:
     from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
+    from cryptotechnolog.risk.persistence_contracts import IRiskPersistenceRepository
 
 logger = get_logger(__name__)
 
@@ -125,8 +128,14 @@ def create_dashboard_runtime(
     paper_runtime: PaperRuntime | None = None,
     backtest_runtime: ReplayRuntime | None = None,
     reporting_catalog: ReportingArtifactCatalog | None = None,
+    portfolio_state: PortfolioState | None = None,
+    risk_persistence_repository: IRiskPersistenceRepository | None = None,
 ) -> DashboardRuntime:
     """Собрать dashboard runtime поверх существующих backend-компонентов."""
+    dev_seed = None
+    if portfolio_state is None and risk_persistence_repository is None:
+        dev_seed = maybe_build_dashboard_dev_seed()
+
     metrics = metrics_collector or get_metrics_collector()
     registry = module_registry or create_default_module_registry()
 
@@ -149,6 +158,12 @@ def create_dashboard_runtime(
     runtime_paper = paper_runtime or create_paper_runtime()
     runtime_backtest = backtest_runtime or create_replay_runtime()
     artifact_catalog = reporting_catalog or build_reporting_artifact_catalog()
+    runtime_portfolio_state = portfolio_state or (
+        dev_seed.portfolio_state if dev_seed is not None else PortfolioState()
+    )
+    runtime_risk_persistence_repository = risk_persistence_repository or (
+        dev_seed.risk_persistence_repository if dev_seed is not None else None
+    )
     runtime_controller = controller or SystemController(
         health_checker=checker,
         metrics_collector=metrics,
@@ -258,6 +273,8 @@ def create_dashboard_runtime(
         paper_runtime=runtime_paper,
         backtest_runtime=runtime_backtest,
         reporting_catalog=artifact_catalog,
+        portfolio_state=runtime_portfolio_state,
+        risk_persistence_repository=runtime_risk_persistence_repository,
         module_registry=registry,
         health_checker=checker,
     )

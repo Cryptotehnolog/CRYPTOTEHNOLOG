@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 from cryptotechnolog.config import Settings, get_settings
 from cryptotechnolog.core.state_machine_enums import get_state_policy
 from cryptotechnolog.reporting import ReportingArtifactCatalog, ReportingSourceLayer
+from cryptotechnolog.risk.portfolio_state import PortfolioState
 
 from .contracts import (
     BacktestSummarySnapshot,
@@ -16,6 +17,10 @@ from .contracts import (
     ExecutionSummarySnapshot,
     ManagerSummarySnapshot,
     OmsSummarySnapshot,
+    OpenPositionSnapshot,
+    OpenPositionsSnapshot,
+    PositionHistoryRecordSnapshot,
+    PositionHistorySnapshot,
     OpportunitySummarySnapshot,
     OrchestrationSummarySnapshot,
     PaperSummarySnapshot,
@@ -37,6 +42,7 @@ if TYPE_CHECKING:
     from cryptotechnolog.core.health import HealthChecker, SystemHealth
     from cryptotechnolog.core.operator_gate import OperatorGate
     from cryptotechnolog.core.system_controller import SystemController, SystemStatus
+    from cryptotechnolog.risk.persistence_contracts import IRiskPersistenceRepository
 
     from ..registry.module_registry import ModuleAvailabilityRecord, ModuleAvailabilityRegistry
 
@@ -159,6 +165,18 @@ class ReportingSummarySource(Protocol):
     """Источник surfaced reporting artifact catalog summary."""
 
     async def get_reporting_summary_snapshot(self) -> ReportingSummarySnapshot: ...
+
+
+class OpenPositionsSource(Protocol):
+    """Источник surfaced open positions snapshot."""
+
+    async def get_open_positions_snapshot(self) -> OpenPositionsSnapshot: ...
+
+
+class PositionHistorySource(Protocol):
+    """Источник surfaced closed position history snapshot."""
+
+    async def get_position_history_snapshot(self) -> PositionHistorySnapshot: ...
 
 
 def parse_circuit_breaker_snapshots(
@@ -922,4 +940,74 @@ class ReportingArtifactCatalogSummarySource:
                 if last_bundle is not None
                 else None
             ),
+        )
+
+
+@dataclass(slots=True)
+class PortfolioStateOpenPositionsSource:
+    """Адаптер PortfolioState в узкий dashboard open positions contract."""
+
+    portfolio_state: PortfolioState
+
+    async def get_open_positions_snapshot(self) -> OpenPositionsSnapshot:
+        positions = tuple(
+            OpenPositionSnapshot(
+                position_id=record.position_id,
+                symbol=record.symbol,
+                exchange=record.exchange_id,
+                strategy=record.strategy_id,
+                side=record.side.value,
+                entry_price=record.entry_price,
+                quantity=record.quantity,
+                initial_stop=record.initial_stop,
+                current_stop=record.current_stop,
+                current_risk_usd=record.current_risk_usd,
+                current_risk_r=record.current_risk_r,
+                current_price=record.current_price,
+                unrealized_pnl_usd=record.unrealized_pnl_usd,
+                unrealized_pnl_percent=record.unrealized_pnl_percent,
+                trailing_state=record.trailing_state.value,
+                opened_at=record.opened_at,
+                updated_at=record.updated_at,
+            )
+            for record in sorted(
+                self.portfolio_state.list_positions(),
+                key=lambda item: (item.opened_at, item.position_id),
+            )
+        )
+        return OpenPositionsSnapshot(positions=positions)
+
+
+@dataclass(slots=True)
+class RiskPersistencePositionHistorySource:
+    """Адаптер risk persistence history в узкий dashboard position history contract."""
+
+    repository: IRiskPersistenceRepository | None
+
+    async def get_position_history_snapshot(self) -> PositionHistorySnapshot:
+        if self.repository is None:
+            return PositionHistorySnapshot(positions=())
+
+        records = await self.repository.list_closed_position_history()
+        return PositionHistorySnapshot(
+            positions=tuple(
+                PositionHistoryRecordSnapshot(
+                    position_id=record.position_id,
+                    symbol=record.symbol,
+                    exchange=record.exchange_id,
+                    strategy=record.strategy_id,
+                    side=record.side,
+                    entry_price=record.entry_price,
+                    quantity=record.quantity,
+                    initial_stop=record.initial_stop,
+                    current_stop=record.current_stop,
+                    trailing_state=record.trailing_state,
+                    opened_at=record.opened_at,
+                    closed_at=record.closed_at,
+                    realized_pnl_r=record.realized_pnl_r,
+                    realized_pnl_usd=record.realized_pnl_usd,
+                    realized_pnl_percent=record.realized_pnl_percent,
+                )
+                for record in records
+            )
         )

@@ -446,3 +446,49 @@ export type ReportingSummaryResponse = {
   summary_note: string;
   summary_reason: string | null;
 };
+
+export type OpenPositionResponse = {
+  position_id: string;
+  symbol: string;
+  exchange: string;
+  strategy: string | null;
+  side: string;
+  entry_price: string | number;
+  quantity: string | number;
+  initial_stop: string | number;
+  current_stop: string | number;
+  current_risk_usd: string | number;
+  current_risk_r: string | number;
+  current_price: string | number;
+  unrealized_pnl_usd: string | number;
+  unrealized_pnl_percent: string | number;
+  trailing_state: string;
+  opened_at: string;
+  updated_at: string;
+};
+
+export type OpenPositionsResponse = {
+  positions: OpenPositionResponse[];
+};
+
+export type PositionHistoryRecordResponse = {
+  position_id: string;
+  symbol: string;
+  exchange: string;
+  strategy: string | null;
+  side: string;
+  entry_price: string | number;
+  quantity: string | number;
+  initial_stop: string | number;
+  current_stop: string | number;
+  trailing_state: string;
+  opened_at: string;
+  closed_at: string;
+  realized_pnl_r: string | number | null;
+  realized_pnl_usd: string | number | null;
+  realized_pnl_percent: string | number | null;
+};
+
+export type PositionHistoryResponse = {
+  positions: PositionHistoryRecordResponse[];
+};

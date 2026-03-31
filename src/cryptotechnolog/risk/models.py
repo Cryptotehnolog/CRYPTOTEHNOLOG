@@ -164,6 +164,8 @@ class Position:
     current_stop: Decimal
     quantity: Decimal
     risk_capital_usd: Decimal
+    strategy_id: str | None = None
+    exchange_id: str = "bybit"
     trailing_state: TrailingState = TrailingState.INACTIVE
     opened_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -234,13 +236,18 @@ class PositionRiskRecord:
     current_stop: Decimal
     quantity: Decimal
     risk_capital_usd: Decimal
+    strategy_id: str | None
     initial_risk_usd: Decimal
     initial_risk_r: Decimal
     current_risk_usd: Decimal
     current_risk_r: Decimal
+    current_price: Decimal
+    unrealized_pnl_usd: Decimal
+    unrealized_pnl_percent: Decimal
     trailing_state: TrailingState
     opened_at: datetime
     updated_at: datetime
+    exchange_id: str = "bybit"
 
 
 @dataclass(slots=True, frozen=True)

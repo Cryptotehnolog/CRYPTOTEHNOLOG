@@ -65,6 +65,7 @@ from .models import (
     TrailingTier,
 )
 from .persistence_contracts import (
+    ClosedPositionHistoryRecord,
     IRiskPersistenceRepository,
     PositionRiskLedgerAuditRecord,
     RiskCheckAuditRecord,
@@ -106,6 +107,7 @@ __all__ = [
     "BarCompletedInput",
     "BarProcessedResult",
     "ClosedPositionInput",
+    "ClosedPositionHistoryRecord",
     "CorrelationAssessment",
     "CorrelationConfig",
     "CorrelationEvaluator",

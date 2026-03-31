@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from decimal import Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -361,3 +362,61 @@ class ReportingSummarySnapshot:
     catalog_counts: ReportingCatalogCountsSnapshot
     last_artifact_snapshot: ReportingLastArtifactSnapshot | None
     last_bundle_snapshot: ReportingLastBundleSnapshot | None
+
+
+@dataclass(frozen=True, slots=True)
+class OpenPositionSnapshot:
+    """Стабильный surfaced snapshot одной открытой позиции для dashboard layer."""
+
+    position_id: str
+    symbol: str
+    exchange: str
+    strategy: str | None
+    side: str
+    entry_price: Decimal
+    quantity: Decimal
+    initial_stop: Decimal
+    current_stop: Decimal
+    current_risk_usd: Decimal
+    current_risk_r: Decimal
+    current_price: Decimal
+    unrealized_pnl_usd: Decimal
+    unrealized_pnl_percent: Decimal
+    trailing_state: str
+    opened_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class OpenPositionsSnapshot:
+    """Стабильный surfaced snapshot списка открытых позиций для dashboard layer."""
+
+    positions: tuple[OpenPositionSnapshot, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PositionHistoryRecordSnapshot:
+    """Стабильный surfaced snapshot одной записи истории закрытых позиций."""
+
+    position_id: str
+    symbol: str
+    exchange: str
+    strategy: str | None
+    side: str
+    entry_price: Decimal
+    quantity: Decimal
+    initial_stop: Decimal
+    current_stop: Decimal
+    trailing_state: str
+    opened_at: datetime
+    closed_at: datetime
+    realized_pnl_r: Decimal | None
+    realized_pnl_usd: Decimal | None
+    realized_pnl_percent: Decimal | None
+
+
+@dataclass(frozen=True, slots=True)
+class PositionHistorySnapshot:
+    """Стабильный surfaced snapshot списка истории закрытых позиций."""
+
+    positions: tuple[PositionHistoryRecordSnapshot, ...]

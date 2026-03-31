@@ -156,11 +156,21 @@ export function TerminalShell() {
   }, []);
 
   const currentSection: TerminalSection =
-    location.pathname === "/terminal/settings" ? "settings" : activeSection;
+    location.pathname === "/terminal/settings"
+      ? "settings"
+      : location.pathname === "/terminal/positions"
+        ? "positions"
+        : activeSection;
 
   const handleSectionSelect = (section: TerminalSection) => {
     setActiveSection(section);
-    navigate(section === "settings" ? "/terminal/settings" : "/terminal");
+    navigate(
+      section === "settings"
+        ? "/terminal/settings"
+        : section === "positions"
+          ? "/terminal/positions"
+          : "/terminal",
+    );
   };
 
   return (
