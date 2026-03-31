@@ -297,6 +297,7 @@ def _make_order_filled_event() -> Event:
         {
             "position_id": "pos-1",
             "symbol": "BTC/USDT",
+            "exchange": "bybit",
             "side": "buy",
             "filled_qty": "2",
             "avg_price": "100",
