@@ -112,6 +112,7 @@ class TestRiskRuntime:
                 {
                     "position_id": "pos-runtime-1",
                     "symbol": "BTC/USDT",
+                    "exchange": "bybit",
                     "side": "buy",
                     "avg_price": "100",
                     "stop_loss": "95",
