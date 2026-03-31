@@ -325,9 +325,9 @@ class TestRiskPersistenceRepository:
 
     def test_position_history_realized_pnl_truth_migration_adds_columns(self) -> None:
         """Следующая миграция должна surface-ить realized pnl truth в history foundation."""
-        migration = Path("scripts/migrations/016_position_history_realized_pnl_truth.sql").read_text(
-            encoding="utf-8"
-        )
+        migration = Path(
+            "scripts/migrations/016_position_history_realized_pnl_truth.sql"
+        ).read_text(encoding="utf-8")
 
         assert "ADD COLUMN IF NOT EXISTS realized_pnl_usd" in migration
         assert "ADD COLUMN IF NOT EXISTS realized_pnl_percent" in migration

@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock
 
 from fastapi import FastAPI
 import pytest
-from cryptotechnolog.core import EnhancedEventBus
 
+from cryptotechnolog.core import EnhancedEventBus
 from cryptotechnolog.dashboard.app import create_dashboard_app
 from cryptotechnolog.dashboard.dev_seed import DASHBOARD_DEV_SEED_ENV_VAR, POSITIONS_DEV_SEED_NAME
 from cryptotechnolog.dashboard.dto.backtest import (
@@ -22,7 +22,6 @@ from cryptotechnolog.dashboard.dto.manager import (
     ManagerSummaryDTO,
 )
 from cryptotechnolog.dashboard.dto.oms import OmsAvailabilityItemDTO, OmsSummaryDTO
-from cryptotechnolog.dashboard.dto.positions import OpenPositionsDTO, PositionHistoryDTO
 from cryptotechnolog.dashboard.dto.opportunity import (
     OpportunityAvailabilityItemDTO,
     OpportunitySummaryDTO,
@@ -47,6 +46,7 @@ from cryptotechnolog.dashboard.dto.position_expansion import (
     PositionExpansionAvailabilityItemDTO,
     PositionExpansionSummaryDTO,
 )
+from cryptotechnolog.dashboard.dto.positions import OpenPositionsDTO, PositionHistoryDTO
 from cryptotechnolog.dashboard.dto.reporting import (
     ReportingCatalogCountsDTO,
     ReportingSummaryDTO,

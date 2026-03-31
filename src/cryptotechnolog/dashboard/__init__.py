@@ -6,12 +6,12 @@ from .dto.backtest import BacktestSummaryDTO
 from .dto.execution import ExecutionSummaryDTO
 from .dto.manager import ManagerSummaryDTO
 from .dto.oms import OmsSummaryDTO
-from .dto.positions import OpenPositionsDTO, PositionHistoryDTO
 from .dto.orchestration import OrchestrationSummaryDTO
 from .dto.overview import OverviewSnapshotDTO
 from .dto.paper import PaperSummaryDTO
 from .dto.portfolio_governor import PortfolioGovernorSummaryDTO
 from .dto.position_expansion import PositionExpansionSummaryDTO
+from .dto.positions import OpenPositionsDTO, PositionHistoryDTO
 from .dto.reporting import ReportingSummaryDTO
 from .dto.risk import RiskSummaryDTO
 from .dto.signals import SignalsSummaryDTO
@@ -37,7 +37,6 @@ __all__ = [
     "ModuleAvailabilityRegistry",
     "OmsSummaryDTO",
     "OpenPositionsDTO",
-    "PositionHistoryDTO",
     "OrchestrationSummaryDTO",
     "OverviewCompositionRoot",
     "OverviewFacade",
@@ -45,6 +44,7 @@ __all__ = [
     "PaperSummaryDTO",
     "PortfolioGovernorSummaryDTO",
     "PositionExpansionSummaryDTO",
+    "PositionHistoryDTO",
     "ReportingSummaryDTO",
     "RiskSummaryDTO",
     "SignalsSummaryDTO",

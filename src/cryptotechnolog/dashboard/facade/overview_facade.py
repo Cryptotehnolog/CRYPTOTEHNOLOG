@@ -26,12 +26,6 @@ from ..dto.overview import (
     SystemStateSummaryDTO,
 )
 from ..dto.paper import PaperAvailabilityItemDTO, PaperSummaryDTO
-from ..dto.positions import (
-    OpenPositionDTO,
-    OpenPositionsDTO,
-    PositionHistoryDTO,
-    PositionHistoryRecordDTO,
-)
 from ..dto.portfolio_governor import (
     PortfolioGovernorAvailabilityItemDTO,
     PortfolioGovernorSummaryDTO,
@@ -39,6 +33,12 @@ from ..dto.portfolio_governor import (
 from ..dto.position_expansion import (
     PositionExpansionAvailabilityItemDTO,
     PositionExpansionSummaryDTO,
+)
+from ..dto.positions import (
+    OpenPositionDTO,
+    OpenPositionsDTO,
+    PositionHistoryDTO,
+    PositionHistoryRecordDTO,
 )
 from ..dto.reporting import (
     ReportingCatalogCountsDTO,
@@ -58,7 +58,6 @@ if TYPE_CHECKING:
         ExecutionSummarySnapshot,
         ManagerSummarySnapshot,
         OmsSummarySnapshot,
-        OpenPositionsSnapshot,
         OpportunitySummarySnapshot,
         OrchestrationSummarySnapshot,
         PaperSummarySnapshot,

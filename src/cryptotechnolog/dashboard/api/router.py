@@ -16,9 +16,9 @@ from ..dto.opportunity import OpportunitySummaryDTO
 from ..dto.orchestration import OrchestrationSummaryDTO
 from ..dto.overview import OverviewSnapshotDTO
 from ..dto.paper import PaperSummaryDTO
-from ..dto.positions import OpenPositionsDTO, PositionHistoryDTO
 from ..dto.portfolio_governor import PortfolioGovernorSummaryDTO
 from ..dto.position_expansion import PositionExpansionSummaryDTO
+from ..dto.positions import OpenPositionsDTO, PositionHistoryDTO
 from ..dto.reporting import ReportingSummaryDTO
 from ..dto.risk import RiskSummaryDTO
 from ..dto.signals import SignalsSummaryDTO

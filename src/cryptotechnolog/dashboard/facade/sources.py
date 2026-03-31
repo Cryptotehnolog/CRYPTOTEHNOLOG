@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, Protocol
 from cryptotechnolog.config import Settings, get_settings
 from cryptotechnolog.core.state_machine_enums import get_state_policy
 from cryptotechnolog.reporting import ReportingArtifactCatalog, ReportingSourceLayer
-from cryptotechnolog.risk.portfolio_state import PortfolioState
 
 from .contracts import (
     BacktestSummarySnapshot,
@@ -19,14 +18,14 @@ from .contracts import (
     OmsSummarySnapshot,
     OpenPositionSnapshot,
     OpenPositionsSnapshot,
-    PositionHistoryRecordSnapshot,
-    PositionHistorySnapshot,
     OpportunitySummarySnapshot,
     OrchestrationSummarySnapshot,
     PaperSummarySnapshot,
     PendingApprovalsSnapshot,
     PortfolioGovernorSummarySnapshot,
     PositionExpansionSummarySnapshot,
+    PositionHistoryRecordSnapshot,
+    PositionHistorySnapshot,
     ReportingCatalogCountsSnapshot,
     ReportingLastArtifactSnapshot,
     ReportingLastBundleSnapshot,
@@ -43,6 +42,7 @@ if TYPE_CHECKING:
     from cryptotechnolog.core.operator_gate import OperatorGate
     from cryptotechnolog.core.system_controller import SystemController, SystemStatus
     from cryptotechnolog.risk.persistence_contracts import IRiskPersistenceRepository
+    from cryptotechnolog.risk.portfolio_state import PortfolioState
 
     from ..registry.module_registry import ModuleAvailabilityRecord, ModuleAvailabilityRegistry
 

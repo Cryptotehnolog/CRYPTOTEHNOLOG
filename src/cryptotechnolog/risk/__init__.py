@@ -106,8 +106,8 @@ from .trailing_policy import (
 __all__ = [
     "BarCompletedInput",
     "BarProcessedResult",
-    "ClosedPositionInput",
     "ClosedPositionHistoryRecord",
+    "ClosedPositionInput",
     "CorrelationAssessment",
     "CorrelationConfig",
     "CorrelationEvaluator",

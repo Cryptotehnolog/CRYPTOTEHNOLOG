@@ -351,7 +351,9 @@ class TestRiskEnginePersistenceIntegration:
         bus.unregister_listener(listener.name)
         await bus.shutdown()
 
-    async def test_order_filled_accepts_upstream_exchange_alias_without_default_fallback(self) -> None:
+    async def test_order_filled_accepts_upstream_exchange_alias_without_default_fallback(
+        self,
+    ) -> None:
         """Risk listener должен принимать канонический upstream alias `exchange` без default enrichment."""
         repository = InMemoryRiskRepository()
         engine = make_engine(repository=repository)
