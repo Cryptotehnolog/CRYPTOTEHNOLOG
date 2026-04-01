@@ -12,7 +12,7 @@
 """
 
 import asyncio
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -790,10 +790,12 @@ class TestHealthChecker:
         )
         checker.check_system = AsyncMock(side_effect=[not_ready, ready])  # type: ignore[method-assign]
 
-        result = await checker.check_and_wait(timeout=2.0)
+        with patch("cryptotechnolog.core.health.asyncio.sleep", new=AsyncMock()) as mocked_sleep:
+            result = await checker.check_and_wait(timeout=2.0)
 
         assert result.readiness_status == "ready"
         assert checker.check_system.await_count == 2
+        assert mocked_sleep.await_count == 1
 
     @pytest.mark.asyncio
     async def test_check_and_wait_falls_back_to_health_for_generic_usage(self) -> None:
