@@ -187,8 +187,25 @@ jobs:
             -m cryptotechnolog.validation \
             -m cryptotechnolog.paper
 
-      - name: Run unit tests (without DB - parallel with retry)
-        run: .venv/bin/python -m pytest tests/unit/ -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
+      - name: Run unit tests (without DB - heavy runtime groups)
+        run: |
+          .venv/bin/python -m pytest \
+            tests/unit/test_enhanced_event_bus.py \
+            tests/unit/test_bootstrap.py \
+            tests/unit/test_dashboard_api.py \
+            tests/unit/test_state_machine.py \
+            tests/unit/test_health.py \
+            -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
+
+      - name: Run unit tests (without DB - remaining suite)
+        run: |
+          .venv/bin/python -m pytest tests/unit/ -v -m "not db" -n auto --dist loadscope \
+            --cov=src --cov-append --cov-report=xml \
+            --ignore=tests/unit/test_enhanced_event_bus.py \
+            --ignore=tests/unit/test_bootstrap.py \
+            --ignore=tests/unit/test_dashboard_api.py \
+            --ignore=tests/unit/test_state_machine.py \
+            --ignore=tests/unit/test_health.py
 
       - name: Run unit tests (with DB - sequential with retry)
         run: .venv/bin/python -m pytest tests/unit/ -v -m db -n 0 --cov=src --cov-report=xml --reruns 3 --reruns-delay 1
