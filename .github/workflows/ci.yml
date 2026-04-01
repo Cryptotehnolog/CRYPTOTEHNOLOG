@@ -16,7 +16,7 @@ env:
 jobs:
   # ==================== Python Tests ====================
   test-python:
-    name: Python Tests
+    name: Python Checks + DB/Integration
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -187,40 +187,6 @@ jobs:
             -m cryptotechnolog.validation \
             -m cryptotechnolog.paper
 
-      - name: Run unit tests (without DB - heavy runtime groups)
-        run: |
-          .venv/bin/python -m pytest \
-            tests/unit/test_enhanced_event_bus.py \
-            tests/unit/test_bootstrap.py \
-            tests/unit/test_dashboard_api.py \
-            tests/unit/test_state_machine.py \
-            tests/unit/test_health.py \
-            -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
-
-      - name: Run unit tests (without DB - runtime/dashboard remainder)
-        run: |
-          .venv/bin/python -m pytest \
-            tests/unit/test_dashboard_runtime.py \
-            tests/unit/test_dashboard_overview_facade.py \
-            tests/unit/test_system_controller.py \
-            tests/unit/test_redis_manager.py \
-            -v -m "not db" -n auto --dist loadscope \
-            --cov=src --cov-append --cov-report=xml
-
-      - name: Run unit tests (without DB - other remaining suite)
-        run: |
-          .venv/bin/python -m pytest tests/unit/ -v -m "not db" -n auto --dist loadscope \
-            --cov=src --cov-append --cov-report=xml \
-            --ignore=tests/unit/test_enhanced_event_bus.py \
-            --ignore=tests/unit/test_bootstrap.py \
-            --ignore=tests/unit/test_dashboard_api.py \
-            --ignore=tests/unit/test_state_machine.py \
-            --ignore=tests/unit/test_health.py \
-            --ignore=tests/unit/test_dashboard_runtime.py \
-            --ignore=tests/unit/test_dashboard_overview_facade.py \
-            --ignore=tests/unit/test_system_controller.py \
-            --ignore=tests/unit/test_redis_manager.py
-
       - name: Run unit tests (with DB - sequential with retry)
         run: .venv/bin/python -m pytest tests/unit/ -v -m db -n 0 --cov=src --cov-report=xml --reruns 3 --reruns-delay 1
 
@@ -233,6 +199,186 @@ jobs:
           files: ./coverage.xml
           flags: python-${{ matrix.python-version }}
           name: codecov-python-${{ matrix.python-version }}
+
+  test-python-unit-heavy:
+    name: Python Unit Tests - Heavy Runtime Groups
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REDIS_HOST: localhost
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: bot_user
+      POSTGRES_PASSWORD: bot_password_dev
+      POSTGRES_DB: trading_dev
+      POSTGRES_TEST_DB: trading_test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev]" --force-reinstall
+
+      - name: Run unit tests (without DB - heavy runtime groups)
+        run: |
+          .venv/bin/python -m pytest \
+            tests/unit/test_enhanced_event_bus.py \
+            tests/unit/test_bootstrap.py \
+            tests/unit/test_dashboard_api.py \
+            tests/unit/test_state_machine.py \
+            tests/unit/test_health.py \
+            -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          flags: python-unit-heavy
+          name: codecov-python-unit-heavy
+
+  test-python-unit-runtime-remainder:
+    name: Python Unit Tests - Runtime/Dashboard Remainder
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REDIS_HOST: localhost
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: bot_user
+      POSTGRES_PASSWORD: bot_password_dev
+      POSTGRES_DB: trading_dev
+      POSTGRES_TEST_DB: trading_test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev]" --force-reinstall
+
+      - name: Run unit tests (without DB - runtime/dashboard remainder)
+        run: |
+          .venv/bin/python -m pytest \
+            tests/unit/test_dashboard_runtime.py \
+            tests/unit/test_dashboard_overview_facade.py \
+            tests/unit/test_system_controller.py \
+            tests/unit/test_redis_manager.py \
+            -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          flags: python-unit-runtime-remainder
+          name: codecov-python-unit-runtime-remainder
+
+  test-python-unit-other-remainder:
+    name: Python Unit Tests - Other Remainder
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REDIS_HOST: localhost
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: bot_user
+      POSTGRES_PASSWORD: bot_password_dev
+      POSTGRES_DB: trading_dev
+      POSTGRES_TEST_DB: trading_test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev]" --force-reinstall
+
+      - name: Run unit tests (without DB - other remaining suite)
+        run: |
+          .venv/bin/python -m pytest tests/unit/ -v -m "not db" -n auto --dist loadscope \
+            --cov=src --cov-report=xml \
+            --ignore=tests/unit/test_enhanced_event_bus.py \
+            --ignore=tests/unit/test_bootstrap.py \
+            --ignore=tests/unit/test_dashboard_api.py \
+            --ignore=tests/unit/test_state_machine.py \
+            --ignore=tests/unit/test_health.py \
+            --ignore=tests/unit/test_dashboard_runtime.py \
+            --ignore=tests/unit/test_dashboard_overview_facade.py \
+            --ignore=tests/unit/test_system_controller.py \
+            --ignore=tests/unit/test_redis_manager.py
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          flags: python-unit-other-remainder
+          name: codecov-python-unit-other-remainder
 
   # ==================== Rust Tests ====================
   test-rust:
