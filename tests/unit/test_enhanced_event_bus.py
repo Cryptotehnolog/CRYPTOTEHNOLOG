@@ -813,7 +813,7 @@ class TestEnhancedEventBusManagement:
         await bus.publish(event)
 
         # drain выйдет по таймауту так как подписчик не читает
-        result = await bus.drain(timeout=0.5)
+        result = await bus.drain(timeout=0.05)
         assert result is False
 
     @pytest.mark.asyncio
@@ -944,6 +944,7 @@ class TestBackpressureStrategies:
                 "low": 10,
             },
         )
+        bus.push_wait_timeout_seconds = 0.05
 
         # Заполняем CRITICAL очередь
         event1 = Event.new("TEST", "SRC", {"i": 1})
