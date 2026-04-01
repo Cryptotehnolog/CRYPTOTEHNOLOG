@@ -154,6 +154,8 @@ class Settings(BaseSettings):
     bybit_api_key: SecretStr | None = None
     bybit_api_secret: SecretStr | None = None
     bybit_testnet: bool = True
+    bybit_market_data_connector_enabled: bool = False
+    bybit_market_data_connector_symbol: str | None = None
 
     # OKX
     okx_api_key: SecretStr | None = None

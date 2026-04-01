@@ -600,6 +600,19 @@ class TestMetrics:
         assert bus.metrics["published"] == 5
 
     @pytest.mark.asyncio
+    async def test_publish_does_not_accumulate_priority_queue_in_steady_state(self) -> None:
+        """Публикация не должна копить dead NORMAL queue без отдельного dispatcher loop."""
+        bus = EnhancedEventBus(enable_persistence=False)
+
+        for i in range(250):
+            event = Event.new("TEST", "SOURCE", {"i": i})
+            event.priority = Priority.NORMAL
+            await bus.publish(event)
+
+        assert bus.metrics["published"] == 250
+        assert bus.priority_queue.total_size() == 0
+
+    @pytest.mark.asyncio
     async def test_metrics_delivered(self) -> None:
         """Тест метрики delivered."""
         bus = EnhancedEventBus(enable_persistence=False)

@@ -39,6 +39,7 @@ from .reporting import (
 )
 from .risk import RiskConstraintDTO, RiskSummaryDTO
 from .settings import (
+    BybitConnectorDiagnosticsDTO,
     CorrelationPolicySettingsDTO,
     DecisionChainSettingsDTO,
     EventBusPolicySettingsDTO,
@@ -63,6 +64,7 @@ __all__ = [
     "AlertsPlaceholderDTO",
     "BacktestAvailabilityItemDTO",
     "BacktestSummaryDTO",
+    "BybitConnectorDiagnosticsDTO",
     "CircuitBreakerSummaryDTO",
     "CorrelationPolicySettingsDTO",
     "DecisionChainSettingsDTO",

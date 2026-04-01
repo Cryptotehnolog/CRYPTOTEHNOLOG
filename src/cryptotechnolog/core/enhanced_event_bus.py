@@ -262,6 +262,16 @@ class PriorityQueue:
                 continue
         return None
 
+    def ack(self, priority: Priority) -> Event | None:
+        """Снять один элемент из очереди конкретного приоритета после синхронной обработки."""
+        queue = self.queues[priority]
+        try:
+            event = queue.get_nowait()
+        except asyncio.QueueEmpty:
+            return None
+        self._total_popped += 1
+        return event
+
     def size(self, priority: Priority) -> int:
         """Получить размер очереди для заданного приоритета."""
         return self.queues[priority].qsize()
@@ -618,6 +628,7 @@ class EnhancedEventBus:
         # Subscribers management
         self.subscribers: dict[int, AsyncEventReceiver] = {}
         self._subscriber_lock = threading.Lock()
+        self._publish_lock = asyncio.Lock()
         self.next_subscriber_id = 0
 
         # Event handlers by type
@@ -831,6 +842,78 @@ class EnhancedEventBus:
                 raise BackpressureError(f"Критическая ошибка сохранения: {e}") from e
             return False
 
+    def _should_drop_event_for_backpressure(
+        self,
+        *,
+        event: Event,
+        backpressure_action: BackpressureStrategy | None,
+    ) -> bool:
+        """Проверить, должно ли событие быть отброшено до постановки в processing queue."""
+        if backpressure_action == BackpressureStrategy.DROP_LOW and event.priority == Priority.LOW:
+            fill_ratio = self.priority_queue.size(Priority.LOW) / self.priority_queue.capacity(
+                Priority.LOW
+            )
+            if fill_ratio > self.fill_ratio_low:
+                self.metrics["dropped"] += 1
+                logger.warning(
+                    "LOW событие отброшено (backpressure)",
+                    event_type=event.event_type,
+                    source=event.source,
+                )
+                return True
+
+        if backpressure_action == BackpressureStrategy.DROP_NORMAL and event.priority in (
+            Priority.NORMAL,
+            Priority.LOW,
+        ):
+            self.metrics["dropped"] += 1
+            logger.warning(
+                f"{event.priority.value} событие отброшено (backpressure)",
+                event_type=event.event_type,
+                source=event.source,
+            )
+            return True
+
+        return False
+
+    async def _enqueue_event_for_processing(
+        self,
+        *,
+        event: Event,
+        backpressure_action: BackpressureStrategy | None,
+    ) -> Priority:
+        """Поставить событие во внутреннюю processing queue и вернуть фактический приоритет слота."""
+        processing_priority = event.priority
+
+        if backpressure_action == BackpressureStrategy.BLOCK_CRITICAL:
+            success = await self.priority_queue.push_wait(
+                event,
+                timeout=self.push_wait_timeout_seconds,
+            )
+            if not success:
+                raise PublishError("Таймаут добавления CRITICAL события в очередь") from None
+            return processing_priority
+
+        if backpressure_action == BackpressureStrategy.OVERFLOW_NORMAL:
+            success = await self.priority_queue.push(event)
+            if success:
+                return processing_priority
+
+            original_priority = event.priority
+            event.priority = Priority.LOW
+            success = await self.priority_queue.push(event)
+            if not success:
+                event.priority = original_priority
+                self.metrics["dropped"] += 1
+                raise PublishError("Очереди переполнены (NORMAL -> LOW)") from None
+            return Priority.LOW
+
+        success = await self.priority_queue.push(event)
+        if not success:
+            self.metrics["dropped"] += 1
+            raise PublishError(f"Очередь {event.priority.value} переполнена") from None
+        return processing_priority
+
     def _deliver_to_subscribers(self, event: Event) -> int:
         """Доставить событие подписчикам. Возвращает количество доставленных."""
         delivered = 0
@@ -932,94 +1015,57 @@ class EnhancedEventBus:
         Вызывает:
             PublishError: Если событие не может быть опубликовано
         """
-        # 1. Проверить rate limit
-        if not await self._check_rate_limit(event.source):
-            raise PublishError(f"Rate limit превышен для источника: {event.source}") from None
+        async with self._publish_lock:
+            # 1. Проверить rate limit
+            if not await self._check_rate_limit(event.source):
+                raise PublishError(f"Rate limit превышен для источника: {event.source}") from None
 
-        # 2. Определить действие backpressure
-        backpressure_action = self._determine_backpressure_action(event)
+            # 2. Определить действие backpressure
+            backpressure_action = self._determine_backpressure_action(event)
 
-        # 3. Обработать событие в соответствии со стратегией
-        if backpressure_action == BackpressureStrategy.DROP_LOW and event.priority == Priority.LOW:
-            # Проверить заполненность очереди LOW
-            fill_ratio = self.priority_queue.size(Priority.LOW) / self.priority_queue.capacity(
-                Priority.LOW
-            )
-            if fill_ratio > self.fill_ratio_low:
-                self.metrics["dropped"] += 1
-                logger.warning(
-                    "LOW событие отброшено (backpressure)",
-                    event_type=event.event_type,
-                    source=event.source,
-                )
+            # 3. Обработать событие в соответствии со стратегией
+            if self._should_drop_event_for_backpressure(
+                event=event,
+                backpressure_action=backpressure_action,
+            ):
                 return False
-        elif backpressure_action == BackpressureStrategy.DROP_NORMAL and event.priority in (
-            Priority.NORMAL,
-            Priority.LOW,
-        ):
-            self.metrics["dropped"] += 1
-            logger.warning(
-                f"{event.priority.value} событие отброшено (backpressure)",
-                event_type=event.event_type,
-                source=event.source,
+
+            # 4. Добавить событие в очередь
+            processing_priority = await self._enqueue_event_for_processing(
+                event=event,
+                backpressure_action=backpressure_action,
             )
-            return False
 
-        # 4. Добавить событие в очередь
-        if backpressure_action == BackpressureStrategy.BLOCK_CRITICAL:
-            # Для CRITICAL - ждать с таймаутом
-            success = await self.priority_queue.push_wait(
-                event,
-                timeout=self.push_wait_timeout_seconds,
-            )
-            if not success:
-                raise PublishError("Таймаут добавления CRITICAL события в очередь") from None
-        elif backpressure_action == BackpressureStrategy.OVERFLOW_NORMAL:
-            # Попробовать добавить в NORMAL, при переполнении - в LOW
-            success = await self.priority_queue.push(event)
-            if not success:
-                # NORMAL переполнена, пробуем LOW
-                original_priority = event.priority
-                event.priority = Priority.LOW
-                success = await self.priority_queue.push(event)
-                if not success:
-                    # Даже LOW переполнена
-                    event.priority = original_priority
-                    self.metrics["dropped"] += 1
-                    raise PublishError("Очереди переполнены (NORMAL -> LOW)") from None
-        else:
-            success = await self.priority_queue.push(event)
-            if not success:
-                self.metrics["dropped"] += 1
-                raise PublishError(f"Очередь {event.priority.value} переполнена") from None
+            try:
+                # 5. Сохранить событие в persistence (async, не ждём завершения)
+                if self.enable_persistence:
+                    task = asyncio.create_task(self._persist_event(event))
+                    self.pending_tasks.append(task)
 
-        # 5. Сохранить событие в persistence (async, не ждём завершения)
-        if self.enable_persistence:
-            task = asyncio.create_task(self._persist_event(event))
-            self.pending_tasks.append(task)
+                # 6. Обновить метрики
+                self.metrics["published"] += 1
 
-        # 6. Обновить метрики
-        self.metrics["published"] += 1
+                # 7. Доставить подписчикам (синхронно)
+                delivered = self._deliver_to_subscribers(event)
+                self.metrics["delivered"] += delivered
 
-        # 7. Доставить подписчикам (синхронно)
-        delivered = self._deliver_to_subscribers(event)
-        self.metrics["delivered"] += delivered
+                # 8. Вызвать зарегистрированные обработчики
+                await self._call_handlers(event)
 
-        # 8. Вызвать зарегистрированные обработчики
-        await self._call_handlers(event)
+                # 9. Вызвать listeners если они включены
+                await self._call_listeners(event)
 
-        # 9. Вызвать listeners если они включены
-        await self._call_listeners(event)
+                logger.debug(
+                    "Событие опубликовано",
+                    event_type=event.event_type,
+                    priority=event.priority.value,
+                    source=event.source,
+                    delivered=delivered,
+                )
 
-        logger.debug(
-            "Событие опубликовано",
-            event_type=event.event_type,
-            priority=event.priority.value,
-            source=event.source,
-            delivered=delivered,
-        )
-
-        return delivered > 0
+                return delivered > 0
+            finally:
+                self.priority_queue.ack(processing_priority)
 
     async def publish_with_priority(
         self,

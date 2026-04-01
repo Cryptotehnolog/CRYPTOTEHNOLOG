@@ -121,7 +121,7 @@ class FeedConnectivityRuntime:
                 status=FeedConnectionStatus.DISCONNECTED,
                 observed_at=observed_at,
                 retry_count=self.state.connection.retry_count,
-                next_retry_at=self.state.connection.next_retry_at,
+                next_retry_at=None,
             ),
         )
         self._refresh_diagnostics(lifecycle_state="started", ready=False)
@@ -137,7 +137,7 @@ class FeedConnectivityRuntime:
                 status=FeedConnectionStatus.DISCONNECTED,
                 observed_at=observed_at,
                 retry_count=self.state.connection.retry_count,
-                next_retry_at=self.state.connection.next_retry_at,
+                next_retry_at=None,
             ),
         )
         self._refresh_diagnostics(lifecycle_state="stopped", ready=False)
@@ -151,7 +151,7 @@ class FeedConnectivityRuntime:
             status=FeedConnectionStatus.CONNECTING,
             observed_at=observed_at,
             retry_count=self.state.connection.retry_count,
-            next_retry_at=self.state.connection.next_retry_at,
+            next_retry_at=None,
         )
         self.state = replace(self.state, connection=connection)
         self._refresh_diagnostics(lifecycle_state="connecting", ready=False)
@@ -167,6 +167,7 @@ class FeedConnectivityRuntime:
             connected_at=observed_at,
             last_message_at=self.state.connection.last_message_at,
             retry_count=self.state.connection.retry_count,
+            next_retry_at=None,
         )
         self.state = replace(self.state, connection=connection)
         self._refresh_diagnostics(lifecycle_state="connected", ready=True)

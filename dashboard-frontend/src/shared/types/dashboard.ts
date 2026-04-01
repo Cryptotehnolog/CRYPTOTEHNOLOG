@@ -636,3 +636,18 @@ export type WorkflowTimeoutsSettingsResponse = {
 export type LiveFeedPolicySettingsResponse = {
   retry_delay_seconds: number;
 };
+
+export type BybitConnectorDiagnosticsResponse = {
+  enabled: boolean;
+  symbol: string | null;
+  transport_status: string;
+  recovery_status: string;
+  subscription_alive: boolean;
+  trade_seen: boolean;
+  orderbook_seen: boolean;
+  best_bid: string | null;
+  best_ask: string | null;
+  last_message_at: string | null;
+  degraded_reason: string | null;
+  last_disconnect_reason: string | null;
+};

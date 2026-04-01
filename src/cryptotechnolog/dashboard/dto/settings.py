@@ -703,3 +703,67 @@ class LiveFeedPolicySettingsDTO(BaseModel):
         return {
             "live_feed_retry_delay_seconds": self.retry_delay_seconds,
         }
+
+
+class BybitConnectorDiagnosticsDTO(BaseModel):
+    """Read-only Bybit connector diagnostics surfaced for settings UI."""
+
+    enabled: bool = Field(description="Включён ли Bybit connector в текущем runtime.")
+    symbol: str | None = Field(description="Текущий symbol scope Bybit connector.")
+    transport_status: str = Field(description="Текущий transport status connector-а.")
+    recovery_status: str = Field(description="Текущий recovery status connector-а.")
+    subscription_alive: bool = Field(description="Признак живой подписки после reconnect.")
+    trade_seen: bool = Field(description="Поступали ли trade ticks в ingest path.")
+    orderbook_seen: bool = Field(
+        description="Поступал ли честный orderbook snapshot в ingest path."
+    )
+    best_bid: str | None = Field(description="Лучший bid из текущего orderbook snapshot.")
+    best_ask: str | None = Field(description="Лучший ask из текущего orderbook snapshot.")
+    last_message_at: str | None = Field(description="Время последнего сообщения connector-а.")
+    degraded_reason: str | None = Field(description="Причина деградации connector-а, если есть.")
+    last_disconnect_reason: str | None = Field(
+        description="Последняя причина disconnect connector-а, если есть."
+    )
+
+    @classmethod
+    def from_runtime_diagnostics(
+        cls,
+        diagnostics: object,
+    ) -> BybitConnectorDiagnosticsDTO:
+        """Build DTO from current runtime diagnostics snapshot."""
+        connector: dict[str, object] = {}
+        if isinstance(diagnostics, dict):
+            raw_connector = diagnostics.get("bybit_market_data_connector")
+            if isinstance(raw_connector, dict):
+                connector = raw_connector
+
+        raw_symbols = connector.get("symbols")
+        symbol: str | None = None
+        if isinstance(raw_symbols, (list, tuple)) and raw_symbols:
+            first_symbol = raw_symbols[0]
+            symbol = first_symbol if isinstance(first_symbol, str) else None
+
+        return cls(
+            enabled=bool(connector.get("enabled", False)),
+            symbol=symbol,
+            transport_status=str(connector.get("transport_status", "unavailable")),
+            recovery_status=str(connector.get("recovery_status", "idle")),
+            subscription_alive=bool(connector.get("subscription_alive", False)),
+            trade_seen=bool(connector.get("trade_seen", False)),
+            orderbook_seen=bool(connector.get("orderbook_seen", False)),
+            best_bid=connector.get("best_bid")
+            if isinstance(connector.get("best_bid"), str)
+            else None,
+            best_ask=connector.get("best_ask")
+            if isinstance(connector.get("best_ask"), str)
+            else None,
+            last_message_at=connector.get("last_message_at")
+            if isinstance(connector.get("last_message_at"), str)
+            else None,
+            degraded_reason=connector.get("degraded_reason")
+            if isinstance(connector.get("degraded_reason"), str)
+            else None,
+            last_disconnect_reason=connector.get("last_disconnect_reason")
+            if isinstance(connector.get("last_disconnect_reason"), str)
+            else None,
+        )

@@ -23,6 +23,7 @@ from ..dto.positions import OpenPositionsDTO, PositionHistoryDTO
 from ..dto.reporting import ReportingSummaryDTO
 from ..dto.risk import RiskSummaryDTO
 from ..dto.settings import (
+    BybitConnectorDiagnosticsDTO,
     CorrelationPolicySettingsDTO,
     DecisionChainSettingsDTO,
     EventBusPolicySettingsDTO,
@@ -262,6 +263,23 @@ def _register_settings_routes(router: APIRouter) -> None:
     )
 
 
+def _register_connector_diagnostics_routes(
+    router: APIRouter,
+    runtime_diagnostics_supplier: Callable[[], dict[str, Any]] | None,
+) -> None:
+    @router.get(
+        "/settings/bybit-connector-diagnostics",
+        response_model=BybitConnectorDiagnosticsDTO,
+        summary="Получить read-only diagnostics snapshot Bybit connector-а",
+    )
+    async def get_bybit_connector_diagnostics() -> BybitConnectorDiagnosticsDTO:
+        logger.debug("Запрошен Bybit connector diagnostics snapshot")
+        diagnostics = (
+            runtime_diagnostics_supplier() if runtime_diagnostics_supplier is not None else {}
+        )
+        return BybitConnectorDiagnosticsDTO.from_runtime_diagnostics(diagnostics)
+
+
 def _register_core_summary_routes(router: APIRouter, facade: OverviewFacade) -> None:
     _register_summary_route(
         router,
@@ -407,7 +425,10 @@ def _register_operational_summary_routes(router: APIRouter, facade: OverviewFaca
     )
 
 
-def create_dashboard_router(facade: OverviewFacade) -> APIRouter:
+def create_dashboard_router(
+    facade: OverviewFacade,
+    runtime_diagnostics_supplier: Callable[[], dict[str, Any]] | None = None,
+) -> APIRouter:
     """
     Создать router панели управления.
 
@@ -419,6 +440,7 @@ def create_dashboard_router(facade: OverviewFacade) -> APIRouter:
     _register_core_summary_routes(router, facade)
     _register_positions_routes(router, facade)
     _register_settings_routes(router)
+    _register_connector_diagnostics_routes(router, runtime_diagnostics_supplier)
     _register_operational_summary_routes(router, facade)
 
     return router

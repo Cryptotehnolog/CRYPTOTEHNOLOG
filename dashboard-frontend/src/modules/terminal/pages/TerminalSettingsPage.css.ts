@@ -164,6 +164,74 @@ export const exchangeMeta = style({
   },
 });
 
+export const exchangeDiagnosticsBlock = style({
+  display: "grid",
+  gap: vars.space[2],
+  marginTop: vars.space[3],
+  paddingTop: vars.space[3],
+  borderTop: `1px solid ${terminalTheme.dark.border}`,
+  selectors: {
+    [`${shellTone.light} &`]: {
+      borderTopColor: terminalTheme.light.border,
+    },
+  },
+});
+
+export const exchangeDiagnosticsHeader = style({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: vars.space[2],
+  flexWrap: "wrap",
+});
+
+export const exchangeDiagnosticsGrid = style({
+  display: "grid",
+  gap: vars.space[2],
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  alignItems: "start",
+});
+
+export const exchangeDiagnosticsItem = style({
+  display: "grid",
+  gap: vars.space[1],
+  padding: vars.space[2],
+  borderRadius: vars.radius.card,
+  background: terminalTheme.dark.panelRaised,
+  border: `1px solid ${terminalTheme.dark.border}`,
+  selectors: {
+    [`${shellTone.light} &`]: {
+      background: terminalTheme.light.panelRaised,
+      borderColor: terminalTheme.light.border,
+    },
+  },
+});
+
+export const exchangeDiagnosticsLabel = style({
+  fontSize: vars.font.size[1],
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+  color: terminalTheme.dark.textMuted,
+  selectors: {
+    [`${shellTone.light} &`]: {
+      color: terminalTheme.light.textMuted,
+    },
+  },
+});
+
+export const exchangeDiagnosticsValue = style({
+  fontSize: vars.font.size[3],
+  lineHeight: 1.45,
+  overflowWrap: "anywhere",
+  wordBreak: "break-word",
+  color: terminalTheme.dark.textPrimary,
+  selectors: {
+    [`${shellTone.light} &`]: {
+      color: terminalTheme.light.textPrimary,
+    },
+  },
+});
+
 export const exchangeToggle = style({
   padding: `${vars.space[2]} ${vars.space[3]}`,
   borderRadius: "10px",

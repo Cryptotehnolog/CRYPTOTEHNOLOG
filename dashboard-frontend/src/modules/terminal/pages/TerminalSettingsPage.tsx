@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { TerminalBadge } from "../components/TerminalBadge";
 import { getCorrelationPolicySettings } from "../api/getCorrelationPolicySettings";
+import { getBybitConnectorDiagnostics } from "../api/getBybitConnectorDiagnostics";
 import { getDecisionChainSettings } from "../api/getDecisionChainSettings";
 import { getEventBusPolicySettings } from "../api/getEventBusPolicySettings";
 import { getFundingPolicySettings } from "../api/getFundingPolicySettings";
@@ -36,6 +37,7 @@ import { updateWorkflowTimeoutSettings } from "../api/updateWorkflowTimeoutSetti
 import { useTerminalUiStore } from "../state/useTerminalUiStore";
 import { useTerminalWidgetStore } from "../state/useTerminalWidgetStore";
 import type {
+  BybitConnectorDiagnosticsResponse,
   CorrelationPolicySettingsResponse,
   DecisionChainSettingsResponse,
   EventBusPolicySettingsResponse,
@@ -65,6 +67,12 @@ import {
   comparisonTableCompact,
   comparisonTableWrap,
   exchangeCard,
+  exchangeDiagnosticsBlock,
+  exchangeDiagnosticsGrid,
+  exchangeDiagnosticsHeader,
+  exchangeDiagnosticsItem,
+  exchangeDiagnosticsLabel,
+  exchangeDiagnosticsValue,
   exchangeGrid,
   exchangeMeta,
   exchangeRow,
@@ -129,6 +137,24 @@ type SystemStatePolicyFieldKey = keyof SystemStatePolicySettingsResponse;
 type SystemStatePolicyDraft = Record<SystemStatePolicyFieldKey, string>;
 type SystemStateTimeoutFieldKey = keyof SystemStateTimeoutSettingsResponse;
 type SystemStateTimeoutDraft = Record<SystemStateTimeoutFieldKey, string>;
+
+const bybitConnectorDiagnosticsFields: Array<{
+  key: keyof BybitConnectorDiagnosticsResponse;
+  label: string;
+}> = [
+  { key: "enabled", label: "Connector" },
+  { key: "symbol", label: "Инструмент" },
+  { key: "transport_status", label: "Состояние транспорта" },
+  { key: "recovery_status", label: "Состояние восстановления" },
+  { key: "subscription_alive", label: "Подписка жива" },
+  { key: "trade_seen", label: "Trade поток замечен" },
+  { key: "orderbook_seen", label: "Стакан замечен" },
+  { key: "best_bid", label: "Лучшая bid цена" },
+  { key: "best_ask", label: "Лучшая ask цена" },
+  { key: "last_message_at", label: "Время последнего сообщения" },
+  { key: "degraded_reason", label: "Причина деградации" },
+  { key: "last_disconnect_reason", label: "Причина последнего отключения" },
+];
 
 const universePolicyFieldDefinitions: Array<{
   key: UniversePolicyFieldKey;
@@ -1350,6 +1376,42 @@ const settingsQueryBehavior = {
 
 const settingsSaveButtonLabel = "Сохранить настройки";
 
+function formatBybitConnectorDiagnosticsTimestamp(value: string): string {
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat("ru-RU", {
+    dateStyle: "short",
+    timeStyle: "medium",
+  }).format(parsedDate);
+}
+
+function formatBybitConnectorDiagnosticsValue(
+  key: keyof BybitConnectorDiagnosticsResponse,
+  value: BybitConnectorDiagnosticsResponse[keyof BybitConnectorDiagnosticsResponse],
+): string {
+  if (typeof value === "boolean") {
+    return value ? "Да" : "Нет";
+  }
+  if (value === null) {
+    if (key === "degraded_reason") {
+      return "Деградации нет";
+    }
+    if (key === "last_disconnect_reason") {
+      return "Отключений не было";
+    }
+    if (key === "last_message_at") {
+      return "Сообщений ещё не было";
+    }
+    return "Нет данных";
+  }
+  if (key === "last_message_at") {
+    return formatBybitConnectorDiagnosticsTimestamp(String(value));
+  }
+  return String(value);
+}
+
 export function TerminalSettingsPage() {
   const mode = useTerminalUiStore((state) => state.mode);
   const exchanges = useTerminalUiStore((state) => state.exchanges);
@@ -1455,6 +1517,11 @@ export function TerminalSettingsPage() {
     ...settingsQueryBehavior,
     queryKey: ["dashboard", "settings", "live-feed-policy"],
     queryFn: getLiveFeedPolicySettings,
+  });
+  const bybitConnectorDiagnosticsQuery = useQuery({
+    ...settingsQueryBehavior,
+    queryKey: ["dashboard", "settings", "bybit-connector-diagnostics"],
+    queryFn: getBybitConnectorDiagnostics,
   });
   const reliabilityPolicyQuery = useQuery({
     ...settingsQueryBehavior,
@@ -2144,6 +2211,13 @@ export function TerminalSettingsPage() {
         : liveFeedSaveNotice
           ? "success"
           : "neutral";
+  const bybitConnectorDiagnosticsTone = bybitConnectorDiagnosticsQuery.isLoading
+    ? "warning"
+    : bybitConnectorDiagnosticsQuery.isError
+      ? "danger"
+      : bybitConnectorDiagnosticsQuery.data?.degraded_reason
+        ? "warning"
+        : "neutral";
   const reliabilityStatusTone =
     reliabilityPolicyQuery.isLoading || reliabilityPolicyMutation.isPending
       ? "warning"
@@ -2301,6 +2375,13 @@ export function TerminalSettingsPage() {
           : liveFeedSaveNotice
             ? "Сохранено"
             : "Backend";
+  const bybitConnectorDiagnosticsLabel = bybitConnectorDiagnosticsQuery.isLoading
+    ? "Загрузка"
+    : bybitConnectorDiagnosticsQuery.isError
+      ? "Ошибка"
+      : bybitConnectorDiagnosticsQuery.data?.enabled
+        ? "Runtime"
+        : "Disabled";
   const reliabilityStatusLabel = reliabilityPolicyQuery.isLoading
     ? "Загрузка"
     : reliabilityPolicyMutation.isPending
@@ -2885,20 +2966,59 @@ export function TerminalSettingsPage() {
         <div className={exchangeGrid}>
           {exchanges.map((exchange) => (
             <div key={exchange.name} className={exchangeCard}>
-              <div className={exchangeRow}>
-                <div>
-                  <div className={stateValue}>{exchange.name}</div>
-                  <div className={exchangeMeta}>
-                    {exchange.connected ? "Подключена" : "Отключена"} · {exchange.ping}
+              <div>
+                <div className={exchangeRow}>
+                  <div>
+                    <div className={stateValue}>{exchange.name}</div>
+                    <div className={exchangeMeta}>
+                      {exchange.connected ? "Подключена" : "Отключена"} · {exchange.ping}
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    className={exchangeToggle}
+                    onClick={() => setExchangeConnected(exchange.name, !exchange.connected)}
+                  >
+                    {exchange.connected ? "Отключить" : "Подключить"}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className={exchangeToggle}
-                  onClick={() => setExchangeConnected(exchange.name, !exchange.connected)}
-                >
-                  {exchange.connected ? "Отключить" : "Подключить"}
-                </button>
+
+                {exchange.name === "Bybit" ? (
+                  <div className={exchangeDiagnosticsBlock}>
+                    <div className={exchangeDiagnosticsHeader}>
+                      <div className={fieldLabel}>Bybit connector diagnostics</div>
+                      <TerminalBadge tone={bybitConnectorDiagnosticsTone}>
+                        {bybitConnectorDiagnosticsLabel}
+                      </TerminalBadge>
+                    </div>
+
+                    {bybitConnectorDiagnosticsQuery.isLoading ? (
+                      <div className={exchangeMeta}>Загружаю runtime snapshot connector-а...</div>
+                    ) : null}
+
+                    {bybitConnectorDiagnosticsQuery.isError ? (
+                      <div className={exchangeMeta}>
+                        Не удалось загрузить diagnostics snapshot Bybit connector-а.
+                      </div>
+                    ) : null}
+
+                    {bybitConnectorDiagnosticsQuery.data ? (
+                      <div className={exchangeDiagnosticsGrid}>
+                        {bybitConnectorDiagnosticsFields.map((field) => (
+                          <div key={field.key} className={exchangeDiagnosticsItem}>
+                            <div className={exchangeDiagnosticsLabel}>{field.label}</div>
+                            <div className={exchangeDiagnosticsValue}>
+                              {formatBybitConnectorDiagnosticsValue(
+                                field.key,
+                                bybitConnectorDiagnosticsQuery.data[field.key],
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </div>
           ))}

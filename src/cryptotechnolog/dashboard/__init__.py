@@ -15,6 +15,7 @@ from .dto.positions import OpenPositionsDTO, PositionHistoryDTO
 from .dto.reporting import ReportingSummaryDTO
 from .dto.risk import RiskSummaryDTO
 from .dto.settings import (
+    BybitConnectorDiagnosticsDTO,
     CorrelationPolicySettingsDTO,
     DecisionChainSettingsDTO,
     EventBusPolicySettingsDTO,
@@ -46,6 +47,7 @@ from .runtime import DashboardRuntime, create_dashboard_runtime
 
 __all__ = [
     "BacktestSummaryDTO",
+    "BybitConnectorDiagnosticsDTO",
     "CorrelationPolicySettingsDTO",
     "DashboardModuleDefinition",
     "DashboardModuleStatus",

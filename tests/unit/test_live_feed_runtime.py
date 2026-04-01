@@ -84,6 +84,24 @@ async def test_runtime_disconnect_updates_retry_and_backoff_truth() -> None:
     assert runtime.get_runtime_diagnostics()["last_disconnect_reason"] == "transport_closed"
 
 
+async def test_begin_connecting_clears_expired_next_retry_boundary() -> None:
+    runtime = FeedConnectivityRuntime(
+        session=_session(),
+        config=FeedConnectivityRuntimeConfig(default_retry_delay_seconds=5),
+    )
+    current_time = _now()
+    await runtime.start(observed_at=current_time)
+    runtime.mark_disconnected(
+        observed_at=current_time + timedelta(seconds=1),
+        reason="transport_closed",
+    )
+
+    connecting = runtime.begin_connecting(observed_at=current_time + timedelta(seconds=7))
+
+    assert connecting.status == FeedConnectionStatus.CONNECTING
+    assert connecting.next_retry_at is None
+
+
 async def test_runtime_builds_ingest_handoff_without_market_data_ownership_drift() -> None:
     runtime = FeedConnectivityRuntime(session=_session())
     current_time = _now()

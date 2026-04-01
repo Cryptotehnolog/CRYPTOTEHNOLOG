@@ -58,6 +58,7 @@ from cryptotechnolog.dashboard.dto.reporting import (
 )
 from cryptotechnolog.dashboard.dto.risk import RiskConstraintDTO, RiskSummaryDTO
 from cryptotechnolog.dashboard.dto.settings import (
+    BybitConnectorDiagnosticsDTO,
     CorrelationPolicySettingsDTO,
     DecisionChainSettingsDTO,
     EventBusPolicySettingsDTO,
@@ -1557,6 +1558,71 @@ def test_dashboard_live_feed_policy_settings_endpoint_updates_current_values() -
         assert settings.live_feed_retry_delay_seconds == 9
     finally:
         reload_settings()
+
+
+def test_dashboard_bybit_connector_diagnostics_endpoint_returns_disabled_snapshot_by_default() -> (
+    None
+):
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/bybit-connector-diagnostics")
+
+    assert response.status_code == 200
+    data = BybitConnectorDiagnosticsDTO.model_validate(response.json())
+    assert data.enabled is False
+    assert data.symbol is None
+    assert data.transport_status == "unavailable"
+    assert data.recovery_status == "idle"
+    assert data.subscription_alive is False
+    assert data.trade_seen is False
+    assert data.orderbook_seen is False
+    assert data.best_bid is None
+    assert data.best_ask is None
+    assert data.degraded_reason is None
+    assert data.last_disconnect_reason is None
+
+
+def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapshot() -> None:
+    app = FastAPI()
+    app.include_router(
+        create_dashboard_router(
+            cast("OverviewFacade", _StubFacade()),
+            runtime_diagnostics_supplier=lambda: {
+                "bybit_market_data_connector": {
+                    "enabled": True,
+                    "symbols": ("BTC/USDT",),
+                    "transport_status": "connected",
+                    "recovery_status": "recovered",
+                    "subscription_alive": True,
+                    "trade_seen": True,
+                    "orderbook_seen": True,
+                    "best_bid": "68499.90",
+                    "best_ask": "68500.00",
+                    "last_message_at": "2026-04-01T09:45:40.060548+00:00",
+                    "degraded_reason": None,
+                    "last_disconnect_reason": None,
+                }
+            },
+        )
+    )
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/bybit-connector-diagnostics")
+
+    assert response.status_code == 200
+    data = BybitConnectorDiagnosticsDTO.model_validate(response.json())
+    assert data.enabled is True
+    assert data.symbol == "BTC/USDT"
+    assert data.transport_status == "connected"
+    assert data.recovery_status == "recovered"
+    assert data.subscription_alive is True
+    assert data.trade_seen is True
+    assert data.orderbook_seen is True
+    assert data.best_bid == "68499.90"
+    assert data.best_ask == "68500.00"
+    assert data.last_message_at == "2026-04-01T09:45:40.060548+00:00"
 
 
 def test_dashboard_overview_endpoint_returns_snapshot_in_full_app_runtime() -> None:

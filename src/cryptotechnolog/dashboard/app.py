@@ -64,7 +64,12 @@ def create_dashboard_app(runtime: DashboardRuntime | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     app.state.dashboard_runtime = dashboard_runtime
-    app.include_router(create_dashboard_router(dashboard_runtime.overview_facade))
+    app.include_router(
+        create_dashboard_router(
+            dashboard_runtime.overview_facade,
+            runtime_diagnostics_supplier=dashboard_runtime.get_runtime_diagnostics,
+        )
+    )
 
     logger.info("Создано dashboard FastAPI приложение")
     return app
