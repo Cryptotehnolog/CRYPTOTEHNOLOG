@@ -188,7 +188,7 @@ jobs:
             -m cryptotechnolog.paper
 
       - name: Run unit tests (without DB - parallel with retry)
-        run: .venv/bin/python -m pytest tests/unit/ -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml --reruns 3 --reruns-delay 1
+        run: .venv/bin/python -m pytest tests/unit/ -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
 
       - name: Run unit tests (with DB - sequential with retry)
         run: .venv/bin/python -m pytest tests/unit/ -v -m db -n 0 --cov=src --cov-report=xml --reruns 3 --reruns-delay 1
