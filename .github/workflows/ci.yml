@@ -14,9 +14,66 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  # ==================== Python Tests ====================
-  test-python:
-    name: Python Checks + DB/Integration
+  # ==================== Python Checks ====================
+  test-python-checks:
+    name: Python Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Verify uv
+        run: uv --version
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev]" --force-reinstall
+
+      - name: Run linter (ruff)
+        run: |
+          .venv/bin/ruff check src/ tests/ --select F821,I002
+          .venv/bin/ruff check src/ tests/
+          .venv/bin/ruff format --check --preview src/ tests/
+
+      - name: Run critical runtime type checker (mypy)
+        run: |
+          .venv/bin/mypy \
+            -m cryptotechnolog.execution \
+            -m cryptotechnolog.oms \
+            -m cryptotechnolog.opportunity \
+            -m cryptotechnolog.orchestration \
+            -m cryptotechnolog.position_expansion \
+            -m cryptotechnolog.portfolio_governor \
+            -m cryptotechnolog.protection \
+            -m cryptotechnolog.manager \
+            -m cryptotechnolog.validation \
+            -m cryptotechnolog.paper
+
+  test-python-unit-db:
+    name: Python Unit Tests - DB
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -28,9 +85,139 @@ jobs:
       POSTGRES_DB: trading_dev
       POSTGRES_TEST_DB: trading_test
 
-    strategy:
-      matrix:
-        python-version: ["3.12"]
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev]" --force-reinstall
+
+      - name: Create test database and apply migrations
+        run: |
+          .venv/bin/python - <<'PY'
+          import asyncio
+          import asyncpg
+          import os
+          from pathlib import Path
+
+          async def create_test_db_and_migrate():
+              conn = await asyncpg.connect(
+                  host=os.environ['POSTGRES_HOST'],
+                  port=int(os.environ['POSTGRES_PORT']),
+                  user=os.environ['POSTGRES_USER'],
+                  password=os.environ['POSTGRES_PASSWORD'],
+                  database='postgres'
+              )
+              await conn.execute("""
+                  SELECT pg_terminate_backend(pg_stat_activity.pid)
+                  FROM pg_stat_activity
+                  WHERE pg_stat_activity.datname = $1
+                  AND pid <> pg_backend_pid()
+              """, os.environ['POSTGRES_TEST_DB'])
+              await conn.execute(
+                  f"DROP DATABASE IF EXISTS {os.environ['POSTGRES_TEST_DB']}"
+              )
+              await conn.execute(
+                  f"CREATE DATABASE {os.environ['POSTGRES_TEST_DB']} OWNER {os.environ['POSTGRES_USER']}"
+              )
+              await conn.close()
+
+              conn = await asyncpg.connect(
+                  host=os.environ['POSTGRES_HOST'],
+                  port=int(os.environ['POSTGRES_PORT']),
+                  user=os.environ['POSTGRES_USER'],
+                  password=os.environ['POSTGRES_PASSWORD'],
+                  database=os.environ['POSTGRES_TEST_DB']
+              )
+
+              migrations_dir = Path('scripts/migrations')
+              migration_files = [
+                  '001_initial_schema.sql',
+                  '002_risk_tables.sql',
+                  '003_trading_tables.sql',
+                  '004_event_bus_tables.sql',
+                  '005_backup_recovery.sql',
+                  '006_monitoring_alerts.sql',
+                  '007_add_status_columns.sql',
+                  'control_plane_additions.sql',
+                  '008_fix_risk_event_types.sql',
+                  '009_add_indexes.sql',
+              ]
+
+              for filename in migration_files:
+                  filepath = migrations_dir / filename
+                  if not filepath.exists():
+                      continue
+                  sql = filepath.read_text(encoding='utf-8')
+                  try:
+                      await conn.execute(sql)
+                  except Exception as e:
+                      if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                          print(f'Warning: {e}')
+              await conn.close()
+
+          asyncio.run(create_test_db_and_migrate())
+          PY
+
+      - name: Run unit tests (with DB - sequential with retry)
+        run: .venv/bin/python -m pytest tests/unit/ -v -m db -n 0 --cov=src --cov-report=xml --reruns 3 --reruns-delay 1
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          flags: python-unit-db
+          name: codecov-python-unit-db
+
+  test-python-integration:
+    name: Python Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REDIS_HOST: localhost
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: bot_user
+      POSTGRES_PASSWORD: bot_password_dev
+      POSTGRES_DB: trading_dev
+      POSTGRES_TEST_DB: trading_test
 
     services:
       redis:
@@ -62,18 +249,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
-
-      - name: Verify uv
-        run: uv --version
 
       - name: Cache uv dependencies
         uses: actions/cache@v5
@@ -97,7 +281,6 @@ jobs:
           from pathlib import Path
 
           async def create_test_db_and_migrate():
-              # Connect to postgres to create database
               conn = await asyncpg.connect(
                   host=os.environ['POSTGRES_HOST'],
                   port=int(os.environ['POSTGRES_PORT']),
@@ -105,8 +288,6 @@ jobs:
                   password=os.environ['POSTGRES_PASSWORD'],
                   database='postgres'
               )
-
-              # Drop existing test database if exists
               await conn.execute("""
                   SELECT pg_terminate_backend(pg_stat_activity.pid)
                   FROM pg_stat_activity
@@ -119,10 +300,8 @@ jobs:
               await conn.execute(
                   f"CREATE DATABASE {os.environ['POSTGRES_TEST_DB']} OWNER {os.environ['POSTGRES_USER']}"
               )
-              print(f"Created fresh {os.environ['POSTGRES_TEST_DB']} database")
               await conn.close()
 
-              # Connect to trading_test and create tables
               conn = await asyncpg.connect(
                   host=os.environ['POSTGRES_HOST'],
                   port=int(os.environ['POSTGRES_PORT']),
@@ -131,11 +310,10 @@ jobs:
                   database=os.environ['POSTGRES_TEST_DB']
               )
 
-              # Apply migrations as whole files (not split by semicolon!)
               migrations_dir = Path('scripts/migrations')
               migration_files = [
                   '001_initial_schema.sql',
-                  '002_risk_tables.sql', 
+                  '002_risk_tables.sql',
                   '003_trading_tables.sql',
                   '004_event_bus_tables.sql',
                   '005_backup_recovery.sql',
@@ -149,56 +327,27 @@ jobs:
               for filename in migration_files:
                   filepath = migrations_dir / filename
                   if not filepath.exists():
-                      print(f'Skipping {filename} (not found)')
                       continue
-                  print(f'Applying {filename}...')
                   sql = filepath.read_text(encoding='utf-8')
                   try:
                       await conn.execute(sql)
                   except Exception as e:
-                      # Ignore some expected errors for idempotency
                       if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
                           print(f'Warning: {e}')
-                  print(f'Completed {filename}')
-
-              print(f"Applied all migrations to {os.environ['POSTGRES_TEST_DB']}")
               await conn.close()
 
           asyncio.run(create_test_db_and_migrate())
           PY
 
-      - name: Run linter (ruff)
-        run: |
-          .venv/bin/ruff check src/ tests/ --select F821,I002
-          .venv/bin/ruff check src/ tests/
-          .venv/bin/ruff format --check --preview src/ tests/
-
-      - name: Run critical runtime type checker (mypy)
-        run: |
-          .venv/bin/mypy \
-            -m cryptotechnolog.execution \
-            -m cryptotechnolog.oms \
-            -m cryptotechnolog.opportunity \
-            -m cryptotechnolog.orchestration \
-            -m cryptotechnolog.position_expansion \
-            -m cryptotechnolog.portfolio_governor \
-            -m cryptotechnolog.protection \
-            -m cryptotechnolog.manager \
-            -m cryptotechnolog.validation \
-            -m cryptotechnolog.paper
-
-      - name: Run unit tests (with DB - sequential with retry)
-        run: .venv/bin/python -m pytest tests/unit/ -v -m db -n 0 --cov=src --cov-report=xml --reruns 3 --reruns-delay 1
-
       - name: Run integration tests (sequential with retry)
-        run: .venv/bin/python -m pytest tests/integration/ -v -n 0 --cov=src --cov-append --cov-report=xml --reruns 3 --reruns-delay 1
+        run: .venv/bin/python -m pytest tests/integration/ -v -n 0 --cov=src --cov-report=xml --reruns 3 --reruns-delay 1
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
-          flags: python-${{ matrix.python-version }}
-          name: codecov-python-${{ matrix.python-version }}
+          flags: python-integration
+          name: codecov-python-integration
 
   test-python-unit-heavy:
     name: Python Unit Tests - Heavy Runtime Groups
@@ -307,7 +456,6 @@ jobs:
             tests/unit/test_dashboard_runtime.py \
             tests/unit/test_dashboard_overview_facade.py \
             tests/unit/test_system_controller.py \
-            tests/unit/test_redis_manager.py \
             -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
 
       - name: Upload coverage to Codecov
@@ -317,8 +465,72 @@ jobs:
           flags: python-unit-runtime-remainder
           name: codecov-python-unit-runtime-remainder
 
-  test-python-unit-other-remainder:
-    name: Python Unit Tests - Other Remainder
+  test-python-unit-redis:
+    name: Python Unit Tests - Redis Dependent
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REDIS_HOST: localhost
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: bot_user
+      POSTGRES_PASSWORD: bot_password_dev
+      POSTGRES_DB: trading_dev
+      POSTGRES_TEST_DB: trading_test
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev]" --force-reinstall
+
+      - name: Run unit tests (without DB - redis dependent)
+        run: |
+          .venv/bin/python -m pytest tests/unit/test_redis_manager.py -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          flags: python-unit-redis
+          name: codecov-python-unit-redis
+
+  test-python-unit-other-runtime:
+    name: Python Unit Tests - Other Runtime/Domain
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -359,7 +571,94 @@ jobs:
           uv venv
           uv pip install -e ".[dev]" --force-reinstall
 
-      - name: Run unit tests (without DB - other remaining suite)
+      - name: Run unit tests (without DB - other runtime/domain)
+        run: |
+          .venv/bin/python -m pytest \
+            tests/unit/test_analysis_runtime.py \
+            tests/unit/test_backtest_runtime.py \
+            tests/unit/test_backtest_replay_engine.py \
+            tests/unit/test_backtest_recorder.py \
+            tests/unit/test_backtest_ingress.py \
+            tests/unit/test_derya_engine.py \
+            tests/unit/test_drawdown_monitor.py \
+            tests/unit/test_execution_runtime.py \
+            tests/unit/test_funding_manager.py \
+            tests/unit/test_intelligence_runtime_boundary.py \
+            tests/unit/test_live_feed_runtime.py \
+            tests/unit/test_live_feed_integration.py \
+            tests/unit/test_live_feed_bybit_connector.py \
+            tests/unit/test_manager_runtime.py \
+            tests/unit/test_market_data_runtime.py \
+            tests/unit/test_operator_gate.py \
+            tests/unit/test_oms_runtime.py \
+            tests/unit/test_opportunity_runtime.py \
+            tests/unit/test_orchestration_runtime.py \
+            tests/unit/test_paper_runtime.py \
+            tests/unit/test_portfolio_governor_runtime.py \
+            tests/unit/test_position_expansion_runtime.py \
+            tests/unit/test_protection_runtime.py \
+            tests/unit/test_risk_engine.py \
+            tests/unit/test_risk_engine_event_integration.py \
+            tests/unit/test_risk_engine_persistence_integration.py \
+            tests/unit/test_risk_ledger.py \
+            tests/unit/test_risk_persistence.py \
+            tests/unit/test_risk_runtime.py \
+            tests/unit/test_signal_runtime.py \
+            tests/unit/test_strategy_runtime.py \
+            tests/unit/test_validation_runtime.py \
+            tests/unit/test_watchdog.py \
+            -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          flags: python-unit-other-runtime
+          name: codecov-python-unit-other-runtime
+
+  test-python-unit-other-light:
+    name: Python Unit Tests - Other Light/Contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REDIS_HOST: localhost
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: bot_user
+      POSTGRES_PASSWORD: bot_password_dev
+      POSTGRES_DB: trading_dev
+      POSTGRES_TEST_DB: trading_test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev]" --force-reinstall
+
+      - name: Run unit tests (without DB - other light/contracts)
         run: |
           .venv/bin/python -m pytest tests/unit/ -v -m "not db" -n auto --dist loadscope \
             --cov=src --cov-report=xml \
@@ -371,14 +670,47 @@ jobs:
             --ignore=tests/unit/test_dashboard_runtime.py \
             --ignore=tests/unit/test_dashboard_overview_facade.py \
             --ignore=tests/unit/test_system_controller.py \
-            --ignore=tests/unit/test_redis_manager.py
+            --ignore=tests/unit/test_redis_manager.py \
+            --ignore=tests/unit/test_analysis_runtime.py \
+            --ignore=tests/unit/test_backtest_runtime.py \
+            --ignore=tests/unit/test_backtest_replay_engine.py \
+            --ignore=tests/unit/test_backtest_recorder.py \
+            --ignore=tests/unit/test_backtest_ingress.py \
+            --ignore=tests/unit/test_derya_engine.py \
+            --ignore=tests/unit/test_drawdown_monitor.py \
+            --ignore=tests/unit/test_execution_runtime.py \
+            --ignore=tests/unit/test_funding_manager.py \
+            --ignore=tests/unit/test_intelligence_runtime_boundary.py \
+            --ignore=tests/unit/test_live_feed_runtime.py \
+            --ignore=tests/unit/test_live_feed_integration.py \
+            --ignore=tests/unit/test_live_feed_bybit_connector.py \
+            --ignore=tests/unit/test_manager_runtime.py \
+            --ignore=tests/unit/test_market_data_runtime.py \
+            --ignore=tests/unit/test_operator_gate.py \
+            --ignore=tests/unit/test_oms_runtime.py \
+            --ignore=tests/unit/test_opportunity_runtime.py \
+            --ignore=tests/unit/test_orchestration_runtime.py \
+            --ignore=tests/unit/test_paper_runtime.py \
+            --ignore=tests/unit/test_portfolio_governor_runtime.py \
+            --ignore=tests/unit/test_position_expansion_runtime.py \
+            --ignore=tests/unit/test_protection_runtime.py \
+            --ignore=tests/unit/test_risk_engine.py \
+            --ignore=tests/unit/test_risk_engine_event_integration.py \
+            --ignore=tests/unit/test_risk_engine_persistence_integration.py \
+            --ignore=tests/unit/test_risk_ledger.py \
+            --ignore=tests/unit/test_risk_persistence.py \
+            --ignore=tests/unit/test_risk_runtime.py \
+            --ignore=tests/unit/test_signal_runtime.py \
+            --ignore=tests/unit/test_strategy_runtime.py \
+            --ignore=tests/unit/test_validation_runtime.py \
+            --ignore=tests/unit/test_watchdog.py
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
-          flags: python-unit-other-remainder
-          name: codecov-python-unit-other-remainder
+          flags: python-unit-other-light
+          name: codecov-python-unit-other-light
 
   # ==================== Rust Tests ====================
   test-rust:
