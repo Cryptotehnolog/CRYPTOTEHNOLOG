@@ -641,6 +641,7 @@ class EnhancedEventBus:
         self.active_risk_path: str | None = None
         self.enforce_single_risk_path: bool = False
         self._risk_path_policy_sealed: bool = False
+        self._started = False
 
         # Statistics
         self.metrics = {
@@ -669,10 +670,12 @@ class EnhancedEventBus:
                 logger.error("Не удалось запустить persistence layer", error=str(e))
                 self.enable_persistence = False
 
+        self._started = True
         logger.info("EnhancedEventBus запущен")
 
     async def shutdown(self) -> None:
         """Корректно завершить работу."""
+        self._started = False
         # Отменяем все ожидающие задачи
         for task in self.pending_tasks:
             if not task.done():
@@ -1065,7 +1068,8 @@ class EnhancedEventBus:
 
                 return delivered > 0
             finally:
-                self.priority_queue.ack(processing_priority)
+                if self._started:
+                    self.priority_queue.ack(processing_priority)
 
     async def publish_with_priority(
         self,
