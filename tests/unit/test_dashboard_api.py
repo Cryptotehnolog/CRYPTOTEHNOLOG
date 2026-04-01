@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, cast
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import pytest
 
 from cryptotechnolog.config import get_settings, reload_settings
 from cryptotechnolog.dashboard.api import create_dashboard_router
@@ -575,6 +576,13 @@ class _StubFacade:
                 )
             ]
         )
+
+
+@pytest.fixture(scope="module")
+def full_app_client() -> TestClient:
+    app = create_dashboard_app()
+    with TestClient(app) as client:
+        yield client
 
 
 def test_dashboard_overview_endpoint_returns_snapshot() -> None:
@@ -1625,11 +1633,10 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
     assert data.last_message_at == "2026-04-01T09:45:40.060548+00:00"
 
 
-def test_dashboard_overview_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/overview")
+def test_dashboard_overview_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/overview")
 
     assert response.status_code == 200
     data = response.json()
@@ -1638,11 +1645,10 @@ def test_dashboard_overview_endpoint_returns_snapshot_in_full_app_runtime() -> N
     assert any(module["key"] == "overview" for module in data["module_availability"])
 
 
-def test_dashboard_risk_summary_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/risk-summary")
+def test_dashboard_risk_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/risk-summary")
 
     assert response.status_code == 200
     data = response.json()
@@ -1651,11 +1657,10 @@ def test_dashboard_risk_summary_endpoint_returns_snapshot_in_full_app_runtime() 
     assert any(item["key"] == "risk_multiplier" for item in data["constraints"])
 
 
-def test_dashboard_signals_summary_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/signals-summary")
+def test_dashboard_signals_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/signals-summary")
 
     assert response.status_code == 200
     data = response.json()
@@ -1665,25 +1670,10 @@ def test_dashboard_signals_summary_endpoint_returns_snapshot_in_full_app_runtime
     assert any(item["key"] == "tracked_signal_keys" for item in data["availability"])
 
 
-def test_dashboard_strategy_summary_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/strategy-summary")
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["module_status"] == "read-only"
-    assert data["global_status"] == "warming"
-    assert isinstance(data["availability"], list)
-    assert any(item["key"] == "tracked_context_keys" for item in data["availability"])
-
-
-def test_dashboard_execution_summary_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/execution-summary")
+def test_dashboard_strategy_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/strategy-summary")
 
     assert response.status_code == 200
     data = response.json()
@@ -1693,25 +1683,10 @@ def test_dashboard_execution_summary_endpoint_returns_snapshot_in_full_app_runti
     assert any(item["key"] == "tracked_context_keys" for item in data["availability"])
 
 
-def test_dashboard_opportunity_summary_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/opportunity-summary")
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["module_status"] == "read-only"
-    assert data["global_status"] == "warming"
-    assert isinstance(data["availability"], list)
-    assert any(item["key"] == "tracked_context_keys" for item in data["availability"])
-
-
-def test_dashboard_orchestration_summary_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/orchestration-summary")
+def test_dashboard_execution_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/execution-summary")
 
     assert response.status_code == 200
     data = response.json()
@@ -1721,13 +1696,10 @@ def test_dashboard_orchestration_summary_endpoint_returns_snapshot_in_full_app_r
     assert any(item["key"] == "tracked_context_keys" for item in data["availability"])
 
 
-def test_dashboard_position_expansion_summary_endpoint_returns_snapshot_in_full_app_runtime() -> (
-    None
-):
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/position-expansion-summary")
+def test_dashboard_opportunity_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/opportunity-summary")
 
     assert response.status_code == 200
     data = response.json()
@@ -1737,13 +1709,10 @@ def test_dashboard_position_expansion_summary_endpoint_returns_snapshot_in_full_
     assert any(item["key"] == "tracked_context_keys" for item in data["availability"])
 
 
-def test_dashboard_portfolio_governor_summary_endpoint_returns_snapshot_in_full_app_runtime() -> (
-    None
-):
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/portfolio-governor-summary")
+def test_dashboard_orchestration_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/orchestration-summary")
 
     assert response.status_code == 200
     data = response.json()
@@ -1753,11 +1722,36 @@ def test_dashboard_portfolio_governor_summary_endpoint_returns_snapshot_in_full_
     assert any(item["key"] == "tracked_context_keys" for item in data["availability"])
 
 
-def test_dashboard_oms_summary_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
+def test_dashboard_position_expansion_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/position-expansion-summary")
 
-    with TestClient(app) as client:
-        response = client.get("/dashboard/oms-summary")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["module_status"] == "read-only"
+    assert data["global_status"] == "warming"
+    assert isinstance(data["availability"], list)
+    assert any(item["key"] == "tracked_context_keys" for item in data["availability"])
+
+
+def test_dashboard_portfolio_governor_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/portfolio-governor-summary")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["module_status"] == "read-only"
+    assert data["global_status"] == "warming"
+    assert isinstance(data["availability"], list)
+    assert any(item["key"] == "tracked_context_keys" for item in data["availability"])
+
+
+def test_dashboard_oms_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/oms-summary")
 
     assert response.status_code == 200
     data = response.json()
@@ -1767,25 +1761,10 @@ def test_dashboard_oms_summary_endpoint_returns_snapshot_in_full_app_runtime() -
     assert any(item["key"] == "tracked_contexts" for item in data["availability"])
 
 
-def test_dashboard_manager_summary_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/manager-summary")
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["module_status"] == "read-only"
-    assert data["global_status"] == "warming"
-    assert isinstance(data["availability"], list)
-    assert any(item["key"] == "tracked_contexts" for item in data["availability"])
-
-
-def test_dashboard_validation_summary_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/validation-summary")
+def test_dashboard_manager_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/manager-summary")
 
     assert response.status_code == 200
     data = response.json()
@@ -1795,11 +1774,10 @@ def test_dashboard_validation_summary_endpoint_returns_snapshot_in_full_app_runt
     assert any(item["key"] == "tracked_contexts" for item in data["availability"])
 
 
-def test_dashboard_paper_summary_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/paper-summary")
+def test_dashboard_validation_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/validation-summary")
 
     assert response.status_code == 200
     data = response.json()
@@ -1809,11 +1787,23 @@ def test_dashboard_paper_summary_endpoint_returns_snapshot_in_full_app_runtime()
     assert any(item["key"] == "tracked_contexts" for item in data["availability"])
 
 
-def test_dashboard_backtest_summary_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
+def test_dashboard_paper_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/paper-summary")
 
-    with TestClient(app) as client:
-        response = client.get("/dashboard/backtest-summary")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["module_status"] == "read-only"
+    assert data["global_status"] == "warming"
+    assert isinstance(data["availability"], list)
+    assert any(item["key"] == "tracked_contexts" for item in data["availability"])
+
+
+def test_dashboard_backtest_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/backtest-summary")
 
     assert response.status_code == 200
     data = response.json()
@@ -1823,11 +1813,10 @@ def test_dashboard_backtest_summary_endpoint_returns_snapshot_in_full_app_runtim
     assert any(item["key"] == "tracked_inputs" for item in data["availability"])
 
 
-def test_dashboard_reporting_summary_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/reporting-summary")
+def test_dashboard_reporting_summary_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/reporting-summary")
 
     assert response.status_code == 200
     data = response.json()
@@ -1837,22 +1826,20 @@ def test_dashboard_reporting_summary_endpoint_returns_snapshot_in_full_app_runti
     assert data["last_artifact_snapshot"] is None
 
 
-def test_dashboard_open_positions_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/open-positions")
+def test_dashboard_open_positions_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/open-positions")
 
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data["positions"], list)
 
 
-def test_dashboard_position_history_endpoint_returns_snapshot_in_full_app_runtime() -> None:
-    app = create_dashboard_app()
-
-    with TestClient(app) as client:
-        response = client.get("/dashboard/position-history")
+def test_dashboard_position_history_endpoint_returns_snapshot_in_full_app_runtime(
+    full_app_client: TestClient,
+) -> None:
+    response = full_app_client.get("/dashboard/position-history")
 
     assert response.status_code == 200
     data = response.json()

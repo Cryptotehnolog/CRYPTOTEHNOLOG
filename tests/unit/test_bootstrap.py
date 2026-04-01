@@ -2206,7 +2206,9 @@ class TestProductionBootstrap:
         )
 
         runtime.signal_runtime._started = True
-        runtime.signal_runtime.ingest_truths = Mock()  # type: ignore[method-assign]
+        runtime.signal_runtime.ingest_truths = Mock(  # type: ignore[method-assign]
+            return_value=Mock(event_type=None, emitted_payload=None)
+        )
         runtime.signal_runtime.ingest_bar_completed_payload = Mock(  # type: ignore[method-assign]
             side_effect=runtime.signal_runtime.ingest_bar_completed_payload
         )
