@@ -365,7 +365,7 @@ class TestRiskEngineEventIntegration:
         )
         bus.register_listener(listener)
 
-        await bus.publish(make_order_filled_event())
+        await engine.handle_order_filled(listener._parse_order_filled(make_order_filled_event().payload))
         await bus.publish(
             make_state_transition_event(
                 from_state=SystemState.TRADING,
