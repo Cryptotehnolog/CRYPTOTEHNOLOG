@@ -957,26 +957,39 @@ def _collect_runtime_secret_validation_errors(settings_to_validate: Settings) ->
     return validation_errors
 
 
-def _collect_domain_validation_errors(settings_to_validate: Settings) -> list[str]:
-    """Collect domain validation errors for risk and trading settings."""
-    validation_errors: list[str] = []
+def _append_positive_error(
+    validation_errors: list[str],
+    field_name: str,
+    value: int | float,
+) -> None:
+    if value <= 0:
+        validation_errors.append(f"{field_name} must be positive")
 
-    def append_positive_error(field_name: str, value: int | float) -> None:
-        if value <= 0:
-            validation_errors.append(f"{field_name} must be positive")
 
-    def append_unit_interval_error(field_name: str, value: int | float) -> None:
-        if value < 0 or value > 1:
-            validation_errors.append(f"{field_name} must be between 0 and 1")
+def _append_unit_interval_error(
+    validation_errors: list[str],
+    field_name: str,
+    value: int | float,
+) -> None:
+    if value < 0 or value > 1:
+        validation_errors.append(f"{field_name} must be between 0 and 1")
 
+
+def _collect_risk_basics_validation_errors(
+    settings_to_validate: Settings,
+    validation_errors: list[str],
+) -> None:
     if settings_to_validate.base_r_percent <= 0 or settings_to_validate.base_r_percent > 1:
         validation_errors.append("base_r_percent must be between 0 and 1")
 
-    if settings_to_validate.max_r_per_trade <= 0:
-        validation_errors.append("max_r_per_trade must be positive")
-
-    if settings_to_validate.max_portfolio_r <= 0:
-        validation_errors.append("max_portfolio_r must be positive")
+    for field_name, value in (
+        ("max_r_per_trade", settings_to_validate.max_r_per_trade),
+        ("max_portfolio_r", settings_to_validate.max_portfolio_r),
+        ("risk_max_total_exposure_usd", settings_to_validate.risk_max_total_exposure_usd),
+        ("max_position_size", settings_to_validate.max_position_size),
+        ("risk_starting_equity", settings_to_validate.risk_starting_equity),
+    ):
+        _append_positive_error(validation_errors, field_name, value)
 
     if (
         settings_to_validate.default_leverage < 1
@@ -987,145 +1000,129 @@ def _collect_domain_validation_errors(settings_to_validate: Settings) -> list[st
             f"max_leverage ({settings_to_validate.max_leverage})"
         )
 
-    append_unit_interval_error("slippage_tolerance", settings_to_validate.slippage_tolerance)
-    append_positive_error("universe_max_spread_bps", settings_to_validate.universe_max_spread_bps)
-    append_positive_error(
-        "universe_min_top_depth_usd",
-        settings_to_validate.universe_min_top_depth_usd,
+    _append_unit_interval_error(
+        validation_errors,
+        "slippage_tolerance",
+        settings_to_validate.slippage_tolerance,
     )
-    append_positive_error(
-        "universe_min_depth_5bps_usd",
-        settings_to_validate.universe_min_depth_5bps_usd,
-    )
-    append_positive_error("universe_max_latency_ms", settings_to_validate.universe_max_latency_ms)
-    append_unit_interval_error(
-        "universe_min_coverage_ratio",
-        settings_to_validate.universe_min_coverage_ratio,
-    )
-    append_positive_error("universe_max_data_age_ms", settings_to_validate.universe_max_data_age_ms)
-    append_unit_interval_error(
-        "universe_min_quality_score",
-        settings_to_validate.universe_min_quality_score,
-    )
-    append_positive_error(
-        "universe_min_ready_instruments",
-        settings_to_validate.universe_min_ready_instruments,
-    )
-    append_unit_interval_error(
-        "universe_min_degraded_instruments_ratio",
-        settings_to_validate.universe_min_degraded_instruments_ratio,
-    )
-    append_unit_interval_error(
-        "universe_min_ready_confidence",
-        settings_to_validate.universe_min_ready_confidence,
-    )
-    append_unit_interval_error(
-        "universe_min_degraded_confidence",
-        settings_to_validate.universe_min_degraded_confidence,
-    )
-    append_positive_error(
-        "signal_min_trend_strength", settings_to_validate.signal_min_trend_strength
-    )
-    append_unit_interval_error(
-        "signal_min_regime_confidence",
-        settings_to_validate.signal_min_regime_confidence,
-    )
-    append_positive_error(
-        "signal_target_risk_reward", settings_to_validate.signal_target_risk_reward
-    )
-    append_positive_error("signal_max_age_seconds", settings_to_validate.signal_max_age_seconds)
-    append_unit_interval_error(
-        "strategy_min_signal_confidence",
-        settings_to_validate.strategy_min_signal_confidence,
-    )
-    append_positive_error(
-        "strategy_max_candidate_age_seconds",
-        settings_to_validate.strategy_max_candidate_age_seconds,
-    )
-    append_unit_interval_error(
-        "execution_min_strategy_confidence",
-        settings_to_validate.execution_min_strategy_confidence,
-    )
-    append_positive_error(
-        "execution_max_intent_age_seconds",
-        settings_to_validate.execution_max_intent_age_seconds,
-    )
-    append_unit_interval_error(
-        "opportunity_min_confidence",
-        settings_to_validate.opportunity_min_confidence,
-    )
-    append_unit_interval_error(
-        "opportunity_min_priority", settings_to_validate.opportunity_min_priority
-    )
-    append_positive_error(
-        "opportunity_max_age_seconds",
-        settings_to_validate.opportunity_max_age_seconds,
-    )
-    append_unit_interval_error(
-        "orchestration_min_confidence",
-        settings_to_validate.orchestration_min_confidence,
-    )
-    append_unit_interval_error(
-        "orchestration_min_priority",
-        settings_to_validate.orchestration_min_priority,
-    )
-    append_positive_error(
-        "orchestration_max_decision_age_seconds",
-        settings_to_validate.orchestration_max_decision_age_seconds,
-    )
-    append_positive_error("trailing_arm_at_pnl_r", settings_to_validate.trailing_arm_at_pnl_r)
-    append_positive_error("trailing_t2_at_pnl_r", settings_to_validate.trailing_t2_at_pnl_r)
-    append_positive_error("trailing_t3_at_pnl_r", settings_to_validate.trailing_t3_at_pnl_r)
-    append_positive_error("trailing_t4_at_pnl_r", settings_to_validate.trailing_t4_at_pnl_r)
-    append_positive_error(
-        "trailing_t1_atr_multiplier",
-        settings_to_validate.trailing_t1_atr_multiplier,
-    )
-    append_positive_error(
-        "trailing_t2_atr_multiplier",
-        settings_to_validate.trailing_t2_atr_multiplier,
-    )
-    append_positive_error(
-        "trailing_t3_atr_multiplier",
-        settings_to_validate.trailing_t3_atr_multiplier,
-    )
-    append_positive_error(
-        "trailing_t4_atr_multiplier",
-        settings_to_validate.trailing_t4_atr_multiplier,
-    )
-    append_positive_error(
-        "trailing_emergency_buffer_bps",
-        settings_to_validate.trailing_emergency_buffer_bps,
-    )
-    append_positive_error(
-        "trailing_structural_min_adx",
-        settings_to_validate.trailing_structural_min_adx,
-    )
-    append_positive_error(
-        "trailing_structural_confirmed_highs",
-        settings_to_validate.trailing_structural_confirmed_highs,
-    )
-    append_positive_error(
-        "trailing_structural_confirmed_lows",
-        settings_to_validate.trailing_structural_confirmed_lows,
-    )
-    append_unit_interval_error("correlation_limit", settings_to_validate.correlation_limit)
-    append_unit_interval_error(
-        "same_group_correlation",
-        settings_to_validate.same_group_correlation,
-    )
-    append_unit_interval_error(
-        "cross_group_correlation",
-        settings_to_validate.cross_group_correlation,
-    )
-    append_unit_interval_error(
-        "protection_halt_priority_threshold",
-        settings_to_validate.protection_halt_priority_threshold,
-    )
-    append_unit_interval_error(
-        "protection_freeze_priority_threshold",
-        settings_to_validate.protection_freeze_priority_threshold,
-    )
+
+
+def _collect_universe_policy_validation_errors(
+    settings_to_validate: Settings,
+    validation_errors: list[str],
+) -> None:
+    for field_name, value in (
+        ("universe_max_spread_bps", settings_to_validate.universe_max_spread_bps),
+        ("universe_min_top_depth_usd", settings_to_validate.universe_min_top_depth_usd),
+        ("universe_min_depth_5bps_usd", settings_to_validate.universe_min_depth_5bps_usd),
+        ("universe_max_latency_ms", settings_to_validate.universe_max_latency_ms),
+        ("universe_max_data_age_ms", settings_to_validate.universe_max_data_age_ms),
+        ("universe_min_ready_instruments", settings_to_validate.universe_min_ready_instruments),
+    ):
+        _append_positive_error(validation_errors, field_name, value)
+
+    for field_name, value in (
+        ("universe_min_coverage_ratio", settings_to_validate.universe_min_coverage_ratio),
+        ("universe_min_quality_score", settings_to_validate.universe_min_quality_score),
+        (
+            "universe_min_degraded_instruments_ratio",
+            settings_to_validate.universe_min_degraded_instruments_ratio,
+        ),
+        ("universe_min_ready_confidence", settings_to_validate.universe_min_ready_confidence),
+        (
+            "universe_min_degraded_confidence",
+            settings_to_validate.universe_min_degraded_confidence,
+        ),
+    ):
+        _append_unit_interval_error(validation_errors, field_name, value)
+
+
+def _collect_decision_chain_validation_errors(
+    settings_to_validate: Settings,
+    validation_errors: list[str],
+) -> None:
+    for field_name, value in (
+        ("signal_min_trend_strength", settings_to_validate.signal_min_trend_strength),
+        ("signal_target_risk_reward", settings_to_validate.signal_target_risk_reward),
+        ("signal_max_age_seconds", settings_to_validate.signal_max_age_seconds),
+        (
+            "strategy_max_candidate_age_seconds",
+            settings_to_validate.strategy_max_candidate_age_seconds,
+        ),
+        ("execution_max_intent_age_seconds", settings_to_validate.execution_max_intent_age_seconds),
+        ("opportunity_max_age_seconds", settings_to_validate.opportunity_max_age_seconds),
+        (
+            "orchestration_max_decision_age_seconds",
+            settings_to_validate.orchestration_max_decision_age_seconds,
+        ),
+    ):
+        _append_positive_error(validation_errors, field_name, value)
+
+    for field_name, value in (
+        ("signal_min_regime_confidence", settings_to_validate.signal_min_regime_confidence),
+        ("strategy_min_signal_confidence", settings_to_validate.strategy_min_signal_confidence),
+        (
+            "execution_min_strategy_confidence",
+            settings_to_validate.execution_min_strategy_confidence,
+        ),
+        ("opportunity_min_confidence", settings_to_validate.opportunity_min_confidence),
+        ("opportunity_min_priority", settings_to_validate.opportunity_min_priority),
+        ("orchestration_min_confidence", settings_to_validate.orchestration_min_confidence),
+        ("orchestration_min_priority", settings_to_validate.orchestration_min_priority),
+    ):
+        _append_unit_interval_error(validation_errors, field_name, value)
+
+
+def _collect_trailing_and_correlation_validation_errors(
+    settings_to_validate: Settings,
+    validation_errors: list[str],
+) -> None:
+    for field_name, value in (
+        ("trailing_arm_at_pnl_r", settings_to_validate.trailing_arm_at_pnl_r),
+        ("trailing_t2_at_pnl_r", settings_to_validate.trailing_t2_at_pnl_r),
+        ("trailing_t3_at_pnl_r", settings_to_validate.trailing_t3_at_pnl_r),
+        ("trailing_t4_at_pnl_r", settings_to_validate.trailing_t4_at_pnl_r),
+        ("trailing_t1_atr_multiplier", settings_to_validate.trailing_t1_atr_multiplier),
+        ("trailing_t2_atr_multiplier", settings_to_validate.trailing_t2_atr_multiplier),
+        ("trailing_t3_atr_multiplier", settings_to_validate.trailing_t3_atr_multiplier),
+        ("trailing_t4_atr_multiplier", settings_to_validate.trailing_t4_atr_multiplier),
+        ("trailing_emergency_buffer_bps", settings_to_validate.trailing_emergency_buffer_bps),
+        ("trailing_structural_min_adx", settings_to_validate.trailing_structural_min_adx),
+        (
+            "trailing_structural_confirmed_highs",
+            settings_to_validate.trailing_structural_confirmed_highs,
+        ),
+        (
+            "trailing_structural_confirmed_lows",
+            settings_to_validate.trailing_structural_confirmed_lows,
+        ),
+    ):
+        _append_positive_error(validation_errors, field_name, value)
+
+    for field_name, value in (
+        ("correlation_limit", settings_to_validate.correlation_limit),
+        ("same_group_correlation", settings_to_validate.same_group_correlation),
+        ("cross_group_correlation", settings_to_validate.cross_group_correlation),
+    ):
+        _append_unit_interval_error(validation_errors, field_name, value)
+
+
+def _collect_protection_and_funding_validation_errors(
+    settings_to_validate: Settings,
+    validation_errors: list[str],
+) -> None:
+    for field_name, value in (
+        (
+            "protection_halt_priority_threshold",
+            settings_to_validate.protection_halt_priority_threshold,
+        ),
+        (
+            "protection_freeze_priority_threshold",
+            settings_to_validate.protection_freeze_priority_threshold,
+        ),
+    ):
+        _append_unit_interval_error(validation_errors, field_name, value)
+
     if (
         settings_to_validate.protection_freeze_priority_threshold
         < settings_to_validate.protection_halt_priority_threshold
@@ -1134,194 +1131,169 @@ def _collect_domain_validation_errors(settings_to_validate: Settings) -> list[st
             "protection_freeze_priority_threshold must be greater than or equal to "
             "protection_halt_priority_threshold"
         )
-    append_positive_error(
-        "funding_min_arbitrage_spread",
-        settings_to_validate.funding_min_arbitrage_spread,
-    )
-    append_positive_error(
-        "funding_min_annualized_spread",
-        settings_to_validate.funding_min_annualized_spread,
-    )
-    append_positive_error(
-        "funding_max_acceptable_rate",
-        settings_to_validate.funding_max_acceptable_rate,
-    )
-    append_positive_error(
-        "funding_min_exchange_improvement",
-        settings_to_validate.funding_min_exchange_improvement,
-    )
-    append_positive_error(
-        "funding_min_quotes_for_opportunity",
-        settings_to_validate.funding_min_quotes_for_opportunity,
-    )
-    append_positive_error(
-        "system_trading_risk_multiplier",
-        settings_to_validate.system_trading_risk_multiplier,
-    )
-    append_positive_error(
-        "system_trading_max_positions",
-        settings_to_validate.system_trading_max_positions,
-    )
-    append_positive_error(
-        "system_trading_max_order_size",
-        settings_to_validate.system_trading_max_order_size,
-    )
-    append_positive_error(
-        "system_degraded_risk_multiplier",
-        settings_to_validate.system_degraded_risk_multiplier,
-    )
-    append_positive_error(
-        "system_degraded_max_positions",
-        settings_to_validate.system_degraded_max_positions,
-    )
-    append_positive_error(
-        "system_degraded_max_order_size",
-        settings_to_validate.system_degraded_max_order_size,
-    )
-    append_positive_error(
-        "system_risk_reduction_risk_multiplier",
-        settings_to_validate.system_risk_reduction_risk_multiplier,
-    )
-    append_positive_error(
-        "system_risk_reduction_max_positions",
-        settings_to_validate.system_risk_reduction_max_positions,
-    )
-    append_positive_error(
-        "system_risk_reduction_max_order_size",
-        settings_to_validate.system_risk_reduction_max_order_size,
-    )
-    append_positive_error(
-        "system_survival_risk_multiplier",
-        settings_to_validate.system_survival_risk_multiplier,
-    )
+
+    for field_name, value in (
+        ("funding_min_arbitrage_spread", settings_to_validate.funding_min_arbitrage_spread),
+        ("funding_min_annualized_spread", settings_to_validate.funding_min_annualized_spread),
+        ("funding_max_acceptable_rate", settings_to_validate.funding_max_acceptable_rate),
+        (
+            "funding_min_exchange_improvement",
+            settings_to_validate.funding_min_exchange_improvement,
+        ),
+        (
+            "funding_min_quotes_for_opportunity",
+            settings_to_validate.funding_min_quotes_for_opportunity,
+        ),
+    ):
+        _append_positive_error(validation_errors, field_name, value)
+
+
+def _collect_system_policy_validation_errors(
+    settings_to_validate: Settings,
+    validation_errors: list[str],
+) -> None:
+    for field_name, value in (
+        ("system_trading_risk_multiplier", settings_to_validate.system_trading_risk_multiplier),
+        ("system_trading_max_positions", settings_to_validate.system_trading_max_positions),
+        ("system_trading_max_order_size", settings_to_validate.system_trading_max_order_size),
+        ("system_degraded_risk_multiplier", settings_to_validate.system_degraded_risk_multiplier),
+        ("system_degraded_max_positions", settings_to_validate.system_degraded_max_positions),
+        ("system_degraded_max_order_size", settings_to_validate.system_degraded_max_order_size),
+        (
+            "system_risk_reduction_risk_multiplier",
+            settings_to_validate.system_risk_reduction_risk_multiplier,
+        ),
+        (
+            "system_risk_reduction_max_positions",
+            settings_to_validate.system_risk_reduction_max_positions,
+        ),
+        (
+            "system_risk_reduction_max_order_size",
+            settings_to_validate.system_risk_reduction_max_order_size,
+        ),
+        ("system_survival_risk_multiplier", settings_to_validate.system_survival_risk_multiplier),
+        ("system_survival_max_order_size", settings_to_validate.system_survival_max_order_size),
+    ):
+        _append_positive_error(validation_errors, field_name, value)
+
+    for field_name, value in (
+        ("system_boot_max_seconds", settings_to_validate.system_boot_max_seconds),
+        ("system_init_max_seconds", settings_to_validate.system_init_max_seconds),
+        ("system_ready_max_seconds", settings_to_validate.system_ready_max_seconds),
+        (
+            "system_risk_reduction_max_seconds",
+            settings_to_validate.system_risk_reduction_max_seconds,
+        ),
+        ("system_degraded_max_seconds", settings_to_validate.system_degraded_max_seconds),
+        ("system_survival_max_seconds", settings_to_validate.system_survival_max_seconds),
+        ("system_error_max_seconds", settings_to_validate.system_error_max_seconds),
+        ("system_recovery_max_seconds", settings_to_validate.system_recovery_max_seconds),
+    ):
+        _append_positive_error(validation_errors, field_name, value)
+
     if settings_to_validate.system_survival_max_positions < 0:
         validation_errors.append("system_survival_max_positions must be non-negative")
-    append_positive_error(
-        "system_survival_max_order_size",
-        settings_to_validate.system_survival_max_order_size,
-    )
-    append_positive_error("system_boot_max_seconds", settings_to_validate.system_boot_max_seconds)
-    append_positive_error("system_init_max_seconds", settings_to_validate.system_init_max_seconds)
-    append_positive_error("system_ready_max_seconds", settings_to_validate.system_ready_max_seconds)
-    append_positive_error(
-        "system_risk_reduction_max_seconds",
-        settings_to_validate.system_risk_reduction_max_seconds,
-    )
-    append_positive_error(
-        "system_degraded_max_seconds",
-        settings_to_validate.system_degraded_max_seconds,
-    )
-    append_positive_error(
-        "system_survival_max_seconds",
-        settings_to_validate.system_survival_max_seconds,
-    )
-    append_positive_error("system_error_max_seconds", settings_to_validate.system_error_max_seconds)
-    append_positive_error(
-        "system_recovery_max_seconds",
-        settings_to_validate.system_recovery_max_seconds,
-    )
-    append_positive_error(
-        "reliability_circuit_breaker_failure_threshold",
-        settings_to_validate.reliability_circuit_breaker_failure_threshold,
-    )
-    append_positive_error(
-        "reliability_circuit_breaker_recovery_timeout_seconds",
-        settings_to_validate.reliability_circuit_breaker_recovery_timeout_seconds,
-    )
-    append_positive_error(
-        "reliability_circuit_breaker_success_threshold",
-        settings_to_validate.reliability_circuit_breaker_success_threshold,
-    )
-    append_positive_error(
-        "reliability_watchdog_failure_threshold",
-        settings_to_validate.reliability_watchdog_failure_threshold,
-    )
-    append_positive_error(
-        "reliability_watchdog_backoff_base_seconds",
-        settings_to_validate.reliability_watchdog_backoff_base_seconds,
-    )
-    append_positive_error(
-        "reliability_watchdog_backoff_multiplier",
-        settings_to_validate.reliability_watchdog_backoff_multiplier,
-    )
-    append_positive_error(
-        "reliability_watchdog_max_backoff_seconds",
-        settings_to_validate.reliability_watchdog_max_backoff_seconds,
-    )
-    append_unit_interval_error(
-        "reliability_watchdog_jitter_factor",
-        settings_to_validate.reliability_watchdog_jitter_factor,
-    )
-    append_positive_error(
-        "reliability_watchdog_check_interval_seconds",
-        settings_to_validate.reliability_watchdog_check_interval_seconds,
-    )
-    append_positive_error(
-        "health_check_timeout_seconds",
-        settings_to_validate.health_check_timeout_seconds,
-    )
-    append_positive_error(
-        "health_background_check_interval_seconds",
-        settings_to_validate.health_background_check_interval_seconds,
-    )
-    append_positive_error(
-        "health_check_and_wait_timeout_seconds",
-        settings_to_validate.health_check_and_wait_timeout_seconds,
-    )
-    append_positive_error(
-        "manual_approval_timeout_minutes",
-        settings_to_validate.manual_approval_timeout_minutes,
-    )
-    append_positive_error(
-        "workflow_manager_max_age_seconds",
-        settings_to_validate.workflow_manager_max_age_seconds,
-    )
-    append_positive_error(
-        "workflow_validation_max_age_seconds",
-        settings_to_validate.workflow_validation_max_age_seconds,
-    )
-    append_positive_error(
-        "workflow_paper_max_age_seconds",
-        settings_to_validate.workflow_paper_max_age_seconds,
-    )
-    append_positive_error(
-        "workflow_replay_max_age_seconds",
-        settings_to_validate.workflow_replay_max_age_seconds,
-    )
-    append_positive_error(
-        "live_feed_retry_delay_seconds",
-        settings_to_validate.live_feed_retry_delay_seconds,
-    )
-    append_positive_error(
-        "event_bus_subscriber_capacity",
-        settings_to_validate.event_bus_subscriber_capacity,
-    )
-    append_unit_interval_error(
-        "event_bus_fill_ratio_low",
-        settings_to_validate.event_bus_fill_ratio_low,
-    )
-    append_unit_interval_error(
-        "event_bus_fill_ratio_normal",
-        settings_to_validate.event_bus_fill_ratio_normal,
-    )
-    append_unit_interval_error(
-        "event_bus_fill_ratio_high",
-        settings_to_validate.event_bus_fill_ratio_high,
-    )
-    append_positive_error(
-        "event_bus_push_wait_timeout_seconds",
-        settings_to_validate.event_bus_push_wait_timeout_seconds,
-    )
-    append_positive_error(
-        "event_bus_drain_timeout_seconds",
-        settings_to_validate.event_bus_drain_timeout_seconds,
-    )
+
+
+def _collect_operational_limits_validation_errors(
+    settings_to_validate: Settings,
+    validation_errors: list[str],
+) -> None:
+    for field_name, value in (
+        (
+            "reliability_circuit_breaker_failure_threshold",
+            settings_to_validate.reliability_circuit_breaker_failure_threshold,
+        ),
+        (
+            "reliability_circuit_breaker_recovery_timeout_seconds",
+            settings_to_validate.reliability_circuit_breaker_recovery_timeout_seconds,
+        ),
+        (
+            "reliability_circuit_breaker_success_threshold",
+            settings_to_validate.reliability_circuit_breaker_success_threshold,
+        ),
+        (
+            "reliability_watchdog_failure_threshold",
+            settings_to_validate.reliability_watchdog_failure_threshold,
+        ),
+        (
+            "reliability_watchdog_backoff_base_seconds",
+            settings_to_validate.reliability_watchdog_backoff_base_seconds,
+        ),
+        (
+            "reliability_watchdog_backoff_multiplier",
+            settings_to_validate.reliability_watchdog_backoff_multiplier,
+        ),
+        (
+            "reliability_watchdog_max_backoff_seconds",
+            settings_to_validate.reliability_watchdog_max_backoff_seconds,
+        ),
+        (
+            "reliability_watchdog_check_interval_seconds",
+            settings_to_validate.reliability_watchdog_check_interval_seconds,
+        ),
+        ("health_check_timeout_seconds", settings_to_validate.health_check_timeout_seconds),
+        (
+            "health_background_check_interval_seconds",
+            settings_to_validate.health_background_check_interval_seconds,
+        ),
+        (
+            "health_check_and_wait_timeout_seconds",
+            settings_to_validate.health_check_and_wait_timeout_seconds,
+        ),
+        ("manual_approval_timeout_minutes", settings_to_validate.manual_approval_timeout_minutes),
+        (
+            "workflow_manager_max_age_seconds",
+            settings_to_validate.workflow_manager_max_age_seconds,
+        ),
+        (
+            "workflow_validation_max_age_seconds",
+            settings_to_validate.workflow_validation_max_age_seconds,
+        ),
+        ("workflow_paper_max_age_seconds", settings_to_validate.workflow_paper_max_age_seconds),
+        ("workflow_replay_max_age_seconds", settings_to_validate.workflow_replay_max_age_seconds),
+        ("live_feed_retry_delay_seconds", settings_to_validate.live_feed_retry_delay_seconds),
+        ("event_bus_subscriber_capacity", settings_to_validate.event_bus_subscriber_capacity),
+        (
+            "event_bus_push_wait_timeout_seconds",
+            settings_to_validate.event_bus_push_wait_timeout_seconds,
+        ),
+        (
+            "event_bus_drain_timeout_seconds",
+            settings_to_validate.event_bus_drain_timeout_seconds,
+        ),
+    ):
+        _append_positive_error(validation_errors, field_name, value)
+
+    for field_name, value in (
+        (
+            "reliability_watchdog_jitter_factor",
+            settings_to_validate.reliability_watchdog_jitter_factor,
+        ),
+        ("event_bus_fill_ratio_low", settings_to_validate.event_bus_fill_ratio_low),
+        ("event_bus_fill_ratio_normal", settings_to_validate.event_bus_fill_ratio_normal),
+        ("event_bus_fill_ratio_high", settings_to_validate.event_bus_fill_ratio_high),
+    ):
+        _append_unit_interval_error(validation_errors, field_name, value)
+
     if not (
         settings_to_validate.event_bus_fill_ratio_low
         < settings_to_validate.event_bus_fill_ratio_normal
         < settings_to_validate.event_bus_fill_ratio_high
     ):
         validation_errors.append("event_bus fill ratios must satisfy low < normal < high")
+
+
+def _collect_domain_validation_errors(settings_to_validate: Settings) -> list[str]:
+    """Collect domain validation errors for risk and trading settings."""
+    validation_errors: list[str] = []
+    _collect_risk_basics_validation_errors(settings_to_validate, validation_errors)
+    _collect_universe_policy_validation_errors(settings_to_validate, validation_errors)
+    _collect_decision_chain_validation_errors(settings_to_validate, validation_errors)
+    _collect_trailing_and_correlation_validation_errors(settings_to_validate, validation_errors)
+    _collect_protection_and_funding_validation_errors(settings_to_validate, validation_errors)
+    _collect_system_policy_validation_errors(settings_to_validate, validation_errors)
+    _collect_operational_limits_validation_errors(settings_to_validate, validation_errors)
 
     return validation_errors
 
