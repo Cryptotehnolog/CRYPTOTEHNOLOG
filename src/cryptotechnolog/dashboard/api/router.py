@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import TYPE_CHECKING, Any, Protocol
 
 from fastapi import APIRouter, HTTPException
@@ -84,23 +85,60 @@ def _register_summary_route(
         return await handler()
 
 
+def _build_settings_get_handler(
+    dto_type: type[SettingsDTOContract],
+    get_log: str,
+) -> Any:
+    async def get_settings_snapshot() -> Any:
+        logger.debug(get_log)
+        return dto_type.from_settings(get_settings())
+
+    return get_settings_snapshot
+
+
+def _build_settings_put_handler(
+    dto_type: type[SettingsDTOContract],
+    update_log: str,
+) -> Any:
+    async def update_settings_snapshot(payload: Any) -> Any:
+        return _update_settings_dto(payload, update_log, dto_type)
+
+    update_settings_snapshot.__signature__ = inspect.Signature(
+        parameters=[
+            inspect.Parameter(
+                "payload",
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                annotation=dto_type,
+            )
+        ],
+        return_annotation=dto_type,
+    )
+    return update_settings_snapshot
+
+
 def _register_settings_routes(router: APIRouter) -> None:
     def register_pair(
         path: str,
-        dto_type: type[Any],
+        dto_type: type[SettingsDTOContract],
         get_summary: str,
         get_log: str,
         update_summary: str,
         update_log: str,
     ) -> None:
-        @router.get(path, response_model=dto_type, summary=get_summary)
-        async def get_settings_snapshot() -> Any:
-            logger.debug(get_log)
-            return dto_type.from_settings(get_settings())
-
-        @router.put(path, response_model=dto_type, summary=update_summary)
-        async def update_settings_snapshot(payload: dto_type) -> Any:  # type: ignore[valid-type]
-            return _update_settings_dto(payload, update_log, dto_type)
+        router.add_api_route(
+            path,
+            _build_settings_get_handler(dto_type, get_log),
+            methods=["GET"],
+            response_model=dto_type,
+            summary=get_summary,
+        )
+        router.add_api_route(
+            path,
+            _build_settings_put_handler(dto_type, update_log),
+            methods=["PUT"],
+            response_model=dto_type,
+            summary=update_summary,
+        )
 
     register_pair(
         "/settings/universe-policy",
