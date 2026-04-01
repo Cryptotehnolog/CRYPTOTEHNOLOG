@@ -1014,10 +1014,10 @@ class TestMonitorStateTimeouts:
         await sm.transition(SystemState.INIT, TriggerType.SYSTEM_STARTUP)
 
         # Запускаем мониторинг на короткое время
-        monitor_task = asyncio.create_task(sm._monitor_state_timeouts(check_interval=1))
+        monitor_task = asyncio.create_task(sm._monitor_state_timeouts(check_interval=0.01))
 
-        # Даём поработать 2 секунды
-        await asyncio.sleep(2)
+        # Даём задаче войти в цикл мониторинга
+        await asyncio.sleep(0.02)
 
         # Отменяем задачу
         monitor_task.cancel()
