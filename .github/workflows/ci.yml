@@ -1012,7 +1012,21 @@ jobs:
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [test-python, test-rust, test-rust-property, security-scan, dependency-check, docker-build, code-quality]
+    needs:
+      - test-python-checks
+      - test-python-unit-db
+      - test-python-integration
+      - test-python-unit-heavy
+      - test-python-unit-runtime-remainder
+      - test-python-unit-redis
+      - test-python-unit-other-runtime
+      - test-python-unit-other-light
+      - test-rust
+      - test-rust-property
+      - security-scan
+      - dependency-check
+      - docker-build
+      - code-quality
     if: always()
 
     steps:
