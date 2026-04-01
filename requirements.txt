@@ -10,7 +10,7 @@ aiogram==3.25.0
     # via cryptotechnolog (pyproject.toml)
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.13.3
+aiohttp==3.13.5
     # via
     #   cryptotechnolog (pyproject.toml)
     #   aiogram
