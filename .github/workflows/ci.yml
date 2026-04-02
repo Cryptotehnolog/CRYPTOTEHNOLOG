@@ -1248,7 +1248,7 @@ jobs:
           .venv/bin/python -m pytest \
             tests/unit/test_risk_engine.py \
             tests/unit/test_risk_engine_event_integration.py \
-            -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
+            -v -m "not db" -n 0 --cov=src --cov-report=xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -1305,7 +1305,7 @@ jobs:
             tests/unit/test_drawdown_monitor.py \
             tests/unit/test_funding_manager.py \
             tests/unit/test_risk_runtime.py \
-            -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
+            -v -m "not db" -n 0 --cov=src --cov-report=xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -1360,7 +1360,7 @@ jobs:
         run: |
           .venv/bin/python -m pytest \
             tests/unit/test_risk_engine_persistence_integration.py \
-            -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
+            -v -m "not db" -n 0 --cov=src --cov-report=xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
