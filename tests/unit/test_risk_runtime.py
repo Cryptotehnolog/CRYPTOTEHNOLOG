@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from unittest.mock import patch
 
@@ -110,7 +111,13 @@ class TestRiskRuntime:
     ) -> None:
         async with runtime_harness(enable_persistence=False) as (bus, runtime):
             published_events: list[Event] = []
-            bus.on(RiskEngineEventType.RISK_POSITION_REGISTERED, published_events.append)
+            position_registered = asyncio.Event()
+
+            def capture_registered(event: Event) -> None:
+                published_events.append(event)
+                position_registered.set()
+
+            bus.on(RiskEngineEventType.RISK_POSITION_REGISTERED, capture_registered)
 
             await runtime.start()
 
@@ -135,9 +142,10 @@ class TestRiskRuntime:
                     },
                 )
             )
-            await bus.drain(timeout=1.0)
+            await bus.flush()
 
             assert runtime.risk_ledger.get_position_record("pos-runtime-1").symbol == "BTC/USDT"
+            assert position_registered.is_set() is True
             assert len(published_events) == 1
             assert published_events[0].event_type == RiskEngineEventType.RISK_POSITION_REGISTERED
 

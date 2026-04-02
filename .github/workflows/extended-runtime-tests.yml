@@ -1,6 +1,39 @@
 name: Extended Runtime Tests
 
 on:
+  push:
+    paths:
+      - ".github/workflows/extended-runtime-tests.yml"
+      - "tests/integration/test_bootstrap_integration.py"
+      - "tests/unit/test_risk_engine.py"
+      - "tests/unit/test_risk_engine_event_integration.py"
+      - "tests/unit/test_risk_engine_persistence_integration.py"
+      - "tests/unit/test_risk_runtime.py"
+      - "src/cryptotechnolog/bootstrap/**"
+      - "src/cryptotechnolog/risk/**"
+      - "src/cryptotechnolog/core/enhanced_event_bus.py"
+      - "src/cryptotechnolog/core/listeners/**"
+      - "src/cryptotechnolog/core/system_controller.py"
+      - "src/cryptotechnolog/config/settings.py"
+      - "pyproject.toml"
+      - "requirements.txt"
+  pull_request:
+    branches: [master, develop]
+    paths:
+      - ".github/workflows/extended-runtime-tests.yml"
+      - "tests/integration/test_bootstrap_integration.py"
+      - "tests/unit/test_risk_engine.py"
+      - "tests/unit/test_risk_engine_event_integration.py"
+      - "tests/unit/test_risk_engine_persistence_integration.py"
+      - "tests/unit/test_risk_runtime.py"
+      - "src/cryptotechnolog/bootstrap/**"
+      - "src/cryptotechnolog/risk/**"
+      - "src/cryptotechnolog/core/enhanced_event_bus.py"
+      - "src/cryptotechnolog/core/listeners/**"
+      - "src/cryptotechnolog/core/system_controller.py"
+      - "src/cryptotechnolog/config/settings.py"
+      - "pyproject.toml"
+      - "requirements.txt"
   workflow_dispatch:
   schedule:
     - cron: "0 2 * * *"
