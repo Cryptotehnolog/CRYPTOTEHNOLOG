@@ -167,6 +167,23 @@ def _install_fake_metrics(runtime) -> None:
     runtime.metrics_collector.get_gauge = lambda _name: _FakeGauge()  # type: ignore[method-assign]
 
 
+async def _build_test_runtime():
+    runtime = await build_production_runtime(
+        settings=_make_settings(),
+        policy=ProductionBootstrapPolicy(
+            test_mode=True,
+            enable_event_bus_persistence=False,
+            enable_risk_persistence=False,
+        ),
+    )
+
+    fake_pool = _FakePool()
+    _install_fake_database(runtime, fake_pool)
+    _install_fake_redis(runtime)
+    _install_fake_metrics(runtime)
+    return runtime
+
+
 def _capture_lifecycle_events(runtime) -> list[str]:
     lifecycle_events: list[str] = []
 
@@ -307,24 +324,45 @@ def _make_order_filled_event() -> Event:
     )
 
 
+async def _startup_with_orderbook(runtime) -> None:
+    await runtime.startup()
+    await runtime.market_data_runtime.ingest_orderbook_snapshot(_make_orderbook_snapshot())
+
+
+def _install_ready_upstream_truths(runtime) -> None:
+    runtime.shared_analysis_runtime.get_risk_derived_inputs = lambda **_kwargs: (
+        _make_ready_derived_inputs()
+    )  # type: ignore[method-assign]
+    runtime.intelligence_runtime.get_derya_assessment = lambda **_kwargs: _make_ready_derya()  # type: ignore[method-assign]
+
+
+async def _publish_completed_bars(
+    runtime,
+    *,
+    count: int,
+    start_index: int = 0,
+    bar_factory=_make_completed_bar,
+) -> None:
+    for index in range(start_index, start_index + count):
+        bar = bar_factory(index)
+        event = build_market_data_event(
+            event_type=MarketDataEventType.BAR_COMPLETED,
+            payload=BarCompletedPayload.from_contract(bar),
+        )
+        await runtime.event_bus.publish(event)
+
+
+def _register_event_captures(runtime, *registrations: tuple[str, object]) -> None:
+    for event_type, sink in registrations:
+        runtime.event_bus.on(event_type, sink)
+
+
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_production_composition_root_builds_and_starts_real_runtime_contract() -> None:  # noqa: PLR0915
     """Composition root должен реально собрать и поднять production runtime contract."""
-    runtime = await build_production_runtime(
-        settings=_make_settings(),
-        policy=ProductionBootstrapPolicy(
-            test_mode=True,
-            enable_event_bus_persistence=False,
-            enable_risk_persistence=False,
-        ),
-    )
-
-    fake_pool = _FakePool()
+    runtime = await _build_test_runtime()
     lifecycle_events = _capture_lifecycle_events(runtime)
-    _install_fake_database(runtime, fake_pool)
-    _install_fake_redis(runtime)
-    _install_fake_metrics(runtime)
 
     await runtime.startup()
 
@@ -387,19 +425,7 @@ async def test_production_composition_root_builds_and_starts_real_runtime_contra
 @pytest.mark.integration
 async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> None:  # noqa: PLR0915
     """Phase 8 runtime должен получать existing truths через composition-root wiring."""
-    runtime = await build_production_runtime(
-        settings=_make_settings(),
-        policy=ProductionBootstrapPolicy(
-            test_mode=True,
-            enable_event_bus_persistence=False,
-            enable_risk_persistence=False,
-        ),
-    )
-
-    fake_pool = _FakePool()
-    _install_fake_database(runtime, fake_pool)
-    _install_fake_redis(runtime)
-    _install_fake_metrics(runtime)
+    runtime = await _build_test_runtime()
 
     captured_signal_events: list[Event] = []
     captured_strategy_events: list[Event] = []
@@ -412,16 +438,8 @@ async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> No
         captured_strategy_events.append,
     )
 
-    await runtime.startup()
-    await runtime.market_data_runtime.ingest_orderbook_snapshot(_make_orderbook_snapshot())
-
-    for index in range(28):
-        bar = _make_completed_bar(index)
-        event = build_market_data_event(
-            event_type=MarketDataEventType.BAR_COMPLETED,
-            payload=BarCompletedPayload.from_contract(bar),
-        )
-        await runtime.event_bus.publish(event)
+    await _startup_with_orderbook(runtime)
+    await _publish_completed_bars(runtime, count=28)
 
     diagnostics = runtime.get_runtime_diagnostics()
     signal_diagnostics = diagnostics["signal_runtime"]
@@ -509,19 +527,7 @@ async def test_signal_runtime_is_explicitly_wired_to_existing_truth_path() -> No
 @pytest.mark.integration
 async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtime_path() -> None:  # noqa: PLR0915
     """Integrated signal wiring должен публиковать SIGNAL_EMITTED из existing truths."""
-    runtime = await build_production_runtime(
-        settings=_make_settings(),
-        policy=ProductionBootstrapPolicy(
-            test_mode=True,
-            enable_event_bus_persistence=False,
-            enable_risk_persistence=False,
-        ),
-    )
-
-    fake_pool = _FakePool()
-    _install_fake_database(runtime, fake_pool)
-    _install_fake_redis(runtime)
-    _install_fake_metrics(runtime)
+    runtime = await _build_test_runtime()
 
     captured_signal_events: list[Event] = []
     captured_strategy_events: list[Event] = []
@@ -535,68 +541,37 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
     captured_manager_events: list[Event] = []
     captured_validation_events: list[Event] = []
     captured_paper_events: list[Event] = []
-    runtime.event_bus.on(
-        SignalEventType.SIGNAL_EMITTED.value,
-        captured_signal_events.append,
-    )
-    runtime.event_bus.on(
-        StrategyEventType.STRATEGY_ACTIONABLE.value,
-        captured_strategy_events.append,
-    )
-    runtime.event_bus.on(
-        ExecutionEventType.EXECUTION_REQUESTED.value,
-        captured_execution_events.append,
-    )
-    runtime.event_bus.on(
-        OmsEventType.OMS_ORDER_REGISTERED.value,
-        captured_oms_events.append,
-    )
-    runtime.event_bus.on(
-        OpportunityEventType.OPPORTUNITY_SELECTED.value,
-        captured_opportunity_events.append,
-    )
-    runtime.event_bus.on(
-        OrchestrationEventType.ORCHESTRATION_DECIDED.value,
-        captured_orchestration_events.append,
-    )
-    runtime.event_bus.on(
-        PositionExpansionEventType.POSITION_EXPANSION_APPROVED.value,
-        captured_position_expansion_events.append,
-    )
-    runtime.event_bus.on(
-        PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_APPROVED.value,
-        captured_portfolio_governor_events.append,
-    )
-    runtime.event_bus.on(
-        ProtectionEventType.PROTECTION_FROZEN.value,
-        captured_protection_events.append,
-    )
-    runtime.event_bus.on(
-        ManagerEventType.MANAGER_WORKFLOW_ABSTAINED.value,
-        captured_manager_events.append,
-    )
-    runtime.event_bus.on(
-        ValidationEventType.VALIDATION_CANDIDATE_UPDATED.value,
-        captured_validation_events.append,
-    )
-    runtime.event_bus.on(
-        PaperEventType.PAPER_CANDIDATE_UPDATED.value,
-        captured_paper_events.append,
+    _register_event_captures(
+        runtime,
+        (SignalEventType.SIGNAL_EMITTED.value, captured_signal_events.append),
+        (StrategyEventType.STRATEGY_ACTIONABLE.value, captured_strategy_events.append),
+        (ExecutionEventType.EXECUTION_REQUESTED.value, captured_execution_events.append),
+        (OmsEventType.OMS_ORDER_REGISTERED.value, captured_oms_events.append),
+        (OpportunityEventType.OPPORTUNITY_SELECTED.value, captured_opportunity_events.append),
+        (
+            OrchestrationEventType.ORCHESTRATION_DECIDED.value,
+            captured_orchestration_events.append,
+        ),
+        (
+            PositionExpansionEventType.POSITION_EXPANSION_APPROVED.value,
+            captured_position_expansion_events.append,
+        ),
+        (
+            PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_APPROVED.value,
+            captured_portfolio_governor_events.append,
+        ),
+        (ProtectionEventType.PROTECTION_FROZEN.value, captured_protection_events.append),
+        (ManagerEventType.MANAGER_WORKFLOW_ABSTAINED.value, captured_manager_events.append),
+        (
+            ValidationEventType.VALIDATION_CANDIDATE_UPDATED.value,
+            captured_validation_events.append,
+        ),
+        (PaperEventType.PAPER_CANDIDATE_UPDATED.value, captured_paper_events.append),
     )
 
-    await runtime.startup()
-    await runtime.market_data_runtime.ingest_orderbook_snapshot(_make_orderbook_snapshot())
-    runtime.shared_analysis_runtime.get_risk_derived_inputs = lambda **_kwargs: (
-        _make_ready_derived_inputs()
-    )  # type: ignore[method-assign]
-    runtime.intelligence_runtime.get_derya_assessment = lambda **_kwargs: _make_ready_derya()  # type: ignore[method-assign]
-
-    bar = _make_completed_bar(0)
-    event = build_market_data_event(
-        event_type=MarketDataEventType.BAR_COMPLETED,
-        payload=BarCompletedPayload.from_contract(bar),
-    )
-    await runtime.event_bus.publish(event)
+    await _startup_with_orderbook(runtime)
+    _install_ready_upstream_truths(runtime)
+    await _publish_completed_bars(runtime, count=1)
 
     diagnostics = runtime.get_runtime_diagnostics()
     signal_diagnostics = diagnostics["signal_runtime"]
@@ -808,55 +783,30 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
 async def test_execution_runtime_publishes_intent_updated_for_non_executable_strategy_candidate(  # noqa: PLR0915
 ) -> None:
     """Integrated execution wiring не должен маскировать non-executable candidate как request."""
-    runtime = await build_production_runtime(
-        settings=_make_settings(),
-        policy=ProductionBootstrapPolicy(
-            test_mode=True,
-            enable_event_bus_persistence=False,
-            enable_risk_persistence=False,
-        ),
-    )
-
-    fake_pool = _FakePool()
-    _install_fake_database(runtime, fake_pool)
-    _install_fake_redis(runtime)
-    _install_fake_metrics(runtime)
+    runtime = await _build_test_runtime()
 
     captured_execution_updates: list[Event] = []
     captured_oms_updates: list[Event] = []
     captured_opportunity_updates: list[Event] = []
     captured_orchestration_updates: list[Event] = []
-    runtime.event_bus.on(
-        ExecutionEventType.EXECUTION_INTENT_UPDATED.value,
-        captured_execution_updates.append,
-    )
-    runtime.event_bus.on(
-        OmsEventType.OMS_ORDER_REGISTERED.value,
-        captured_oms_updates.append,
-    )
-    runtime.event_bus.on(
-        OpportunityEventType.OPPORTUNITY_CANDIDATE_UPDATED.value,
-        captured_opportunity_updates.append,
-    )
-    runtime.event_bus.on(
-        OrchestrationEventType.ORCHESTRATION_CANDIDATE_UPDATED.value,
-        captured_orchestration_updates.append,
+    _register_event_captures(
+        runtime,
+        (ExecutionEventType.EXECUTION_INTENT_UPDATED.value, captured_execution_updates.append),
+        (OmsEventType.OMS_ORDER_REGISTERED.value, captured_oms_updates.append),
+        (
+            OpportunityEventType.OPPORTUNITY_CANDIDATE_UPDATED.value,
+            captured_opportunity_updates.append,
+        ),
+        (
+            OrchestrationEventType.ORCHESTRATION_CANDIDATE_UPDATED.value,
+            captured_orchestration_updates.append,
+        ),
     )
 
-    await runtime.startup()
-    await runtime.market_data_runtime.ingest_orderbook_snapshot(_make_orderbook_snapshot())
-    runtime.shared_analysis_runtime.get_risk_derived_inputs = lambda **_kwargs: (
-        _make_ready_derived_inputs()
-    )  # type: ignore[method-assign]
-    runtime.intelligence_runtime.get_derya_assessment = lambda **_kwargs: _make_ready_derya()  # type: ignore[method-assign]
+    await _startup_with_orderbook(runtime)
+    _install_ready_upstream_truths(runtime)
     runtime.execution_runtime._evaluate_minimal_contour = lambda **_kwargs: None  # type: ignore[method-assign]
-
-    bar = _make_completed_bar(0)
-    event = build_market_data_event(
-        event_type=MarketDataEventType.BAR_COMPLETED,
-        payload=BarCompletedPayload.from_contract(bar),
-    )
-    await runtime.event_bus.publish(event)
+    await _publish_completed_bars(runtime, count=1)
 
     diagnostics = runtime.get_runtime_diagnostics()
     strategy_diagnostics = diagnostics["strategy_runtime"]
@@ -940,19 +890,7 @@ async def test_execution_runtime_publishes_intent_updated_for_non_executable_str
 @pytest.mark.integration
 async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_disappears() -> None:  # noqa: PLR0915
     """Integrated signal wiring не должен маскировать invalidation как обычный update."""
-    runtime = await build_production_runtime(
-        settings=_make_settings(),
-        policy=ProductionBootstrapPolicy(
-            test_mode=True,
-            enable_event_bus_persistence=False,
-            enable_risk_persistence=False,
-        ),
-    )
-
-    fake_pool = _FakePool()
-    _install_fake_database(runtime, fake_pool)
-    _install_fake_redis(runtime)
-    _install_fake_metrics(runtime)
+    runtime = await _build_test_runtime()
 
     captured_invalidations: list[Event] = []
     captured_strategy_invalidations: list[Event] = []
@@ -965,64 +903,48 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     captured_manager_invalidations: list[Event] = []
     captured_validation_invalidations: list[Event] = []
     captured_paper_invalidations: list[Event] = []
-    runtime.event_bus.on(
-        SignalEventType.SIGNAL_INVALIDATED.value,
-        captured_invalidations.append,
-    )
-    runtime.event_bus.on(
-        StrategyEventType.STRATEGY_INVALIDATED.value,
-        captured_strategy_invalidations.append,
-    )
-    runtime.event_bus.on(
-        ExecutionEventType.EXECUTION_INVALIDATED.value,
-        captured_execution_invalidations.append,
-    )
-    runtime.event_bus.on(
-        OmsEventType.OMS_ORDER_EXPIRED.value,
-        captured_oms_events.append,
-    )
-    runtime.event_bus.on(
-        OpportunityEventType.OPPORTUNITY_INVALIDATED.value,
-        captured_opportunity_invalidations.append,
-    )
-    runtime.event_bus.on(
-        OrchestrationEventType.ORCHESTRATION_INVALIDATED.value,
-        captured_orchestration_invalidations.append,
-    )
-    runtime.event_bus.on(
-        PositionExpansionEventType.POSITION_EXPANSION_INVALIDATED.value,
-        captured_position_expansion_invalidations.append,
-    )
-    runtime.event_bus.on(
-        PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_INVALIDATED.value,
-        captured_portfolio_governor_invalidations.append,
-    )
-    runtime.event_bus.on(
-        ManagerEventType.MANAGER_WORKFLOW_INVALIDATED.value,
-        captured_manager_invalidations.append,
-    )
-    runtime.event_bus.on(
-        ValidationEventType.VALIDATION_WORKFLOW_INVALIDATED.value,
-        captured_validation_invalidations.append,
-    )
-    runtime.event_bus.on(
-        PaperEventType.PAPER_REHEARSAL_INVALIDATED.value,
-        captured_paper_invalidations.append,
+    _register_event_captures(
+        runtime,
+        (SignalEventType.SIGNAL_INVALIDATED.value, captured_invalidations.append),
+        (
+            StrategyEventType.STRATEGY_INVALIDATED.value,
+            captured_strategy_invalidations.append,
+        ),
+        (
+            ExecutionEventType.EXECUTION_INVALIDATED.value,
+            captured_execution_invalidations.append,
+        ),
+        (OmsEventType.OMS_ORDER_EXPIRED.value, captured_oms_events.append),
+        (
+            OpportunityEventType.OPPORTUNITY_INVALIDATED.value,
+            captured_opportunity_invalidations.append,
+        ),
+        (
+            OrchestrationEventType.ORCHESTRATION_INVALIDATED.value,
+            captured_orchestration_invalidations.append,
+        ),
+        (
+            PositionExpansionEventType.POSITION_EXPANSION_INVALIDATED.value,
+            captured_position_expansion_invalidations.append,
+        ),
+        (
+            PortfolioGovernorEventType.PORTFOLIO_GOVERNOR_INVALIDATED.value,
+            captured_portfolio_governor_invalidations.append,
+        ),
+        (
+            ManagerEventType.MANAGER_WORKFLOW_INVALIDATED.value,
+            captured_manager_invalidations.append,
+        ),
+        (
+            ValidationEventType.VALIDATION_WORKFLOW_INVALIDATED.value,
+            captured_validation_invalidations.append,
+        ),
+        (PaperEventType.PAPER_REHEARSAL_INVALIDATED.value, captured_paper_invalidations.append),
     )
 
-    await runtime.startup()
-    await runtime.market_data_runtime.ingest_orderbook_snapshot(_make_orderbook_snapshot())
-    runtime.shared_analysis_runtime.get_risk_derived_inputs = lambda **_kwargs: (
-        _make_ready_derived_inputs()
-    )  # type: ignore[method-assign]
-    runtime.intelligence_runtime.get_derya_assessment = lambda **_kwargs: _make_ready_derya()  # type: ignore[method-assign]
-
-    first_bar = _make_completed_bar(0)
-    first_event = build_market_data_event(
-        event_type=MarketDataEventType.BAR_COMPLETED,
-        payload=BarCompletedPayload.from_contract(first_bar),
-    )
-    await runtime.event_bus.publish(first_event)
+    await _startup_with_orderbook(runtime)
+    _install_ready_upstream_truths(runtime)
+    await _publish_completed_bars(runtime, count=1)
 
     active = runtime.signal_runtime.get_signal(
         exchange="bybit",
@@ -1033,12 +955,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
     assert active.status.value == "active"
 
     runtime.shared_analysis_runtime.get_risk_derived_inputs = lambda **_kwargs: None  # type: ignore[method-assign]
-    second_bar = _make_completed_bar(1)
-    second_event = build_market_data_event(
-        event_type=MarketDataEventType.BAR_COMPLETED,
-        payload=BarCompletedPayload.from_contract(second_bar),
-    )
-    await runtime.event_bus.publish(second_event)
+    await _publish_completed_bars(runtime, count=1, start_index=1)
 
     diagnostics = runtime.get_runtime_diagnostics()
     signal_diagnostics = diagnostics["signal_runtime"]
@@ -1245,19 +1162,7 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
 @pytest.mark.integration
 async def test_intelligence_runtime_is_explicitly_wired_to_bar_completed_path() -> None:
     """Phase 7 runtime должен получать BAR_COMPLETED через composition-root wiring."""
-    runtime = await build_production_runtime(
-        settings=_make_settings(),
-        policy=ProductionBootstrapPolicy(
-            test_mode=True,
-            enable_event_bus_persistence=False,
-            enable_risk_persistence=False,
-        ),
-    )
-
-    fake_pool = _FakePool()
-    _install_fake_database(runtime, fake_pool)
-    _install_fake_redis(runtime)
-    _install_fake_metrics(runtime)
+    runtime = await _build_test_runtime()
     captured_transitions: list[str] = []
 
     def capture_transition(event) -> None:
@@ -1266,14 +1171,7 @@ async def test_intelligence_runtime_is_explicitly_wired_to_bar_completed_path() 
     runtime.event_bus.on(IntelligenceEventType.DERYA_REGIME_CHANGED.value, capture_transition)
 
     await runtime.startup()
-
-    for index in range(4):
-        bar = _make_completed_bar(index)
-        event = build_market_data_event(
-            event_type=MarketDataEventType.BAR_COMPLETED,
-            payload=BarCompletedPayload.from_contract(bar),
-        )
-        await runtime.event_bus.publish(event)
+    await _publish_completed_bars(runtime, count=4)
 
     diagnostics = runtime.get_runtime_diagnostics()
     intelligence_diagnostics = diagnostics["intelligence_runtime"]
@@ -1312,19 +1210,7 @@ async def test_intelligence_runtime_is_explicitly_wired_to_bar_completed_path() 
 @pytest.mark.integration
 async def test_intelligence_runtime_ingest_failure_is_visible_in_runtime_truth() -> None:
     """DERYA ingest failure не должен маскироваться внутри BAR_COMPLETED wiring."""
-    runtime = await build_production_runtime(
-        settings=_make_settings(),
-        policy=ProductionBootstrapPolicy(
-            test_mode=True,
-            enable_event_bus_persistence=False,
-            enable_risk_persistence=False,
-        ),
-    )
-
-    fake_pool = _FakePool()
-    _install_fake_database(runtime, fake_pool)
-    _install_fake_redis(runtime)
-    _install_fake_metrics(runtime)
+    runtime = await _build_test_runtime()
 
     await runtime.startup()
 
@@ -1333,13 +1219,7 @@ async def test_intelligence_runtime_ingest_failure_is_visible_in_runtime_truth()
 
     runtime.intelligence_runtime.ingest_bar_completed_payload = raise_ingest_failure  # type: ignore[method-assign]
 
-    bar = _make_completed_bar(0)
-    event = build_market_data_event(
-        event_type=MarketDataEventType.BAR_COMPLETED,
-        payload=BarCompletedPayload.from_contract(bar),
-    )
-
-    await runtime.event_bus.publish(event)
+    await _publish_completed_bars(runtime, count=1)
 
     diagnostics = runtime.get_runtime_diagnostics()
     intelligence_diagnostics = diagnostics["intelligence_runtime"]
@@ -1367,28 +1247,11 @@ async def test_intelligence_runtime_ingest_failure_is_visible_in_runtime_truth()
 async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_runtime_truth(  # noqa: PLR0915
 ) -> None:
     """Signal runtime не должен маскировать incomplete context как ready."""
-    runtime = await build_production_runtime(
-        settings=_make_settings(),
-        policy=ProductionBootstrapPolicy(
-            test_mode=True,
-            enable_event_bus_persistence=False,
-            enable_risk_persistence=False,
-        ),
-    )
-
-    fake_pool = _FakePool()
-    _install_fake_database(runtime, fake_pool)
-    _install_fake_redis(runtime)
-    _install_fake_metrics(runtime)
+    runtime = await _build_test_runtime()
 
     await runtime.startup()
 
-    bar = _make_completed_bar(0)
-    event = build_market_data_event(
-        event_type=MarketDataEventType.BAR_COMPLETED,
-        payload=BarCompletedPayload.from_contract(bar),
-    )
-    await runtime.event_bus.publish(event)
+    await _publish_completed_bars(runtime, count=1)
 
     diagnostics = runtime.get_runtime_diagnostics()
     signal_diagnostics = diagnostics["signal_runtime"]
@@ -1482,29 +1345,11 @@ async def test_signal_runtime_missing_analysis_and_intelligence_is_visible_in_ru
 @pytest.mark.integration
 async def test_intelligence_runtime_shutdown_resets_nested_diagnostics() -> None:  # noqa: PLR0915
     """Shutdown должен оставлять operator-visible intelligence diagnostics в stopped state."""
-    runtime = await build_production_runtime(
-        settings=_make_settings(),
-        policy=ProductionBootstrapPolicy(
-            test_mode=True,
-            enable_event_bus_persistence=False,
-            enable_risk_persistence=False,
-        ),
-    )
-
-    fake_pool = _FakePool()
-    _install_fake_database(runtime, fake_pool)
-    _install_fake_redis(runtime)
-    _install_fake_metrics(runtime)
+    runtime = await _build_test_runtime()
 
     await runtime.startup()
 
-    for index in range(4):
-        bar = _make_completed_bar(index)
-        event = build_market_data_event(
-            event_type=MarketDataEventType.BAR_COMPLETED,
-            payload=BarCompletedPayload.from_contract(bar),
-        )
-        await runtime.event_bus.publish(event)
+    await _publish_completed_bars(runtime, count=4)
 
     await runtime.shutdown(force=True)
 
@@ -1701,19 +1546,7 @@ async def test_shared_analysis_runtime_publishes_honest_risk_bar_completed_for_a
     None
 ):
     """Production wiring должен публиковать RISK_BAR_COMPLETED только из полного набора truth sources."""
-    runtime = await build_production_runtime(
-        settings=_make_settings(),
-        policy=ProductionBootstrapPolicy(
-            test_mode=True,
-            enable_event_bus_persistence=False,
-            enable_risk_persistence=False,
-        ),
-    )
-
-    fake_pool = _FakePool()
-    _install_fake_database(runtime, fake_pool)
-    _install_fake_redis(runtime)
-    _install_fake_metrics(runtime)
+    runtime = await _build_test_runtime()
 
     captured_risk_bars: list[Event] = []
     trailing_events: list[Event] = []
@@ -1721,17 +1554,9 @@ async def test_shared_analysis_runtime_publishes_honest_risk_bar_completed_for_a
     runtime.event_bus.on(SystemEventType.RISK_BAR_COMPLETED, captured_risk_bars.append)
     runtime.event_bus.on(RiskEngineEventType.TRAILING_STOP_MOVED, trailing_events.append)
 
-    await runtime.startup()
-    await runtime.market_data_runtime.ingest_orderbook_snapshot(_make_orderbook_snapshot())
+    await _startup_with_orderbook(runtime)
     await runtime.event_bus.publish(_make_order_filled_event())
-
-    for index in range(28):
-        bar = _make_trending_completed_bar(index)
-        event = build_market_data_event(
-            event_type=MarketDataEventType.BAR_COMPLETED,
-            payload=BarCompletedPayload.from_contract(bar),
-        )
-        await runtime.event_bus.publish(event)
+    await _publish_completed_bars(runtime, count=28, bar_factory=_make_trending_completed_bar)
 
     diagnostics = runtime.get_runtime_diagnostics()
     shared_analysis_diagnostics = diagnostics["shared_analysis_runtime"]

@@ -57,6 +57,38 @@ def make_position(
     )
 
 
+def _make_engine(
+    *,
+    config: RiskEngineConfig | None = None,
+    correlation_evaluator: CorrelationEvaluator | None = None,
+    portfolio: PortfolioState | None = None,
+    ledger: RiskLedger | None = None,
+    drawdown: DrawdownMonitor | None = None,
+) -> RiskEngine:
+    resolved_ledger = ledger or RiskLedger()
+    resolved_portfolio = portfolio or PortfolioState()
+    resolved_drawdown = drawdown or DrawdownMonitor(starting_equity=Decimal("10000"))
+    resolved_config = config or RiskEngineConfig(
+        base_r_percent=Decimal("0.01"),
+        max_r_per_trade=Decimal("0.02"),
+        max_total_r=Decimal("0.03"),
+        max_total_exposure_usd=Decimal("6000"),
+        max_position_size=Decimal("5000"),
+        quantity_step=Decimal("0.01"),
+        price_precision=Decimal("0.01"),
+        risk_precision=Decimal("0.00000001"),
+    )
+    return RiskEngine(
+        config=resolved_config,
+        correlation_evaluator=correlation_evaluator or CorrelationEvaluator(),
+        position_sizer=PositionSizer(),
+        portfolio_state=resolved_portfolio,
+        drawdown_monitor=resolved_drawdown,
+        risk_ledger=resolved_ledger,
+        trailing_policy=TrailingPolicy(resolved_ledger),
+    )
+
+
 class TestRiskEngine:
     """Тесты первого pre-trade orchestration RiskEngine."""
 
@@ -64,23 +96,10 @@ class TestRiskEngine:
         self.ledger = RiskLedger()
         self.portfolio = PortfolioState()
         self.drawdown = DrawdownMonitor(starting_equity=Decimal("10000"))
-        self.engine = RiskEngine(
-            config=RiskEngineConfig(
-                base_r_percent=Decimal("0.01"),
-                max_r_per_trade=Decimal("0.02"),
-                max_total_r=Decimal("0.03"),
-                max_total_exposure_usd=Decimal("6000"),
-                max_position_size=Decimal("5000"),
-                quantity_step=Decimal("0.01"),
-                price_precision=Decimal("0.01"),
-                risk_precision=Decimal("0.00000001"),
-            ),
-            correlation_evaluator=CorrelationEvaluator(),
-            position_sizer=PositionSizer(),
-            portfolio_state=self.portfolio,
-            drawdown_monitor=self.drawdown,
-            risk_ledger=self.ledger,
-            trailing_policy=TrailingPolicy(self.ledger),
+        self.engine = _make_engine(
+            portfolio=self.portfolio,
+            ledger=self.ledger,
+            drawdown=self.drawdown,
         )
 
     def test_rejects_when_system_state_does_not_allow_trading(self) -> None:
@@ -208,7 +227,8 @@ class TestRiskEngine:
     def test_degraded_state_scales_risk_budget(self) -> None:
         """В DEGRADED effective risk budget должен ужиматься по state policy."""
         ledger = RiskLedger()
-        engine = RiskEngine(
+        engine = _make_engine(
+            ledger=ledger,
             config=RiskEngineConfig(
                 base_r_percent=Decimal("0.02"),
                 max_r_per_trade=Decimal("0.02"),
@@ -219,12 +239,6 @@ class TestRiskEngine:
                 price_precision=Decimal("0.01"),
                 risk_precision=Decimal("0.00000001"),
             ),
-            correlation_evaluator=CorrelationEvaluator(),
-            position_sizer=PositionSizer(),
-            portfolio_state=PortfolioState(),
-            drawdown_monitor=DrawdownMonitor(starting_equity=Decimal("10000")),
-            risk_ledger=ledger,
-            trailing_policy=TrailingPolicy(ledger),
         )
 
         result = engine.check_trade(
@@ -255,8 +269,9 @@ class TestRiskEngine:
             )
         )
         portfolio.upsert_position(record)
-        engine = RiskEngine(
-            trailing_policy=TrailingPolicy(ledger),
+        engine = _make_engine(
+            ledger=ledger,
+            portfolio=portfolio,
             config=RiskEngineConfig(
                 base_r_percent=Decimal("0.01"),
                 max_r_per_trade=Decimal("0.02"),
@@ -273,10 +288,6 @@ class TestRiskEngine:
                     pair_overrides={frozenset({"BTC/USDT", "ETH/USDT"}): Decimal("0.91")},
                 )
             ),
-            position_sizer=PositionSizer(),
-            portfolio_state=portfolio,
-            drawdown_monitor=DrawdownMonitor(starting_equity=Decimal("10000")),
-            risk_ledger=ledger,
         )
 
         result = engine.check_trade(
@@ -324,8 +335,9 @@ class TestRiskEngine:
         )
         portfolio.upsert_position(first)
         portfolio.upsert_position(second)
-        engine = RiskEngine(
-            trailing_policy=TrailingPolicy(ledger),
+        engine = _make_engine(
+            ledger=ledger,
+            portfolio=portfolio,
             config=RiskEngineConfig(
                 base_r_percent=Decimal("0.01"),
                 max_r_per_trade=Decimal("0.02"),
@@ -348,10 +360,6 @@ class TestRiskEngine:
                     },
                 )
             ),
-            position_sizer=PositionSizer(),
-            portfolio_state=portfolio,
-            drawdown_monitor=DrawdownMonitor(starting_equity=Decimal("10000")),
-            risk_ledger=ledger,
         )
 
         result = engine.check_trade(

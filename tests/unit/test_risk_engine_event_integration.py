@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from decimal import Decimal
 
 import pytest
@@ -27,6 +28,27 @@ class BrokenUpdateLedger(RiskLedger):
         if new_stop != current_record.current_stop:
             raise RuntimeError("simulated ledger sync failure")
         return super().update_position_risk(**kwargs)
+
+
+@asynccontextmanager
+async def event_harness(
+    *,
+    ledger: RiskLedger | None = None,
+    listener_name: str,
+):
+    engine = make_engine(ledger=ledger)
+    bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
+    listener = RiskEngineListener(
+        risk_engine=engine,
+        publisher=bus.publish,
+        config=RiskEngineListenerConfig(name=listener_name),
+    )
+    bus.register_listener(listener)
+    try:
+        yield engine, bus, listener
+    finally:
+        bus.unregister_listener(listener.name)
+        await bus.shutdown()
 
 
 def make_engine(*, ledger: RiskLedger | None = None) -> RiskEngine:
@@ -156,265 +178,223 @@ def make_position_closed_event() -> Event:
     )
 
 
+async def _publish_order_filled(bus: EnhancedEventBus) -> None:
+    await bus.publish(make_order_filled_event())
+
+
+async def _publish_order_filled_and_bar_completed(bus: EnhancedEventBus) -> None:
+    await _publish_order_filled(bus)
+    await bus.publish(make_bar_completed_event())
+
+
+async def _publish_order_filled_and_position_closed(bus: EnhancedEventBus) -> None:
+    await _publish_order_filled(bus)
+    await bus.publish(make_position_closed_event())
+
+
 @pytest.mark.asyncio
 class TestRiskEngineEventIntegration:
     """Integration-сценарии event-driven слоя RiskEngine поверх реального EventBus."""
 
     async def test_order_submitted_publishes_reject_and_violation_events(self) -> None:
         """Pre-trade reject должен публиковать ORDER_REJECTED и RISK_VIOLATION."""
-        engine = make_engine()
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        rejected_events: list[Event] = []
-        violation_events: list[Event] = []
-        bus.on(RiskEngineEventType.ORDER_REJECTED, rejected_events.append)
-        bus.on(RiskEngineEventType.RISK_VIOLATION, violation_events.append)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_order_submitted"),
-        )
-        bus.register_listener(listener)
+        async with event_harness(listener_name="risk_listener_order_submitted") as (
+            _engine,
+            bus,
+            _listener,
+        ):
+            rejected_events: list[Event] = []
+            violation_events: list[Event] = []
+            bus.on(RiskEngineEventType.ORDER_REJECTED, rejected_events.append)
+            bus.on(RiskEngineEventType.RISK_VIOLATION, violation_events.append)
 
-        await bus.publish(make_order_submitted_event(stop_loss="100"))
+            await bus.publish(make_order_submitted_event(stop_loss="100"))
 
-        assert len(rejected_events) == 1
-        assert rejected_events[0].payload["reject_reason"] == "entry_equals_stop"
-        assert len(violation_events) == 1
-        assert violation_events[0].payload["violation_type"] == "entry_equals_stop"
-        assert violation_events[0].payload["limit_type"] == "risk_check"
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert len(rejected_events) == 1
+            assert rejected_events[0].payload["reject_reason"] == "entry_equals_stop"
+            assert len(violation_events) == 1
+            assert violation_events[0].payload["violation_type"] == "entry_equals_stop"
+            assert violation_events[0].payload["limit_type"] == "risk_check"
 
     async def test_order_submitted_hard_drawdown_publishes_alert_contract(self) -> None:
         """Hard drawdown reject должен публиковать drawdown escalation event."""
-        engine = make_engine()
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        drawdown_events: list[Event] = []
-        bus.on(RiskEngineEventType.DRAWDOWN_ALERT, drawdown_events.append)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_drawdown_alert"),
-        )
-        bus.register_listener(listener)
+        async with event_harness(listener_name="risk_listener_drawdown_alert") as (
+            _engine,
+            bus,
+            _listener,
+        ):
+            drawdown_events: list[Event] = []
+            bus.on(RiskEngineEventType.DRAWDOWN_ALERT, drawdown_events.append)
 
-        await bus.publish(make_order_submitted_event(order_id="ord-dd-1", current_equity="8900"))
+            await bus.publish(
+                make_order_submitted_event(order_id="ord-dd-1", current_equity="8900")
+            )
 
-        assert len(drawdown_events) == 1
-        assert drawdown_events[0].payload["reason"] == "drawdown_hard_limit_exceeded"
-        assert drawdown_events[0].payload["drawdown_level"] == "hard"
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert len(drawdown_events) == 1
+            assert drawdown_events[0].payload["reason"] == "drawdown_hard_limit_exceeded"
+            assert drawdown_events[0].payload["drawdown_level"] == "hard"
 
     async def test_order_submitted_velocity_drawdown_publishes_killswitch_event(self) -> None:
         """Velocity drawdown reject должен публиковать critical killswitch signal."""
-        engine = make_engine()
-        engine._drawdown_monitor.record_trade_result(Decimal("-1.2"))
-        engine._drawdown_monitor.record_trade_result(Decimal("-0.9"))
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        critical_events: list[Event] = []
-        bus.on(RiskEngineEventType.VELOCITY_KILLSWITCH_TRIGGERED, critical_events.append)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_velocity_killswitch"),
-        )
-        bus.register_listener(listener)
+        async with event_harness(listener_name="risk_listener_velocity_killswitch") as (
+            engine,
+            bus,
+            _listener,
+        ):
+            engine._drawdown_monitor.record_trade_result(Decimal("-1.2"))
+            engine._drawdown_monitor.record_trade_result(Decimal("-0.9"))
+            critical_events: list[Event] = []
+            bus.on(RiskEngineEventType.VELOCITY_KILLSWITCH_TRIGGERED, critical_events.append)
 
-        await bus.publish(make_order_submitted_event(order_id="ord-vel-1"))
+            await bus.publish(make_order_submitted_event(order_id="ord-vel-1"))
 
-        assert len(critical_events) == 1
-        assert critical_events[0].priority.value == "critical"
-        assert critical_events[0].payload["reason"] == "velocity_drawdown_triggered"
-        assert critical_events[0].payload["drawdown_level"] == "velocity"
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert len(critical_events) == 1
+            assert critical_events[0].priority.value == "critical"
+            assert critical_events[0].payload["reason"] == "velocity_drawdown_triggered"
+            assert critical_events[0].payload["drawdown_level"] == "velocity"
 
     async def test_order_filled_registers_position_and_publishes_risk_event(self) -> None:
         """ORDER_FILLED должен регистрировать позицию и публиковать risk event."""
-        engine = make_engine()
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        published_events: list[Event] = []
-        bus.on(RiskEngineEventType.RISK_POSITION_REGISTERED, published_events.append)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_order_filled"),
-        )
-        bus.register_listener(listener)
+        async with event_harness(listener_name="risk_listener_order_filled") as (
+            engine,
+            bus,
+            _listener,
+        ):
+            published_events: list[Event] = []
+            bus.on(RiskEngineEventType.RISK_POSITION_REGISTERED, published_events.append)
 
-        await bus.publish(make_order_filled_event())
+            await _publish_order_filled(bus)
 
-        record = engine._risk_ledger.get_position_record("pos-1")
-        portfolio_record = engine._portfolio_state.get_position("pos-1")
+            record = engine._risk_ledger.get_position_record("pos-1")
+            portfolio_record = engine._portfolio_state.get_position("pos-1")
 
-        assert record.position_id == "pos-1"
-        assert portfolio_record.position_id == "pos-1"
-        assert len(published_events) == 1
-        assert published_events[0].event_type == RiskEngineEventType.RISK_POSITION_REGISTERED
-        assert published_events[0].payload["position_id"] == "pos-1"
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert record.position_id == "pos-1"
+            assert portfolio_record.position_id == "pos-1"
+            assert len(published_events) == 1
+            assert published_events[0].event_type == RiskEngineEventType.RISK_POSITION_REGISTERED
+            assert published_events[0].payload["position_id"] == "pos-1"
 
     async def test_position_closed_releases_risk_and_publishes_release_event(self) -> None:
         """POSITION_CLOSED должен освобождать риск и удалять позицию из snapshot."""
-        engine = make_engine()
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        published_events: list[Event] = []
-        bus.on(RiskEngineEventType.RISK_POSITION_RELEASED, published_events.append)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_position_closed"),
-        )
-        bus.register_listener(listener)
+        async with event_harness(listener_name="risk_listener_position_closed") as (
+            engine,
+            bus,
+            _listener,
+        ):
+            published_events: list[Event] = []
+            bus.on(RiskEngineEventType.RISK_POSITION_RELEASED, published_events.append)
 
-        await bus.publish(make_order_filled_event())
-        await bus.publish(make_position_closed_event())
+            await _publish_order_filled_and_position_closed(bus)
 
-        assert engine._risk_ledger.get_total_risk_r() == Decimal("0")
-        assert engine._portfolio_state.snapshot().position_count == 0
-        assert len(published_events) == 1
-        assert published_events[0].payload["position_id"] == "pos-1"
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert engine._risk_ledger.get_total_risk_r() == Decimal("0")
+            assert engine._portfolio_state.snapshot().position_count == 0
+            assert len(published_events) == 1
+            assert published_events[0].payload["position_id"] == "pos-1"
 
     async def test_bar_completed_triggers_trailing_and_publishes_stop_move(self) -> None:
         """RISK_BAR_COMPLETED должен запускать trailing evaluation для открытой позиции."""
-        engine = make_engine()
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        published_events: list[Event] = []
-        bus.on(RiskEngineEventType.TRAILING_STOP_MOVED, published_events.append)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_bar_completed"),
-        )
-        bus.register_listener(listener)
+        async with event_harness(listener_name="risk_listener_bar_completed") as (
+            engine,
+            bus,
+            _listener,
+        ):
+            published_events: list[Event] = []
+            bus.on(RiskEngineEventType.TRAILING_STOP_MOVED, published_events.append)
 
-        await bus.publish(make_order_filled_event())
-        await bus.publish(make_bar_completed_event())
+            await _publish_order_filled_and_bar_completed(bus)
 
-        record = engine._risk_ledger.get_position_record("pos-1")
-        portfolio_record = engine._portfolio_state.get_position("pos-1")
+            record = engine._risk_ledger.get_position_record("pos-1")
+            portfolio_record = engine._portfolio_state.get_position("pos-1")
 
-        assert record.current_stop == Decimal("107.0")
-        assert portfolio_record.current_stop == Decimal("107.0")
-        assert len(published_events) == 1
-        assert published_events[0].payload["new_stop"] == "107.0"
-        assert published_events[0].payload["mode"] == "NORMAL"
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert record.current_stop == Decimal("107.0")
+            assert portfolio_record.current_stop == Decimal("107.0")
+            assert len(published_events) == 1
+            assert published_events[0].payload["new_stop"] == "107.0"
+            assert published_events[0].payload["mode"] == "NORMAL"
 
     async def test_market_data_bar_completed_boundary_does_not_trigger_risk_listener(self) -> None:
         """Сырой market-data BAR_COMPLETED не должен активировать risk trailing path."""
-        engine = make_engine()
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        published_events: list[Event] = []
-        bus.on(RiskEngineEventType.TRAILING_STOP_MOVED, published_events.append)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_market_data_boundary"),
-        )
-        bus.register_listener(listener)
+        async with event_harness(listener_name="risk_listener_market_data_boundary") as (
+            engine,
+            bus,
+            _listener,
+        ):
+            published_events: list[Event] = []
+            bus.on(RiskEngineEventType.TRAILING_STOP_MOVED, published_events.append)
 
-        await bus.publish(make_order_filled_event())
-        await bus.publish(
-            Event.new(
-                SystemEventType.BAR_COMPLETED,
-                "MARKET_DATA",
-                {
-                    "symbol": "BTC/USDT",
-                    "close": "110",
-                    "open": "108",
-                    "high": "111",
-                    "low": "107",
-                },
+            await _publish_order_filled(bus)
+            await bus.publish(
+                Event.new(
+                    SystemEventType.BAR_COMPLETED,
+                    "MARKET_DATA",
+                    {
+                        "symbol": "BTC/USDT",
+                        "close": "110",
+                        "open": "108",
+                        "high": "111",
+                        "low": "107",
+                    },
+                )
             )
-        )
 
-        record = engine._risk_ledger.get_position_record("pos-1")
-        portfolio_record = engine._portfolio_state.get_position("pos-1")
+            record = engine._risk_ledger.get_position_record("pos-1")
+            portfolio_record = engine._portfolio_state.get_position("pos-1")
 
-        assert record.current_stop == Decimal("95")
-        assert portfolio_record.current_stop == Decimal("95")
-        assert published_events == []
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert record.current_stop == Decimal("95")
+            assert portfolio_record.current_stop == Decimal("95")
+            assert published_events == []
 
     async def test_state_transition_changes_trailing_behavior_to_emergency(self) -> None:
         """STATE_TRANSITION в SURVIVAL должен переводить trailing в emergency path."""
-        engine = make_engine()
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        state_events: list[Event] = []
-        trailing_events: list[Event] = []
-        bus.on(RiskEngineEventType.RISK_ENGINE_STATE_UPDATED, state_events.append)
-        bus.on(RiskEngineEventType.TRAILING_STOP_MOVED, trailing_events.append)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_state_transition"),
-        )
-        bus.register_listener(listener)
+        async with event_harness(listener_name="risk_listener_state_transition") as (
+            engine,
+            bus,
+            listener,
+        ):
+            state_events: list[Event] = []
+            trailing_events: list[Event] = []
+            bus.on(RiskEngineEventType.RISK_ENGINE_STATE_UPDATED, state_events.append)
+            bus.on(RiskEngineEventType.TRAILING_STOP_MOVED, trailing_events.append)
 
-        await engine.handle_order_filled(
-            listener._parse_order_filled(make_order_filled_event().payload)
-        )
-        await bus.publish(
-            make_state_transition_event(
-                from_state=SystemState.TRADING,
-                to_state=SystemState.SURVIVAL,
+            await engine.handle_order_filled(
+                listener._parse_order_filled(make_order_filled_event().payload)
             )
-        )
-        await bus.publish(
-            make_bar_completed_event(mark_price="110", best_bid="109", best_ask="111", atr="2")
-        )
+            await bus.publish(
+                make_state_transition_event(
+                    from_state=SystemState.TRADING,
+                    to_state=SystemState.SURVIVAL,
+                )
+            )
+            await bus.publish(
+                make_bar_completed_event(mark_price="110", best_bid="109", best_ask="111", atr="2")
+            )
 
-        record = engine._risk_ledger.get_position_record("pos-1")
+            record = engine._risk_ledger.get_position_record("pos-1")
 
-        assert engine.current_system_state is SystemState.SURVIVAL
-        assert len(state_events) == 1
-        assert state_events[0].payload["to_state"] == SystemState.SURVIVAL.value
-        assert state_events[0].payload["risk_engine_state"] == SystemState.SURVIVAL.value
-        assert len(trailing_events) == 1
-        assert trailing_events[0].payload["mode"] == "EMERGENCY"
-        assert record.current_stop == Decimal("108.455")
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert engine.current_system_state is SystemState.SURVIVAL
+            assert len(state_events) == 1
+            assert state_events[0].payload["to_state"] == SystemState.SURVIVAL.value
+            assert state_events[0].payload["risk_engine_state"] == SystemState.SURVIVAL.value
+            assert len(trailing_events) == 1
+            assert trailing_events[0].payload["mode"] == "EMERGENCY"
+            assert record.current_stop == Decimal("108.455")
 
     async def test_bar_completed_publishes_blocked_event_when_ledger_sync_fails(self) -> None:
         """При ошибке ledger sync движение стопа должно блокироваться и публиковаться отдельно."""
-        engine = make_engine(ledger=BrokenUpdateLedger())
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        blocked_events: list[Event] = []
-        bus.on(RiskEngineEventType.TRAILING_STOP_BLOCKED, blocked_events.append)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_blocked"),
-        )
-        bus.register_listener(listener)
+        async with event_harness(
+            ledger=BrokenUpdateLedger(),
+            listener_name="risk_listener_blocked",
+        ) as (engine, bus, _listener):
+            blocked_events: list[Event] = []
+            bus.on(RiskEngineEventType.TRAILING_STOP_BLOCKED, blocked_events.append)
 
-        await bus.publish(make_order_filled_event())
-        await bus.publish(make_bar_completed_event())
+            await _publish_order_filled_and_bar_completed(bus)
 
-        record = engine._risk_ledger.get_position_record("pos-1")
+            record = engine._risk_ledger.get_position_record("pos-1")
 
-        assert record.current_stop == Decimal("95")
-        assert len(blocked_events) == 1
-        assert blocked_events[0].payload["position_id"] == "pos-1"
-        assert blocked_events[0].payload["symbol"] == "BTC/USDT"
-        assert blocked_events[0].payload["should_execute"] is False
-        assert "RiskLedger" in blocked_events[0].payload["reason"]
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert record.current_stop == Decimal("95")
+            assert len(blocked_events) == 1
+            assert blocked_events[0].payload["position_id"] == "pos-1"
+            assert blocked_events[0].payload["symbol"] == "BTC/USDT"
+            assert blocked_events[0].payload["should_execute"] is False
+            assert "RiskLedger" in blocked_events[0].payload["reason"]

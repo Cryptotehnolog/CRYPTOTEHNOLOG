@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from unittest.mock import patch
 
 import pytest
@@ -45,6 +46,27 @@ def make_settings() -> Settings:
     )
 
 
+@asynccontextmanager
+async def runtime_harness(
+    *,
+    controller: SystemController | None = None,
+    db_pool: object | None = None,
+    enable_persistence: bool = False,
+):
+    bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
+    runtime = await create_risk_runtime(
+        event_bus=bus,
+        controller=controller,
+        settings=make_settings(),
+        db_pool=db_pool,
+        enable_persistence=enable_persistence,
+    )
+    try:
+        yield bus, runtime
+    finally:
+        await bus.shutdown()
+
+
 class TestRiskRuntime:
     """Integration-тесты runtime/bootstrap integration нового Risk Engine."""
 
@@ -54,94 +76,80 @@ class TestRiskRuntime:
     ) -> None:
         bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
         controller = SystemController(event_bus=bus, test_mode=True)
+        try:
+            runtime = await create_risk_runtime(
+                event_bus=bus,
+                controller=controller,
+                settings=make_settings(),
+                enable_persistence=False,
+            )
 
-        runtime = await create_risk_runtime(
-            event_bus=bus,
-            controller=controller,
-            settings=make_settings(),
-            enable_persistence=False,
-        )
-
-        assert runtime.persistence_repository is None
-        assert runtime.config.funding_feature_enabled is True
-        assert controller.get_component("phase5_risk_engine") is runtime.risk_engine
-        assert controller.get_component("phase5_risk_listener") is runtime.risk_listener
-        assert controller.get_component("phase5_funding_manager") is runtime.funding_manager
+            assert runtime.persistence_repository is None
+            assert runtime.config.funding_feature_enabled is True
+            assert controller.get_component("phase5_risk_engine") is runtime.risk_engine
+            assert controller.get_component("phase5_risk_listener") is runtime.risk_listener
+            assert controller.get_component("phase5_funding_manager") is runtime.funding_manager
+        finally:
+            await bus.shutdown()
 
     @pytest.mark.asyncio
     async def test_wires_optional_repository_when_pool_is_available(
         self,
         isolated_listener_registry,
     ) -> None:
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-
-        runtime = await create_risk_runtime(
-            event_bus=bus,
-            settings=make_settings(),
+        async with runtime_harness(
             db_pool=_FakePool(),
             enable_persistence=True,
-        )
-
-        assert isinstance(runtime.persistence_repository, RiskPersistenceRepository)
+        ) as (_bus, runtime):
+            assert isinstance(runtime.persistence_repository, RiskPersistenceRepository)
 
     @pytest.mark.asyncio
     async def test_start_registers_only_phase5_listener_without_legacy_risk_mix(
         self,
         isolated_listener_registry,
     ) -> None:
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        runtime = await create_risk_runtime(
-            event_bus=bus,
-            settings=make_settings(),
-            enable_persistence=False,
-        )
-        published_events: list[Event] = []
-        bus.on(RiskEngineEventType.RISK_POSITION_REGISTERED, published_events.append)
+        async with runtime_harness(enable_persistence=False) as (bus, runtime):
+            published_events: list[Event] = []
+            bus.on(RiskEngineEventType.RISK_POSITION_REGISTERED, published_events.append)
 
-        await runtime.start()
+            await runtime.start()
 
-        assert bus.listener_registry is not None
-        listener_names = [listener.name for listener in bus.listener_registry.all_listeners]
-        assert "risk_engine_listener" in listener_names
-        assert "risk_check_listener" not in listener_names
+            assert bus.listener_registry is not None
+            listener_names = [listener.name for listener in bus.listener_registry.all_listeners]
+            assert "risk_engine_listener" in listener_names
+            assert "risk_check_listener" not in listener_names
 
-        await bus.publish(
-            Event.new(
-                SystemEventType.ORDER_FILLED,
-                "test_runtime",
-                {
-                    "position_id": "pos-runtime-1",
-                    "symbol": "BTC/USDT",
-                    "exchange": "bybit",
-                    "side": "buy",
-                    "avg_price": "100",
-                    "stop_loss": "95",
-                    "filled_qty": "2",
-                    "risk_capital_usd": "10000",
-                },
+            await bus.publish(
+                Event.new(
+                    SystemEventType.ORDER_FILLED,
+                    "test_runtime",
+                    {
+                        "position_id": "pos-runtime-1",
+                        "symbol": "BTC/USDT",
+                        "exchange": "bybit",
+                        "side": "buy",
+                        "avg_price": "100",
+                        "stop_loss": "95",
+                        "filled_qty": "2",
+                        "risk_capital_usd": "10000",
+                    },
+                )
             )
-        )
-        await bus.drain(timeout=5.0)
+            await bus.drain(timeout=1.0)
 
-        assert runtime.risk_ledger.get_position_record("pos-runtime-1").symbol == "BTC/USDT"
-        assert len(published_events) == 1
-        assert published_events[0].event_type == RiskEngineEventType.RISK_POSITION_REGISTERED
+            assert runtime.risk_ledger.get_position_record("pos-runtime-1").symbol == "BTC/USDT"
+            assert len(published_events) == 1
+            assert published_events[0].event_type == RiskEngineEventType.RISK_POSITION_REGISTERED
 
-        await runtime.stop()
+            await runtime.stop()
 
     @pytest.mark.asyncio
     async def test_repository_can_be_wired_via_project_database_infrastructure(
         self,
         isolated_listener_registry,
     ) -> None:
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
         fake_pool = _FakePool()
 
         with patch("cryptotechnolog.risk.runtime.get_db_pool", return_value=fake_pool):
-            runtime = await create_risk_runtime(
-                event_bus=bus,
-                settings=make_settings(),
-                enable_persistence=True,
-            )
-
-        assert isinstance(runtime.persistence_repository, RiskPersistenceRepository)
+            async with runtime_harness(enable_persistence=True) as (_bus, runtime):
+                assert isinstance(runtime.persistence_repository, RiskPersistenceRepository)

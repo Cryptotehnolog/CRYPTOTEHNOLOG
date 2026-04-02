@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -89,6 +90,38 @@ class BrokenUpdateLedger(RiskLedger):
         if new_stop != current_record.current_stop:
             raise RuntimeError("simulated ledger sync failure")
         return super().update_position_risk(**kwargs)
+
+
+@asynccontextmanager
+async def persistence_harness(
+    *,
+    repository: InMemoryRiskRepository | None = None,
+    ledger: RiskLedger | None = None,
+    listener_name: str,
+):
+    resolved_repository = repository or InMemoryRiskRepository()
+    engine = make_engine(repository=resolved_repository, ledger=ledger)
+    bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
+    listener = RiskEngineListener(
+        risk_engine=engine,
+        publisher=bus.publish,
+        config=RiskEngineListenerConfig(name=listener_name),
+    )
+    bus.register_listener(listener)
+    try:
+        yield resolved_repository, engine, bus
+    finally:
+        bus.unregister_listener(listener.name)
+        await bus.shutdown()
+
+
+async def _seed_order_filled(bus: EnhancedEventBus) -> None:
+    await bus.publish(make_order_filled_event())
+
+
+async def _seed_order_filled_and_bar_completed(bus: EnhancedEventBus) -> None:
+    await _seed_order_filled(bus)
+    await bus.publish(make_bar_completed_event())
 
 
 def make_engine(
@@ -246,151 +279,108 @@ class TestRiskEnginePersistenceIntegration:
 
     async def test_order_filled_persists_position_snapshot_and_register_audit(self) -> None:
         """ORDER_FILLED должен писать snapshot и audit регистрации позиции."""
-        repository = InMemoryRiskRepository()
-        engine = make_engine(repository=repository)
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_repo_order"),
-        )
-        bus.register_listener(listener)
+        async with persistence_harness(listener_name="risk_listener_repo_order") as (
+            repository,
+            _engine,
+            bus,
+        ):
+            await _seed_order_filled(bus)
 
-        await bus.publish(make_order_filled_event())
-
-        assert "pos-1" in repository.position_snapshots
-        assert len(repository.position_audits) == 1
-        assert repository.position_audits[0].operation == "REGISTER"
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert "pos-1" in repository.position_snapshots
+            assert len(repository.position_audits) == 1
+            assert repository.position_audits[0].operation == "REGISTER"
 
     async def test_position_closed_persists_release_audit_and_cleans_snapshots(self) -> None:
         """POSITION_CLOSED должен писать history, release audit и удалять active snapshots."""
-        repository = InMemoryRiskRepository()
-        engine = make_engine(repository=repository)
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_repo_close"),
-        )
-        bus.register_listener(listener)
+        async with persistence_harness(listener_name="risk_listener_repo_close") as (
+            repository,
+            _engine,
+            bus,
+        ):
+            await _seed_order_filled_and_bar_completed(bus)
+            await bus.publish(make_position_closed_event())
 
-        await bus.publish(make_order_filled_event())
-        await bus.publish(make_bar_completed_event())
-        await bus.publish(make_position_closed_event())
-
-        assert any(audit.operation == "TERMINATE" for audit in repository.position_audits)
-        assert repository.position_audits[-1].operation == "RELEASE"
-        assert len(repository.closed_position_history) == 1
-        history_record = repository.closed_position_history[0]
-        assert history_record.position_id == "pos-1"
-        assert history_record.symbol == "BTC/USDT"
-        assert history_record.exchange_id == "okx"
-        assert history_record.strategy_id == "breakout-trend"
-        assert history_record.side == "long"
-        assert history_record.trailing_state == "terminated"
-        assert history_record.exit_price == Decimal("107.00")
-        assert history_record.exit_reason == "trailing_stop"
-        assert history_record.realized_pnl_r == Decimal("1.2")
-        assert history_record.realized_pnl_usd == Decimal("120")
-        assert history_record.realized_pnl_percent == Decimal("2.4")
-        assert "pos-1" in repository.deleted_positions
-        assert "pos-1" in repository.deleted_trailing_snapshots
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert any(audit.operation == "TERMINATE" for audit in repository.position_audits)
+            assert repository.position_audits[-1].operation == "RELEASE"
+            assert len(repository.closed_position_history) == 1
+            history_record = repository.closed_position_history[0]
+            assert history_record.position_id == "pos-1"
+            assert history_record.symbol == "BTC/USDT"
+            assert history_record.exchange_id == "okx"
+            assert history_record.strategy_id == "breakout-trend"
+            assert history_record.side == "long"
+            assert history_record.trailing_state == "terminated"
+            assert history_record.exit_price == Decimal("107.00")
+            assert history_record.exit_reason == "trailing_stop"
+            assert history_record.realized_pnl_r == Decimal("1.2")
+            assert history_record.realized_pnl_usd == Decimal("120")
+            assert history_record.realized_pnl_percent == Decimal("2.4")
+            assert "pos-1" in repository.deleted_positions
+            assert "pos-1" in repository.deleted_trailing_snapshots
 
     async def test_bar_completed_persists_successful_trailing_audit(self) -> None:
         """Успешный RISK_BAR_COMPLETED должен писать movement, snapshot и ledger audit."""
-        repository = InMemoryRiskRepository()
-        engine = make_engine(repository=repository)
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_repo_bar"),
-        )
-        bus.register_listener(listener)
+        async with persistence_harness(listener_name="risk_listener_repo_bar") as (
+            repository,
+            _engine,
+            bus,
+        ):
+            await _seed_order_filled_and_bar_completed(bus)
 
-        await bus.publish(make_order_filled_event())
-        await bus.publish(make_bar_completed_event())
-
-        assert len(repository.trailing_movements) == 1
-        assert repository.trailing_movements[0].should_execute is True
-        assert repository.trailing_movements[0].evaluation_type == "MOVE"
-        assert repository.trailing_movements[0].new_stop == Decimal("107.0")
-        assert repository.trailing_snapshots["pos-1"].current_stop == Decimal("107.0")
-        assert repository.trailing_snapshots["pos-1"].last_evaluation_type == "MOVE"
-        assert repository.position_audits[-1].operation == "UPDATE"
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert len(repository.trailing_movements) == 1
+            assert repository.trailing_movements[0].should_execute is True
+            assert repository.trailing_movements[0].evaluation_type == "MOVE"
+            assert repository.trailing_movements[0].new_stop == Decimal("107.0")
+            assert repository.trailing_snapshots["pos-1"].current_stop == Decimal("107.0")
+            assert repository.trailing_snapshots["pos-1"].last_evaluation_type == "MOVE"
+            assert repository.position_audits[-1].operation == "UPDATE"
 
     async def test_bar_completed_persists_blocked_trailing_audit(self) -> None:
         """Заблокированный trailing move должен всё равно попадать в trailing audit."""
-        repository = InMemoryRiskRepository()
-        engine = make_engine(repository=repository, ledger=BrokenUpdateLedger())
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_repo_blocked"),
-        )
-        bus.register_listener(listener)
+        async with persistence_harness(
+            repository=InMemoryRiskRepository(),
+            ledger=BrokenUpdateLedger(),
+            listener_name="risk_listener_repo_blocked",
+        ) as (repository, _engine, bus):
+            await _seed_order_filled_and_bar_completed(bus)
 
-        await bus.publish(make_order_filled_event())
-        await bus.publish(make_bar_completed_event())
-
-        assert len(repository.trailing_movements) == 1
-        assert repository.trailing_movements[0].should_execute is False
-        assert repository.trailing_movements[0].evaluation_type == "BLOCKED"
-        assert "ошибка синхронизации" in repository.trailing_movements[0].reason
-        assert repository.trailing_snapshots["pos-1"].current_stop == Decimal("95")
-        assert repository.trailing_snapshots["pos-1"].last_evaluation_type == "BLOCKED"
-        assert len(repository.position_audits) == 1
-        assert repository.position_audits[0].operation == "REGISTER"
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert len(repository.trailing_movements) == 1
+            assert repository.trailing_movements[0].should_execute is False
+            assert repository.trailing_movements[0].evaluation_type == "BLOCKED"
+            assert "ошибка синхронизации" in repository.trailing_movements[0].reason
+            assert repository.trailing_snapshots["pos-1"].current_stop == Decimal("95")
+            assert repository.trailing_snapshots["pos-1"].last_evaluation_type == "BLOCKED"
+            assert len(repository.position_audits) == 1
+            assert repository.position_audits[0].operation == "REGISTER"
 
     async def test_order_filled_accepts_upstream_exchange_alias_without_default_fallback(
         self,
     ) -> None:
         """Risk listener должен принимать канонический upstream alias `exchange` без default enrichment."""
-        repository = InMemoryRiskRepository()
-        engine = make_engine(repository=repository)
-        bus = EnhancedEventBus(enable_persistence=False, redis_url=None, rate_limit=10000)
-        listener = RiskEngineListener(
-            risk_engine=engine,
-            publisher=bus.publish,
-            config=RiskEngineListenerConfig(name="risk_listener_exchange_alias"),
-        )
-        bus.register_listener(listener)
-
-        await bus.publish(make_order_filled_event_with_exchange_alias())
-        await bus.publish(
-            Event.new(
-                "POSITION_CLOSED",
-                "EXECUTION_CORE",
-                {
-                    "position_id": "pos-2",
-                    "exit_price": "3155",
-                    "exit_reason": "manual_close",
-                    "realized_pnl_r": "0.7",
-                    "realized_pnl_usd": "70",
-                    "realized_pnl_percent": "1.4",
-                    "current_equity": "10070",
-                },
+        async with persistence_harness(listener_name="risk_listener_exchange_alias") as (
+            repository,
+            _engine,
+            bus,
+        ):
+            await bus.publish(make_order_filled_event_with_exchange_alias())
+            await bus.publish(
+                Event.new(
+                    "POSITION_CLOSED",
+                    "EXECUTION_CORE",
+                    {
+                        "position_id": "pos-2",
+                        "exit_price": "3155",
+                        "exit_reason": "manual_close",
+                        "realized_pnl_r": "0.7",
+                        "realized_pnl_usd": "70",
+                        "realized_pnl_percent": "1.4",
+                        "current_equity": "10070",
+                    },
+                )
             )
-        )
 
-        assert len(repository.closed_position_history) == 1
-        assert repository.closed_position_history[0].exchange_id == "bybit"
-        assert repository.closed_position_history[0].strategy_id == "mean-reversion-short"
-        assert repository.closed_position_history[0].exit_price == Decimal("3155")
-        assert repository.closed_position_history[0].exit_reason == "manual_close"
-
-        bus.unregister_listener(listener.name)
-        await bus.shutdown()
+            assert len(repository.closed_position_history) == 1
+            assert repository.closed_position_history[0].exchange_id == "bybit"
+            assert repository.closed_position_history[0].strategy_id == "mean-reversion-short"
+            assert repository.closed_position_history[0].exit_price == Decimal("3155")
+            assert repository.closed_position_history[0].exit_reason == "manual_close"
