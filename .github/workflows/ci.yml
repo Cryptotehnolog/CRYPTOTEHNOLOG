@@ -705,6 +705,12 @@ jobs:
             tests/unit/test_dashboard_api.py \
             tests/unit/test_state_machine.py \
             tests/unit/test_health.py \
+            --deselect=tests/unit/test_enhanced_event_bus.py::TestPersistenceLayer::test_persistence_layer_save_event_with_connection \
+            --deselect=tests/unit/test_enhanced_event_bus.py::TestPersistenceLayer::test_persistence_layer_get_stream_length_with_connection \
+            --deselect=tests/unit/test_enhanced_event_bus.py::TestEnhancedEventBusPersistence::test_bus_with_persistence_with_redis \
+            --deselect=tests/unit/test_enhanced_event_bus.py::TestEnhancedEventBusPersistence::test_replay_with_persistence \
+            --deselect=tests/unit/test_enhanced_event_bus.py::TestPersistenceLayer::test_persistence_layer_replay \
+            --deselect=tests/unit/test_enhanced_event_bus.py::TestPersistenceLayer::test_persistence_layer_disconnect \
             -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
 
       - name: Upload coverage to Codecov
@@ -826,7 +832,15 @@ jobs:
 
       - name: Run unit tests (without DB - redis dependent)
         run: |
-          .venv/bin/python -m pytest tests/unit/test_redis_manager.py -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
+          .venv/bin/python -m pytest \
+            tests/unit/test_redis_manager.py \
+            tests/unit/test_enhanced_event_bus.py::TestPersistenceLayer::test_persistence_layer_save_event_with_connection \
+            tests/unit/test_enhanced_event_bus.py::TestPersistenceLayer::test_persistence_layer_get_stream_length_with_connection \
+            tests/unit/test_enhanced_event_bus.py::TestEnhancedEventBusPersistence::test_bus_with_persistence_with_redis \
+            tests/unit/test_enhanced_event_bus.py::TestEnhancedEventBusPersistence::test_replay_with_persistence \
+            tests/unit/test_enhanced_event_bus.py::TestPersistenceLayer::test_persistence_layer_replay \
+            tests/unit/test_enhanced_event_bus.py::TestPersistenceLayer::test_persistence_layer_disconnect \
+            -v -m "not db" -n auto --dist loadscope --cov=src --cov-report=xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
