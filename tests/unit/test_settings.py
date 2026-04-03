@@ -36,6 +36,7 @@ class TestSettings:
         assert settings.postgres_port == 5432
         assert settings.postgres_user == "bot_user"
         assert settings.postgres_db == "trading_dev"  # test_env sets POSTGRES_DB=trading_dev
+        assert settings.bybit_testnet is False
 
         # Check risk parameters
         assert settings.base_r_percent == 0.01
@@ -112,6 +113,16 @@ class TestSettings:
             assert settings.postgres_url == "postgresql://bot_user:@localhost:5432/trading_dev"
         finally:
             os.environ.pop("ENVIRONMENT", None)
+
+    def test_settings_can_explicitly_enable_bybit_testnet(self):
+        """Bybit testnet should be opt-in, not the default runtime path."""
+        os.environ["BYBIT_TESTNET"] = "true"
+
+        try:
+            settings = Settings()
+            assert settings.bybit_testnet is True
+        finally:
+            os.environ.pop("BYBIT_TESTNET", None)
 
     def test_settings_redis_url_construction(self):
         """Test that Redis URL is constructed correctly."""

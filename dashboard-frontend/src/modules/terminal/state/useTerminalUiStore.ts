@@ -5,7 +5,7 @@ export type TerminalMode = "manual" | "auto";
 export type TerminalExchangeState = {
   name: "OKX" | "Bybit" | "Binance";
   connected: boolean;
-  pingTone: "good" | "warn" | "bad";
+  pingTone: "good" | "warn" | "bad" | "neutral";
   ping: string;
 };
 

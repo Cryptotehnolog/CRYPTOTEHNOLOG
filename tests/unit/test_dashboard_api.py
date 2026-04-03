@@ -581,27 +581,37 @@ class _StubFacade:
 
 class _StubProductionRuntime:
     def __init__(self) -> None:
+        self.bybit_enabled = True
         self.startup = AsyncMock()
         self.shutdown = AsyncMock()
+        self.set_bybit_market_data_connector_enabled = AsyncMock(
+            side_effect=self._set_bybit_market_data_connector_enabled
+        )
+
+    async def _set_bybit_market_data_connector_enabled(self, enabled: bool) -> dict[str, object]:
+        self.bybit_enabled = enabled
+        return self.get_runtime_diagnostics()
 
     def get_runtime_diagnostics(self) -> dict[str, object]:
         return {
             "bybit_market_data_connector": {
-                "enabled": True,
-                "symbols": ("BTC/USDT",),
-                "transport_status": "connected",
-                "recovery_status": "recovered",
-                "lifecycle_state": "connected",
-                "ready": True,
-                "started": True,
-                "subscription_alive": True,
+                "enabled": self.bybit_enabled,
+                "symbols": ("BTC/USDT",) if self.bybit_enabled else (),
+                "transport_status": "connected" if self.bybit_enabled else "disabled",
+                "recovery_status": "recovered" if self.bybit_enabled else "idle",
+                "lifecycle_state": "connected" if self.bybit_enabled else "disabled",
+                "ready": self.bybit_enabled,
+                "started": self.bybit_enabled,
+                "subscription_alive": self.bybit_enabled,
                 "reset_required": False,
-                "retry_count": 0,
-                "trade_seen": True,
-                "orderbook_seen": True,
-                "best_bid": "68499.90",
-                "best_ask": "68500.00",
-                "last_message_at": "2026-04-01T09:45:40.060548+00:00",
+                "retry_count": 0 if self.bybit_enabled else None,
+                "trade_seen": self.bybit_enabled,
+                "orderbook_seen": self.bybit_enabled,
+                "best_bid": "68499.90" if self.bybit_enabled else None,
+                "best_ask": "68500.00" if self.bybit_enabled else None,
+                "last_message_at": "2026-04-01T09:45:40.060548+00:00"
+                if self.bybit_enabled
+                else None,
                 "degraded_reason": None,
                 "last_disconnect_reason": None,
             }
@@ -1573,6 +1583,7 @@ def test_dashboard_live_feed_policy_settings_endpoint_returns_current_values() -
     data = LiveFeedPolicySettingsDTO.model_validate(response.json())
     settings = get_settings()
     assert data.retry_delay_seconds == settings.live_feed_retry_delay_seconds
+    assert data.bybit_connector_symbol == settings.bybit_market_data_connector_symbol
 
 
 def test_dashboard_live_feed_policy_settings_endpoint_updates_current_values() -> None:
@@ -1585,15 +1596,18 @@ def test_dashboard_live_feed_policy_settings_endpoint_updates_current_values() -
             "/dashboard/settings/live-feed-policy",
             json={
                 "retry_delay_seconds": 9,
+                "bybit_connector_symbol": "BTC/USDT",
             },
         )
 
         assert response.status_code == 200
         data = LiveFeedPolicySettingsDTO.model_validate(response.json())
         assert data.retry_delay_seconds == 9
+        assert data.bybit_connector_symbol == "BTC/USDT"
 
         settings = get_settings()
         assert settings.live_feed_retry_delay_seconds == 9
+        assert settings.bybit_market_data_connector_symbol == "BTC/USDT"
     finally:
         reload_settings()
 
@@ -1618,6 +1632,8 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_returns_disabled_snapsho
     assert data.orderbook_seen is False
     assert data.best_bid is None
     assert data.best_ask is None
+    assert data.message_age_ms is None
+    assert data.transport_rtt_ms is None
     assert data.degraded_reason is None
     assert data.last_disconnect_reason is None
 
@@ -1640,6 +1656,8 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_returns_full_disabled_sn
     assert data.started is False
     assert data.reset_required is False
     assert data.retry_count is None
+    assert data.message_age_ms is None
+    assert data.transport_rtt_ms is None
 
 
 def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapshot() -> None:
@@ -1659,6 +1677,8 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
                     "best_bid": "68499.90",
                     "best_ask": "68500.00",
                     "last_message_at": "2026-04-01T09:45:40.060548+00:00",
+                    "message_age_ms": 42,
+                    "transport_rtt_ms": 18,
                     "degraded_reason": None,
                     "last_disconnect_reason": None,
                     "retry_count": 0,
@@ -1691,6 +1711,8 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
     assert data.best_bid == "68499.90"
     assert data.best_ask == "68500.00"
     assert data.last_message_at == "2026-04-01T09:45:40.060548+00:00"
+    assert data.message_age_ms == 42
+    assert data.transport_rtt_ms == 18
 
 
 def test_dashboard_bybit_connector_diagnostics_endpoint_prefers_canonical_runtime_in_full_app() -> (
@@ -1706,6 +1728,26 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_prefers_canonical_runtim
     assert data.enabled is True
     assert data.symbol == "BTC/USDT"
     assert data.transport_status == "connected"
+
+
+def test_dashboard_bybit_connector_toggle_endpoint_updates_canonical_runtime_in_full_app() -> None:
+    app = create_dashboard_app(production_runtime=_StubProductionRuntime())
+
+    with TestClient(app) as client:
+        response = client.put(
+            "/dashboard/settings/bybit-connector-enabled",
+            json={"enabled": False},
+        )
+
+    assert response.status_code == 200
+    data = BybitConnectorDiagnosticsDTO.model_validate(response.json())
+    assert data.enabled is False
+    assert data.transport_status == "disabled"
+    assert data.lifecycle_state == "disabled"
+
+    production_runtime = app.state.production_runtime
+    assert production_runtime is not None
+    production_runtime.set_bybit_market_data_connector_enabled.assert_awaited_once_with(False)
 
 
 def test_dashboard_overview_endpoint_returns_snapshot_in_full_app_runtime(

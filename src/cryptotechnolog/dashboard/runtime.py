@@ -124,6 +124,8 @@ class DashboardRuntime:
                 "recovery_status": "idle",
                 "subscription_alive": False,
                 "last_message_at": None,
+                "message_age_ms": None,
+                "transport_rtt_ms": None,
                 "trade_seen": False,
                 "orderbook_seen": False,
                 "best_bid": None,

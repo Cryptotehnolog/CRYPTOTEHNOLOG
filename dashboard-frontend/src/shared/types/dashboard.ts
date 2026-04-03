@@ -635,6 +635,7 @@ export type WorkflowTimeoutsSettingsResponse = {
 
 export type LiveFeedPolicySettingsResponse = {
   retry_delay_seconds: number;
+  bybit_connector_symbol: string | null;
 };
 
 export type BybitConnectorDiagnosticsResponse = {
@@ -648,6 +649,13 @@ export type BybitConnectorDiagnosticsResponse = {
   best_bid: string | null;
   best_ask: string | null;
   last_message_at: string | null;
+  message_age_ms: number | null;
+  transport_rtt_ms: number | null;
   degraded_reason: string | null;
   last_disconnect_reason: string | null;
+  retry_count: number | null;
+  ready: boolean;
+  started: boolean;
+  lifecycle_state: string | null;
+  reset_required: boolean;
 };

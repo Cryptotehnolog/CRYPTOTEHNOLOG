@@ -329,6 +329,9 @@ export const topBarExchangePing = style({
   textAlign: "right",
   whiteSpace: "nowrap",
   selectors: {
+    "&[data-ping-tone='neutral']": {
+      color: palette.dark.textSoft,
+    },
     "&[data-ping-tone='good']": {
       color: palette.dark.success,
     },
@@ -340,6 +343,9 @@ export const topBarExchangePing = style({
     },
     [`${shellTone.light} &[data-ping-tone='good']`]: {
       color: palette.light.success,
+    },
+    [`${shellTone.light} &[data-ping-tone='neutral']`]: {
+      color: palette.light.textSoft,
     },
     [`${shellTone.light} &[data-ping-tone='warn']`]: {
       color: "#a86a14",

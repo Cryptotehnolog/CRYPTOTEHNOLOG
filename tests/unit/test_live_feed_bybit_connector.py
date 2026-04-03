@@ -7,6 +7,7 @@ import json
 import pytest
 
 from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
+from cryptotechnolog.config.settings import Settings
 from cryptotechnolog.live_feed import (
     BybitMarketDataConnector,
     BybitMarketDataConnectorConfig,
@@ -26,6 +27,7 @@ class _FakeWebSocket:
         self._messages = list(messages)
         self.sent_messages: list[str] = []
         self.closed = False
+        self.ping_latency_seconds = 0.018
 
     async def send(self, message: str) -> None:
         self.sent_messages.append(message)
@@ -38,12 +40,19 @@ class _FakeWebSocket:
     async def close(self) -> None:
         self.closed = True
 
+    async def ping(self, data: object | None = None):  # noqa: ARG002
+        async def _pong_waiter() -> float:
+            return self.ping_latency_seconds
+
+        return _pong_waiter()
+
 
 class _BlockingWebSocket:
     def __init__(self) -> None:
         self.sent_messages: list[str] = []
         self.closed = False
         self._closed_event = asyncio.Event()
+        self.ping_latency_seconds = 0.018
 
     async def send(self, message: str) -> None:
         self.sent_messages.append(message)
@@ -55,6 +64,12 @@ class _BlockingWebSocket:
     async def close(self) -> None:
         self.closed = True
         self._closed_event.set()
+
+    async def ping(self, data: object | None = None):  # noqa: ARG002
+        async def _pong_waiter() -> float:
+            return self.ping_latency_seconds
+
+        return _pong_waiter()
 
 
 def _session() -> FeedSessionIdentity:
@@ -159,6 +174,14 @@ def test_subscription_registry_builds_trade_and_orderbook_topics() -> None:
     assert registry.topics == ("publicTrade.BTCUSDT", "orderbook.50.BTCUSDT")
 
 
+def test_bybit_connector_config_uses_mainnet_by_default() -> None:
+    settings = Settings()
+
+    config = BybitMarketDataConnectorConfig.from_settings(settings)
+
+    assert config.public_stream_url == "wss://stream.bybit.com/v5/public/linear"
+
+
 @pytest.mark.asyncio
 async def test_bybit_connector_operator_diagnostics_expose_connector_truth() -> None:
     event_bus = EnhancedEventBus(enable_persistence=False)
@@ -191,6 +214,8 @@ async def test_bybit_connector_operator_diagnostics_expose_connector_truth() -> 
     assert diagnostics["orderbook_seen"] is True
     assert diagnostics["best_bid"] == "68000.0"
     assert diagnostics["best_ask"] == "68000.5"
+    assert isinstance(diagnostics["message_age_ms"], int)
+    assert diagnostics["message_age_ms"] >= 0
 
 
 def test_parser_requires_fresh_snapshot_after_recovery_reset() -> None:
@@ -246,6 +271,30 @@ async def test_bybit_connector_subscribes_and_ingests_real_market_data_path() ->
     assert "publicTrade.BTCUSDT" in subscribe_payload["args"]
     assert "orderbook.50.BTCUSDT" in subscribe_payload["args"]
     assert sleep_delays == [5]
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_measures_transport_rtt_via_ping_pong() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+
+    websocket = _FakeWebSocket([])
+
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+    )
+    connector._active_websocket = websocket
+
+    async def fake_sleep(_: float) -> None:
+        connector._stop_requested = True
+
+    connector._sleep_func = fake_sleep
+
+    await connector._monitor_transport_rtt(websocket)
+
+    assert connector.get_operator_diagnostics()["transport_rtt_ms"] == 18
 
 
 @pytest.mark.asyncio

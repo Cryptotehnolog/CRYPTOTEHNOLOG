@@ -67,6 +67,12 @@ def create_dashboard_app(
             return canonical_runtime.get_runtime_diagnostics()
         return dashboard_runtime.get_runtime_diagnostics()
 
+    async def _set_bybit_connector_enabled(enabled: bool) -> dict[str, Any]:
+        canonical_runtime = canonical_runtime_holder.runtime
+        if canonical_runtime is None:
+            raise RuntimeError("Canonical backend runtime ещё не поднят")
+        return await canonical_runtime.set_bybit_market_data_connector_enabled(enabled)
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         owned_production_runtime: ProductionRuntime | None = None
@@ -112,6 +118,9 @@ def create_dashboard_app(
         create_dashboard_router(
             dashboard_runtime.overview_facade,
             runtime_diagnostics_supplier=_get_runtime_diagnostics,
+            bybit_connector_toggle_handler=_set_bybit_connector_enabled
+            if production_runtime is not None or enable_canonical_runtime
+            else None,
         )
     )
 

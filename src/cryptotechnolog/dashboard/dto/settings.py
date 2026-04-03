@@ -690,18 +690,23 @@ class LiveFeedPolicySettingsDTO(BaseModel):
     retry_delay_seconds: int = Field(
         description="Базовая задержка перед повторным подключением к live feed в секундах.",
     )
+    bybit_connector_symbol: str | None = Field(
+        description="Single-symbol scope canonical Bybit public connector-а.",
+    )
 
     @classmethod
     def from_settings(cls, settings: Settings) -> LiveFeedPolicySettingsDTO:
         """Build DTO from canonical project settings."""
         return cls(
             retry_delay_seconds=settings.live_feed_retry_delay_seconds,
+            bybit_connector_symbol=settings.bybit_market_data_connector_symbol,
         )
 
-    def to_settings_update(self) -> dict[str, int]:
+    def to_settings_update(self) -> dict[str, int | str | None]:
         """Convert DTO back into Settings field updates."""
         return {
             "live_feed_retry_delay_seconds": self.retry_delay_seconds,
+            "bybit_market_data_connector_symbol": self.bybit_connector_symbol,
         }
 
 
@@ -720,6 +725,12 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
     best_bid: str | None = Field(description="Лучший bid из текущего orderbook snapshot.")
     best_ask: str | None = Field(description="Лучший ask из текущего orderbook snapshot.")
     last_message_at: str | None = Field(description="Время последнего сообщения connector-а.")
+    message_age_ms: int | None = Field(
+        description="Возраст последнего transport-level сообщения в миллисекундах."
+    )
+    transport_rtt_ms: int | None = Field(
+        description="RTT transport-level websocket ping/pong в миллисекундах."
+    )
     degraded_reason: str | None = Field(description="Причина деградации connector-а, если есть.")
     last_disconnect_reason: str | None = Field(
         description="Последняя причина disconnect connector-а, если есть."
@@ -771,6 +782,12 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
             last_message_at=connector.get("last_message_at")
             if isinstance(connector.get("last_message_at"), str)
             else None,
+            message_age_ms=connector.get("message_age_ms")
+            if isinstance(connector.get("message_age_ms"), int)
+            else None,
+            transport_rtt_ms=connector.get("transport_rtt_ms")
+            if isinstance(connector.get("transport_rtt_ms"), int)
+            else None,
             degraded_reason=connector.get("degraded_reason")
             if isinstance(connector.get("degraded_reason"), str)
             else None,
@@ -787,3 +804,9 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
             else None,
             reset_required=bool(connector.get("reset_required", False)),
         )
+
+
+class BybitConnectorToggleDTO(BaseModel):
+    """Narrow backend control payload for enabling or disabling the Bybit connector."""
+
+    enabled: bool = Field(description="Должен ли canonical backend runtime держать Bybit connector включённым.")

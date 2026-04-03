@@ -24,6 +24,7 @@ import { updateDecisionChainSettings } from "../api/updateDecisionChainSettings"
 import { updateEventBusPolicySettings } from "../api/updateEventBusPolicySettings";
 import { updateFundingPolicySettings } from "../api/updateFundingPolicySettings";
 import { updateHealthPolicySettings } from "../api/updateHealthPolicySettings";
+import { updateBybitConnectorEnabled } from "../api/updateBybitConnectorEnabled";
 import { updateLiveFeedPolicySettings } from "../api/updateLiveFeedPolicySettings";
 import { updateManualApprovalPolicySettings } from "../api/updateManualApprovalPolicySettings";
 import { updateProtectionPolicySettings } from "../api/updateProtectionPolicySettings";
@@ -146,7 +147,12 @@ const bybitConnectorDiagnosticsFields: Array<{
   { key: "symbol", label: "Инструмент" },
   { key: "transport_status", label: "Состояние транспорта" },
   { key: "recovery_status", label: "Состояние восстановления" },
+  { key: "lifecycle_state", label: "Lifecycle state" },
+  { key: "ready", label: "Runtime готов" },
+  { key: "started", label: "Runtime запущен" },
   { key: "subscription_alive", label: "Подписка жива" },
+  { key: "reset_required", label: "Нужен reset" },
+  { key: "retry_count", label: "Число retry" },
   { key: "trade_seen", label: "Trade поток замечен" },
   { key: "orderbook_seen", label: "Стакан замечен" },
   { key: "best_bid", label: "Лучшая bid цена" },
@@ -1131,16 +1137,27 @@ const liveFeedPolicyFieldDefinitions: Array<{
   label: string;
   description: string;
   recommended: string;
-  inputMode: "decimal" | "numeric";
-  step: string;
+  inputType: "number" | "text";
+  inputMode?: "decimal" | "numeric" | "text";
+  step?: string;
 }> = [
   {
     key: "retry_delay_seconds",
     label: "Базовая задержка перед повторным подключением",
     description: "Сколько секунд система ждёт перед новой попыткой подключиться к live feed.",
     recommended: "5 сек",
+    inputType: "number",
     inputMode: "numeric",
     step: "1",
+  },
+  {
+    key: "bybit_connector_symbol",
+    label: "Инструмент Bybit market data",
+    description:
+      "Укажите один инструмент, например BTC/USDT. После этого подключение Bybit можно будет включить ниже.",
+    recommended: "Например BTC/USDT",
+    inputType: "text",
+    inputMode: "text",
   },
 ];
 
@@ -1365,6 +1382,7 @@ function toWorkflowTimeoutDraft(values: WorkflowTimeoutsSettingsResponse): Workf
 function toLiveFeedPolicyDraft(values: LiveFeedPolicySettingsResponse): LiveFeedPolicyDraft {
   return {
     retry_delay_seconds: String(values.retry_delay_seconds),
+    bybit_connector_symbol: values.bybit_connector_symbol ?? "BTC/USDT",
   };
 }
 
@@ -1711,6 +1729,15 @@ export function TerminalSettingsPage() {
       setLiveFeedSaveNotice("Изменения сохранены");
     },
   });
+  const bybitConnectorToggleMutation = useMutation({
+    mutationFn: updateBybitConnectorEnabled,
+    onSuccess: (data) => {
+      queryClient.setQueryData(["dashboard", "settings", "bybit-connector-diagnostics"], data);
+      void queryClient.invalidateQueries({
+        queryKey: ["dashboard", "settings", "bybit-connector-diagnostics"],
+      });
+    },
+  });
   const reliabilityPolicyMutation = useMutation({
     mutationFn: updateReliabilityPolicySettings,
     onSuccess: (data) => {
@@ -1987,10 +2014,10 @@ export function TerminalSettingsPage() {
 
     const payload: LiveFeedPolicySettingsResponse = {
       retry_delay_seconds: Number.parseInt(liveFeedDraft.retry_delay_seconds, 10),
+      bybit_connector_symbol: liveFeedDraft.bybit_connector_symbol.trim() || null,
     };
 
-    const hasInvalidNumber = Object.values(payload).some((value) => Number.isNaN(value));
-    return hasInvalidNumber ? null : payload;
+    return Number.isNaN(payload.retry_delay_seconds) ? null : payload;
   }, [liveFeedDraft]);
   const systemStatePayload = useMemo<SystemStatePolicySettingsResponse | null>(() => {
     if (!systemStateDraft) {
@@ -2377,11 +2404,34 @@ export function TerminalSettingsPage() {
             : "Backend";
   const bybitConnectorDiagnosticsLabel = bybitConnectorDiagnosticsQuery.isLoading
     ? "Загрузка"
+    : bybitConnectorToggleMutation.isPending
+      ? "Переключение"
     : bybitConnectorDiagnosticsQuery.isError
       ? "Ошибка"
       : bybitConnectorDiagnosticsQuery.data?.enabled
         ? "Runtime"
         : "Disabled";
+  const bybitWidgetConnected = bybitConnectorDiagnosticsQuery.data?.transport_status === "connected";
+  const bybitConfiguredSymbol = liveFeedPolicyQuery.data?.bybit_connector_symbol?.trim() || null;
+  const canToggleBybitConnector = bybitConfiguredSymbol !== null;
+  const bybitWidgetStatus = bybitConnectorDiagnosticsQuery.isLoading
+    ? "Загружаю backend truth..."
+    : bybitConnectorDiagnosticsQuery.isError
+      ? "Backend недоступен"
+      : bybitConnectorDiagnosticsQuery.data?.enabled
+        ? bybitWidgetConnected
+          ? "Подключена"
+          : "Подключается"
+        : "Отключена";
+  const bybitWidgetMeta = bybitConnectorDiagnosticsQuery.isLoading
+    ? "Ожидаю diagnostics snapshot"
+    : bybitConnectorDiagnosticsQuery.isError
+      ? "Не удалось получить runtime diagnostics"
+      : bybitConnectorDiagnosticsQuery.data?.enabled
+        ? `${bybitConnectorDiagnosticsQuery.data.transport_status} · ${bybitConnectorDiagnosticsQuery.data.symbol ?? "symbol не задан"}`
+        : `disabled · ${bybitConfiguredSymbol ?? "symbol не задан"}`;
+  const bybitToggleButtonLabel =
+    bybitConnectorDiagnosticsQuery.data?.enabled === true ? "Отключить" : "Подключить";
   const reliabilityStatusLabel = reliabilityPolicyQuery.isLoading
     ? "Загрузка"
     : reliabilityPolicyMutation.isPending
@@ -2924,10 +2974,11 @@ export function TerminalSettingsPage() {
                     </div>
                     <div className={fieldDescription}>{field.description}</div>
                     <input
-                      type="number"
+                      type={field.inputType}
                       inputMode={field.inputMode}
                       step={field.step}
                       className={fieldInput}
+                      placeholder={field.key === "bybit_connector_symbol" ? "BTC/USDT" : undefined}
                       value={liveFeedDraft[field.key]}
                       onChange={(event) =>
                         updateLiveFeedDraftField(field.key, event.target.value)
@@ -2969,36 +3020,78 @@ export function TerminalSettingsPage() {
               <div>
                 <div className={exchangeRow}>
                   <div>
-                    <div className={stateValue}>{exchange.name}</div>
+                    <div className={stateValue}>
+                      {exchange.name === "Bybit" ? "Bybit market data" : exchange.name}
+                    </div>
                     <div className={exchangeMeta}>
-                      {exchange.connected ? "Подключена" : "Отключена"} · {exchange.ping}
+                      {exchange.name === "Bybit"
+                        ? `${bybitWidgetStatus} · ${bybitWidgetMeta}`
+                        : `${exchange.connected ? "Подключена" : "Отключена"} · ${exchange.ping}`}
                     </div>
                   </div>
                   <button
                     type="button"
                     className={exchangeToggle}
-                    onClick={() => setExchangeConnected(exchange.name, !exchange.connected)}
+                    disabled={
+                      exchange.name === "Bybit"
+                        ? bybitConnectorDiagnosticsQuery.isLoading ||
+                          bybitConnectorDiagnosticsQuery.isError ||
+                          !canToggleBybitConnector ||
+                          bybitConnectorToggleMutation.isPending
+                        : false
+                    }
+                    onClick={() => {
+                      if (exchange.name === "Bybit") {
+                        void bybitConnectorToggleMutation.mutateAsync({
+                          enabled: !(bybitConnectorDiagnosticsQuery.data?.enabled ?? false),
+                        });
+                        return;
+                      }
+                      setExchangeConnected(exchange.name, !exchange.connected);
+                    }}
                   >
-                    {exchange.connected ? "Отключить" : "Подключить"}
+                    {exchange.name === "Bybit"
+                      ? bybitConnectorToggleMutation.isPending
+                        ? "Переключаю..."
+                        : bybitToggleButtonLabel
+                      : exchange.connected
+                        ? "Отключить"
+                        : "Подключить"}
                   </button>
                 </div>
 
                 {exchange.name === "Bybit" ? (
                   <div className={exchangeDiagnosticsBlock}>
                     <div className={exchangeDiagnosticsHeader}>
-                      <div className={fieldLabel}>Bybit connector diagnostics</div>
+                      <div className={fieldLabel}>Bybit market data</div>
                       <TerminalBadge tone={bybitConnectorDiagnosticsTone}>
                         {bybitConnectorDiagnosticsLabel}
                       </TerminalBadge>
                     </div>
 
+                    <div className={exchangeMeta}>
+                      Это подключение получает рыночные данные Bybit для одного инструмента.
+                      Сначала укажите symbol выше, затем нажмите «Подключить».
+                    </div>
+
                     {bybitConnectorDiagnosticsQuery.isLoading ? (
-                      <div className={exchangeMeta}>Загружаю runtime snapshot connector-а...</div>
+                      <div className={exchangeMeta}>Загружаю состояние подключения Bybit...</div>
                     ) : null}
 
                     {bybitConnectorDiagnosticsQuery.isError ? (
+                      <div className={exchangeMeta}>Не удалось загрузить состояние Bybit.</div>
+                    ) : null}
+
+                    {bybitConnectorToggleMutation.isError ? (
+                      <div className={exchangeMeta}>Не удалось переключить подключение Bybit.</div>
+                    ) : null}
+
+                    {!canToggleBybitConnector &&
+                    !bybitConnectorDiagnosticsQuery.isLoading &&
+                    !bybitConnectorDiagnosticsQuery.isError ? (
                       <div className={exchangeMeta}>
-                        Не удалось загрузить diagnostics snapshot Bybit connector-а.
+                        Сначала сохраните инструмент в блоке «Подключение к рынку и
+                        переподключение». По умолчанию подставлен BTC/USDT.
                       </div>
                     ) : null}
 
@@ -3025,8 +3118,8 @@ export function TerminalSettingsPage() {
         </div>
 
         <div className={localStateNote}>
-          Переключатели пока управляют только terminal UI state и не маскируются под реальную
-          backend-команду подключения бирж.
+          Для Bybit toggle теперь идёт через canonical backend runtime. OKX и Binance пока
+          остаются локальным terminal UI state на этом шаге.
         </div>
       </section>
 

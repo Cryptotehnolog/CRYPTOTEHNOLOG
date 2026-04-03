@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -33,8 +34,7 @@ from .models import (
 from .runtime import FeedConnectivityRuntime, create_live_feed_runtime
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
-
+    from collections.abc import Callable
     from cryptotechnolog.config.settings import Settings
     from cryptotechnolog.market_data import MarketDataRuntime
 
@@ -55,6 +55,8 @@ class BybitWebSocketConnection(Protocol):
     async def send(self, message: str) -> None: ...
 
     async def recv(self) -> str: ...
+
+    async def ping(self, data: object | None = None) -> Awaitable[float]: ...
 
     async def close(self) -> None: ...
 
@@ -316,6 +318,8 @@ class BybitMarketDataConnector:
         self._sleep_func = sleep_func or _sleep_seconds
         self._stop_requested = False
         self._active_websocket: BybitWebSocketConnection | None = None
+        self._rtt_monitor_task: asyncio.Task[None] | None = None
+        self._transport_rtt_ms: int | None = None
         now = _utcnow()
         self._recovery_state = FeedSubscriptionRecoveryState(
             session=self.session,
@@ -335,15 +339,20 @@ class BybitMarketDataConnector:
                 self.feed_runtime.begin_connecting(observed_at=_utcnow())
                 websocket = await self._websocket_factory(self.config)
                 self._active_websocket = websocket
+                self._transport_rtt_ms = None
                 self._mark_resubscribing(reason="transport_connected", observed_at=_utcnow())
                 await self._subscribe(websocket)
                 self.feed_runtime.mark_connected(observed_at=_utcnow())
+                self._rtt_monitor_task = asyncio.create_task(self._monitor_transport_rtt(websocket))
                 await self._consume_messages(websocket)
             except Exception as exc:
                 if self._stop_requested:
                     break
                 await self._handle_disconnect(reason=str(exc))
             finally:
+                if self._rtt_monitor_task is not None:
+                    self._rtt_monitor_task.cancel()
+                    self._rtt_monitor_task = None
                 if websocket is not None:
                     await websocket.close()
                 self._active_websocket = None
@@ -401,9 +410,23 @@ class BybitMarketDataConnector:
             raw_message = await websocket.recv()
             await self.ingest_transport_message(raw_message)
 
+    async def _monitor_transport_rtt(self, websocket: BybitWebSocketConnection) -> None:
+        try:
+            while not self._stop_requested and self._active_websocket is websocket:
+                pong_waiter = await websocket.ping()
+                latency_seconds = await pong_waiter
+                self._transport_rtt_ms = max(0, int(float(latency_seconds) * 1000))
+                await self._sleep_func(self.config.ping_interval_seconds)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # RTT monitor must not mask the main receive loop disconnect path.
+            return
+
     async def _handle_disconnect(self, *, reason: str) -> None:
         observed_at = _utcnow()
         logger.warning("Bybit market data connector disconnected", reason=reason)
+        self._transport_rtt_ms = None
         self.parser.invalidate_orderbook_state(symbols=self.session.subscription_scope)
         self._mark_recovery_required(reason=reason, observed_at=observed_at)
         self.feed_runtime.mark_disconnected(observed_at=observed_at, reason=reason)
@@ -455,6 +478,14 @@ class BybitMarketDataConnector:
             is not None
         )
         recovery_state = self.get_recovery_state()
+        last_message_at = feed_runtime.get("last_message_at")
+        message_age_ms: int | None = None
+        if isinstance(last_message_at, str):
+            observed_at = datetime.fromisoformat(last_message_at)
+            message_age_ms = max(
+                0,
+                int((_utcnow() - observed_at).total_seconds() * 1000),
+            )
         return {
             "enabled": True,
             "exchange": self.session.exchange,
@@ -463,7 +494,9 @@ class BybitMarketDataConnector:
             "transport_status": feed_runtime["status"],
             "recovery_status": recovery_state.status.value,
             "subscription_alive": bool(recovery_state.metadata.get("subscription_alive", False)),
-            "last_message_at": feed_runtime.get("last_message_at"),
+            "last_message_at": last_message_at,
+            "message_age_ms": message_age_ms,
+            "transport_rtt_ms": self._transport_rtt_ms,
             "trade_seen": trade_seen,
             "orderbook_seen": orderbook is not None,
             "best_bid": str(orderbook.bids[0].price) if orderbook and orderbook.bids else None,

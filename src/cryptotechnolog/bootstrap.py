@@ -15,7 +15,12 @@ from typing import TYPE_CHECKING, Any, cast
 
 from cryptotechnolog.analysis.runtime import SharedAnalysisRuntime, create_shared_analysis_runtime
 from cryptotechnolog.config.logging import configure_logging, get_logger
-from cryptotechnolog.config.settings import Settings, get_settings, validate_settings
+from cryptotechnolog.config.settings import (
+    Settings,
+    get_settings,
+    update_settings,
+    validate_settings,
+)
 from cryptotechnolog.core.database import DatabaseManager, set_database
 from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
 from cryptotechnolog.core.event import Event, SystemEventType
@@ -515,6 +520,39 @@ class ProductionRuntime:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self.bybit_market_data_connector_task
             self.bybit_market_data_connector_task = None
+
+    async def set_bybit_market_data_connector_enabled(self, enabled: bool) -> dict[str, Any]:
+        """Narrow runtime control path for Bybit connector widget in terminal settings."""
+        candidate_payload = get_settings().model_dump(mode="python")
+        candidate_payload["bybit_market_data_connector_enabled"] = enabled
+        candidate_settings = Settings.model_validate(candidate_payload)
+        _build_canonical_bybit_market_data_connector(
+            settings=candidate_settings,
+            market_data_runtime=self.market_data_runtime,
+        )
+
+        updated_settings = update_settings({"bybit_market_data_connector_enabled": enabled})
+        self.settings = updated_settings
+
+        await self._stop_opt_in_market_data_connectors()
+        self.bybit_market_data_connector = _build_canonical_bybit_market_data_connector(
+            settings=updated_settings,
+            market_data_runtime=self.market_data_runtime,
+        )
+
+        if self._started and self.bybit_market_data_connector is not None:
+            await self._start_opt_in_market_data_connectors()
+            self.last_health = await self.health_checker.check_system()
+            degraded_reasons = self._collect_degraded_reasons(self.last_health)
+            self._update_runtime_diagnostics(
+                runtime_started=True,
+                runtime_ready=not degraded_reasons,
+                startup_state="ready" if not degraded_reasons else "degraded",
+                degraded_reasons=degraded_reasons,
+                failure_reason=None,
+            )
+
+        return self.get_runtime_diagnostics()
 
     def _collect_degraded_reasons(self, health: SystemHealth) -> list[str]:  # noqa: PLR0912,PLR0915
         """Собрать operator-facing причины деградации из health truth."""

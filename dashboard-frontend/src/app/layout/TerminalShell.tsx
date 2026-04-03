@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tooltip from "@radix-ui/react-tooltip";
+import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   BarChart3,
@@ -58,6 +59,7 @@ import {
   topBarExchangeName,
   topBarExchangePing,
 } from "./TerminalShell.css";
+import { getBybitConnectorDiagnostics } from "../../modules/terminal/api/getBybitConnectorDiagnostics";
 import { type TerminalSection, useTerminalUiStore } from "../../modules/terminal/state/useTerminalUiStore";
 
 const terminalSections: Array<{
@@ -91,6 +93,22 @@ const terminalSections: Array<{
     icon: Settings,
   },
 ];
+
+const getBybitRttTone = (transportRttMs: number | null) => {
+  if (transportRttMs === null) {
+    return "good" as const;
+  }
+
+  if (transportRttMs <= 120) {
+    return "good" as const;
+  }
+
+  if (transportRttMs <= 300) {
+    return "warn" as const;
+  }
+
+  return "bad" as const;
+};
 
 function RailIconButton(props: {
   label: string;
@@ -134,6 +152,11 @@ export function TerminalShell() {
   const closeDrawer = useTerminalUiStore((state) => state.closeDrawer);
   const setActiveSection = useTerminalUiStore((state) => state.setActiveSection);
   const toggleTheme = useTerminalUiStore((state) => state.toggleTheme);
+  const bybitDiagnosticsQuery = useQuery({
+    queryKey: ["dashboard", "settings", "bybit-connector-diagnostics"],
+    queryFn: getBybitConnectorDiagnostics,
+    refetchInterval: 5000,
+  });
 
   const formatTerminalClock = (date: Date) =>
     `${new Intl.DateTimeFormat("ru-RU", {
@@ -172,6 +195,58 @@ export function TerminalShell() {
           : "/terminal",
     );
   };
+
+  const displayedExchanges = useMemo(
+    () =>
+      exchanges.map((exchange) => {
+        if (exchange.name !== "Bybit") {
+          return exchange;
+        }
+
+        if (bybitDiagnosticsQuery.isLoading) {
+          return {
+            ...exchange,
+            connected: false,
+            ping: "loading",
+            pingTone: "warn" as const,
+          };
+        }
+
+        if (bybitDiagnosticsQuery.isError || !bybitDiagnosticsQuery.data) {
+          return {
+            ...exchange,
+            connected: false,
+            ping: "error",
+            pingTone: "bad" as const,
+          };
+        }
+
+        const diagnostics = bybitDiagnosticsQuery.data;
+        const connected =
+          diagnostics.enabled && diagnostics.transport_status === "connected";
+        const ping = connected
+          ? diagnostics.transport_rtt_ms !== null
+            ? `${diagnostics.transport_rtt_ms} ms`
+            : "live"
+          : diagnostics.enabled
+            ? diagnostics.transport_status
+            : diagnostics.lifecycle_state ?? "disabled";
+
+        const pingTone = connected
+          ? getBybitRttTone(diagnostics.transport_rtt_ms)
+          : diagnostics.enabled
+            ? ("bad" as const)
+            : ("neutral" as const);
+
+        return {
+          ...exchange,
+          connected,
+          ping,
+          pingTone,
+        };
+      }),
+    [bybitDiagnosticsQuery.data, bybitDiagnosticsQuery.isError, bybitDiagnosticsQuery.isLoading, exchanges],
+  );
 
   return (
     <Tooltip.Provider>
@@ -218,7 +293,7 @@ export function TerminalShell() {
               <div className={topBarActionCluster}>
                 <div className={topBarStatusBlock}>
                   <div className={topBarStatusZone}>
-                    {exchanges.map((exchange) => (
+                    {displayedExchanges.map((exchange) => (
                       <div
                         key={exchange.name}
                         className={topBarExchangeCapsule}

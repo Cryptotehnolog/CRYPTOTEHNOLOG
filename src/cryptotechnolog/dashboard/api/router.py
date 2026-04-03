@@ -24,6 +24,7 @@ from ..dto.reporting import ReportingSummaryDTO
 from ..dto.risk import RiskSummaryDTO
 from ..dto.settings import (
     BybitConnectorDiagnosticsDTO,
+    BybitConnectorToggleDTO,
     CorrelationPolicySettingsDTO,
     DecisionChainSettingsDTO,
     EventBusPolicySettingsDTO,
@@ -266,6 +267,7 @@ def _register_settings_routes(router: APIRouter) -> None:
 def _register_connector_diagnostics_routes(
     router: APIRouter,
     runtime_diagnostics_supplier: Callable[[], dict[str, Any]] | None,
+    bybit_connector_toggle_handler: Callable[[bool], Awaitable[dict[str, Any]]] | None,
 ) -> None:
     @router.get(
         "/settings/bybit-connector-diagnostics",
@@ -277,6 +279,28 @@ def _register_connector_diagnostics_routes(
         diagnostics = (
             runtime_diagnostics_supplier() if runtime_diagnostics_supplier is not None else {}
         )
+        return BybitConnectorDiagnosticsDTO.from_runtime_diagnostics(diagnostics)
+
+    @router.put(
+        "/settings/bybit-connector-enabled",
+        response_model=BybitConnectorDiagnosticsDTO,
+        summary="Включить или выключить canonical Bybit connector",
+    )
+    async def update_bybit_connector_enabled(
+        payload: BybitConnectorToggleDTO,
+    ) -> BybitConnectorDiagnosticsDTO:
+        logger.info("Обновляется canonical Bybit connector enabled flag", enabled=payload.enabled)
+        if bybit_connector_toggle_handler is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Canonical backend runtime недоступен для управления Bybit connector-ом",
+            )
+        try:
+            diagnostics = await bybit_connector_toggle_handler(payload.enabled)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         return BybitConnectorDiagnosticsDTO.from_runtime_diagnostics(diagnostics)
 
 
@@ -428,6 +452,7 @@ def _register_operational_summary_routes(router: APIRouter, facade: OverviewFaca
 def create_dashboard_router(
     facade: OverviewFacade,
     runtime_diagnostics_supplier: Callable[[], dict[str, Any]] | None = None,
+    bybit_connector_toggle_handler: Callable[[bool], Awaitable[dict[str, Any]]] | None = None,
 ) -> APIRouter:
     """
     Создать router панели управления.
@@ -440,7 +465,11 @@ def create_dashboard_router(
     _register_core_summary_routes(router, facade)
     _register_positions_routes(router, facade)
     _register_settings_routes(router)
-    _register_connector_diagnostics_routes(router, runtime_diagnostics_supplier)
+    _register_connector_diagnostics_routes(
+        router,
+        runtime_diagnostics_supplier,
+        bybit_connector_toggle_handler,
+    )
     _register_operational_summary_routes(router, facade)
 
     return router
