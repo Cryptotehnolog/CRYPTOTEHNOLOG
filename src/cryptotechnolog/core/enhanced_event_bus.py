@@ -262,14 +262,24 @@ class PriorityQueue:
                 continue
         return None
 
-    def ack(self, priority: Priority) -> Event | None:
-        """Снять один элемент из очереди конкретного приоритета после синхронной обработки."""
+    def ack(self, priority: Priority, event: Event | None = None) -> Event | None:
+        """Снять обработанный элемент из очереди конкретного приоритета."""
         queue = self.queues[priority]
+        if event is None:
+            try:
+                popped = queue.get_nowait()
+            except asyncio.QueueEmpty:
+                return None
+            self._total_popped += 1
+            return popped
+
         try:
-            event = queue.get_nowait()
-        except asyncio.QueueEmpty:
+            queue._queue.remove(event)  # type: ignore[attr-defined]
+        except ValueError:
             return None
+
         self._total_popped += 1
+        queue._wakeup_next(queue._putters)  # type: ignore[attr-defined]
         return event
 
     def size(self, priority: Priority) -> int:
@@ -1018,6 +1028,9 @@ class EnhancedEventBus:
         Вызывает:
             PublishError: Если событие не может быть опубликовано
         """
+        processing_priority: Priority | None = None
+        persistence_task: asyncio.Task[bool] | None = None
+
         async with self._publish_lock:
             # 1. Проверить rate limit
             if not await self._check_rate_limit(event.source):
@@ -1039,37 +1052,37 @@ class EnhancedEventBus:
                 backpressure_action=backpressure_action,
             )
 
-            try:
-                # 5. Сохранить событие в persistence (async, не ждём завершения)
-                if self.enable_persistence:
-                    task = asyncio.create_task(self._persist_event(event))
-                    self.pending_tasks.append(task)
+            # 5. Сохранить событие в persistence (async, не ждём завершения)
+            if self.enable_persistence:
+                persistence_task = asyncio.create_task(self._persist_event(event))
+                self.pending_tasks.append(persistence_task)
 
-                # 6. Обновить метрики
-                self.metrics["published"] += 1
+            # 6. Обновить метрики
+            self.metrics["published"] += 1
 
-                # 7. Доставить подписчикам (синхронно)
-                delivered = self._deliver_to_subscribers(event)
-                self.metrics["delivered"] += delivered
+        try:
+            # 7. Доставить подписчикам (синхронно)
+            delivered = self._deliver_to_subscribers(event)
+            self.metrics["delivered"] += delivered
 
-                # 8. Вызвать зарегистрированные обработчики
-                await self._call_handlers(event)
+            # 8. Вызвать зарегистрированные обработчики
+            await self._call_handlers(event)
 
-                # 9. Вызвать listeners если они включены
-                await self._call_listeners(event)
+            # 9. Вызвать listeners если они включены
+            await self._call_listeners(event)
 
-                logger.debug(
-                    "Событие опубликовано",
-                    event_type=event.event_type,
-                    priority=event.priority.value,
-                    source=event.source,
-                    delivered=delivered,
-                )
+            logger.debug(
+                "Событие опубликовано",
+                event_type=event.event_type,
+                priority=event.priority.value,
+                source=event.source,
+                delivered=delivered,
+            )
 
-                return delivered > 0
-            finally:
-                if self._started:
-                    self.priority_queue.ack(processing_priority)
+            return delivered > 0
+        finally:
+            if self._started and processing_priority is not None:
+                self.priority_queue.ack(processing_priority, event)
 
     async def publish_with_priority(
         self,

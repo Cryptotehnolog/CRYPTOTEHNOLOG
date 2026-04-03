@@ -30,6 +30,7 @@ from cryptotechnolog.core.enhanced_event_bus import (
     RateLimiter,
 )
 from cryptotechnolog.core.event import Event, Priority
+from cryptotechnolog.core.listeners.base import BaseListener, ListenerConfig
 
 
 class TestPriorityQueue:
@@ -849,6 +850,95 @@ class TestEnhancedEventBusManagement:
 
 class TestEnhancedEventBusHandlers:
     """Тесты обработчиков и listeners."""
+
+    @pytest.mark.asyncio
+    async def test_nested_publish_from_handler_does_not_deadlock(self) -> None:
+        """Nested publish из handler не должен самоблокироваться на publish lock."""
+        bus = EnhancedEventBus(enable_persistence=False)
+        await bus.start()
+
+        received_events: list[str] = []
+
+        async def cascade_handler(event: Event) -> None:
+            received_events.append(event.event_type)
+            if event.event_type == "OUTER":
+                await bus.publish(Event.new("INNER", "HANDLER", {"nested": True}))
+
+        bus.on("OUTER", cascade_handler)
+        bus.on("INNER", cascade_handler)
+
+        try:
+            await bus.publish(Event.new("OUTER", "SOURCE", {"data": 1}))
+
+            assert received_events == ["OUTER", "INNER"]
+            assert bus.priority_queue.total_size() == 0
+        finally:
+            await bus.shutdown()
+
+    @pytest.mark.asyncio
+    async def test_nested_publish_from_listener_does_not_deadlock(self) -> None:
+        """Nested publish из listener не должен самоблокироваться на publish lock."""
+        bus = EnhancedEventBus(enable_persistence=False)
+        await bus.start()
+
+        received_events: list[str] = []
+
+        class NestedPublishListener(BaseListener):
+            def __init__(self) -> None:
+                super().__init__(
+                    ListenerConfig(name="nested_publish_listener", event_types=["OUTER"])
+                )
+
+            async def _process_event(self, event: Event) -> None:
+                received_events.append(event.event_type)
+                await bus.publish(Event.new("INNER", "LISTENER", {"nested": True}))
+
+        def capture_inner(event: Event) -> None:
+            received_events.append(event.event_type)
+
+        bus.register_listener(NestedPublishListener())
+        bus.on("INNER", capture_inner)
+
+        try:
+            await bus.publish(Event.new("OUTER", "SOURCE", {"data": 1}))
+
+            assert received_events == ["OUTER", "INNER"]
+            assert bus.priority_queue.total_size() == 0
+        finally:
+            bus.unregister_listener("nested_publish_listener")
+            await bus.shutdown()
+
+    @pytest.mark.asyncio
+    async def test_nested_publish_different_priority_leaves_queue_consistent(self) -> None:
+        """Nested publish с другим приоритетом не должен ломать ack и queue metrics."""
+        bus = EnhancedEventBus(enable_persistence=False)
+        await bus.start()
+
+        seen: list[str] = []
+
+        async def cascade_handler(event: Event) -> None:
+            seen.append(event.event_type)
+            if event.event_type == "OUTER":
+                nested = Event.new("INNER", "HANDLER", {"nested": True})
+                nested.priority = Priority.HIGH
+                await bus.publish(nested)
+
+        outer = Event.new("OUTER", "SOURCE", {"data": 1})
+        outer.priority = Priority.NORMAL
+
+        bus.on("OUTER", cascade_handler)
+        bus.on("INNER", cascade_handler)
+
+        try:
+            await bus.publish(outer)
+
+            assert seen == ["OUTER", "INNER"]
+            assert bus.priority_queue.total_size() == 0
+            assert bus.priority_queue.size(Priority.NORMAL) == 0
+            assert bus.priority_queue.size(Priority.HIGH) == 0
+            assert bus.metrics["published"] == 2
+        finally:
+            await bus.shutdown()
 
     @pytest.mark.asyncio
     async def test_off_handler(self) -> None:

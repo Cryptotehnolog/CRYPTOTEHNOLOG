@@ -19,7 +19,7 @@ bash scripts/setup_infisical.sh
 ```
 
 **Что делает скрипт:**
-1. Генерирует безопасные ключи (DB_PASSWORD, ENCRYPTION_KEY, AUTH_SECRET)
+1. Генерирует безопасные ключи для самого Infisical (DB_PASSWORD, ENCRYPTION_KEY, AUTH_SECRET)
 2. Сохраняет их в файл `.env.infisical` (НЕ в git!)
 3. Запускает Docker Compose с PostgreSQL, Redis и Infisical
 4. Ждёт пока Infisical инициализируется
@@ -137,6 +137,11 @@ DB_PASSWORD=...
 ENCRYPTION_KEY=...
 AUTH_SECRET=...
 ```
+
+Важно:
+- `DB_PASSWORD` здесь относится только к локальной инфраструктуре Infisical
+- для runtime и integration tests платформы используется отдельная переменная `POSTGRES_PASSWORD`
+- `Settings` в приложении читает именно `POSTGRES_PASSWORD`, а не `DB_PASSWORD`
 
 ИЛИ токен:
 ```
