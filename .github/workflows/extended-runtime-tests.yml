@@ -178,17 +178,21 @@ jobs:
           PY
 
       - name: Run integration tests (bootstrap)
+        shell: bash
         run: |
+          set -o pipefail
+          mkdir -p test-logs
           .venv/bin/python -m pytest \
             tests/integration/test_bootstrap_integration.py \
-            -v -n 0 --cov=src --cov-report=xml
+            -v -n 0 2>&1 | tee test-logs/python-integration-bootstrap.log
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+      - name: Upload bootstrap pytest log artifact
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@v4
         with:
-          files: ./coverage.xml
-          flags: extended-runtime-bootstrap
-          name: codecov-extended-runtime-bootstrap
+          name: extended-runtime-bootstrap-logs
+          path: test-logs/python-integration-bootstrap.log
+          if-no-files-found: ignore
 
   test-python-unit-risk-engine-core:
     name: Python Unit Tests - Risk Engine Core
@@ -225,18 +229,22 @@ jobs:
           uv pip install -e ".[dev]" --force-reinstall
 
       - name: Run unit tests (without DB - risk engine core)
+        shell: bash
         run: |
+          set -o pipefail
+          mkdir -p test-logs
           .venv/bin/python -m pytest \
             tests/unit/test_risk_engine.py \
             tests/unit/test_risk_engine_event_integration.py \
-            -v -m "not db" -n 0 --cov=src --cov-report=xml
+            -v -m "not db" -n 0 2>&1 | tee test-logs/python-unit-risk-engine-core.log
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+      - name: Upload risk engine core pytest log artifact
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@v4
         with:
-          files: ./coverage.xml
-          flags: extended-runtime-risk-engine-core
-          name: codecov-extended-runtime-risk-engine-core
+          name: extended-runtime-risk-engine-core-logs
+          path: test-logs/python-unit-risk-engine-core.log
+          if-no-files-found: ignore
 
   test-python-unit-risk-runtime-guards:
     name: Python Unit Tests - Risk Runtime/Guards
@@ -273,19 +281,23 @@ jobs:
           uv pip install -e ".[dev]" --force-reinstall
 
       - name: Run unit tests (without DB - risk runtime/guards)
+        shell: bash
         run: |
+          set -o pipefail
+          mkdir -p test-logs
           .venv/bin/python -m pytest \
             tests/unit/test_drawdown_monitor.py \
             tests/unit/test_funding_manager.py \
             tests/unit/test_risk_runtime.py \
-            -v -m "not db" -n 0 --cov=src --cov-report=xml
+            -v -m "not db" -n 0 2>&1 | tee test-logs/python-unit-risk-runtime-guards.log
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+      - name: Upload risk runtime guards pytest log artifact
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@v4
         with:
-          files: ./coverage.xml
-          flags: extended-runtime-risk-runtime-guards
-          name: codecov-extended-runtime-risk-runtime-guards
+          name: extended-runtime-risk-runtime-guards-logs
+          path: test-logs/python-unit-risk-runtime-guards.log
+          if-no-files-found: ignore
 
   test-python-unit-risk-engine-persistence:
     name: Python Unit Tests - Risk Engine Persistence
@@ -322,14 +334,18 @@ jobs:
           uv pip install -e ".[dev]" --force-reinstall
 
       - name: Run unit tests (without DB - risk engine persistence)
+        shell: bash
         run: |
+          set -o pipefail
+          mkdir -p test-logs
           .venv/bin/python -m pytest \
             tests/unit/test_risk_engine_persistence_integration.py \
-            -v -m "not db" -n 0 --cov=src --cov-report=xml
+            -v -m "not db" -n 0 2>&1 | tee test-logs/python-unit-risk-engine-persistence.log
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+      - name: Upload risk engine persistence pytest log artifact
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@v4
         with:
-          files: ./coverage.xml
-          flags: extended-runtime-risk-engine-persistence
-          name: codecov-extended-runtime-risk-engine-persistence
+          name: extended-runtime-risk-engine-persistence-logs
+          path: test-logs/python-unit-risk-engine-persistence.log
+          if-no-files-found: ignore
