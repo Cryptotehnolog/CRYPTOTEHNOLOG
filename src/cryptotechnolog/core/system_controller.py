@@ -513,7 +513,9 @@ class SystemController:
                 # Persisted state may already restore the system into READY.
                 # Startup should remain idempotent and avoid an invalid ready->ready transition.
                 if self._state_machine.current_state == SystemState.READY:
-                    logger.info("State Machine уже находится в READY после initialize, повторный переход не нужен")
+                    logger.info(
+                        "State Machine уже находится в READY после initialize, повторный переход не нужен"
+                    )
                 else:
                     logger.info("Переход в состояние READY")
                     result = await self._state_machine.transition(
@@ -1032,6 +1034,7 @@ class SystemController:
             source=SystemEventSource.SYSTEM_CONTROLLER,
             payload=lifecycle_payload,
         )
+        event.metadata["state_already_persisted"] = True
 
         try:
             await self._event_bus.publish(event)

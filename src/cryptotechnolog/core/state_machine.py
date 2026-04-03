@@ -1143,6 +1143,7 @@ class StateMachine:
             source=SystemEventSource.STATE_MACHINE,
             payload=transition.to_dict(),
         )
+        event.metadata["state_already_persisted"] = True
 
         await self._event_bus.publish(event)
 

@@ -296,13 +296,17 @@ class TestStartup:
         """Persisted READY state не должен ломать startup повторным ready->ready."""
         mock_state_machine.current_state = MagicMock()
         mock_state_machine.current_state.value = "ready"
-        mock_state_machine.current_state.__eq__.side_effect = lambda other: getattr(other, "value", None) == "ready"
+        mock_state_machine.current_state.__eq__.side_effect = lambda other: (
+            getattr(other, "value", None) == "ready"
+        )
 
         controller = SystemController(state_machine=mock_state_machine, test_mode=True)
 
         result = await controller.startup()
 
-        transitioned_states = [call.kwargs["to_state"].value for call in mock_state_machine.transition.await_args_list]
+        transitioned_states = [
+            call.kwargs["to_state"].value for call in mock_state_machine.transition.await_args_list
+        ]
 
         assert result.success is True
         assert "ready" not in transitioned_states

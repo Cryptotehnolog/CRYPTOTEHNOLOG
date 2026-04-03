@@ -152,6 +152,7 @@ class TestEventDeliveryToListeners:
                     "duration_ms": 100,
                 },
             )
+            event.metadata["state_already_persisted"] = True
 
             # Публикуем событие
             await event_bus.publish(event)
@@ -190,6 +191,7 @@ class TestEventDeliveryToListeners:
                 source="SYSTEM_CONTROLLER",
                 payload={},
             )
+            event.metadata["state_already_persisted"] = True
 
             await event_bus.publish(event)
             await asyncio.sleep(0.1)
