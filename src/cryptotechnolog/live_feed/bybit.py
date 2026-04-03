@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -34,7 +33,8 @@ from .models import (
 from .runtime import FeedConnectivityRuntime, create_live_feed_runtime
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Awaitable, Callable
+
     from cryptotechnolog.config.settings import Settings
     from cryptotechnolog.market_data import MarketDataRuntime
 
