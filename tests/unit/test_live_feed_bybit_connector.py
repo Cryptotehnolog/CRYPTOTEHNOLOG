@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
 from cryptotechnolog.config.settings import Settings
+from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
 from cryptotechnolog.live_feed import (
     BybitMarketDataConnector,
     BybitMarketDataConnectorConfig,
@@ -40,7 +40,7 @@ class _FakeWebSocket:
     async def close(self) -> None:
         self.closed = True
 
-    async def ping(self, data: object | None = None):  # noqa: ARG002
+    async def ping(self, data: object | None = None):
         async def _pong_waiter() -> float:
             return self.ping_latency_seconds
 
@@ -65,7 +65,7 @@ class _BlockingWebSocket:
         self.closed = True
         self._closed_event.set()
 
-    async def ping(self, data: object | None = None):  # noqa: ARG002
+    async def ping(self, data: object | None = None):
         async def _pong_waiter() -> float:
             return self.ping_latency_seconds
 
