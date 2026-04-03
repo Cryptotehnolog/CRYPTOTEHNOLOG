@@ -591,7 +591,12 @@ class _StubProductionRuntime:
                 "symbols": ("BTC/USDT",),
                 "transport_status": "connected",
                 "recovery_status": "recovered",
+                "lifecycle_state": "connected",
+                "ready": True,
+                "started": True,
                 "subscription_alive": True,
+                "reset_required": False,
+                "retry_count": 0,
                 "trade_seen": True,
                 "orderbook_seen": True,
                 "best_bid": "68499.90",
@@ -1617,6 +1622,26 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_returns_disabled_snapsho
     assert data.last_disconnect_reason is None
 
 
+def test_dashboard_bybit_connector_diagnostics_endpoint_returns_full_disabled_snapshot_in_app() -> (
+    None
+):
+    app = create_dashboard_app()
+
+    with TestClient(app) as client:
+        response = client.get("/dashboard/settings/bybit-connector-diagnostics")
+
+    assert response.status_code == 200
+    data = BybitConnectorDiagnosticsDTO.model_validate(response.json())
+    assert data.enabled is False
+    assert data.transport_status == "disabled"
+    assert data.recovery_status == "idle"
+    assert data.lifecycle_state == "disabled"
+    assert data.ready is False
+    assert data.started is False
+    assert data.reset_required is False
+    assert data.retry_count is None
+
+
 def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapshot() -> None:
     app = FastAPI()
     app.include_router(
@@ -1636,6 +1661,11 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
                     "last_message_at": "2026-04-01T09:45:40.060548+00:00",
                     "degraded_reason": None,
                     "last_disconnect_reason": None,
+                    "retry_count": 0,
+                    "ready": True,
+                    "started": True,
+                    "lifecycle_state": "connected",
+                    "reset_required": False,
                 }
             },
         )
@@ -1649,6 +1679,11 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
     assert data.enabled is True
     assert data.symbol == "BTC/USDT"
     assert data.transport_status == "connected"
+    assert data.lifecycle_state == "connected"
+    assert data.ready is True
+    assert data.started is True
+    assert data.reset_required is False
+    assert data.retry_count == 0
     assert data.recovery_status == "recovered"
     assert data.subscription_alive is True
     assert data.trade_seen is True

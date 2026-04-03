@@ -312,6 +312,39 @@ class TestStartup:
         assert "ready" not in transitioned_states
 
     @pytest.mark.asyncio
+    async def test_startup_recovers_from_persisted_halt_state(
+        self,
+        mock_state_machine,
+    ):
+        """Persisted HALT state должен проходить через RECOVERY и завершать startup."""
+        mock_state_machine.current_state = MagicMock()
+        mock_state_machine.current_state.value = "halt"
+        mock_state_machine.current_state.__eq__.side_effect = lambda other: (
+            getattr(other, "value", None) == "halt"
+        )
+
+        async def transition_side_effect(*args, **kwargs):
+            to_state = kwargs["to_state"]
+            mock_state_machine.current_state.value = to_state.value
+            mock_state_machine.current_state.__eq__.side_effect = lambda other: (
+                getattr(other, "value", None) == to_state.value
+            )
+            return MagicMock(success=True)
+
+        mock_state_machine.transition.side_effect = transition_side_effect
+
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
+
+        result = await controller.startup()
+
+        transitioned_states = [
+            call.kwargs["to_state"].value for call in mock_state_machine.transition.await_args_list
+        ]
+
+        assert result.success is True
+        assert transitioned_states[:2] == ["recovery", "ready"]
+
+    @pytest.mark.asyncio
     async def test_startup_with_components(self, mock_state_machine, mock_component):
         """Тест startup с компонентами."""
         controller = SystemController(state_machine=mock_state_machine, test_mode=True)

@@ -483,6 +483,19 @@ class SystemController:
                     )
                     if not init_result.success:
                         raise StartupError(f"Не удалось перейти в INIT: {init_result.error}")
+                elif self._state_machine.current_state == SystemState.HALT:
+                    recovery_result = await self._state_machine.transition(
+                        to_state=SystemState.RECOVERY,
+                        trigger=TriggerType.SYSTEM_STARTUP,
+                        metadata={
+                            "startup_phase": self._startup_phase.value,
+                            "restored_state": SystemState.HALT.value,
+                        },
+                    )
+                    if not recovery_result.success:
+                        raise StartupError(
+                            f"Не удалось перейти в RECOVERY: {recovery_result.error}"
+                        )
 
                 # Фаза 6: Инициализация Circuit Breakers
                 self._startup_phase = StartupPhase.INITIALIZING_CIRCUIT_BREAKERS

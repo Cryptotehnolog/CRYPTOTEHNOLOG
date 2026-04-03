@@ -130,6 +130,11 @@ class DashboardRuntime:
                 "best_ask": None,
                 "degraded_reason": None,
                 "last_disconnect_reason": None,
+                "retry_count": None,
+                "ready": False,
+                "started": False,
+                "lifecycle_state": "disabled",
+                "reset_required": False,
             },
         )
         return diagnostics
