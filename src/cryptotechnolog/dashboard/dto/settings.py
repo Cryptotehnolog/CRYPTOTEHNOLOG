@@ -724,6 +724,17 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
     last_disconnect_reason: str | None = Field(
         description="Последняя причина disconnect connector-а, если есть."
     )
+    retry_count: int | None = Field(
+        description="Количество reconnect/retry попыток в текущем lifecycle окне."
+    )
+    ready: bool = Field(description="Считает ли feed runtime connector готовым к работе.")
+    started: bool = Field(description="Поднят ли feed runtime lifecycle connector-а.")
+    lifecycle_state: str | None = Field(
+        description="Текущее lifecycle-состояние feed runtime для operator truth."
+    )
+    reset_required: bool = Field(
+        description="Требуется ли reset/recovery boundary перед честным продолжением ingest path."
+    )
 
     @classmethod
     def from_runtime_diagnostics(
@@ -766,4 +777,13 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
             last_disconnect_reason=connector.get("last_disconnect_reason")
             if isinstance(connector.get("last_disconnect_reason"), str)
             else None,
+            retry_count=connector.get("retry_count")
+            if isinstance(connector.get("retry_count"), int)
+            else None,
+            ready=bool(connector.get("ready", False)),
+            started=bool(connector.get("started", False)),
+            lifecycle_state=connector.get("lifecycle_state")
+            if isinstance(connector.get("lifecycle_state"), str)
+            else None,
+            reset_required=bool(connector.get("reset_required", False)),
         )
