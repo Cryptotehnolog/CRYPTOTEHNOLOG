@@ -228,14 +228,16 @@ class TestListenerInvariants:
     """Property-based tests for Listener invariants."""
 
     @given(
-        event_type=hypothesis.strategies.sampled_from([
-            "STATE_TRANSITION",
-            "SYSTEM_BOOT",
-            "ORDER_SUBMITTED",
-            "ORDER_FILLED",
-            "RISK_VIOLATION",
-            "WATCHDOG_ALERT",
-        ])
+        event_type=hypothesis.strategies.sampled_from(
+            [
+                "STATE_TRANSITION",
+                "SYSTEM_BOOT",
+                "ORDER_SUBMITTED",
+                "ORDER_FILLED",
+                "RISK_VIOLATION",
+                "WATCHDOG_ALERT",
+            ]
+        )
     )
     @settings(max_examples=30)
     def test_listener_handles_events(self, event_type):
@@ -330,13 +332,15 @@ class TestDatabaseInvariants:
         assert isinstance(state, str)
 
     @given(
-        severity=hypothesis.strategies.sampled_from([
-            "DEBUG",
-            "INFO",
-            "WARNING",
-            "ERROR",
-            "CRITICAL",
-        ]),
+        severity=hypothesis.strategies.sampled_from(
+            [
+                "DEBUG",
+                "INFO",
+                "WARNING",
+                "ERROR",
+                "CRITICAL",
+            ]
+        ),
         event_type=hypothesis.strategies.text(min_size=1, max_size=100),
     )
     @settings(max_examples=20)
@@ -452,12 +456,14 @@ class TestIntegrationInvariants:
 
     @given(
         events=hypothesis.strategies.lists(
-            hypothesis.strategies.sampled_from([
-                SystemEventType.SYSTEM_BOOT,
-                SystemEventType.SYSTEM_READY,
-                SystemEventType.SYSTEM_HALT,
-                SystemEventType.SYSTEM_SHUTDOWN,
-            ]),
+            hypothesis.strategies.sampled_from(
+                [
+                    SystemEventType.SYSTEM_BOOT,
+                    SystemEventType.SYSTEM_READY,
+                    SystemEventType.SYSTEM_HALT,
+                    SystemEventType.SYSTEM_SHUTDOWN,
+                ]
+            ),
             min_size=1,
             max_size=10,
         )

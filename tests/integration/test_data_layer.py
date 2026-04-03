@@ -29,11 +29,13 @@ class TestDataFrameConversion:
 
     def test_to_polars_from_pandas(self):
         """Test converting Pandas DataFrame to Polars."""
-        pd_df = pd.DataFrame({
-            "a": [1, 2, 3],
-            "b": [4.0, 5.0, 6.0],
-            "c": ["x", "y", "z"],
-        })
+        pd_df = pd.DataFrame(
+            {
+                "a": [1, 2, 3],
+                "b": [4.0, 5.0, 6.0],
+                "c": ["x", "y", "z"],
+            }
+        )
 
         pl_df = to_polars(pd_df)
 
@@ -43,11 +45,13 @@ class TestDataFrameConversion:
 
     def test_to_pandas_from_polars(self):
         """Test converting Polars DataFrame to Pandas."""
-        pl_df = pl.DataFrame({
-            "a": [1, 2, 3],
-            "b": [4.0, 5.0, 6.0],
-            "c": ["x", "y", "z"],
-        })
+        pl_df = pl.DataFrame(
+            {
+                "a": [1, 2, 3],
+                "b": [4.0, 5.0, 6.0],
+                "c": ["x", "y", "z"],
+            }
+        )
 
         pd_df = to_pandas(pl_df)
 
@@ -85,9 +89,11 @@ class TestTradingDataOperations:
 
     def test_calculate_returns_pandas(self):
         """Test calculating returns with Pandas."""
-        pd_df = pd.DataFrame({
-            "close": [100.0, 101.0, 102.0, 101.5],
-        })
+        pd_df = pd.DataFrame(
+            {
+                "close": [100.0, 101.0, 102.0, 101.5],
+            }
+        )
 
         result = calculate_returns(pd_df, column="close", use_polars=False)
 
@@ -100,9 +106,11 @@ class TestTradingDataOperations:
 
     def test_calculate_returns_polars(self):
         """Test calculating returns with Polars."""
-        pl_df = pl.DataFrame({
-            "close": [100.0, 101.0, 102.0, 101.5],
-        })
+        pl_df = pl.DataFrame(
+            {
+                "close": [100.0, 101.0, 102.0, 101.5],
+            }
+        )
 
         result = calculate_returns(pl_df, column="close", use_polars=True)
 
@@ -113,14 +121,16 @@ class TestTradingDataOperations:
 
     def test_resample_ohlcv_pandas(self):
         """Test resampling OHLCV data with Pandas."""
-        pd_df = pd.DataFrame({
-            "timestamp": pd.date_range("2024-01-01", periods=10, freq="1min"),
-            "open": [100.0] * 10,
-            "high": [101.0] * 10,
-            "low": [99.0] * 10,
-            "close": [100.5] * 10,
-            "volume": [10.0] * 10,
-        })
+        pd_df = pd.DataFrame(
+            {
+                "timestamp": pd.date_range("2024-01-01", periods=10, freq="1min"),
+                "open": [100.0] * 10,
+                "high": [101.0] * 10,
+                "low": [99.0] * 10,
+                "close": [100.5] * 10,
+                "volume": [10.0] * 10,
+            }
+        )
 
         result = resample_ohlcv(pd_df, timeframe="5min", use_polars=False)
 
@@ -133,14 +143,16 @@ class TestTradingDataOperations:
         # Create timestamps manually using datetime objects
         timestamps = [datetime(2024, 1, 1, 0, i) for i in range(10)]
 
-        pl_df = pl.DataFrame({
-            "timestamp": timestamps,
-            "open": [100.0] * 10,
-            "high": [101.0] * 10,
-            "low": [99.0] * 10,
-            "close": [100.5] * 10,
-            "volume": [10.0] * 10,
-        })
+        pl_df = pl.DataFrame(
+            {
+                "timestamp": timestamps,
+                "open": [100.0] * 10,
+                "high": [101.0] * 10,
+                "low": [99.0] * 10,
+                "close": [100.5] * 10,
+                "volume": [10.0] * 10,
+            }
+        )
 
         result = resample_ohlcv(pl_df, timeframe="5min", use_polars=True)
 
@@ -154,10 +166,12 @@ class TestBenchmarking:
 
     def test_benchmark_conversion_pandas(self):
         """Test benchmarking Pandas to Polars conversion."""
-        pd_df = pd.DataFrame({
-            "a": list(range(100)),
-            "b": list(range(100, 200)),
-        })
+        pd_df = pd.DataFrame(
+            {
+                "a": list(range(100)),
+                "b": list(range(100, 200)),
+            }
+        )
 
         results = benchmark_conversion(pd_df, n_iterations=3)
 
@@ -166,10 +180,12 @@ class TestBenchmarking:
 
     def test_benchmark_conversion_polars(self):
         """Test benchmarking Polars to Pandas conversion."""
-        pl_df = pl.DataFrame({
-            "a": list(range(100)),
-            "b": list(range(100, 200)),
-        })
+        pl_df = pl.DataFrame(
+            {
+                "a": list(range(100)),
+                "b": list(range(100, 200)),
+            }
+        )
 
         results = benchmark_conversion(pl_df, n_iterations=3)
 
@@ -182,11 +198,13 @@ class TestDataConsistency:
 
     def test_roundtrip_pandas_polars_pandas(self):
         """Test that data survives roundtrip conversion."""
-        original = pd.DataFrame({
-            "a": [1, 2, 3],
-            "b": [4.0, 5.0, 6.0],
-            "c": ["x", "y", "z"],
-        })
+        original = pd.DataFrame(
+            {
+                "a": [1, 2, 3],
+                "b": [4.0, 5.0, 6.0],
+                "c": ["x", "y", "z"],
+            }
+        )
 
         # Pandas -> Polars -> Pandas
         pl_df = to_polars(original)
@@ -199,11 +217,13 @@ class TestDataConsistency:
 
     def test_roundtrip_polars_pandas_polars(self):
         """Test that data survives roundtrip conversion."""
-        original = pl.DataFrame({
-            "a": [1, 2, 3],
-            "b": [4.0, 5.0, 6.0],
-            "c": ["x", "y", "z"],
-        })
+        original = pl.DataFrame(
+            {
+                "a": [1, 2, 3],
+                "b": [4.0, 5.0, 6.0],
+                "c": ["x", "y", "z"],
+            }
+        )
 
         # Polars -> Pandas -> Polars
         pd_df = to_pandas(original)

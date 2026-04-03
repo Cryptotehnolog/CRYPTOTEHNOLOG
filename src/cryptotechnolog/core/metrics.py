@@ -1149,11 +1149,13 @@ class SLORegistry:
 
         # Записать в историю если есть нарушение
         if result["is_violated"]:
-            self._violation_history[slo.name].append({
-                "timestamp": datetime.now(UTC).isoformat(),
-                "actual_ms": result["actual_ms"],
-                "threshold_ms": result["threshold_ms"],
-            })
+            self._violation_history[slo.name].append(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "actual_ms": result["actual_ms"],
+                    "threshold_ms": result["threshold_ms"],
+                }
+            )
             # Ограничить историю последними 100 нарушениями
             self._violation_history[slo.name] = self._violation_history[slo.name][-100:]
 
@@ -1219,14 +1221,16 @@ class SLORegistry:
             violations = self._violation_history.get(slo.name, [])
             recent_violations = violations[-10:]  # Последние 10
 
-            slo_data.append({
-                "name": slo.name,
-                "description": slo.description,
-                "target_percentile": slo.target_percentile,
-                "threshold_ms": slo.threshold_ms,
-                "recent_violations": len(recent_violations),
-                "violation_history": recent_violations,
-            })
+            slo_data.append(
+                {
+                    "name": slo.name,
+                    "description": slo.description,
+                    "target_percentile": slo.target_percentile,
+                    "threshold_ms": slo.threshold_ms,
+                    "recent_violations": len(recent_violations),
+                    "violation_history": recent_violations,
+                }
+            )
 
         return {
             "slos": slo_data,

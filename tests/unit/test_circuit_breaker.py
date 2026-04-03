@@ -66,11 +66,13 @@ class TestCircuitBreaker:
     def test_init_uses_reliability_settings_defaults(self):
         """Test default circuit breaker policy comes from canonical settings."""
         try:
-            update_settings({
-                "reliability_circuit_breaker_failure_threshold": 7,
-                "reliability_circuit_breaker_recovery_timeout_seconds": 45,
-                "reliability_circuit_breaker_success_threshold": 4,
-            })
+            update_settings(
+                {
+                    "reliability_circuit_breaker_failure_threshold": 7,
+                    "reliability_circuit_breaker_recovery_timeout_seconds": 45,
+                    "reliability_circuit_breaker_success_threshold": 4,
+                }
+            )
             cb = CircuitBreaker(name="settings-defaults")
             assert cb._failure_threshold == 7
             assert cb._recovery_timeout == 45

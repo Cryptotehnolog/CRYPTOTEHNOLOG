@@ -3584,11 +3584,13 @@ class TestProductionBootstrap:
 
         await handler(validation_event)
 
-        candidate = runtime.paper_runtime.get_candidate((
-            "BTC/USDT",
-            "bybit",
-            MarketDataTimeframe.M1,
-        ))
+        candidate = runtime.paper_runtime.get_candidate(
+            (
+                "BTC/USDT",
+                "bybit",
+                MarketDataTimeframe.M1,
+            )
+        )
         diagnostics = runtime.paper_runtime.get_runtime_diagnostics()
 
         assert candidate is not None

@@ -489,12 +489,14 @@ class TestDataProcessingBenchmarks:
 
     def test_json_deserialization(self) -> None:
         """Бенчмарк JSON десериализации."""
-        json_str = json.dumps({
-            "symbol": "BTC/USDT",
-            "price": 50000.0,
-            "quantity": 0.1,
-            "timestamp": 1234567890,
-        })
+        json_str = json.dumps(
+            {
+                "symbol": "BTC/USDT",
+                "price": 50000.0,
+                "quantity": 0.1,
+                "timestamp": 1234567890,
+            }
+        )
         iterations = 50000
 
         start = time.perf_counter()

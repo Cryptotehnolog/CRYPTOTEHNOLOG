@@ -629,11 +629,13 @@ async def test_signal_runtime_publishes_signal_emitted_through_integrated_runtim
         symbol="BTC/USDT",
         timeframe=MarketDataTimeframe.M1,
     )
-    paper_candidate = runtime.paper_runtime.get_candidate((
-        "BTC/USDT",
-        "bybit",
-        MarketDataTimeframe.M1,
-    ))
+    paper_candidate = runtime.paper_runtime.get_candidate(
+        (
+            "BTC/USDT",
+            "bybit",
+            MarketDataTimeframe.M1,
+        )
+    )
 
     assert signal is not None
     assert signal.status.value == "active"
@@ -1010,21 +1012,27 @@ async def test_signal_runtime_publishes_signal_invalidated_when_existing_truth_d
         symbol="BTC/USDT",
         timeframe=MarketDataTimeframe.M1,
     )
-    validation_historical = runtime.validation_runtime.get_historical_candidate((
-        "BTC/USDT",
-        "bybit",
-        MarketDataTimeframe.M1,
-    ))
-    paper_candidate = runtime.paper_runtime.get_candidate((
-        "BTC/USDT",
-        "bybit",
-        MarketDataTimeframe.M1,
-    ))
-    paper_historical = runtime.paper_runtime.get_historical_candidate((
-        "BTC/USDT",
-        "bybit",
-        MarketDataTimeframe.M1,
-    ))
+    validation_historical = runtime.validation_runtime.get_historical_candidate(
+        (
+            "BTC/USDT",
+            "bybit",
+            MarketDataTimeframe.M1,
+        )
+    )
+    paper_candidate = runtime.paper_runtime.get_candidate(
+        (
+            "BTC/USDT",
+            "bybit",
+            MarketDataTimeframe.M1,
+        )
+    )
+    paper_historical = runtime.paper_runtime.get_historical_candidate(
+        (
+            "BTC/USDT",
+            "bybit",
+            MarketDataTimeframe.M1,
+        )
+    )
 
     assert invalidated is not None
     assert invalidated.signal_id == active.signal_id

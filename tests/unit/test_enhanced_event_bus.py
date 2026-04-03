@@ -974,14 +974,16 @@ class TestEnhancedEventBusSettings:
     def test_init_uses_event_bus_policy_settings(self) -> None:
         """EnhancedEventBus читает queue/backpressure policy из canonical settings."""
         try:
-            update_settings({
-                "event_bus_subscriber_capacity": 2048,
-                "event_bus_fill_ratio_low": 0.61,
-                "event_bus_fill_ratio_normal": 0.76,
-                "event_bus_fill_ratio_high": 0.93,
-                "event_bus_push_wait_timeout_seconds": 6.5,
-                "event_bus_drain_timeout_seconds": 45.0,
-            })
+            update_settings(
+                {
+                    "event_bus_subscriber_capacity": 2048,
+                    "event_bus_fill_ratio_low": 0.61,
+                    "event_bus_fill_ratio_normal": 0.76,
+                    "event_bus_fill_ratio_high": 0.93,
+                    "event_bus_push_wait_timeout_seconds": 6.5,
+                    "event_bus_drain_timeout_seconds": 45.0,
+                }
+            )
 
             bus = EnhancedEventBus(enable_persistence=False)
 

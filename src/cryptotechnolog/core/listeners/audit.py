@@ -128,9 +128,11 @@ class AuditListener(BaseListener):
             "RISK_ENGINE_STATE_UPDATED",
         }
 
-        critical_events.update({
-            "VELOCITY_KILLSWITCH_TRIGGERED",
-        })
+        critical_events.update(
+            {
+                "VELOCITY_KILLSWITCH_TRIGGERED",
+            }
+        )
 
         info_events = {
             "TRAILING_STOP_MOVED",

@@ -809,4 +809,6 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
 class BybitConnectorToggleDTO(BaseModel):
     """Narrow backend control payload for enabling or disabling the Bybit connector."""
 
-    enabled: bool = Field(description="Должен ли canonical backend runtime держать Bybit connector включённым.")
+    enabled: bool = Field(
+        description="Должен ли canonical backend runtime держать Bybit connector включённым."
+    )

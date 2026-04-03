@@ -217,23 +217,27 @@ def resample_ohlcv(
         return pl_df.group_by_dynamic(
             pl.col("timestamp").alias("time"),
             every=polars_timeframe,
-        ).agg([
-            pl.col("open").first().alias("open"),
-            pl.col("high").max().alias("high"),
-            pl.col("low").min().alias("low"),
-            pl.col("close").last().alias("close"),
-            pl.col("volume").sum().alias("volume"),
-        ])
+        ).agg(
+            [
+                pl.col("open").first().alias("open"),
+                pl.col("high").max().alias("high"),
+                pl.col("low").min().alias("low"),
+                pl.col("close").last().alias("close"),
+                pl.col("volume").sum().alias("volume"),
+            ]
+        )
     else:
         pd_df = to_pandas(df)
         df_typed = pd_df.set_index("timestamp")
-        resampled: pd.DataFrame = df_typed.resample(timeframe).agg({
-            "open": "first",
-            "high": "max",
-            "low": "min",
-            "close": "last",
-            "volume": "sum",
-        })
+        resampled: pd.DataFrame = df_typed.resample(timeframe).agg(
+            {
+                "open": "first",
+                "high": "max",
+                "low": "min",
+                "close": "last",
+                "volume": "sum",
+            }
+        )
         return resampled.reset_index()
 
 

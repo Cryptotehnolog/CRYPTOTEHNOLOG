@@ -208,11 +208,13 @@ class TestEventBusLoad:
 
         async def publisher_task(publisher_id: int) -> None:
             for i in range(events_per_publisher):
-                await bus.publish({
-                    "type": "test",
-                    "publisher": publisher_id,
-                    "index": i,
-                })
+                await bus.publish(
+                    {
+                        "type": "test",
+                        "publisher": publisher_id,
+                        "index": i,
+                    }
+                )
 
         # Запуск publishers
         start_time = time.perf_counter()
@@ -475,12 +477,14 @@ class TestEventBusMemoryAndStability:
 
         for iteration in range(iterations):
             for i in range(events_per_iteration):
-                await bus.publish({
-                    "type": "memory_test",
-                    "iteration": iteration,
-                    "index": i,
-                    "data": "x" * 100,  # ~100 байт
-                })
+                await bus.publish(
+                    {
+                        "type": "memory_test",
+                        "iteration": iteration,
+                        "index": i,
+                        "data": "x" * 100,  # ~100 байт
+                    }
+                )
 
             # Небольшая пауза
             await asyncio.sleep(0.01)
@@ -542,13 +546,15 @@ class TestEventBusRealWorldScenarios:
 
         async def generate_events() -> None:
             for i in range(total_events):
-                await bus.publish({
-                    "type": "trading_event",
-                    "event_type": event_types[i % len(event_types)],
-                    "symbol": symbols[i % len(symbols)],
-                    "price": 50000 + i,
-                    "timestamp": time.time(),
-                })
+                await bus.publish(
+                    {
+                        "type": "trading_event",
+                        "event_type": event_types[i % len(event_types)],
+                        "symbol": symbols[i % len(symbols)],
+                        "price": 50000 + i,
+                        "timestamp": time.time(),
+                    }
+                )
 
         # Запускаем генерацию
         await generate_events()
@@ -590,12 +596,14 @@ class TestEventBusRealWorldScenarios:
         start_time = time.perf_counter()
 
         for i in range(5000):
-            await bus.publish({
-                "type": "signal",
-                "signal_id": i,
-                "priority": "high" if i % 10 == 0 else "normal",
-                "data": {"value": i * 0.01},
-            })
+            await bus.publish(
+                {
+                    "type": "signal",
+                    "signal_id": i,
+                    "priority": "high" if i % 10 == 0 else "normal",
+                    "data": {"value": i * 0.01},
+                }
+            )
 
         publish_duration = time.perf_counter() - start_time
 

@@ -94,13 +94,15 @@ class PydanticValidator(IConfigValidator):
             ValidationError: При ошибке валидации
         """
         if not isinstance(data, dict):
-            raise ValidationError([
-                {
-                    "loc": (),
-                    "msg": f"Ожидался словарь, получен {type(data).__name__}",
-                    "type": "type_error",
-                }
-            ])
+            raise ValidationError(
+                [
+                    {
+                        "loc": (),
+                        "msg": f"Ожидался словарь, получен {type(data).__name__}",
+                        "type": "type_error",
+                    }
+                ]
+            )
 
         try:
             # Валидируем данные через Pydantic
