@@ -471,12 +471,10 @@ class BybitMarketDataConnector:
             self.session.exchange,
         )
         trade_seen = (
-            self.market_data_runtime.state.last_trade_at.get(
-                (
-                    normalized_symbol,
-                    self.session.exchange,
-                )
-            )
+            self.market_data_runtime.state.last_trade_at.get((
+                normalized_symbol,
+                self.session.exchange,
+            ))
             is not None
         )
         recovery_state = self.get_recovery_state()

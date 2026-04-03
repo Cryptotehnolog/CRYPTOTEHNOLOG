@@ -124,16 +124,14 @@ def test_shared_analysis_runtime_exposes_query_surface_for_risk_derived_inputs()
     )
 
     asyncio.run(runtime.start())
-    for index, (high, low, close) in enumerate(
-        (
-            ("30", "28", "29"),
-            ("32", "29", "31"),
-            ("33", "30", "32"),
-            ("34", "31", "33"),
-            ("35", "32", "34"),
-            ("34", "31", "32"),
-        )
-    ):
+    for index, (high, low, close) in enumerate((
+        ("30", "28", "29"),
+        ("32", "29", "31"),
+        ("33", "30", "32"),
+        ("34", "31", "33"),
+        ("35", "32", "34"),
+        ("34", "31", "32"),
+    )):
         runtime.ingest_completed_bar(_make_bar(index=index, high=high, low=low, close=close))
 
     snapshot = runtime.get_risk_derived_inputs(

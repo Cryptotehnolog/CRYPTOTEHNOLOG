@@ -237,13 +237,11 @@ async def test_bybit_connector_subscribes_and_ingests_real_market_data_path() ->
     market_data_runtime = create_market_data_runtime(event_bus=event_bus)
     await market_data_runtime.start()
 
-    websocket = _FakeWebSocket(
-        [
-            json.dumps({"op": "subscribe", "success": True}),
-            json.dumps(_trade_message()),
-            json.dumps(_orderbook_snapshot_message()),
-        ]
-    )
+    websocket = _FakeWebSocket([
+        json.dumps({"op": "subscribe", "success": True}),
+        json.dumps(_trade_message()),
+        json.dumps(_orderbook_snapshot_message()),
+    ])
 
     async def websocket_factory(_: BybitMarketDataConnectorConfig) -> _FakeWebSocket:
         return websocket

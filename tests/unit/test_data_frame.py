@@ -118,12 +118,10 @@ class TestCalculateReturns:
 
     def test_calculate_returns_polars(self) -> None:
         """Test calculating returns with Polars."""
-        pd_df = pd.DataFrame(
-            {
-                "timestamp": pd.date_range("2024-01-01", periods=3),
-                "close": [100.0, 105.0, 110.0],
-            }
-        )
+        pd_df = pd.DataFrame({
+            "timestamp": pd.date_range("2024-01-01", periods=3),
+            "close": [100.0, 105.0, 110.0],
+        })
 
         result = calculate_returns(pd_df, use_polars=True)
 
@@ -134,12 +132,10 @@ class TestCalculateReturns:
 
     def test_calculate_returns_pandas(self) -> None:
         """Test calculating returns with Pandas."""
-        pd_df = pd.DataFrame(
-            {
-                "timestamp": pd.date_range("2024-01-01", periods=3),
-                "close": [100.0, 105.0, 110.0],
-            }
-        )
+        pd_df = pd.DataFrame({
+            "timestamp": pd.date_range("2024-01-01", periods=3),
+            "close": [100.0, 105.0, 110.0],
+        })
 
         result = calculate_returns(pd_df, use_polars=False)
 
@@ -160,16 +156,14 @@ class TestResampleOHLCV:
 
     def test_resample_ohlcv_polars(self) -> None:
         """Test resampling with Polars."""
-        pd_df = pd.DataFrame(
-            {
-                "timestamp": pd.date_range("2024-01-01", periods=4, freq="1min"),
-                "open": [100.0, 101.0, 102.0, 103.0],
-                "high": [101.0, 102.0, 103.0, 104.0],
-                "low": [99.0, 100.0, 101.0, 102.0],
-                "close": [101.0, 102.0, 103.0, 104.0],
-                "volume": [10, 20, 30, 40],
-            }
-        )
+        pd_df = pd.DataFrame({
+            "timestamp": pd.date_range("2024-01-01", periods=4, freq="1min"),
+            "open": [100.0, 101.0, 102.0, 103.0],
+            "high": [101.0, 102.0, 103.0, 104.0],
+            "low": [99.0, 100.0, 101.0, 102.0],
+            "close": [101.0, 102.0, 103.0, 104.0],
+            "volume": [10, 20, 30, 40],
+        })
 
         result = resample_ohlcv(pd_df, "2m", use_polars=True)
 
@@ -178,16 +172,14 @@ class TestResampleOHLCV:
 
     def test_resample_ohlcv_pandas(self) -> None:
         """Test resampling with Pandas."""
-        pd_df = pd.DataFrame(
-            {
-                "timestamp": pd.date_range("2024-01-01", periods=4, freq="1min"),
-                "open": [100.0, 101.0, 102.0, 103.0],
-                "high": [101.0, 102.0, 103.0, 104.0],
-                "low": [99.0, 100.0, 101.0, 102.0],
-                "close": [101.0, 102.0, 103.0, 104.0],
-                "volume": [10, 20, 30, 40],
-            }
-        )
+        pd_df = pd.DataFrame({
+            "timestamp": pd.date_range("2024-01-01", periods=4, freq="1min"),
+            "open": [100.0, 101.0, 102.0, 103.0],
+            "high": [101.0, 102.0, 103.0, 104.0],
+            "low": [99.0, 100.0, 101.0, 102.0],
+            "close": [101.0, 102.0, 103.0, 104.0],
+            "volume": [10, 20, 30, 40],
+        })
 
         result = resample_ohlcv(pd_df, "2min", use_polars=False)
 

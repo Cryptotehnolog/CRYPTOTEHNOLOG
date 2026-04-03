@@ -26,20 +26,18 @@ if TYPE_CHECKING:
 
 
 def _bars_dataframe() -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "timestamp": [
-                datetime(2026, 3, 24, 10, 2, tzinfo=UTC),
-                datetime(2026, 3, 24, 10, 0, tzinfo=UTC),
-                datetime(2026, 3, 24, 10, 1, tzinfo=UTC),
-            ],
-            "open": [102.0, 100.0, 101.0],
-            "high": [103.0, 101.0, 102.0],
-            "low": [101.0, 99.0, 100.0],
-            "close": [102.5, 100.5, 101.5],
-            "volume": [12.0, 10.0, 11.0],
-        }
-    )
+    return pd.DataFrame({
+        "timestamp": [
+            datetime(2026, 3, 24, 10, 2, tzinfo=UTC),
+            datetime(2026, 3, 24, 10, 0, tzinfo=UTC),
+            datetime(2026, 3, 24, 10, 1, tzinfo=UTC),
+        ],
+        "open": [102.0, 100.0, 101.0],
+        "high": [103.0, 101.0, 102.0],
+        "low": [101.0, 99.0, 100.0],
+        "close": [102.5, 100.5, 101.5],
+        "volume": [12.0, 10.0, 11.0],
+    })
 
 
 def test_historical_input_ingress_normalizes_bar_stream_dataframe() -> None:

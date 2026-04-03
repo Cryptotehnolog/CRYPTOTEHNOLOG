@@ -228,14 +228,12 @@ class TestStateTimeoutTransitions:
 
 def test_get_state_policy_reads_settings_overrides_for_working_modes() -> None:
     try:
-        update_settings(
-            {
-                "system_trading_risk_multiplier": 0.85,
-                "system_degraded_max_positions": 42,
-                "system_risk_reduction_max_order_size": 0.015,
-                "system_survival_max_positions": 1,
-            }
-        )
+        update_settings({
+            "system_trading_risk_multiplier": 0.85,
+            "system_degraded_max_positions": 42,
+            "system_risk_reduction_max_order_size": 0.015,
+            "system_survival_max_positions": 1,
+        })
 
         assert get_state_policy(SystemState.TRADING).risk_multiplier == 0.85
         assert get_state_policy(SystemState.DEGRADED).max_positions == 42
@@ -247,18 +245,16 @@ def test_get_state_policy_reads_settings_overrides_for_working_modes() -> None:
 
 def test_get_state_timeout_limit_reads_settings_overrides_for_configured_states() -> None:
     try:
-        update_settings(
-            {
-                "system_boot_max_seconds": 75,
-                "system_init_max_seconds": 150,
-                "system_ready_max_seconds": 4200,
-                "system_risk_reduction_max_seconds": 2100,
-                "system_degraded_max_seconds": 3900,
-                "system_survival_max_seconds": 1950,
-                "system_error_max_seconds": 420,
-                "system_recovery_max_seconds": 720,
-            }
-        )
+        update_settings({
+            "system_boot_max_seconds": 75,
+            "system_init_max_seconds": 150,
+            "system_ready_max_seconds": 4200,
+            "system_risk_reduction_max_seconds": 2100,
+            "system_degraded_max_seconds": 3900,
+            "system_survival_max_seconds": 1950,
+            "system_error_max_seconds": 420,
+            "system_recovery_max_seconds": 720,
+        })
 
         assert get_state_timeout_limit(SystemState.BOOT) == 75
         assert get_state_timeout_limit(SystemState.INIT) == 150

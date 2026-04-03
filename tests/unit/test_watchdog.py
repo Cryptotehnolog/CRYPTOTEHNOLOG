@@ -169,14 +169,12 @@ class TestRecoveryStrategy:
     def test_defaults_follow_reliability_settings(self):
         """Тест что defaults RecoveryStrategy читаются из canonical settings."""
         try:
-            update_settings(
-                {
-                    "reliability_watchdog_backoff_base_seconds": 1.5,
-                    "reliability_watchdog_backoff_multiplier": 2.5,
-                    "reliability_watchdog_max_backoff_seconds": 90.0,
-                    "reliability_watchdog_jitter_factor": 0.25,
-                }
-            )
+            update_settings({
+                "reliability_watchdog_backoff_base_seconds": 1.5,
+                "reliability_watchdog_backoff_multiplier": 2.5,
+                "reliability_watchdog_max_backoff_seconds": 90.0,
+                "reliability_watchdog_jitter_factor": 0.25,
+            })
             strategy = RecoveryStrategy()
             assert strategy.backoff_base == 1.5
             assert strategy.backoff_multiplier == 2.5
@@ -273,12 +271,10 @@ class TestWatchdog:
     def test_defaults_follow_reliability_settings(self):
         """Тест что Watchdog default policy читается из canonical settings."""
         try:
-            update_settings(
-                {
-                    "reliability_watchdog_failure_threshold": 4,
-                    "reliability_watchdog_check_interval_seconds": 12.5,
-                }
-            )
+            update_settings({
+                "reliability_watchdog_failure_threshold": 4,
+                "reliability_watchdog_check_interval_seconds": 12.5,
+            })
             watchdog = Watchdog()
             assert watchdog._failure_threshold == 4
             assert watchdog._check_interval == 12.5
