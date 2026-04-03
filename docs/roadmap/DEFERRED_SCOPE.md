@@ -208,11 +208,14 @@ mainline lines как будущие неоткрытые фазы.
   - `prompts/reference/russian_archive/23_ФАЗА_22_WEB_UI_DASHBOARD_PROMPT.md`
   - `prompts/План Разработки Панели Управления CRYPTOTEHNOLOG.md`
 - Статус: `revisit`
-- Причина: dashboard foundation уже собрана как parallel/supporting contour, но broader dashboard expansion всё ещё не входит в mainline version line
+- Причина: dashboard/backend facade и terminal UI уже существуют в коде, но broader dashboard/operator expansion всё ещё не входит в mainline version line
 - Prerequisite:
-  - отдельный dashboard track
-- Уже реализованная parallel/supporting territory:
-  - dashboard foundation как separate supporting contour
+  - отдельная нормализация active UI scope и product story
+- Уже реализованная territory:
+  - read-only `dashboard` backend/facade contour в коде
+  - активная UI/workstream линия в `terminal-ui`
+- Историческая ветка:
+  - `dashboard-foundation` больше не считается активным track и рассматривается как архивный git-контур
 - Deferred remainder:
   - richer overview interactions
   - отдельные operator-facing surfaces

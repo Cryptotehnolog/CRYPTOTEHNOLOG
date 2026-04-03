@@ -451,14 +451,15 @@ Branch/workstream truth нужна только для coordination clarity.
 Текущая рабочая branch/workstream схема проекта:
 
 - `master` — mainline truth branch;
-- `dashboard-foundation` — supporting/dashboard foundation track;
-- `terminal-ui` — terminal/control surface track.
+- `terminal-ui` — активная UI/workstream ветка;
+- `connector/bybit-market-data` — отдельная рабочая ветка узкого connector slice;
+- `dashboard-foundation` — историческая/архивная ветка, уже поглощённая `terminal-ui`.
 
 Что это означает practically:
 
 - наличие открытой ветки само по себе не открывает новую фазу;
 - наличие отдельного workstream не делает его автоматически authoritative phase truth;
-- supporting/terminal ветки не должны автоматически трактоваться как committed roadmap line;
+- historical/supporting/connector ветки не должны автоматически трактоваться как committed roadmap line;
 - merge/release decisions по этим веткам принимаются отдельно и не выводятся только из факта их существования.
 
 Phase truth по-прежнему определяется только через:
@@ -472,8 +473,9 @@ Phase truth по-прежнему определяется только чере
 Правило чтения веток:
 
 - `master` читается как mainline integration/release branch;
-- `dashboard-foundation` читается как сознательно открытый supporting track;
-- `terminal-ui` читается как сознательно открытый terminal/control-surface track;
+- `terminal-ui` читается как текущая активная UI/control-surface линия;
+- `connector/bybit-market-data` читается как отдельный рабочий connector track;
+- `dashboard-foundation` читается как архивная историческая ветка, а не как текущий supporting track;
 - ни одна из этих веток не должна сама по себе подменять authoritative docs.
 
 Если branch reality и phase docs расходятся, выигрывает phase truth, а branch/workstream
