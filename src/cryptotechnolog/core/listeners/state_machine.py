@@ -14,7 +14,6 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from ..database import get_db_pool
-from ..state_machine_enums import SystemState
 from .base import BaseListener, ListenerConfig
 
 if TYPE_CHECKING:
@@ -102,28 +101,21 @@ class StateMachineListener(BaseListener):
             metadata=event.metadata,
         )
 
-        # Обновление текущего состояния
-        await self._update_current_state(to_state)
-
     async def _handle_system_boot(self, event: Event) -> None:
         """Обработать событие SYSTEM_BOOT."""
         logger.info(f"[{self.name}] System boot event received")
-        await self._update_current_state(SystemState.BOOT.value)
 
     async def _handle_system_ready(self, event: Event) -> None:
         """Обработать событие SYSTEM_READY."""
         logger.info(f"[{self.name}] System ready event received")
-        await self._update_current_state(SystemState.READY.value)
 
     async def _handle_system_halt(self, event: Event) -> None:
         """Обработать событие SYSTEM_HALT."""
         logger.warning(f"[{self.name}] System halt event received")
-        await self._update_current_state(SystemState.HALT.value)
 
     async def _handle_system_shutdown(self, event: Event) -> None:
         """Обработать событие SYSTEM_SHUTDOWN."""
         logger.info(f"[{self.name}] System shutdown event received")
-        await self._update_current_state(SystemState.HALT.value)
 
     async def _handle_health_check_failed(self, event: Event) -> None:
         """Обработать событие HEALTH_CHECK_FAILED."""
@@ -224,26 +216,6 @@ class StateMachineListener(BaseListener):
         except Exception as e:
             logger.error(f"[{self.name}] Failed to record transition: {e}")
             # Не поднимаем исключение - логируем и продолжаем
-
-    async def _update_current_state(self, state: str) -> None:
-        """Обновить текущее состояние в БД."""
-        pool = None
-        try:
-            pool = await get_db_pool()
-            async with pool.acquire() as conn:
-                await conn.execute(
-                    """
-                    INSERT INTO state_machine_states (id, current_state, version, updated_at)
-                    VALUES (1, $1, 1, NOW())
-                    ON CONFLICT (id) DO UPDATE SET
-                        current_state = EXCLUDED.current_state,
-                        version = state_machine_states.version + 1,
-                        updated_at = NOW()
-                    """,
-                    state,
-                )
-        except Exception as e:
-            logger.error(f"[{self.name}] Failed to update current state: {e}")
 
     async def _record_audit_event(
         self,

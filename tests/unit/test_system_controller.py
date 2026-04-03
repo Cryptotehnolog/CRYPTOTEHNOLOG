@@ -250,6 +250,23 @@ class TestStartup:
     """Тесты startup процедуры."""
 
     @pytest.mark.asyncio
+    async def test_connect_redis_prefers_connect_method(self, mock_state_machine) -> None:
+        redis_manager = AsyncMock()
+        redis_manager.connect = AsyncMock()
+        redis_manager.ping = AsyncMock()
+
+        controller = SystemController(
+            state_machine=mock_state_machine,
+            redis_manager=redis_manager,
+            test_mode=True,
+        )
+
+        await controller._connect_redis()
+
+        redis_manager.connect.assert_awaited_once()
+        redis_manager.ping.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_startup_success(self, mock_state_machine):
         """Тест успешного startup."""
         controller = SystemController(state_machine=mock_state_machine, test_mode=True)
@@ -270,6 +287,25 @@ class TestStartup:
         result = await controller.startup()
 
         assert result.success is True  # Idempotent
+
+    @pytest.mark.asyncio
+    async def test_startup_skips_ready_transition_when_state_is_restored_as_ready(
+        self,
+        mock_state_machine,
+    ):
+        """Persisted READY state не должен ломать startup повторным ready->ready."""
+        mock_state_machine.current_state = MagicMock()
+        mock_state_machine.current_state.value = "ready"
+        mock_state_machine.current_state.__eq__.side_effect = lambda other: getattr(other, "value", None) == "ready"
+
+        controller = SystemController(state_machine=mock_state_machine, test_mode=True)
+
+        result = await controller.startup()
+
+        transitioned_states = [call.kwargs["to_state"].value for call in mock_state_machine.transition.await_args_list]
+
+        assert result.success is True
+        assert "ready" not in transitioned_states
 
     @pytest.mark.asyncio
     async def test_startup_with_components(self, mock_state_machine, mock_component):

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import asyncio
 from decimal import Decimal
 from unittest.mock import AsyncMock, Mock
 
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
 import pytest
 
 from cryptotechnolog.config.settings import Settings
@@ -64,7 +64,6 @@ from cryptotechnolog.dashboard.dto.validation import (
     ValidationSummaryDTO,
 )
 from cryptotechnolog.dashboard.runtime import create_dashboard_runtime
-from cryptotechnolog.live_feed import FeedSessionIdentity
 from cryptotechnolog.runtime_identity import get_runtime_version
 
 
@@ -308,43 +307,6 @@ class _StubRuntime:
         )
         self._runtime_diagnostics: dict[str, object] = {}
 
-    def get_runtime_diagnostics(self) -> dict[str, object]:
-        return dict(self._runtime_diagnostics)
-
-
-class _FakeBybitConnector:
-    def __init__(self) -> None:
-        self.session = FeedSessionIdentity(
-            exchange="bybit",
-            stream_kind="market_data",
-            subscription_scope=("BTC/USDT",),
-        )
-        self.run_started = asyncio.Event()
-        self.stop_called = False
-
-    async def run(self) -> None:
-        self.run_started.set()
-        await asyncio.Event().wait()
-
-    async def stop(self) -> None:
-        self.stop_called = True
-
-    def get_operator_diagnostics(self) -> dict[str, object]:
-        return {
-            "enabled": True,
-            "symbol": "BTC/USDT",
-            "symbols": ("BTC/USDT",),
-            "transport_status": "connected",
-            "recovery_status": "recovered",
-            "subscription_alive": True,
-            "trade_seen": True,
-            "orderbook_seen": True,
-            "best_bid": "68000.0",
-            "best_ask": "68000.5",
-            "last_message_at": "2026-04-01T09:45:40.060548+00:00",
-            "degraded_reason": None,
-            "last_disconnect_reason": None,
-        }
         self.overview_facade.get_portfolio_governor_summary = AsyncMock(
             return_value=PortfolioGovernorSummaryDTO(
                 module_status="read-only",
@@ -548,6 +510,40 @@ class _FakeBybitConnector:
             return_value=PositionHistoryDTO(positions=[])
         )
 
+    def get_runtime_diagnostics(self) -> dict[str, object]:
+        return dict(self._runtime_diagnostics)
+
+
+class _StubProductionRuntime:
+    def __init__(self) -> None:
+        self.is_started = False
+        self.startup = AsyncMock(side_effect=self._startup)
+        self.shutdown = AsyncMock(side_effect=self._shutdown)
+
+    async def _startup(self) -> None:
+        self.is_started = True
+
+    async def _shutdown(self) -> None:
+        self.is_started = False
+
+    def get_runtime_diagnostics(self) -> dict[str, object]:
+        return {
+            "bybit_market_data_connector": {
+                "enabled": True,
+                "symbols": ("BTC/USDT",),
+                "transport_status": "connected",
+                "recovery_status": "recovered",
+                "subscription_alive": True,
+                "trade_seen": True,
+                "orderbook_seen": True,
+                "best_bid": "68499.90",
+                "best_ask": "68500.00",
+                "last_message_at": "2026-04-01T09:45:40.060548+00:00",
+                "degraded_reason": None,
+                "last_disconnect_reason": None,
+            }
+        }
+
 
 def test_create_dashboard_app_registers_runtime_and_router() -> None:
     runtime = _StubRuntime()
@@ -640,6 +636,21 @@ async def test_create_dashboard_app_local_runtime_lifecycle_starts_and_stops() -
     assert runtime.backtest_runtime.is_started is False
 
 
+def test_create_dashboard_app_starts_and_stops_injected_canonical_runtime() -> None:
+    app = create_dashboard_app(
+        runtime=_StubRuntime(),
+        production_runtime=_StubProductionRuntime(),
+    )
+
+    with TestClient(app):
+        pass
+
+    production_runtime = app.state.production_runtime
+    assert production_runtime is not None
+    production_runtime.startup.assert_awaited_once()
+    production_runtime.shutdown.assert_awaited_once()
+
+
 def test_create_dashboard_runtime_keeps_bybit_connector_disabled_by_default() -> None:
     runtime = create_dashboard_runtime(
         event_bus=EnhancedEventBus(
@@ -650,49 +661,31 @@ def test_create_dashboard_runtime_keeps_bybit_connector_disabled_by_default() ->
     )
 
     diagnostics = runtime.get_runtime_diagnostics()["bybit_market_data_connector"]
-    assert runtime.bybit_market_data_connector is None
     assert diagnostics["enabled"] is False
     assert diagnostics["transport_status"] == "disabled"
     assert diagnostics["symbol"] is None
 
 
-@pytest.mark.asyncio
-async def test_dashboard_runtime_startup_and_shutdown_manage_opt_in_bybit_connector() -> None:
-    fake_connector = _FakeBybitConnector()
-
-    with pytest.MonkeyPatch.context() as monkeypatch:
-        monkeypatch.setattr(
-            "cryptotechnolog.dashboard.runtime.create_bybit_market_data_connector",
-            lambda **_: fake_connector,
-        )
-        runtime = create_dashboard_runtime(
-            event_bus=EnhancedEventBus(
-                enable_persistence=False,
-                redis_url=None,
-                rate_limit=1000,
-            ),
-            settings=Settings(
-                environment="test",
-                debug=True,
-                event_bus_redis_url="redis://localhost:6379",
-                bybit_market_data_connector_enabled=True,
-                bybit_market_data_connector_symbol="BTC/USDT",
-            ),
-        )
-
-    await runtime.start()
-    await asyncio.wait_for(fake_connector.run_started.wait(), timeout=1.0)
+def test_dashboard_runtime_does_not_host_bybit_connector_even_when_settings_enable_it() -> None:
+    runtime = create_dashboard_runtime(
+        event_bus=EnhancedEventBus(
+            enable_persistence=False,
+            redis_url=None,
+            rate_limit=1000,
+        ),
+        settings=Settings(
+            environment="test",
+            debug=True,
+            event_bus_redis_url="redis://localhost:6379",
+            bybit_market_data_connector_enabled=True,
+            bybit_market_data_connector_symbol="BTC/USDT",
+        ),
+    )
 
     diagnostics = runtime.get_runtime_diagnostics()["bybit_market_data_connector"]
-    assert runtime.bybit_market_data_connector is fake_connector
-    assert diagnostics["enabled"] is True
-    assert diagnostics["symbol"] == "BTC/USDT"
-    assert diagnostics["transport_status"] == "connected"
-
-    await runtime.stop()
-
-    assert fake_connector.stop_called is True
-    assert runtime.bybit_market_data_connector_task is None
+    assert diagnostics["enabled"] is False
+    assert diagnostics["transport_status"] == "disabled"
+    assert diagnostics["symbol"] is None
 
 
 @pytest.mark.asyncio

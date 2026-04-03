@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
+from unittest.mock import AsyncMock
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -578,9 +579,33 @@ class _StubFacade:
         )
 
 
+class _StubProductionRuntime:
+    def __init__(self) -> None:
+        self.startup = AsyncMock()
+        self.shutdown = AsyncMock()
+
+    def get_runtime_diagnostics(self) -> dict[str, object]:
+        return {
+            "bybit_market_data_connector": {
+                "enabled": True,
+                "symbols": ("BTC/USDT",),
+                "transport_status": "connected",
+                "recovery_status": "recovered",
+                "subscription_alive": True,
+                "trade_seen": True,
+                "orderbook_seen": True,
+                "best_bid": "68499.90",
+                "best_ask": "68500.00",
+                "last_message_at": "2026-04-01T09:45:40.060548+00:00",
+                "degraded_reason": None,
+                "last_disconnect_reason": None,
+            }
+        }
+
+
 @pytest.fixture(scope="module")
 def full_app_client() -> TestClient:
-    app = create_dashboard_app()
+    app = create_dashboard_app(production_runtime=_StubProductionRuntime())
     with TestClient(app) as client:
         yield client
 
@@ -1631,6 +1656,21 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
     assert data.best_bid == "68499.90"
     assert data.best_ask == "68500.00"
     assert data.last_message_at == "2026-04-01T09:45:40.060548+00:00"
+
+
+def test_dashboard_bybit_connector_diagnostics_endpoint_prefers_canonical_runtime_in_full_app() -> (
+    None
+):
+    app = create_dashboard_app(production_runtime=_StubProductionRuntime())
+
+    with TestClient(app) as client:
+        response = client.get("/dashboard/settings/bybit-connector-diagnostics")
+
+    assert response.status_code == 200
+    data = BybitConnectorDiagnosticsDTO.model_validate(response.json())
+    assert data.enabled is True
+    assert data.symbol == "BTC/USDT"
+    assert data.transport_status == "connected"
 
 
 def test_dashboard_overview_endpoint_returns_snapshot_in_full_app_runtime(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock, Mock, patch
@@ -154,18 +155,60 @@ from cryptotechnolog.validation import (
 )
 
 
-def make_settings() -> Settings:
+class _FakeBybitConnector:
+    def __init__(self) -> None:
+        self.run_started = asyncio.Event()
+        self.stop_called = False
+        self._stop_requested = asyncio.Event()
+
+    async def run(self) -> None:
+        self.run_started.set()
+        await self._stop_requested.wait()
+
+    async def stop(self) -> None:
+        self.stop_called = True
+        self._stop_requested.set()
+
+    def get_operator_diagnostics(self) -> dict[str, object]:
+        return {
+            "enabled": True,
+            "exchange": "bybit",
+            "symbol": "BTC/USDT",
+            "symbols": ("BTC/USDT",),
+            "transport_status": "connected",
+            "recovery_status": "recovered",
+            "subscription_alive": True,
+            "last_message_at": "2026-04-03T12:00:00+00:00",
+            "trade_seen": True,
+            "orderbook_seen": True,
+            "best_bid": "68499.90",
+            "best_ask": "68500.00",
+            "degraded_reason": None,
+            "last_disconnect_reason": None,
+            "retry_count": 0,
+            "ready": True,
+            "started": True,
+            "lifecycle_state": "connected",
+            "reset_required": False,
+        }
+
+
+def make_settings(**overrides: object) -> Settings:
     """Собрать settings для bootstrap-тестов без внешних подключений."""
+    values: dict[str, object] = {
+        "environment": "test",
+        "debug": True,
+        "base_r_percent": 0.01,
+        "max_r_per_trade": 0.02,
+        "max_portfolio_r": 0.05,
+        "risk_max_total_exposure_usd": 25000.0,
+        "max_position_size": 5000.0,
+        "risk_starting_equity": 10000.0,
+        "event_bus_redis_url": "redis://localhost:6379",
+    }
+    values.update(overrides)
     return Settings(
-        environment="test",
-        debug=True,
-        base_r_percent=0.01,
-        max_r_per_trade=0.02,
-        max_portfolio_r=0.05,
-        risk_max_total_exposure_usd=25000.0,
-        max_position_size=5000.0,
-        risk_starting_equity=10000.0,
-        event_bus_redis_url="redis://localhost:6379",
+        **values,
     )
 
 
@@ -3670,3 +3713,64 @@ class TestProductionBootstrap:
         assert SystemEventType.BAR_COMPLETED in runtime.event_bus.handlers
         assert SystemEventType.BAR_COMPLETED not in runtime.risk_runtime.risk_listener.event_types
         assert SystemEventType.RISK_BAR_COMPLETED in runtime.risk_runtime.risk_listener.event_types
+
+    @pytest.mark.asyncio
+    async def test_production_runtime_hosts_bybit_connector_canonically_when_enabled(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        fake_connector = _FakeBybitConnector()
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.create_bybit_market_data_connector",
+            lambda **_: fake_connector,
+        )
+        runtime = await build_production_runtime(
+            settings=make_settings(
+                bybit_market_data_connector_enabled=True,
+                bybit_market_data_connector_symbol="BTC/USDT",
+            ),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        await runtime._start_opt_in_market_data_connectors()
+        await asyncio.wait_for(fake_connector.run_started.wait(), timeout=1.0)
+
+        diagnostics = runtime.get_runtime_diagnostics()["bybit_market_data_connector"]
+
+        assert runtime.bybit_market_data_connector is fake_connector
+        assert diagnostics["enabled"] is True
+        assert diagnostics["symbol"] == "BTC/USDT"
+        assert diagnostics["transport_status"] == "connected"
+        assert diagnostics["trade_seen"] is True
+        assert diagnostics["orderbook_seen"] is True
+
+        await runtime._stop_opt_in_market_data_connectors()
+
+        assert fake_connector.stop_called is True
+        assert runtime.bybit_market_data_connector_task is None
+
+    @pytest.mark.asyncio
+    async def test_production_runtime_reports_disabled_bybit_connector_when_not_enabled(
+        self,
+    ) -> None:
+        runtime = await build_production_runtime(
+            settings=make_settings(),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        diagnostics = runtime.get_runtime_diagnostics()["bybit_market_data_connector"]
+
+        assert runtime.bybit_market_data_connector is None
+        assert diagnostics["enabled"] is False
+        assert diagnostics["transport_status"] == "disabled"
+        assert diagnostics["symbol"] is None

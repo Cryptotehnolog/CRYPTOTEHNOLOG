@@ -2,23 +2,16 @@
 
 from __future__ import annotations
 
-import asyncio
-import contextlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from cryptotechnolog.backtest import ReplayRuntime, create_replay_runtime
-from cryptotechnolog.config import get_logger, get_settings
+from cryptotechnolog.config import get_logger
 from cryptotechnolog.core.health import EventBusHealthCheck, HealthChecker, MetricsHealthCheck
 from cryptotechnolog.core.metrics import MetricsCollector, get_metrics_collector
 from cryptotechnolog.core.operator_gate import OperatorGate
 from cryptotechnolog.core.system_controller import SystemController
 from cryptotechnolog.execution import ExecutionRuntime, create_execution_runtime
-from cryptotechnolog.live_feed import (
-    BybitMarketDataConnector,
-    BybitMarketDataConnectorConfig,
-    create_bybit_market_data_connector,
-)
 from cryptotechnolog.manager import ManagerRuntime, create_manager_runtime
 from cryptotechnolog.market_data.runtime import MarketDataRuntime, create_market_data_runtime
 from cryptotechnolog.oms import OmsRuntime, create_oms_runtime
@@ -76,15 +69,12 @@ class DashboardRuntime:
     reporting_catalog: ReportingArtifactCatalog
     module_registry: ModuleAvailabilityRegistry
     overview_facade: OverviewFacade
-    bybit_market_data_connector: BybitMarketDataConnector | None = None
-    bybit_market_data_connector_task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
         """Запустить runtime-зависимости панели."""
         await self.event_bus.start()
         await self.operator_gate.start()
         await self.market_data_runtime.start()
-        await self._start_opt_in_market_data_connectors()
         await self.signal_runtime.start()
         await self.strategy_runtime.start()
         await self.execution_runtime.start()
@@ -103,7 +93,6 @@ class DashboardRuntime:
 
     async def stop(self) -> None:
         """Остановить runtime-зависимости панели."""
-        await self._stop_opt_in_market_data_connectors()
         await self.execution_runtime.stop()
         await self.opportunity_runtime.stop()
         await self.orchestration_runtime.stop()
@@ -122,55 +111,28 @@ class DashboardRuntime:
         logger.info("Dashboard runtime остановлен")
 
     def get_runtime_diagnostics(self) -> dict[str, object]:
-        """Вернуть operator-facing runtime diagnostics вместе с Bybit connector truth."""
+        """Вернуть operator-facing runtime diagnostics с disabled connector snapshot."""
         diagnostics = dict(self.health_checker.get_runtime_diagnostics())
-        if self.bybit_market_data_connector is not None:
-            diagnostics["bybit_market_data_connector"] = (
-                self.bybit_market_data_connector.get_operator_diagnostics()
-            )
-        else:
-            diagnostics.setdefault(
-                "bybit_market_data_connector",
-                {
-                    "enabled": False,
-                    "exchange": "bybit",
-                    "symbol": None,
-                    "symbols": (),
-                    "transport_status": "disabled",
-                    "recovery_status": "idle",
-                    "subscription_alive": False,
-                    "last_message_at": None,
-                    "trade_seen": False,
-                    "orderbook_seen": False,
-                    "best_bid": None,
-                    "best_ask": None,
-                    "degraded_reason": None,
-                    "last_disconnect_reason": None,
-                },
-            )
-        return diagnostics
-
-    async def _start_opt_in_market_data_connectors(self) -> None:
-        """Поднять узкий opt-in external market-data connector path."""
-        if self.bybit_market_data_connector is None:
-            return
-        if self.bybit_market_data_connector_task is not None:
-            return
-        self.bybit_market_data_connector_task = asyncio.create_task(
-            self.bybit_market_data_connector.run(),
-            name="dashboard_bybit_market_data_connector",
+        diagnostics.setdefault(
+            "bybit_market_data_connector",
+            {
+                "enabled": False,
+                "exchange": "bybit",
+                "symbol": None,
+                "symbols": (),
+                "transport_status": "disabled",
+                "recovery_status": "idle",
+                "subscription_alive": False,
+                "last_message_at": None,
+                "trade_seen": False,
+                "orderbook_seen": False,
+                "best_bid": None,
+                "best_ask": None,
+                "degraded_reason": None,
+                "last_disconnect_reason": None,
+            },
         )
-
-    async def _stop_opt_in_market_data_connectors(self) -> None:
-        """Остановить узкий opt-in external market-data connector path."""
-        if self.bybit_market_data_connector is not None:
-            with contextlib.suppress(Exception):
-                await self.bybit_market_data_connector.stop()
-        if self.bybit_market_data_connector_task is not None:
-            self.bybit_market_data_connector_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                await self.bybit_market_data_connector_task
-            self.bybit_market_data_connector_task = None
+        return diagnostics
 
 
 def create_dashboard_runtime(
@@ -212,7 +174,6 @@ def create_dashboard_runtime(
         checker.register_check(MetricsHealthCheck(metrics))
 
     gate = operator_gate or OperatorGate(event_bus=event_bus)
-    runtime_settings = settings or get_settings()
     runtime_market_data = create_market_data_runtime(event_bus=event_bus)
     runtime_signal = signal_runtime or create_signal_runtime()
     runtime_strategy = strategy_runtime or create_strategy_runtime()
@@ -354,11 +315,6 @@ def create_dashboard_runtime(
         health_checker=checker,
     )
 
-    bybit_market_data_connector = _build_opt_in_bybit_market_data_connector(
-        settings=runtime_settings,
-        market_data_runtime=runtime_market_data,
-    )
-
     return DashboardRuntime(
         controller=runtime_controller,
         health_checker=checker,
@@ -378,32 +334,7 @@ def create_dashboard_runtime(
         validation_runtime=runtime_validation,
         paper_runtime=runtime_paper,
         backtest_runtime=runtime_backtest,
-        bybit_market_data_connector=bybit_market_data_connector,
         reporting_catalog=artifact_catalog,
         module_registry=registry,
         overview_facade=OverviewFacade(composition_root=composition_root),
-    )
-
-
-def _build_opt_in_bybit_market_data_connector(
-    *,
-    settings: object,
-    market_data_runtime: MarketDataRuntime,
-) -> BybitMarketDataConnector | None:
-    enabled = bool(getattr(settings, "bybit_market_data_connector_enabled", False))
-    if not enabled:
-        return None
-    raw_symbol = str(getattr(settings, "bybit_market_data_connector_symbol", "") or "").strip()
-    if not raw_symbol:
-        raise ValueError(
-            "Bybit market data connector enabled, but bybit_market_data_connector_symbol is empty"
-        )
-    if "," in raw_symbol:
-        raise ValueError(
-            "Bybit market data connector допускает только один symbol scope на текущем шаге"
-        )
-    return create_bybit_market_data_connector(
-        symbols=(raw_symbol,),
-        market_data_runtime=market_data_runtime,
-        config=BybitMarketDataConnectorConfig.from_settings(settings),
     )

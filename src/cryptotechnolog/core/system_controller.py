@@ -510,16 +510,20 @@ class SystemController:
                 components_initialized.extend(failed[0])
                 components_failed.extend(failed[1])
 
-                # Переход в состояние READY через State Machine
-                logger.info("Переход в состояние READY")
-                result = await self._state_machine.transition(
-                    to_state=SystemState.READY,
-                    trigger=TriggerType.INITIALIZATION_COMPLETE,
-                    metadata={"components_initialized": len(components_initialized)},
-                )
+                # Persisted state may already restore the system into READY.
+                # Startup should remain idempotent and avoid an invalid ready->ready transition.
+                if self._state_machine.current_state == SystemState.READY:
+                    logger.info("State Machine уже находится в READY после initialize, повторный переход не нужен")
+                else:
+                    logger.info("Переход в состояние READY")
+                    result = await self._state_machine.transition(
+                        to_state=SystemState.READY,
+                        trigger=TriggerType.INITIALIZATION_COMPLETE,
+                        metadata={"components_initialized": len(components_initialized)},
+                    )
 
-                if not result.success:
-                    raise StartupError(f"Не удалось перейти в READY: {result.error}")
+                    if not result.success:
+                        raise StartupError(f"Не удалось перейти в READY: {result.error}")
 
                 # Startup завершён
                 self._startup_phase = StartupPhase.READY
@@ -623,8 +627,11 @@ class SystemController:
             return
 
         try:
+            if hasattr(self._redis, "connect"):
+                await self._redis.connect()
+                logger.info("Подключение к Redis установлено")
             # Проверяем есть ли метод ping
-            if hasattr(self._redis, "ping"):
+            elif hasattr(self._redis, "ping"):
                 await self._redis.ping()
                 logger.info("Подключение к Redis установлено")
             else:

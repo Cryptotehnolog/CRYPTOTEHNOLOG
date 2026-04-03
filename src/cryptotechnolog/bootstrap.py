@@ -43,6 +43,11 @@ from cryptotechnolog.execution import (
     create_execution_runtime,
 )
 from cryptotechnolog.intelligence.runtime import IntelligenceRuntime, create_intelligence_runtime
+from cryptotechnolog.live_feed import (
+    BybitMarketDataConnector,
+    BybitMarketDataConnectorConfig,
+    create_bybit_market_data_connector,
+)
 from cryptotechnolog.manager import (
     ManagerEventSource,
     ManagerEventType,
@@ -175,6 +180,8 @@ class ProductionRuntime:
     manager_runtime: ManagerRuntime
     validation_runtime: ValidationRuntime
     paper_runtime: PaperRuntime
+    bybit_market_data_connector: BybitMarketDataConnector | None = None
+    bybit_market_data_connector_task: asyncio.Task[None] | None = None
     startup_result: StartupResult | None = None
     shutdown_result: ShutdownResult | None = None
     last_health: SystemHealth | None = None
@@ -187,7 +194,17 @@ class ProductionRuntime:
 
     def get_runtime_diagnostics(self) -> dict[str, Any]:
         """Вернуть operator-facing runtime diagnostics."""
-        return self.health_checker.get_runtime_diagnostics()
+        diagnostics = dict(self.health_checker.get_runtime_diagnostics())
+        if self.bybit_market_data_connector is not None:
+            diagnostics["bybit_market_data_connector"] = (
+                self.bybit_market_data_connector.get_operator_diagnostics()
+            )
+        else:
+            diagnostics.setdefault(
+                "bybit_market_data_connector",
+                _disabled_bybit_connector_diagnostics(),
+            )
+        return diagnostics
 
     async def startup(self) -> StartupResult:
         """Поднять production runtime через единый composition root."""
@@ -236,6 +253,7 @@ class ProductionRuntime:
             if self.redis_manager.redis is not None:
                 self.metrics_collector.set_redis(self.redis_manager.redis)
 
+            await self._start_opt_in_market_data_connectors()
             await self._validate_started_runtime()
             self.event_bus.seal_risk_path_policy()
             self.last_health = await self.health_checker.check_system()
@@ -313,6 +331,7 @@ class ProductionRuntime:
             runtime_ready=False,
         )
 
+        await self._stop_opt_in_market_data_connectors()
         shutdown_result = await self.controller.shutdown(force=force)
         self.shutdown_result = shutdown_result
 
@@ -460,6 +479,7 @@ class ProductionRuntime:
         if self.paper_runtime.is_started:
             with contextlib.suppress(Exception):
                 await self.paper_runtime.stop()
+        await self._stop_opt_in_market_data_connectors()
         if getattr(self.event_bus, "pending_tasks", None):
             with contextlib.suppress(Exception):
                 await self.event_bus.shutdown()
@@ -474,6 +494,28 @@ class ProductionRuntime:
         """Синхронизировать runtime diagnostics с composition root."""
         return self.health_checker.set_runtime_diagnostics(**updates)
 
+    async def _start_opt_in_market_data_connectors(self) -> None:
+        """Поднять узкий canonical live-feed connector path после старта runtime components."""
+        if self.bybit_market_data_connector is None:
+            return
+        if self.bybit_market_data_connector_task is not None:
+            return
+        self.bybit_market_data_connector_task = asyncio.create_task(
+            self.bybit_market_data_connector.run(),
+            name="production_bybit_market_data_connector",
+        )
+
+    async def _stop_opt_in_market_data_connectors(self) -> None:
+        """Остановить canonical live-feed connector path без вмешательства в core runtime."""
+        if self.bybit_market_data_connector is not None:
+            with contextlib.suppress(Exception):
+                await self.bybit_market_data_connector.stop()
+        if self.bybit_market_data_connector_task is not None:
+            self.bybit_market_data_connector_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await self.bybit_market_data_connector_task
+            self.bybit_market_data_connector_task = None
+
     def _collect_degraded_reasons(self, health: SystemHealth) -> list[str]:  # noqa: PLR0912,PLR0915
         """Собрать operator-facing причины деградации из health truth."""
         reasons = [
@@ -481,6 +523,18 @@ class ProductionRuntime:
             for name, component in health.components.items()
             if component.status != HealthStatus.HEALTHY
         ]
+        if self.bybit_market_data_connector is not None:
+            connector = self.bybit_market_data_connector.get_operator_diagnostics()
+            if connector.get("enabled", False):
+                transport_status = str(connector.get("transport_status", "unknown"))
+                if transport_status != "connected":
+                    reasons.append(f"live_feed_bybit:{transport_status}")
+                degraded_reason = connector.get("degraded_reason")
+                if isinstance(degraded_reason, str) and degraded_reason:
+                    reasons.append(f"live_feed_bybit:{degraded_reason}")
+                last_disconnect_reason = connector.get("last_disconnect_reason")
+                if isinstance(last_disconnect_reason, str) and last_disconnect_reason:
+                    reasons.append(f"live_feed_bybit_disconnect:{last_disconnect_reason}")
         market_data_runtime = self.market_data_runtime.get_runtime_diagnostics()
         if not market_data_runtime.get("ready", False):
             reasons.append("phase6_market_data:not_ready")
@@ -860,6 +914,11 @@ async def build_production_runtime(  # noqa: PLR0915
 
     def update_paper_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
         health_checker.set_runtime_diagnostics(paper_runtime=diagnostics)
+
+    bybit_market_data_connector = _build_canonical_bybit_market_data_connector(
+        settings=runtime_settings,
+        market_data_runtime=market_data_runtime,
+    )
 
     intelligence_runtime = create_intelligence_runtime(
         diagnostics_sink=update_intelligence_runtime_diagnostics,
@@ -1671,6 +1730,7 @@ async def build_production_runtime(  # noqa: PLR0915
         manager_runtime=manager_runtime,
         validation_runtime=validation_runtime,
         paper_runtime=paper_runtime,
+        bybit_market_data_connector=bybit_market_data_connector,
     )
     runtime._update_runtime_diagnostics(
         composition_root_built=True,
@@ -1698,6 +1758,54 @@ async def build_production_runtime(  # noqa: PLR0915
         readiness_status="not_ready",
     )
     return runtime
+
+
+def _build_canonical_bybit_market_data_connector(
+    *,
+    settings: Settings,
+    market_data_runtime: MarketDataRuntime,
+) -> BybitMarketDataConnector | None:
+    enabled = bool(getattr(settings, "bybit_market_data_connector_enabled", False))
+    if not enabled:
+        return None
+    raw_symbol = str(getattr(settings, "bybit_market_data_connector_symbol", "") or "").strip()
+    if not raw_symbol:
+        raise ValueError(
+            "Bybit market data connector enabled, but bybit_market_data_connector_symbol is empty"
+        )
+    if "," in raw_symbol:
+        raise ValueError(
+            "Bybit market data connector допускает только один symbol scope на текущем шаге"
+        )
+    return create_bybit_market_data_connector(
+        symbols=(raw_symbol,),
+        market_data_runtime=market_data_runtime,
+        config=BybitMarketDataConnectorConfig.from_settings(settings),
+    )
+
+
+def _disabled_bybit_connector_diagnostics() -> dict[str, object]:
+    return {
+        "enabled": False,
+        "exchange": "bybit",
+        "symbol": None,
+        "symbols": (),
+        "transport_status": "disabled",
+        "recovery_status": "idle",
+        "subscription_alive": False,
+        "last_message_at": None,
+        "trade_seen": False,
+        "orderbook_seen": False,
+        "best_bid": None,
+        "best_ask": None,
+        "degraded_reason": None,
+        "last_disconnect_reason": None,
+        "retry_count": None,
+        "ready": False,
+        "started": False,
+        "lifecycle_state": "disabled",
+        "reset_required": False,
+    }
 
 
 def _build_risk_bar_completed_event(

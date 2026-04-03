@@ -159,6 +159,44 @@ class TestEventDeliveryToListeners:
             # Даём время на обработку listeners
             await asyncio.sleep(0.1)
 
+            executed_sql = [call.args[0] for call in mock_conn.execute.await_args_list]
+            assert any("INSERT INTO state_transitions" in sql for sql in executed_sql)
+            assert not any("state_machine_states" in sql for sql in executed_sql)
+
+    @pytest.mark.asyncio
+    async def test_system_boot_event_does_not_mutate_state_machine_state(
+        self,
+        event_bus,
+        reset_listener_registry,
+    ):
+        """SYSTEM_BOOT не должен повторно владеть state_machine_states через listener."""
+        mock_conn = AsyncMock()
+
+        @asynccontextmanager
+        async def mock_acquire():
+            yield mock_conn
+
+        mock_pool = AsyncMock()
+        mock_pool.acquire = mock_acquire
+
+        with patch(
+            "cryptotechnolog.core.listeners.state_machine.get_db_pool", return_value=mock_pool
+        ):
+            listener = StateMachineListener()
+            event_bus.register_listener(listener)
+
+            event = Event.new(
+                event_type="SYSTEM_BOOT",
+                source="SYSTEM_CONTROLLER",
+                payload={},
+            )
+
+            await event_bus.publish(event)
+            await asyncio.sleep(0.1)
+
+            executed_sql = [call.args[0] for call in mock_conn.execute.await_args_list]
+            assert not any("state_machine_states" in sql for sql in executed_sql)
+
     @pytest.mark.asyncio
     async def test_audit_event_delivered(self, event_bus, reset_listener_registry):
         """Тест доставки события до AuditListener."""
