@@ -60,6 +60,7 @@ import {
   topBarExchangePing,
 } from "./TerminalShell.css";
 import { getBybitConnectorDiagnostics } from "../../modules/terminal/api/getBybitConnectorDiagnostics";
+import { getBybitSpotConnectorDiagnostics } from "../../modules/terminal/api/getBybitSpotConnectorDiagnostics";
 import { type TerminalSection, useTerminalUiStore } from "../../modules/terminal/state/useTerminalUiStore";
 
 const terminalSections: Array<{
@@ -157,6 +158,11 @@ export function TerminalShell() {
     queryFn: getBybitConnectorDiagnostics,
     refetchInterval: 5000,
   });
+  const bybitSpotDiagnosticsQuery = useQuery({
+    queryKey: ["dashboard", "settings", "bybit-spot-connector-diagnostics"],
+    queryFn: getBybitSpotConnectorDiagnostics,
+    refetchInterval: 5000,
+  });
 
   const formatTerminalClock = (date: Date) =>
     `${new Intl.DateTimeFormat("ru-RU", {
@@ -203,7 +209,7 @@ export function TerminalShell() {
           return exchange;
         }
 
-        if (bybitDiagnosticsQuery.isLoading) {
+        if (bybitDiagnosticsQuery.isLoading || bybitSpotDiagnosticsQuery.isLoading) {
           return {
             ...exchange,
             connected: false,
@@ -212,7 +218,12 @@ export function TerminalShell() {
           };
         }
 
-        if (bybitDiagnosticsQuery.isError || !bybitDiagnosticsQuery.data) {
+        if (
+          bybitDiagnosticsQuery.isError ||
+          bybitSpotDiagnosticsQuery.isError ||
+          !bybitDiagnosticsQuery.data ||
+          !bybitSpotDiagnosticsQuery.data
+        ) {
           return {
             ...exchange,
             connected: false,
@@ -221,20 +232,37 @@ export function TerminalShell() {
           };
         }
 
-        const diagnostics = bybitDiagnosticsQuery.data;
-        const connected =
-          diagnostics.enabled && diagnostics.transport_status === "connected";
+        const diagnostics = [bybitDiagnosticsQuery.data, bybitSpotDiagnosticsQuery.data];
+        const connectedDiagnostics = diagnostics.filter(
+          (item) => item.enabled && item.transport_status === "connected",
+        );
+        const anyEnabled = diagnostics.some((item) => item.enabled);
+        const connected = connectedDiagnostics.length > 0;
+        const aggregatedRtt = connectedDiagnostics.reduce<number | null>((best, item) => {
+          if (item.transport_rtt_ms === null) {
+            return best;
+          }
+          if (best === null) {
+            return item.transport_rtt_ms;
+          }
+          return Math.min(best, item.transport_rtt_ms);
+        }, null);
+        const primaryEnabledDiagnostics =
+          diagnostics.find((item) => item.enabled && item.transport_status !== "disabled") ??
+          diagnostics.find((item) => item.enabled) ??
+          diagnostics[0];
+
         const ping = connected
-          ? diagnostics.transport_rtt_ms !== null
-            ? `${diagnostics.transport_rtt_ms} ms`
+          ? aggregatedRtt !== null
+            ? `RTT ${aggregatedRtt} ms`
             : "live"
-          : diagnostics.enabled
-            ? diagnostics.transport_status
-            : diagnostics.lifecycle_state ?? "disabled";
+          : anyEnabled
+            ? primaryEnabledDiagnostics.transport_status
+            : "disabled";
 
         const pingTone = connected
-          ? getBybitRttTone(diagnostics.transport_rtt_ms)
-          : diagnostics.enabled
+          ? getBybitRttTone(aggregatedRtt)
+          : anyEnabled
             ? ("bad" as const)
             : ("neutral" as const);
 
@@ -245,7 +273,15 @@ export function TerminalShell() {
           pingTone,
         };
       }),
-    [bybitDiagnosticsQuery.data, bybitDiagnosticsQuery.isError, bybitDiagnosticsQuery.isLoading, exchanges],
+    [
+      bybitDiagnosticsQuery.data,
+      bybitDiagnosticsQuery.isError,
+      bybitDiagnosticsQuery.isLoading,
+      bybitSpotDiagnosticsQuery.data,
+      bybitSpotDiagnosticsQuery.isError,
+      bybitSpotDiagnosticsQuery.isLoading,
+      exchanges,
+    ],
   );
 
   return (

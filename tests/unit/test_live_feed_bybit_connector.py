@@ -14,8 +14,10 @@ from cryptotechnolog.live_feed import (
     BybitMarketDataParser,
     BybitMessageParseError,
     BybitOrderBookProjector,
+    BybitSpotMarketDataConnectorConfig,
     BybitSubscriptionRegistry,
     FeedSessionIdentity,
+    create_bybit_spot_market_data_connector,
     normalize_bybit_symbol,
 )
 from cryptotechnolog.live_feed.models import FeedSubscriptionRecoveryStatus
@@ -72,41 +74,51 @@ class _BlockingWebSocket:
         return _pong_waiter()
 
 
-def _session() -> FeedSessionIdentity:
+def _session(*symbols: str) -> FeedSessionIdentity:
     return FeedSessionIdentity(
         exchange="bybit",
         stream_kind="market_data",
-        subscription_scope=("BTC/USDT",),
+        subscription_scope=symbols or ("BTC/USDT",),
     )
 
 
-def _trade_message() -> dict[str, object]:
+def _trade_message(
+    *,
+    symbol: str = "BTCUSDT",
+    trade_id: str = "trade-1",
+    price: str = "68000.5",
+) -> dict[str, object]:
     return {
-        "topic": "publicTrade.BTCUSDT",
+        "topic": f"publicTrade.{symbol}",
         "type": "snapshot",
         "ts": 1711929600123,
         "data": [
             {
                 "T": 1711929600120,
-                "s": "BTCUSDT",
+                "s": symbol,
                 "S": "Buy",
                 "v": "0.010",
-                "p": "68000.5",
-                "i": "trade-1",
+                "p": price,
+                "i": trade_id,
             }
         ],
     }
 
 
-def _orderbook_snapshot_message() -> dict[str, object]:
+def _orderbook_snapshot_message(
+    *,
+    symbol: str = "BTCUSDT",
+    bids: list[list[str]] | None = None,
+    asks: list[list[str]] | None = None,
+) -> dict[str, object]:
     return {
-        "topic": "orderbook.50.BTCUSDT",
+        "topic": f"orderbook.50.{symbol}",
         "type": "snapshot",
         "ts": 1711929600200,
         "data": {
-            "s": "BTCUSDT",
-            "b": [["68000.0", "2.5"], ["67999.5", "1.0"]],
-            "a": [["68000.5", "3.0"], ["68001.0", "1.5"]],
+            "s": symbol,
+            "b": bids or [["68000.0", "2.5"], ["67999.5", "1.0"]],
+            "a": asks or [["68000.5", "3.0"], ["68001.0", "1.5"]],
             "u": 1001,
             "seq": 77,
         },
@@ -174,12 +186,51 @@ def test_subscription_registry_builds_trade_and_orderbook_topics() -> None:
     assert registry.topics == ("publicTrade.BTCUSDT", "orderbook.50.BTCUSDT")
 
 
+def test_subscription_registry_builds_topics_for_multiple_symbols() -> None:
+    registry = BybitSubscriptionRegistry(symbols=("BTC/USDT", "ETH/USDT"), orderbook_depth=50)
+
+    assert registry.topics == (
+        "publicTrade.BTCUSDT",
+        "orderbook.50.BTCUSDT",
+        "publicTrade.ETHUSDT",
+        "orderbook.50.ETHUSDT",
+    )
+
+
 def test_bybit_connector_config_uses_mainnet_by_default() -> None:
     settings = Settings()
 
     config = BybitMarketDataConnectorConfig.from_settings(settings)
 
     assert config.public_stream_url == "wss://stream.bybit.com/v5/public/linear"
+
+
+def test_bybit_spot_connector_config_uses_mainnet_by_default() -> None:
+    settings = Settings()
+
+    config = BybitSpotMarketDataConnectorConfig.from_settings(settings)
+
+    assert config.public_stream_url == "wss://stream.bybit.com/v5/public/spot"
+
+
+def test_create_bybit_spot_market_data_connector_builds_separate_spot_identity() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+
+    connector = create_bybit_spot_market_data_connector(
+        symbols=("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+    )
+
+    assert connector.session.exchange == "bybit_spot"
+    assert connector.session.subscription_scope == ("BTC/USDT", "ETH/USDT")
+    assert connector.config.public_stream_url == "wss://stream.bybit.com/v5/public/spot"
+    assert connector.subscription_registry.topics == (
+        "publicTrade.BTCUSDT",
+        "orderbook.50.BTCUSDT",
+        "publicTrade.ETHUSDT",
+        "orderbook.50.ETHUSDT",
+    )
 
 
 @pytest.mark.asyncio
@@ -216,6 +267,63 @@ async def test_bybit_connector_operator_diagnostics_expose_connector_truth() -> 
     assert diagnostics["best_ask"] == "68000.5"
     assert isinstance(diagnostics["message_age_ms"], int)
     assert diagnostics["message_age_ms"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_operator_diagnostics_surface_multi_symbol_truth() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._mark_resubscribing(
+        reason="transport_connected",
+        observed_at=connector.get_recovery_state().observed_at,
+    )
+    await connector.ingest_transport_message(json.dumps({"op": "subscribe", "success": True}))
+    await connector.ingest_transport_message(json.dumps(_trade_message()))
+    await connector.ingest_transport_message(json.dumps(_orderbook_snapshot_message()))
+    await connector.ingest_transport_message(
+        json.dumps(_trade_message(symbol="ETHUSDT", trade_id="trade-2", price="3500.5"))
+    )
+    await connector.ingest_transport_message(
+        json.dumps(
+            _orderbook_snapshot_message(
+                symbol="ETHUSDT",
+                bids=[["3500.0", "3.0"], ["3499.5", "1.0"]],
+                asks=[["3500.5", "4.0"], ["3501.0", "1.2"]],
+            )
+        )
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["symbols"] == ("BTC/USDT", "ETH/USDT")
+    assert diagnostics["trade_seen"] is True
+    assert diagnostics["orderbook_seen"] is True
+    assert diagnostics["best_bid"] == "68000.0"
+    assert diagnostics["best_ask"] == "68000.5"
+    assert diagnostics["symbol_snapshots"] == (
+        {
+            "symbol": "BTC/USDT",
+            "trade_seen": True,
+            "orderbook_seen": True,
+            "best_bid": "68000.0",
+            "best_ask": "68000.5",
+        },
+        {
+            "symbol": "ETH/USDT",
+            "trade_seen": True,
+            "orderbook_seen": True,
+            "best_bid": "3500.0",
+            "best_ask": "3500.5",
+        },
+    )
 
 
 def test_parser_requires_fresh_snapshot_after_recovery_reset() -> None:

@@ -118,7 +118,13 @@ def _build_settings_put_handler(
     return update_settings_snapshot
 
 
-def _register_settings_routes(router: APIRouter) -> None:
+def _register_settings_routes(
+    router: APIRouter,
+    live_feed_policy_update_handler: Callable[
+        [LiveFeedPolicySettingsDTO], Awaitable[LiveFeedPolicySettingsDTO]
+    ]
+    | None = None,
+) -> None:
     def register_pair(
         path: str,
         dto_type: type[SettingsDTOContract],
@@ -254,20 +260,55 @@ def _register_settings_routes(router: APIRouter) -> None:
         "Обновить сроки жизни workflow и служебных контуров",
         "Обновляются workflow timeout settings",
     )
-    register_pair(
+    router.add_api_route(
         "/settings/live-feed-policy",
-        LiveFeedPolicySettingsDTO,
-        "Получить текущие настройки подключения к рынку и переподключения",
-        "Запрошены current live feed policy settings",
-        "Обновить настройки подключения к рынку и переподключения",
-        "Обновляются live feed policy settings",
+        _build_settings_get_handler(
+            LiveFeedPolicySettingsDTO,
+            "Запрошены current live feed policy settings",
+        ),
+        methods=["GET"],
+        response_model=LiveFeedPolicySettingsDTO,
+        summary="Получить текущие настройки подключения к рынку и переподключения",
     )
+
+    if live_feed_policy_update_handler is None:
+        router.add_api_route(
+            "/settings/live-feed-policy",
+            _build_settings_put_handler(
+                LiveFeedPolicySettingsDTO,
+                "Обновляются live feed policy settings",
+            ),
+            methods=["PUT"],
+            response_model=LiveFeedPolicySettingsDTO,
+            summary="Обновить настройки подключения к рынку и переподключения",
+        )
+    else:
+
+        async def update_live_feed_policy_settings(
+            payload: LiveFeedPolicySettingsDTO,
+        ) -> LiveFeedPolicySettingsDTO:
+            logger.info("Обновляются live feed policy settings")
+            try:
+                return await live_feed_policy_update_handler(payload)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            except RuntimeError as exc:
+                raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+        router.add_api_route(
+            "/settings/live-feed-policy",
+            update_live_feed_policy_settings,
+            methods=["PUT"],
+            response_model=LiveFeedPolicySettingsDTO,
+            summary="Обновить настройки подключения к рынку и переподключения",
+        )
 
 
 def _register_connector_diagnostics_routes(
     router: APIRouter,
     runtime_diagnostics_supplier: Callable[[], dict[str, Any]] | None,
     bybit_connector_toggle_handler: Callable[[bool], Awaitable[dict[str, Any]]] | None,
+    bybit_spot_connector_toggle_handler: Callable[[bool], Awaitable[dict[str, Any]]] | None,
 ) -> None:
     @router.get(
         "/settings/bybit-connector-diagnostics",
@@ -302,6 +343,53 @@ def _register_connector_diagnostics_routes(
         except RuntimeError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         return BybitConnectorDiagnosticsDTO.from_runtime_diagnostics(diagnostics)
+
+    @router.get(
+        "/settings/bybit-spot-connector-diagnostics",
+        response_model=BybitConnectorDiagnosticsDTO,
+        summary="Получить read-only diagnostics snapshot Bybit spot connector-а",
+    )
+    async def get_bybit_spot_connector_diagnostics() -> BybitConnectorDiagnosticsDTO:
+        logger.debug("Запрошен Bybit spot connector diagnostics snapshot")
+        diagnostics = (
+            runtime_diagnostics_supplier() if runtime_diagnostics_supplier is not None else {}
+        )
+        connector_diagnostics = dict(diagnostics)
+        connector_diagnostics["bybit_market_data_connector"] = diagnostics.get(
+            "bybit_spot_market_data_connector",
+            {},
+        )
+        return BybitConnectorDiagnosticsDTO.from_runtime_diagnostics(connector_diagnostics)
+
+    @router.put(
+        "/settings/bybit-spot-connector-enabled",
+        response_model=BybitConnectorDiagnosticsDTO,
+        summary="Включить или выключить canonical Bybit spot connector",
+    )
+    async def update_bybit_spot_connector_enabled(
+        payload: BybitConnectorToggleDTO,
+    ) -> BybitConnectorDiagnosticsDTO:
+        logger.info(
+            "Обновляется canonical Bybit spot connector enabled flag",
+            enabled=payload.enabled,
+        )
+        if bybit_spot_connector_toggle_handler is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Canonical backend runtime недоступен для управления Bybit spot connector-ом",
+            )
+        try:
+            diagnostics = await bybit_spot_connector_toggle_handler(payload.enabled)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        connector_diagnostics = dict(diagnostics)
+        connector_diagnostics["bybit_market_data_connector"] = diagnostics.get(
+            "bybit_spot_market_data_connector",
+            {},
+        )
+        return BybitConnectorDiagnosticsDTO.from_runtime_diagnostics(connector_diagnostics)
 
 
 def _register_core_summary_routes(router: APIRouter, facade: OverviewFacade) -> None:
@@ -452,7 +540,12 @@ def _register_operational_summary_routes(router: APIRouter, facade: OverviewFaca
 def create_dashboard_router(
     facade: OverviewFacade,
     runtime_diagnostics_supplier: Callable[[], dict[str, Any]] | None = None,
+    live_feed_policy_update_handler: Callable[
+        [LiveFeedPolicySettingsDTO], Awaitable[LiveFeedPolicySettingsDTO]
+    ]
+    | None = None,
     bybit_connector_toggle_handler: Callable[[bool], Awaitable[dict[str, Any]]] | None = None,
+    bybit_spot_connector_toggle_handler: Callable[[bool], Awaitable[dict[str, Any]]] | None = None,
 ) -> APIRouter:
     """
     Создать router панели управления.
@@ -464,11 +557,12 @@ def create_dashboard_router(
 
     _register_core_summary_routes(router, facade)
     _register_positions_routes(router, facade)
-    _register_settings_routes(router)
+    _register_settings_routes(router, live_feed_policy_update_handler)
     _register_connector_diagnostics_routes(
         router,
         runtime_diagnostics_supplier,
         bybit_connector_toggle_handler,
+        bybit_spot_connector_toggle_handler,
     )
     _register_operational_summary_routes(router, facade)
 

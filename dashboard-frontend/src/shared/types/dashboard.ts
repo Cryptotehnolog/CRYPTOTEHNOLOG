@@ -635,12 +635,28 @@ export type WorkflowTimeoutsSettingsResponse = {
 
 export type LiveFeedPolicySettingsResponse = {
   retry_delay_seconds: number;
+  bybit_connector_scope_mode: string;
   bybit_connector_symbol: string | null;
+  bybit_spot_connector_scope_mode: string;
+  bybit_spot_connector_symbol: string | null;
+  bybit_universe_min_quote_volume_24h_usd: number;
+  bybit_universe_min_trade_count_24h: number;
+  bybit_universe_max_symbols_per_scope: number;
+};
+
+export type BybitConnectorSymbolSnapshotResponse = {
+  symbol: string;
+  trade_seen: boolean;
+  orderbook_seen: boolean;
+  best_bid: string | null;
+  best_ask: string | null;
 };
 
 export type BybitConnectorDiagnosticsResponse = {
   enabled: boolean;
   symbol: string | null;
+  symbols: string[];
+  symbol_snapshots: BybitConnectorSymbolSnapshotResponse[];
   transport_status: string;
   recovery_status: string;
   subscription_alive: boolean;
@@ -658,4 +674,13 @@ export type BybitConnectorDiagnosticsResponse = {
   started: boolean;
   lifecycle_state: string | null;
   reset_required: boolean;
+  scope_mode: string;
+  total_instruments_discovered: number | null;
+  instruments_passed_coarse_filter: number | null;
+  active_subscribed_scope_count: number;
+  live_trade_streams_count: number;
+  live_orderbook_count: number;
+  degraded_or_stale_count: number;
 };
+
+export type BybitSpotConnectorDiagnosticsResponse = BybitConnectorDiagnosticsResponse;

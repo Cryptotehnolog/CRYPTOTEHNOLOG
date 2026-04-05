@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 import pytest
 
 from cryptotechnolog.config import get_settings, reload_settings
+from cryptotechnolog.config.settings import Settings
 from cryptotechnolog.dashboard.api import create_dashboard_router
 from cryptotechnolog.dashboard.app import create_dashboard_app
 from cryptotechnolog.dashboard.dto.backtest import (
@@ -582,21 +583,80 @@ class _StubFacade:
 class _StubProductionRuntime:
     def __init__(self) -> None:
         self.bybit_enabled = True
+        self.bybit_spot_enabled = False
+        self.bybit_scope_mode = "manual"
+        self.bybit_total_instruments_discovered: int | None = None
+        self.bybit_instruments_passed_coarse_filter: int | None = None
+        self.bybit_active_scope_count = 2
         self.startup = AsyncMock()
         self.shutdown = AsyncMock()
         self.set_bybit_market_data_connector_enabled = AsyncMock(
             side_effect=self._set_bybit_market_data_connector_enabled
+        )
+        self.set_bybit_spot_market_data_connector_enabled = AsyncMock(
+            side_effect=self._set_bybit_spot_market_data_connector_enabled
+        )
+        self.update_live_feed_policy_settings = AsyncMock(
+            side_effect=self._update_live_feed_policy_settings
         )
 
     async def _set_bybit_market_data_connector_enabled(self, enabled: bool) -> dict[str, object]:
         self.bybit_enabled = enabled
         return self.get_runtime_diagnostics()
 
+    async def _set_bybit_spot_market_data_connector_enabled(
+        self,
+        enabled: bool,
+    ) -> dict[str, object]:
+        self.bybit_spot_enabled = enabled
+        return self.get_runtime_diagnostics()
+
+    async def _update_live_feed_policy_settings(
+        self,
+        updates: dict[str, object],
+    ) -> Settings:
+        scope_mode = updates.get("bybit_market_data_scope_mode")
+        if isinstance(scope_mode, str):
+            self.bybit_scope_mode = scope_mode
+        if self.bybit_scope_mode == "universe":
+            self.bybit_total_instruments_discovered = 350
+            self.bybit_instruments_passed_coarse_filter = 42
+            self.bybit_active_scope_count = 42
+        else:
+            self.bybit_total_instruments_discovered = None
+            self.bybit_instruments_passed_coarse_filter = None
+            self.bybit_active_scope_count = 2 if self.bybit_enabled else 0
+        return Settings.model_validate({
+            **get_settings().model_dump(mode="python"),
+            **updates,
+        })
+
     def get_runtime_diagnostics(self) -> dict[str, object]:
         return {
             "bybit_market_data_connector": {
                 "enabled": self.bybit_enabled,
-                "symbols": ("BTC/USDT",) if self.bybit_enabled else (),
+                "symbol": "BTC/USDT" if self.bybit_enabled else None,
+                "symbols": ("BTC/USDT", "ETH/USDT") if self.bybit_enabled else (),
+                "symbol_snapshots": (
+                    (
+                        {
+                            "symbol": "BTC/USDT",
+                            "trade_seen": True,
+                            "orderbook_seen": True,
+                            "best_bid": "68499.90",
+                            "best_ask": "68500.00",
+                        },
+                        {
+                            "symbol": "ETH/USDT",
+                            "trade_seen": True,
+                            "orderbook_seen": True,
+                            "best_bid": "3500.10",
+                            "best_ask": "3500.20",
+                        },
+                    )
+                    if self.bybit_enabled
+                    else ()
+                ),
                 "transport_status": "connected" if self.bybit_enabled else "disabled",
                 "recovery_status": "recovered" if self.bybit_enabled else "idle",
                 "lifecycle_state": "connected" if self.bybit_enabled else "disabled",
@@ -614,7 +674,68 @@ class _StubProductionRuntime:
                 else None,
                 "degraded_reason": None,
                 "last_disconnect_reason": None,
-            }
+                "scope_mode": self.bybit_scope_mode,
+                "total_instruments_discovered": self.bybit_total_instruments_discovered,
+                "instruments_passed_coarse_filter": self.bybit_instruments_passed_coarse_filter,
+                "active_subscribed_scope_count": self.bybit_active_scope_count
+                if self.bybit_enabled
+                else 0,
+                "live_trade_streams_count": self.bybit_active_scope_count
+                if self.bybit_enabled
+                else 0,
+                "live_orderbook_count": self.bybit_active_scope_count if self.bybit_enabled else 0,
+                "degraded_or_stale_count": 0,
+            },
+            "bybit_spot_market_data_connector": {
+                "enabled": self.bybit_spot_enabled,
+                "exchange": "bybit_spot",
+                "symbol": "BTC/USDT" if self.bybit_spot_enabled else None,
+                "symbols": ("BTC/USDT", "ETH/USDT") if self.bybit_spot_enabled else (),
+                "symbol_snapshots": (
+                    (
+                        {
+                            "symbol": "BTC/USDT",
+                            "trade_seen": True,
+                            "orderbook_seen": True,
+                            "best_bid": "68510.10",
+                            "best_ask": "68510.20",
+                        },
+                        {
+                            "symbol": "ETH/USDT",
+                            "trade_seen": True,
+                            "orderbook_seen": True,
+                            "best_bid": "3510.10",
+                            "best_ask": "3510.20",
+                        },
+                    )
+                    if self.bybit_spot_enabled
+                    else ()
+                ),
+                "transport_status": "connected" if self.bybit_spot_enabled else "disabled",
+                "recovery_status": "recovered" if self.bybit_spot_enabled else "idle",
+                "lifecycle_state": "connected" if self.bybit_spot_enabled else "disabled",
+                "ready": self.bybit_spot_enabled,
+                "started": self.bybit_spot_enabled,
+                "subscription_alive": self.bybit_spot_enabled,
+                "reset_required": False,
+                "retry_count": 0 if self.bybit_spot_enabled else None,
+                "trade_seen": self.bybit_spot_enabled,
+                "orderbook_seen": self.bybit_spot_enabled,
+                "best_bid": "68510.10" if self.bybit_spot_enabled else None,
+                "best_ask": "68510.20" if self.bybit_spot_enabled else None,
+                "last_message_at": "2026-04-01T09:45:40.060548+00:00"
+                if self.bybit_spot_enabled
+                else None,
+                "degraded_reason": None,
+                "last_disconnect_reason": None,
+                "scope_mode": "manual",
+                "total_instruments_discovered": None,
+                "instruments_passed_coarse_filter": None,
+                "active_subscribed_scope_count": 2 if self.bybit_spot_enabled else 0,
+                "live_trade_streams_count": 2 if self.bybit_spot_enabled else 0,
+                "live_orderbook_count": 2 if self.bybit_spot_enabled else 0,
+                "degraded_or_stale_count": 0,
+            },
         }
 
 
@@ -1583,7 +1704,18 @@ def test_dashboard_live_feed_policy_settings_endpoint_returns_current_values() -
     data = LiveFeedPolicySettingsDTO.model_validate(response.json())
     settings = get_settings()
     assert data.retry_delay_seconds == settings.live_feed_retry_delay_seconds
+    assert data.bybit_connector_scope_mode == settings.bybit_market_data_scope_mode
     assert data.bybit_connector_symbol == settings.bybit_market_data_connector_symbol
+    assert data.bybit_spot_connector_scope_mode == settings.bybit_spot_market_data_scope_mode
+    assert data.bybit_spot_connector_symbol == settings.bybit_spot_market_data_connector_symbol
+    assert (
+        data.bybit_universe_min_quote_volume_24h_usd
+        == settings.bybit_universe_min_quote_volume_24h_usd
+    )
+    assert data.bybit_universe_min_trade_count_24h == settings.bybit_universe_min_trade_count_24h
+    assert (
+        data.bybit_universe_max_symbols_per_scope == settings.bybit_universe_max_symbols_per_scope
+    )
 
 
 def test_dashboard_live_feed_policy_settings_endpoint_updates_current_values() -> None:
@@ -1596,20 +1728,74 @@ def test_dashboard_live_feed_policy_settings_endpoint_updates_current_values() -
             "/dashboard/settings/live-feed-policy",
             json={
                 "retry_delay_seconds": 9,
-                "bybit_connector_symbol": "BTC/USDT",
+                "bybit_connector_scope_mode": "universe",
+                "bybit_connector_symbol": "BTC/USDT, ETH/USDT",
+                "bybit_spot_connector_scope_mode": "manual",
+                "bybit_spot_connector_symbol": "BTC/USDT, ETH/USDT",
+                "bybit_universe_min_quote_volume_24h_usd": 2500000.0,
+                "bybit_universe_min_trade_count_24h": 1000,
+                "bybit_universe_max_symbols_per_scope": 80,
             },
         )
 
         assert response.status_code == 200
         data = LiveFeedPolicySettingsDTO.model_validate(response.json())
         assert data.retry_delay_seconds == 9
-        assert data.bybit_connector_symbol == "BTC/USDT"
+        assert data.bybit_connector_scope_mode == "universe"
+        assert data.bybit_connector_symbol == "BTC/USDT, ETH/USDT"
+        assert data.bybit_spot_connector_scope_mode == "manual"
+        assert data.bybit_spot_connector_symbol == "BTC/USDT, ETH/USDT"
+        assert data.bybit_universe_min_quote_volume_24h_usd == 2500000.0
+        assert data.bybit_universe_min_trade_count_24h == 1000
+        assert data.bybit_universe_max_symbols_per_scope == 80
 
         settings = get_settings()
         assert settings.live_feed_retry_delay_seconds == 9
-        assert settings.bybit_market_data_connector_symbol == "BTC/USDT"
+        assert settings.bybit_market_data_scope_mode == "universe"
+        assert settings.bybit_market_data_connector_symbol == "BTC/USDT, ETH/USDT"
+        assert settings.bybit_spot_market_data_scope_mode == "manual"
+        assert settings.bybit_spot_market_data_connector_symbol == "BTC/USDT, ETH/USDT"
+        assert settings.bybit_universe_min_quote_volume_24h_usd == 2500000.0
+        assert settings.bybit_universe_min_trade_count_24h == 1000
+        assert settings.bybit_universe_max_symbols_per_scope == 80
     finally:
         reload_settings()
+
+
+def test_dashboard_live_feed_policy_settings_endpoint_syncs_canonical_runtime_truth_in_full_app() -> (
+    None
+):
+    app = create_dashboard_app(production_runtime=_StubProductionRuntime())
+
+    with TestClient(app) as client:
+        response = client.put(
+            "/dashboard/settings/live-feed-policy",
+            json={
+                "retry_delay_seconds": 5,
+                "bybit_connector_scope_mode": "universe",
+                "bybit_connector_symbol": None,
+                "bybit_spot_connector_scope_mode": "manual",
+                "bybit_spot_connector_symbol": None,
+                "bybit_universe_min_quote_volume_24h_usd": 1000000.0,
+                "bybit_universe_min_trade_count_24h": 0,
+                "bybit_universe_max_symbols_per_scope": 100,
+            },
+        )
+        diagnostics_response = client.get("/dashboard/settings/bybit-connector-diagnostics")
+
+    assert response.status_code == 200
+    data = LiveFeedPolicySettingsDTO.model_validate(response.json())
+    assert data.bybit_connector_scope_mode == "universe"
+
+    assert diagnostics_response.status_code == 200
+    diagnostics = BybitConnectorDiagnosticsDTO.model_validate(diagnostics_response.json())
+    assert diagnostics.scope_mode == "universe"
+    assert diagnostics.total_instruments_discovered == 350
+    assert diagnostics.instruments_passed_coarse_filter == 42
+
+    production_runtime = app.state.production_runtime
+    assert production_runtime is not None
+    production_runtime.update_live_feed_policy_settings.assert_awaited_once()
 
 
 def test_dashboard_bybit_connector_diagnostics_endpoint_returns_disabled_snapshot_by_default() -> (
@@ -1625,6 +1811,15 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_returns_disabled_snapsho
     data = BybitConnectorDiagnosticsDTO.model_validate(response.json())
     assert data.enabled is False
     assert data.symbol is None
+    assert data.symbols == ()
+    assert data.symbol_snapshots == ()
+    assert data.scope_mode == "manual"
+    assert data.total_instruments_discovered is None
+    assert data.instruments_passed_coarse_filter is None
+    assert data.active_subscribed_scope_count == 0
+    assert data.live_trade_streams_count == 0
+    assert data.live_orderbook_count == 0
+    assert data.degraded_or_stale_count == 0
     assert data.transport_status == "unavailable"
     assert data.recovery_status == "idle"
     assert data.subscription_alive is False
@@ -1658,6 +1853,15 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_returns_full_disabled_sn
     assert data.retry_count is None
     assert data.message_age_ms is None
     assert data.transport_rtt_ms is None
+    assert data.symbols == ()
+    assert data.symbol_snapshots == ()
+    assert data.scope_mode == "manual"
+    assert data.total_instruments_discovered is None
+    assert data.instruments_passed_coarse_filter is None
+    assert data.active_subscribed_scope_count == 0
+    assert data.live_trade_streams_count == 0
+    assert data.live_orderbook_count == 0
+    assert data.degraded_or_stale_count == 0
 
 
 def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapshot() -> None:
@@ -1668,7 +1872,17 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
             runtime_diagnostics_supplier=lambda: {
                 "bybit_market_data_connector": {
                     "enabled": True,
+                    "symbol": "BTC/USDT",
                     "symbols": ("BTC/USDT",),
+                    "symbol_snapshots": (
+                        {
+                            "symbol": "BTC/USDT",
+                            "trade_seen": True,
+                            "orderbook_seen": True,
+                            "best_bid": "68499.90",
+                            "best_ask": "68500.00",
+                        },
+                    ),
                     "transport_status": "connected",
                     "recovery_status": "recovered",
                     "subscription_alive": True,
@@ -1686,6 +1900,13 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
                     "started": True,
                     "lifecycle_state": "connected",
                     "reset_required": False,
+                    "scope_mode": "universe",
+                    "total_instruments_discovered": 350,
+                    "instruments_passed_coarse_filter": 42,
+                    "active_subscribed_scope_count": 1,
+                    "live_trade_streams_count": 1,
+                    "live_orderbook_count": 1,
+                    "degraded_or_stale_count": 0,
                 }
             },
         )
@@ -1698,6 +1919,9 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
     data = BybitConnectorDiagnosticsDTO.model_validate(response.json())
     assert data.enabled is True
     assert data.symbol == "BTC/USDT"
+    assert data.symbols == ("BTC/USDT",)
+    assert len(data.symbol_snapshots) == 1
+    assert data.symbol_snapshots[0].symbol == "BTC/USDT"
     assert data.transport_status == "connected"
     assert data.lifecycle_state == "connected"
     assert data.ready is True
@@ -1713,6 +1937,13 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
     assert data.last_message_at == "2026-04-01T09:45:40.060548+00:00"
     assert data.message_age_ms == 42
     assert data.transport_rtt_ms == 18
+    assert data.scope_mode == "universe"
+    assert data.total_instruments_discovered == 350
+    assert data.instruments_passed_coarse_filter == 42
+    assert data.active_subscribed_scope_count == 1
+    assert data.live_trade_streams_count == 1
+    assert data.live_orderbook_count == 1
+    assert data.degraded_or_stale_count == 0
 
 
 def test_dashboard_bybit_connector_diagnostics_endpoint_prefers_canonical_runtime_in_full_app() -> (
@@ -1727,6 +1958,7 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_prefers_canonical_runtim
     data = BybitConnectorDiagnosticsDTO.model_validate(response.json())
     assert data.enabled is True
     assert data.symbol == "BTC/USDT"
+    assert data.symbols == ("BTC/USDT", "ETH/USDT")
     assert data.transport_status == "connected"
 
 
@@ -1748,6 +1980,45 @@ def test_dashboard_bybit_connector_toggle_endpoint_updates_canonical_runtime_in_
     production_runtime = app.state.production_runtime
     assert production_runtime is not None
     production_runtime.set_bybit_market_data_connector_enabled.assert_awaited_once_with(False)
+
+
+def test_dashboard_bybit_spot_connector_diagnostics_endpoint_prefers_canonical_runtime_in_full_app() -> (
+    None
+):
+    app = create_dashboard_app(production_runtime=_StubProductionRuntime())
+    app.state.production_runtime.bybit_spot_enabled = True
+
+    with TestClient(app) as client:
+        response = client.get("/dashboard/settings/bybit-spot-connector-diagnostics")
+
+    assert response.status_code == 200
+    data = BybitConnectorDiagnosticsDTO.model_validate(response.json())
+    assert data.enabled is True
+    assert data.symbol == "BTC/USDT"
+    assert data.symbols == ("BTC/USDT", "ETH/USDT")
+    assert data.transport_status == "connected"
+
+
+def test_dashboard_bybit_spot_connector_toggle_endpoint_updates_canonical_runtime_in_full_app() -> (
+    None
+):
+    app = create_dashboard_app(production_runtime=_StubProductionRuntime())
+
+    with TestClient(app) as client:
+        response = client.put(
+            "/dashboard/settings/bybit-spot-connector-enabled",
+            json={"enabled": True},
+        )
+
+    assert response.status_code == 200
+    data = BybitConnectorDiagnosticsDTO.model_validate(response.json())
+    assert data.enabled is True
+    assert data.transport_status == "connected"
+    assert data.lifecycle_state == "connected"
+
+    production_runtime = app.state.production_runtime
+    assert production_runtime is not None
+    production_runtime.set_bybit_spot_market_data_connector_enabled.assert_awaited_once_with(True)
 
 
 def test_dashboard_overview_endpoint_returns_snapshot_in_full_app_runtime(

@@ -155,7 +155,14 @@ class Settings(BaseSettings):
     bybit_api_secret: SecretStr | None = None
     bybit_testnet: bool = False
     bybit_market_data_connector_enabled: bool = False
+    bybit_market_data_scope_mode: str = "manual"
     bybit_market_data_connector_symbol: str | None = None
+    bybit_spot_market_data_connector_enabled: bool = False
+    bybit_spot_market_data_scope_mode: str = "manual"
+    bybit_spot_market_data_connector_symbol: str | None = None
+    bybit_universe_min_quote_volume_24h_usd: float = 1000000.0
+    bybit_universe_min_trade_count_24h: int = 0
+    bybit_universe_max_symbols_per_scope: int = 100
 
     # OKX
     okx_api_key: SecretStr | None = None
@@ -1039,6 +1046,40 @@ def _collect_universe_policy_validation_errors(
         _append_unit_interval_error(validation_errors, field_name, value)
 
 
+def _collect_bybit_universe_scope_validation_errors(
+    settings_to_validate: Settings,
+    validation_errors: list[str],
+) -> None:
+    valid_scope_modes = {"manual", "universe"}
+    for field_name, value in (
+        ("bybit_market_data_scope_mode", settings_to_validate.bybit_market_data_scope_mode),
+        (
+            "bybit_spot_market_data_scope_mode",
+            settings_to_validate.bybit_spot_market_data_scope_mode,
+        ),
+    ):
+        normalized = value.strip().lower()
+        if normalized not in valid_scope_modes:
+            validation_errors.append(
+                f"{field_name} must be one of: {', '.join(sorted(valid_scope_modes))}"
+            )
+
+    for field_name, value in (
+        (
+            "bybit_universe_min_quote_volume_24h_usd",
+            settings_to_validate.bybit_universe_min_quote_volume_24h_usd,
+        ),
+        (
+            "bybit_universe_max_symbols_per_scope",
+            settings_to_validate.bybit_universe_max_symbols_per_scope,
+        ),
+    ):
+        _append_positive_error(validation_errors, field_name, value)
+
+    if settings_to_validate.bybit_universe_min_trade_count_24h < 0:
+        validation_errors.append("bybit_universe_min_trade_count_24h must be zero or greater")
+
+
 def _collect_decision_chain_validation_errors(
     settings_to_validate: Settings,
     validation_errors: list[str],
@@ -1290,6 +1331,7 @@ def _collect_domain_validation_errors(settings_to_validate: Settings) -> list[st
     """Collect domain validation errors for risk and trading settings."""
     validation_errors: list[str] = []
     _collect_risk_basics_validation_errors(settings_to_validate, validation_errors)
+    _collect_bybit_universe_scope_validation_errors(settings_to_validate, validation_errors)
     _collect_universe_policy_validation_errors(settings_to_validate, validation_errors)
     _collect_decision_chain_validation_errors(settings_to_validate, validation_errors)
     _collect_trailing_and_correlation_validation_errors(settings_to_validate, validation_errors)

@@ -690,8 +690,26 @@ class LiveFeedPolicySettingsDTO(BaseModel):
     retry_delay_seconds: int = Field(
         description="Базовая задержка перед повторным подключением к live feed в секундах.",
     )
+    bybit_connector_scope_mode: str = Field(
+        description="Режим формирования scope для Bybit linear/perpetual: manual или universe.",
+    )
     bybit_connector_symbol: str | None = Field(
-        description="Single-symbol scope canonical Bybit public connector-а.",
+        description="Canonical Bybit linear/perpetual public connector scope. Несколько инструментов можно указать через запятую.",
+    )
+    bybit_spot_connector_scope_mode: str = Field(
+        description="Режим формирования scope для Bybit spot: manual или universe.",
+    )
+    bybit_spot_connector_symbol: str | None = Field(
+        description="Canonical Bybit spot public connector scope. Несколько инструментов можно указать через запятую.",
+    )
+    bybit_universe_min_quote_volume_24h_usd: float = Field(
+        description="Минимальный 24h quote volume в USD для coarse prefilter universe.",
+    )
+    bybit_universe_min_trade_count_24h: int = Field(
+        description="Минимальное число сделок за 24h для coarse prefilter universe.",
+    )
+    bybit_universe_max_symbols_per_scope: int = Field(
+        description="Максимальное число инструментов, передаваемых в active connector scope.",
     )
 
     @classmethod
@@ -699,22 +717,51 @@ class LiveFeedPolicySettingsDTO(BaseModel):
         """Build DTO from canonical project settings."""
         return cls(
             retry_delay_seconds=settings.live_feed_retry_delay_seconds,
+            bybit_connector_scope_mode=settings.bybit_market_data_scope_mode,
             bybit_connector_symbol=settings.bybit_market_data_connector_symbol,
+            bybit_spot_connector_scope_mode=settings.bybit_spot_market_data_scope_mode,
+            bybit_spot_connector_symbol=settings.bybit_spot_market_data_connector_symbol,
+            bybit_universe_min_quote_volume_24h_usd=settings.bybit_universe_min_quote_volume_24h_usd,
+            bybit_universe_min_trade_count_24h=settings.bybit_universe_min_trade_count_24h,
+            bybit_universe_max_symbols_per_scope=settings.bybit_universe_max_symbols_per_scope,
         )
 
-    def to_settings_update(self) -> dict[str, int | str | None]:
+    def to_settings_update(self) -> dict[str, float | int | str | None]:
         """Convert DTO back into Settings field updates."""
         return {
             "live_feed_retry_delay_seconds": self.retry_delay_seconds,
+            "bybit_market_data_scope_mode": self.bybit_connector_scope_mode,
             "bybit_market_data_connector_symbol": self.bybit_connector_symbol,
+            "bybit_spot_market_data_scope_mode": self.bybit_spot_connector_scope_mode,
+            "bybit_spot_market_data_connector_symbol": self.bybit_spot_connector_symbol,
+            "bybit_universe_min_quote_volume_24h_usd": self.bybit_universe_min_quote_volume_24h_usd,
+            "bybit_universe_min_trade_count_24h": self.bybit_universe_min_trade_count_24h,
+            "bybit_universe_max_symbols_per_scope": self.bybit_universe_max_symbols_per_scope,
         }
 
 
 class BybitConnectorDiagnosticsDTO(BaseModel):
     """Read-only Bybit connector diagnostics surfaced for settings UI."""
 
+    class SymbolSnapshotDTO(BaseModel):
+        symbol: str = Field(description="Инструмент внутри текущего Bybit connector scope.")
+        trade_seen: bool = Field(description="Поступали ли trade ticks для этого инструмента.")
+        orderbook_seen: bool = Field(
+            description="Поступал ли честный orderbook snapshot для этого инструмента."
+        )
+        best_bid: str | None = Field(
+            description="Лучший bid для этого инструмента из текущего snapshot."
+        )
+        best_ask: str | None = Field(
+            description="Лучший ask для этого инструмента из текущего snapshot."
+        )
+
     enabled: bool = Field(description="Включён ли Bybit connector в текущем runtime.")
     symbol: str | None = Field(description="Текущий symbol scope Bybit connector.")
+    symbols: tuple[str, ...] = Field(description="Полный текущий symbol scope Bybit connector-а.")
+    symbol_snapshots: tuple[SymbolSnapshotDTO, ...] = Field(
+        description="Per-symbol diagnostics snapshots для operator truth."
+    )
     transport_status: str = Field(description="Текущий transport status connector-а.")
     recovery_status: str = Field(description="Текущий recovery status connector-а.")
     subscription_alive: bool = Field(description="Признак живой подписки после reconnect.")
@@ -746,6 +793,27 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
     reset_required: bool = Field(
         description="Требуется ли reset/recovery boundary перед честным продолжением ingest path."
     )
+    scope_mode: str = Field(
+        description="Режим формирования текущего connector scope: manual или universe."
+    )
+    total_instruments_discovered: int | None = Field(
+        description="Сколько инструментов было найдено на этапе universe discovery."
+    )
+    instruments_passed_coarse_filter: int | None = Field(
+        description="Сколько инструментов прошло coarse prefilter до handoff в connector."
+    )
+    active_subscribed_scope_count: int = Field(
+        description="Сколько инструментов реально находится в active subscribed scope."
+    )
+    live_trade_streams_count: int = Field(
+        description="Сколько инструментов сейчас имеют живой trade stream."
+    )
+    live_orderbook_count: int = Field(
+        description="Сколько инструментов сейчас имеют живой orderbook snapshot."
+    )
+    degraded_or_stale_count: int = Field(
+        description="Сколько инструментов сейчас выглядят degraded или stale внутри scope."
+    )
 
     @classmethod
     def from_runtime_diagnostics(
@@ -760,14 +828,41 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
                 connector = raw_connector
 
         raw_symbols = connector.get("symbols")
-        symbol: str | None = None
-        if isinstance(raw_symbols, (list, tuple)) and raw_symbols:
-            first_symbol = raw_symbols[0]
-            symbol = first_symbol if isinstance(first_symbol, str) else None
+        symbols = (
+            tuple(entry for entry in raw_symbols if isinstance(entry, str))
+            if isinstance(raw_symbols, (list, tuple))
+            else ()
+        )
+        symbol = symbols[0] if symbols else None
+
+        raw_symbol_snapshots = connector.get("symbol_snapshots")
+        symbol_snapshots: list[BybitConnectorDiagnosticsDTO.SymbolSnapshotDTO] = []
+        if isinstance(raw_symbol_snapshots, (list, tuple)):
+            for snapshot in raw_symbol_snapshots:
+                if not isinstance(snapshot, dict):
+                    continue
+                raw_symbol = snapshot.get("symbol")
+                if not isinstance(raw_symbol, str):
+                    continue
+                symbol_snapshots.append(
+                    cls.SymbolSnapshotDTO(
+                        symbol=raw_symbol,
+                        trade_seen=bool(snapshot.get("trade_seen", False)),
+                        orderbook_seen=bool(snapshot.get("orderbook_seen", False)),
+                        best_bid=snapshot.get("best_bid")
+                        if isinstance(snapshot.get("best_bid"), str)
+                        else None,
+                        best_ask=snapshot.get("best_ask")
+                        if isinstance(snapshot.get("best_ask"), str)
+                        else None,
+                    )
+                )
 
         return cls(
             enabled=bool(connector.get("enabled", False)),
             symbol=symbol,
+            symbols=symbols,
+            symbol_snapshots=tuple(symbol_snapshots),
             transport_status=str(connector.get("transport_status", "unavailable")),
             recovery_status=str(connector.get("recovery_status", "idle")),
             subscription_alive=bool(connector.get("subscription_alive", False)),
@@ -803,6 +898,17 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
             if isinstance(connector.get("lifecycle_state"), str)
             else None,
             reset_required=bool(connector.get("reset_required", False)),
+            scope_mode=str(connector.get("scope_mode", "manual")),
+            total_instruments_discovered=connector.get("total_instruments_discovered")
+            if isinstance(connector.get("total_instruments_discovered"), int)
+            else None,
+            instruments_passed_coarse_filter=connector.get("instruments_passed_coarse_filter")
+            if isinstance(connector.get("instruments_passed_coarse_filter"), int)
+            else None,
+            active_subscribed_scope_count=int(connector.get("active_subscribed_scope_count", 0)),
+            live_trade_streams_count=int(connector.get("live_trade_streams_count", 0)),
+            live_orderbook_count=int(connector.get("live_orderbook_count", 0)),
+            degraded_or_stale_count=int(connector.get("degraded_or_stale_count", 0)),
         )
 
 

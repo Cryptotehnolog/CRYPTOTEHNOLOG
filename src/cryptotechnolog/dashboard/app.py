@@ -13,11 +13,12 @@ from cryptotechnolog.bootstrap import (
     ProductionRuntime,
     start_production_runtime,
 )
-from cryptotechnolog.config import get_logger, get_settings
+from cryptotechnolog.config import get_logger, get_settings, update_settings
 from cryptotechnolog.core import EnhancedEventBus
 from cryptotechnolog.runtime_identity import get_runtime_version
 
 from .api.router import create_dashboard_router
+from .dto.settings import LiveFeedPolicySettingsDTO
 from .runtime import DashboardRuntime, create_dashboard_runtime
 
 if TYPE_CHECKING:
@@ -73,6 +74,24 @@ def create_dashboard_app(
             raise RuntimeError("Canonical backend runtime ещё не поднят")
         return await canonical_runtime.set_bybit_market_data_connector_enabled(enabled)
 
+    async def _set_bybit_spot_connector_enabled(enabled: bool) -> dict[str, Any]:
+        canonical_runtime = canonical_runtime_holder.runtime
+        if canonical_runtime is None:
+            raise RuntimeError("Canonical backend runtime ещё не поднят")
+        return await canonical_runtime.set_bybit_spot_market_data_connector_enabled(enabled)
+
+    async def _update_live_feed_policy(
+        payload: LiveFeedPolicySettingsDTO,
+    ) -> LiveFeedPolicySettingsDTO:
+        canonical_runtime = canonical_runtime_holder.runtime
+        if canonical_runtime is None:
+            settings = update_settings(payload.to_settings_update())
+            return LiveFeedPolicySettingsDTO.from_settings(settings)
+        settings = await canonical_runtime.update_live_feed_policy_settings(
+            payload.to_settings_update()
+        )
+        return LiveFeedPolicySettingsDTO.from_settings(settings)
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         owned_production_runtime: ProductionRuntime | None = None
@@ -118,7 +137,11 @@ def create_dashboard_app(
         create_dashboard_router(
             dashboard_runtime.overview_facade,
             runtime_diagnostics_supplier=_get_runtime_diagnostics,
+            live_feed_policy_update_handler=_update_live_feed_policy,
             bybit_connector_toggle_handler=_set_bybit_connector_enabled
+            if production_runtime is not None or enable_canonical_runtime
+            else None,
+            bybit_spot_connector_toggle_handler=_set_bybit_spot_connector_enabled
             if production_runtime is not None or enable_canonical_runtime
             else None,
         )

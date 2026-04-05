@@ -300,8 +300,8 @@ class BybitMarketDataConnector:
         | None = None,
         sleep_func: Callable[[float], Awaitable[None]] | None = None,
     ) -> None:
-        if session.exchange.lower() != "bybit":
-            raise ValueError("BybitMarketDataConnector требует bybit session identity")
+        if session.exchange.lower() not in {"bybit", "bybit_spot"}:
+            raise ValueError("BybitMarketDataConnector требует bybit/bybit_spot session identity")
         self.session = session
         self.market_data_runtime = market_data_runtime
         self.config = config or BybitMarketDataConnectorConfig.from_settings(get_settings())
@@ -465,18 +465,12 @@ class BybitMarketDataConnector:
     def get_operator_diagnostics(self) -> dict[str, object]:
         """Вернуть operator-facing snapshot narrow Bybit connector truth."""
         feed_runtime = self.feed_runtime.get_runtime_diagnostics()
-        normalized_symbol = self.session.subscription_scope[0]
-        orderbook = self.market_data_runtime.orderbook_manager.get_snapshot(
-            normalized_symbol,
-            self.session.exchange,
+        symbols = self.session.subscription_scope
+        primary_symbol = symbols[0] if symbols else None
+        symbol_snapshots = tuple(
+            self._build_symbol_diagnostics(symbol=symbol) for symbol in symbols
         )
-        trade_seen = (
-            self.market_data_runtime.state.last_trade_at.get((
-                normalized_symbol,
-                self.session.exchange,
-            ))
-            is not None
-        )
+        primary_snapshot = symbol_snapshots[0] if symbol_snapshots else None
         recovery_state = self.get_recovery_state()
         last_message_at = feed_runtime.get("last_message_at")
         message_age_ms: int | None = None
@@ -489,18 +483,19 @@ class BybitMarketDataConnector:
         return {
             "enabled": True,
             "exchange": self.session.exchange,
-            "symbol": normalized_symbol,
-            "symbols": self.session.subscription_scope,
+            "symbol": primary_symbol,
+            "symbols": symbols,
+            "symbol_snapshots": symbol_snapshots,
             "transport_status": feed_runtime["status"],
             "recovery_status": recovery_state.status.value,
             "subscription_alive": bool(recovery_state.metadata.get("subscription_alive", False)),
             "last_message_at": last_message_at,
             "message_age_ms": message_age_ms,
             "transport_rtt_ms": self._transport_rtt_ms,
-            "trade_seen": trade_seen,
-            "orderbook_seen": orderbook is not None,
-            "best_bid": str(orderbook.bids[0].price) if orderbook and orderbook.bids else None,
-            "best_ask": str(orderbook.asks[0].price) if orderbook and orderbook.asks else None,
+            "trade_seen": all(snapshot["trade_seen"] for snapshot in symbol_snapshots),
+            "orderbook_seen": all(snapshot["orderbook_seen"] for snapshot in symbol_snapshots),
+            "best_bid": primary_snapshot["best_bid"] if primary_snapshot is not None else None,
+            "best_ask": primary_snapshot["best_ask"] if primary_snapshot is not None else None,
             "degraded_reason": feed_runtime.get("degraded_reason"),
             "last_disconnect_reason": feed_runtime.get("last_disconnect_reason"),
             "retry_count": feed_runtime.get("retry_count"),
@@ -508,6 +503,23 @@ class BybitMarketDataConnector:
             "started": feed_runtime.get("started", False),
             "lifecycle_state": feed_runtime.get("lifecycle_state"),
             "reset_required": recovery_state.reset_required,
+        }
+
+    def _build_symbol_diagnostics(self, *, symbol: str) -> dict[str, object]:
+        orderbook = self.market_data_runtime.orderbook_manager.get_snapshot(
+            symbol,
+            self.session.exchange,
+        )
+        trade_seen = (
+            self.market_data_runtime.state.last_trade_at.get((symbol, self.session.exchange))
+            is not None
+        )
+        return {
+            "symbol": symbol,
+            "trade_seen": trade_seen,
+            "orderbook_seen": orderbook is not None,
+            "best_bid": str(orderbook.bids[0].price) if orderbook and orderbook.bids else None,
+            "best_ask": str(orderbook.asks[0].price) if orderbook and orderbook.asks else None,
         }
 
     def _handle_control_message(self, message: dict[str, Any]) -> None:

@@ -4,6 +4,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock, Mock, patch
+from urllib.error import URLError
 from uuid import uuid4
 
 import pytest
@@ -38,6 +39,7 @@ from cryptotechnolog.execution import (
     ExecutionValidity,
     ExecutionValidityStatus,
 )
+from cryptotechnolog.live_feed import BybitUniverseSelectionSummary
 from cryptotechnolog.manager import (
     ManagerDecision,
     ManagerEventType,
@@ -160,6 +162,7 @@ class _FakeBybitConnector:
         self.run_started = asyncio.Event()
         self.stop_called = False
         self._stop_requested = asyncio.Event()
+        self.exchange = "bybit"
 
     async def run(self) -> None:
         self.run_started.set()
@@ -172,9 +175,18 @@ class _FakeBybitConnector:
     def get_operator_diagnostics(self) -> dict[str, object]:
         return {
             "enabled": True,
-            "exchange": "bybit",
+            "exchange": self.exchange,
             "symbol": "BTC/USDT",
             "symbols": ("BTC/USDT",),
+            "symbol_snapshots": (
+                {
+                    "symbol": "BTC/USDT",
+                    "trade_seen": True,
+                    "orderbook_seen": True,
+                    "best_bid": "68499.90",
+                    "best_ask": "68500.00",
+                },
+            ),
             "transport_status": "connected",
             "recovery_status": "recovered",
             "subscription_alive": True,
@@ -3774,3 +3786,231 @@ class TestProductionBootstrap:
         assert diagnostics["enabled"] is False
         assert diagnostics["transport_status"] == "disabled"
         assert diagnostics["symbol"] is None
+
+    @pytest.mark.asyncio
+    async def test_production_runtime_builds_multi_symbol_bybit_connector_scope(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        fake_connector = _FakeBybitConnector()
+        captured_symbols: tuple[str, ...] | None = None
+
+        def _create_connector(**kwargs: object) -> _FakeBybitConnector:
+            nonlocal captured_symbols
+            raw_symbols = kwargs.get("symbols")
+            assert isinstance(raw_symbols, tuple)
+            captured_symbols = raw_symbols
+            return fake_connector
+
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.create_bybit_market_data_connector",
+            _create_connector,
+        )
+
+        runtime = await build_production_runtime(
+            settings=make_settings(
+                bybit_market_data_connector_enabled=True,
+                bybit_market_data_connector_symbol="BTC/USDT, ETH/USDT",
+            ),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        assert runtime.bybit_market_data_connector is fake_connector
+        assert captured_symbols == ("BTC/USDT", "ETH/USDT")
+
+    @pytest.mark.asyncio
+    async def test_production_runtime_builds_universe_bybit_connector_scope(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        fake_connector = _FakeBybitConnector()
+        captured_symbols: tuple[str, ...] | None = None
+
+        def _create_connector(**kwargs: object) -> _FakeBybitConnector:
+            nonlocal captured_symbols
+            raw_symbols = kwargs.get("symbols")
+            assert isinstance(raw_symbols, tuple)
+            captured_symbols = raw_symbols
+            return fake_connector
+
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.create_bybit_market_data_connector",
+            _create_connector,
+        )
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            lambda *_args, **_kwargs: BybitUniverseSelectionSummary(
+                scope_mode="universe",
+                total_instruments_discovered=350,
+                instruments_passed_coarse_filter=42,
+                selected_symbols=("BTC/USDT", "ETH/USDT", "SOL/USDT"),
+            ),
+        )
+
+        runtime = await build_production_runtime(
+            settings=make_settings(
+                bybit_market_data_connector_enabled=True,
+                bybit_market_data_scope_mode="universe",
+                bybit_market_data_connector_symbol=None,
+            ),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        diagnostics = runtime.get_runtime_diagnostics()["bybit_market_data_connector"]
+
+        assert runtime.bybit_market_data_connector is fake_connector
+        assert captured_symbols == ("BTC/USDT", "ETH/USDT", "SOL/USDT")
+        assert diagnostics["scope_mode"] == "universe"
+        assert diagnostics["total_instruments_discovered"] == 350
+        assert diagnostics["instruments_passed_coarse_filter"] == 42
+        assert diagnostics["active_subscribed_scope_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_production_runtime_rejects_empty_universe_scope_when_connector_enabled(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            lambda *_args, **_kwargs: BybitUniverseSelectionSummary(
+                scope_mode="universe",
+                total_instruments_discovered=100,
+                instruments_passed_coarse_filter=0,
+                selected_symbols=(),
+            ),
+        )
+
+        runtime = await build_production_runtime(
+            settings=make_settings(
+                bybit_market_data_connector_enabled=True,
+                bybit_market_data_scope_mode="universe",
+                bybit_market_data_connector_symbol=None,
+            ),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        diagnostics = runtime.get_runtime_diagnostics()["bybit_market_data_connector"]
+
+        assert runtime.bybit_market_data_connector is None
+        assert diagnostics["enabled"] is True
+        assert diagnostics["scope_mode"] == "universe"
+        assert diagnostics["total_instruments_discovered"] == 100
+        assert diagnostics["instruments_passed_coarse_filter"] == 0
+        assert diagnostics["active_subscribed_scope_count"] == 0
+        assert diagnostics["transport_status"] == "idle"
+        assert diagnostics["recovery_status"] == "waiting_for_scope"
+        assert diagnostics["lifecycle_state"] == "waiting_for_scope"
+        assert diagnostics["degraded_reason"] == "waiting_for_qualifying_instruments"
+
+    @pytest.mark.asyncio
+    async def test_production_runtime_keeps_universe_mode_when_discovery_unavailable_and_disabled(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            Mock(side_effect=URLError("offline")),
+        )
+
+        runtime = await build_production_runtime(
+            settings=make_settings(
+                bybit_market_data_connector_enabled=False,
+                bybit_market_data_scope_mode="universe",
+                bybit_market_data_connector_symbol=None,
+            ),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        diagnostics = runtime.get_runtime_diagnostics()["bybit_market_data_connector"]
+
+        assert diagnostics["scope_mode"] == "universe"
+        assert diagnostics["total_instruments_discovered"] is None
+        assert diagnostics["instruments_passed_coarse_filter"] is None
+
+    @pytest.mark.asyncio
+    async def test_production_runtime_rejects_enabled_universe_when_discovery_unavailable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            Mock(side_effect=URLError("offline")),
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="Bybit linear universe discovery is unavailable",
+        ):
+            await build_production_runtime(
+                settings=make_settings(
+                    bybit_market_data_connector_enabled=True,
+                    bybit_market_data_scope_mode="universe",
+                    bybit_market_data_connector_symbol=None,
+                ),
+                policy=ProductionBootstrapPolicy(
+                    test_mode=True,
+                    enable_event_bus_persistence=False,
+                    enable_risk_persistence=False,
+                    include_legacy_risk_listener=False,
+                ),
+            )
+
+    @pytest.mark.asyncio
+    async def test_production_runtime_hosts_bybit_spot_connector_canonically_when_enabled(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        fake_connector = _FakeBybitConnector()
+        fake_connector.exchange = "bybit_spot"
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.create_bybit_spot_market_data_connector",
+            lambda **_: fake_connector,
+        )
+        runtime = await build_production_runtime(
+            settings=make_settings(
+                bybit_spot_market_data_connector_enabled=True,
+                bybit_spot_market_data_connector_symbol="BTC/USDT, ETH/USDT",
+            ),
+            policy=ProductionBootstrapPolicy(
+                test_mode=True,
+                enable_event_bus_persistence=False,
+                enable_risk_persistence=False,
+                include_legacy_risk_listener=False,
+            ),
+        )
+
+        await runtime._start_opt_in_market_data_connectors()
+        await asyncio.wait_for(fake_connector.run_started.wait(), timeout=1.0)
+
+        diagnostics = runtime.get_runtime_diagnostics()["bybit_spot_market_data_connector"]
+
+        assert runtime.bybit_spot_market_data_connector is fake_connector
+        assert diagnostics["enabled"] is True
+        assert diagnostics["exchange"] == "bybit_spot"
+        assert diagnostics["symbols"] == ("BTC/USDT",)
+        assert diagnostics["transport_status"] == "connected"
+
+        await runtime._stop_opt_in_market_data_connectors()
+
+        assert fake_connector.stop_called is True
+        assert runtime.bybit_spot_market_data_connector_task is None

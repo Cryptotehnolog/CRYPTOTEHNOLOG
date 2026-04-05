@@ -28,6 +28,18 @@ from .bybit import (
     create_bybit_market_data_connector,
     normalize_bybit_symbol,
 )
+from .bybit_spot import (
+    BybitSpotMarketDataConnector,
+    BybitSpotMarketDataConnectorConfig,
+    create_bybit_spot_market_data_connector,
+)
+from .bybit_universe import (
+    BybitMarketContour,
+    BybitUniverseDiscoveryConfig,
+    BybitUniverseInstrument,
+    BybitUniverseSelectionSummary,
+    discover_bybit_universe,
+)
 from .integration import (
     LiveFeedMarketDataIngress,
     LiveFeedMarketDataIngressResult,
@@ -56,13 +68,19 @@ from .runtime import (
 )
 
 __all__ = [
+    "BybitMarketContour",
     "BybitMarketDataConnector",
     "BybitMarketDataConnectorConfig",
     "BybitMarketDataParser",
     "BybitMessageParseError",
     "BybitOrderBookProjector",
     "BybitParsedEnvelope",
+    "BybitSpotMarketDataConnector",
+    "BybitSpotMarketDataConnectorConfig",
     "BybitSubscriptionRegistry",
+    "BybitUniverseDiscoveryConfig",
+    "BybitUniverseInstrument",
+    "BybitUniverseSelectionSummary",
     "BybitWebSocketConnection",
     "FeedConnectionState",
     "FeedConnectionStatus",
@@ -83,7 +101,9 @@ __all__ = [
     "LiveFeedMarketDataIngressResult",
     "UnsupportedFeedIngressError",
     "create_bybit_market_data_connector",
+    "create_bybit_spot_market_data_connector",
     "create_live_feed_market_data_ingress",
     "create_live_feed_runtime",
+    "discover_bybit_universe",
     "normalize_bybit_symbol",
 ]

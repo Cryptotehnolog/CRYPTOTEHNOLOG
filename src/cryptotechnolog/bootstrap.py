@@ -12,6 +12,7 @@ import contextlib
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
+from urllib.error import URLError
 
 from cryptotechnolog.analysis.runtime import SharedAnalysisRuntime, create_shared_analysis_runtime
 from cryptotechnolog.config.logging import configure_logging, get_logger
@@ -51,7 +52,12 @@ from cryptotechnolog.intelligence.runtime import IntelligenceRuntime, create_int
 from cryptotechnolog.live_feed import (
     BybitMarketDataConnector,
     BybitMarketDataConnectorConfig,
+    BybitSpotMarketDataConnector,
+    BybitSpotMarketDataConnectorConfig,
+    BybitUniverseDiscoveryConfig,
     create_bybit_market_data_connector,
+    create_bybit_spot_market_data_connector,
+    discover_bybit_universe,
 )
 from cryptotechnolog.manager import (
     ManagerEventSource,
@@ -145,6 +151,12 @@ class ProductionBootstrapError(RuntimeError):
 
 
 @dataclass(slots=True, frozen=True)
+class _ResolvedBybitConnectorScope:
+    symbols: tuple[str, ...]
+    summary: dict[str, object]
+
+
+@dataclass(slots=True, frozen=True)
 class ProductionBootstrapPolicy:
     """Политика сборки production composition root."""
 
@@ -187,6 +199,10 @@ class ProductionRuntime:
     paper_runtime: PaperRuntime
     bybit_market_data_connector: BybitMarketDataConnector | None = None
     bybit_market_data_connector_task: asyncio.Task[None] | None = None
+    bybit_market_data_scope_summary: dict[str, object] | None = None
+    bybit_spot_market_data_connector: BybitSpotMarketDataConnector | None = None
+    bybit_spot_market_data_connector_task: asyncio.Task[None] | None = None
+    bybit_spot_market_data_scope_summary: dict[str, object] | None = None
     startup_result: StartupResult | None = None
     shutdown_result: ShutdownResult | None = None
     last_health: SystemHealth | None = None
@@ -201,13 +217,42 @@ class ProductionRuntime:
         """Вернуть operator-facing runtime diagnostics."""
         diagnostics = dict(self.health_checker.get_runtime_diagnostics())
         if self.bybit_market_data_connector is not None:
-            diagnostics["bybit_market_data_connector"] = (
-                self.bybit_market_data_connector.get_operator_diagnostics()
+            diagnostics["bybit_market_data_connector"] = _merge_bybit_scope_summary(
+                self.bybit_market_data_connector.get_operator_diagnostics(),
+                self.bybit_market_data_scope_summary,
             )
         else:
             diagnostics.setdefault(
                 "bybit_market_data_connector",
-                _disabled_bybit_connector_diagnostics(),
+                _merge_bybit_scope_summary(
+                    _disabled_bybit_connector_diagnostics(
+                        enabled=bool(
+                            getattr(self.settings, "bybit_market_data_connector_enabled", False)
+                        )
+                    ),
+                    self.bybit_market_data_scope_summary,
+                ),
+            )
+        if self.bybit_spot_market_data_connector is not None:
+            diagnostics["bybit_spot_market_data_connector"] = _merge_bybit_scope_summary(
+                self.bybit_spot_market_data_connector.get_operator_diagnostics(),
+                self.bybit_spot_market_data_scope_summary,
+            )
+        else:
+            diagnostics.setdefault(
+                "bybit_spot_market_data_connector",
+                _merge_bybit_scope_summary(
+                    _disabled_bybit_spot_connector_diagnostics(
+                        enabled=bool(
+                            getattr(
+                                self.settings,
+                                "bybit_spot_market_data_connector_enabled",
+                                False,
+                            )
+                        )
+                    ),
+                    self.bybit_spot_market_data_scope_summary,
+                ),
             )
         return diagnostics
 
@@ -501,14 +546,22 @@ class ProductionRuntime:
 
     async def _start_opt_in_market_data_connectors(self) -> None:
         """Поднять узкий canonical live-feed connector path после старта runtime components."""
-        if self.bybit_market_data_connector is None:
-            return
-        if self.bybit_market_data_connector_task is not None:
-            return
-        self.bybit_market_data_connector_task = asyncio.create_task(
-            self.bybit_market_data_connector.run(),
-            name="production_bybit_market_data_connector",
-        )
+        if (
+            self.bybit_market_data_connector is not None
+            and self.bybit_market_data_connector_task is None
+        ):
+            self.bybit_market_data_connector_task = asyncio.create_task(
+                self.bybit_market_data_connector.run(),
+                name="production_bybit_market_data_connector",
+            )
+        if (
+            self.bybit_spot_market_data_connector is not None
+            and self.bybit_spot_market_data_connector_task is None
+        ):
+            self.bybit_spot_market_data_connector_task = asyncio.create_task(
+                self.bybit_spot_market_data_connector.run(),
+                name="production_bybit_spot_market_data_connector",
+            )
 
     async def _stop_opt_in_market_data_connectors(self) -> None:
         """Остановить canonical live-feed connector path без вмешательства в core runtime."""
@@ -520,27 +573,52 @@ class ProductionRuntime:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self.bybit_market_data_connector_task
             self.bybit_market_data_connector_task = None
+        if self.bybit_spot_market_data_connector is not None:
+            with contextlib.suppress(Exception):
+                await self.bybit_spot_market_data_connector.stop()
+        if self.bybit_spot_market_data_connector_task is not None:
+            self.bybit_spot_market_data_connector_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await self.bybit_spot_market_data_connector_task
+            self.bybit_spot_market_data_connector_task = None
 
     async def set_bybit_market_data_connector_enabled(self, enabled: bool) -> dict[str, Any]:
         """Narrow runtime control path for Bybit connector widget in terminal settings."""
         candidate_payload = get_settings().model_dump(mode="python")
         candidate_payload["bybit_market_data_connector_enabled"] = enabled
         candidate_settings = Settings.model_validate(candidate_payload)
+        candidate_scope = _resolve_canonical_bybit_market_data_scope(settings=candidate_settings)
         _build_canonical_bybit_market_data_connector(
             settings=candidate_settings,
             market_data_runtime=self.market_data_runtime,
+            resolved_scope=candidate_scope,
         )
 
         updated_settings = update_settings({"bybit_market_data_connector_enabled": enabled})
         self.settings = updated_settings
 
         await self._stop_opt_in_market_data_connectors()
+        resolved_scope = _resolve_canonical_bybit_market_data_scope(settings=updated_settings)
         self.bybit_market_data_connector = _build_canonical_bybit_market_data_connector(
             settings=updated_settings,
             market_data_runtime=self.market_data_runtime,
+            resolved_scope=resolved_scope,
         )
+        self.bybit_market_data_scope_summary = resolved_scope.summary
+        resolved_spot_scope = _resolve_canonical_bybit_spot_market_data_scope(
+            settings=updated_settings
+        )
+        self.bybit_spot_market_data_connector = _build_canonical_bybit_spot_market_data_connector(
+            settings=updated_settings,
+            market_data_runtime=self.market_data_runtime,
+            resolved_scope=resolved_spot_scope,
+        )
+        self.bybit_spot_market_data_scope_summary = resolved_spot_scope.summary
 
-        if self._started and self.bybit_market_data_connector is not None:
+        if self._started and (
+            self.bybit_market_data_connector is not None
+            or self.bybit_spot_market_data_connector is not None
+        ):
             await self._start_opt_in_market_data_connectors()
             self.last_health = await self.health_checker.check_system()
             degraded_reasons = self._collect_degraded_reasons(self.last_health)
@@ -553,6 +631,124 @@ class ProductionRuntime:
             )
 
         return self.get_runtime_diagnostics()
+
+    async def set_bybit_spot_market_data_connector_enabled(self, enabled: bool) -> dict[str, Any]:
+        """Narrow runtime control path for Bybit spot connector widget in terminal settings."""
+        candidate_payload = get_settings().model_dump(mode="python")
+        candidate_payload["bybit_spot_market_data_connector_enabled"] = enabled
+        candidate_settings = Settings.model_validate(candidate_payload)
+        candidate_scope = _resolve_canonical_bybit_spot_market_data_scope(
+            settings=candidate_settings
+        )
+        _build_canonical_bybit_spot_market_data_connector(
+            settings=candidate_settings,
+            market_data_runtime=self.market_data_runtime,
+            resolved_scope=candidate_scope,
+        )
+
+        updated_settings = update_settings({"bybit_spot_market_data_connector_enabled": enabled})
+        self.settings = updated_settings
+
+        await self._stop_opt_in_market_data_connectors()
+        resolved_linear_scope = _resolve_canonical_bybit_market_data_scope(
+            settings=updated_settings
+        )
+        self.bybit_market_data_connector = _build_canonical_bybit_market_data_connector(
+            settings=updated_settings,
+            market_data_runtime=self.market_data_runtime,
+            resolved_scope=resolved_linear_scope,
+        )
+        self.bybit_market_data_scope_summary = resolved_linear_scope.summary
+        resolved_scope = _resolve_canonical_bybit_spot_market_data_scope(settings=updated_settings)
+        self.bybit_spot_market_data_connector = _build_canonical_bybit_spot_market_data_connector(
+            settings=updated_settings,
+            market_data_runtime=self.market_data_runtime,
+            resolved_scope=resolved_scope,
+        )
+        self.bybit_spot_market_data_scope_summary = resolved_scope.summary
+
+        if self._started and (
+            self.bybit_market_data_connector is not None
+            or self.bybit_spot_market_data_connector is not None
+        ):
+            await self._start_opt_in_market_data_connectors()
+            self.last_health = await self.health_checker.check_system()
+            degraded_reasons = self._collect_degraded_reasons(self.last_health)
+            self._update_runtime_diagnostics(
+                runtime_started=True,
+                runtime_ready=not degraded_reasons,
+                startup_state="ready" if not degraded_reasons else "degraded",
+                degraded_reasons=degraded_reasons,
+                failure_reason=None,
+            )
+
+        return self.get_runtime_diagnostics()
+
+    async def update_live_feed_policy_settings(
+        self,
+        updates: dict[str, Any],
+    ) -> Settings:
+        """Синхронизировать live-feed policy settings и canonical runtime truth."""
+        candidate_payload = get_settings().model_dump(mode="python")
+        candidate_payload.update(updates)
+        candidate_settings = Settings.model_validate(candidate_payload)
+
+        resolved_linear_scope = _resolve_canonical_bybit_market_data_scope(
+            settings=candidate_settings
+        )
+        _build_canonical_bybit_market_data_connector(
+            settings=candidate_settings,
+            market_data_runtime=self.market_data_runtime,
+            resolved_scope=resolved_linear_scope,
+        )
+        resolved_spot_scope = _resolve_canonical_bybit_spot_market_data_scope(
+            settings=candidate_settings
+        )
+        _build_canonical_bybit_spot_market_data_connector(
+            settings=candidate_settings,
+            market_data_runtime=self.market_data_runtime,
+            resolved_scope=resolved_spot_scope,
+        )
+
+        updated_settings = update_settings(updates)
+        self.settings = updated_settings
+
+        await self._stop_opt_in_market_data_connectors()
+        resolved_linear_scope = _resolve_canonical_bybit_market_data_scope(
+            settings=updated_settings
+        )
+        self.bybit_market_data_connector = _build_canonical_bybit_market_data_connector(
+            settings=updated_settings,
+            market_data_runtime=self.market_data_runtime,
+            resolved_scope=resolved_linear_scope,
+        )
+        self.bybit_market_data_scope_summary = resolved_linear_scope.summary
+        resolved_spot_scope = _resolve_canonical_bybit_spot_market_data_scope(
+            settings=updated_settings
+        )
+        self.bybit_spot_market_data_connector = _build_canonical_bybit_spot_market_data_connector(
+            settings=updated_settings,
+            market_data_runtime=self.market_data_runtime,
+            resolved_scope=resolved_spot_scope,
+        )
+        self.bybit_spot_market_data_scope_summary = resolved_spot_scope.summary
+
+        if self._started and (
+            self.bybit_market_data_connector is not None
+            or self.bybit_spot_market_data_connector is not None
+        ):
+            await self._start_opt_in_market_data_connectors()
+            self.last_health = await self.health_checker.check_system()
+            degraded_reasons = self._collect_degraded_reasons(self.last_health)
+            self._update_runtime_diagnostics(
+                runtime_started=True,
+                runtime_ready=not degraded_reasons,
+                startup_state="ready" if not degraded_reasons else "degraded",
+                degraded_reasons=degraded_reasons,
+                failure_reason=None,
+            )
+
+        return updated_settings
 
     def _collect_degraded_reasons(self, health: SystemHealth) -> list[str]:  # noqa: PLR0912,PLR0915
         """Собрать operator-facing причины деградации из health truth."""
@@ -570,6 +766,15 @@ class ProductionRuntime:
                 degraded_reason = connector.get("degraded_reason")
                 if isinstance(degraded_reason, str) and degraded_reason:
                     reasons.append(f"live_feed_bybit:{degraded_reason}")
+        if self.bybit_spot_market_data_connector is not None:
+            connector = self.bybit_spot_market_data_connector.get_operator_diagnostics()
+            if connector.get("enabled", False):
+                transport_status = str(connector.get("transport_status", "unknown"))
+                if transport_status != "connected":
+                    reasons.append(f"live_feed_bybit_spot:{transport_status}")
+                degraded_reason = connector.get("degraded_reason")
+                if isinstance(degraded_reason, str) and degraded_reason:
+                    reasons.append(f"live_feed_bybit_spot:{degraded_reason}")
                 last_disconnect_reason = connector.get("last_disconnect_reason")
                 if isinstance(last_disconnect_reason, str) and last_disconnect_reason:
                     reasons.append(f"live_feed_bybit_disconnect:{last_disconnect_reason}")
@@ -953,9 +1158,19 @@ async def build_production_runtime(  # noqa: PLR0915
     def update_paper_runtime_diagnostics(diagnostics: dict[str, object]) -> None:
         health_checker.set_runtime_diagnostics(paper_runtime=diagnostics)
 
+    bybit_market_data_scope = _resolve_canonical_bybit_market_data_scope(settings=runtime_settings)
     bybit_market_data_connector = _build_canonical_bybit_market_data_connector(
         settings=runtime_settings,
         market_data_runtime=market_data_runtime,
+        resolved_scope=bybit_market_data_scope,
+    )
+    bybit_spot_market_data_scope = _resolve_canonical_bybit_spot_market_data_scope(
+        settings=runtime_settings
+    )
+    bybit_spot_market_data_connector = _build_canonical_bybit_spot_market_data_connector(
+        settings=runtime_settings,
+        market_data_runtime=market_data_runtime,
+        resolved_scope=bybit_spot_market_data_scope,
     )
 
     intelligence_runtime = create_intelligence_runtime(
@@ -1769,6 +1984,9 @@ async def build_production_runtime(  # noqa: PLR0915
         validation_runtime=validation_runtime,
         paper_runtime=paper_runtime,
         bybit_market_data_connector=bybit_market_data_connector,
+        bybit_market_data_scope_summary=bybit_market_data_scope.summary,
+        bybit_spot_market_data_connector=bybit_spot_market_data_connector,
+        bybit_spot_market_data_scope_summary=bybit_spot_market_data_scope.summary,
     )
     runtime._update_runtime_diagnostics(
         composition_root_built=True,
@@ -1802,48 +2020,239 @@ def _build_canonical_bybit_market_data_connector(
     *,
     settings: Settings,
     market_data_runtime: MarketDataRuntime,
+    resolved_scope: _ResolvedBybitConnectorScope,
 ) -> BybitMarketDataConnector | None:
     enabled = bool(getattr(settings, "bybit_market_data_connector_enabled", False))
     if not enabled:
         return None
-    raw_symbol = str(getattr(settings, "bybit_market_data_connector_symbol", "") or "").strip()
-    if not raw_symbol:
-        raise ValueError(
-            "Bybit market data connector enabled, but bybit_market_data_connector_symbol is empty"
-        )
-    if "," in raw_symbol:
-        raise ValueError(
-            "Bybit market data connector допускает только один symbol scope на текущем шаге"
-        )
+    symbols = resolved_scope.symbols
+    if not symbols:
+        if resolved_scope.summary.get("scope_mode") == "universe":
+            return None
+        raise ValueError("Bybit market data connector enabled, but resolved symbol scope is empty")
     return create_bybit_market_data_connector(
-        symbols=(raw_symbol,),
+        symbols=symbols,
         market_data_runtime=market_data_runtime,
         config=BybitMarketDataConnectorConfig.from_settings(settings),
     )
 
 
-def _disabled_bybit_connector_diagnostics() -> dict[str, object]:
+def _build_canonical_bybit_spot_market_data_connector(
+    *,
+    settings: Settings,
+    market_data_runtime: MarketDataRuntime,
+    resolved_scope: _ResolvedBybitConnectorScope,
+) -> BybitSpotMarketDataConnector | None:
+    enabled = bool(getattr(settings, "bybit_spot_market_data_connector_enabled", False))
+    if not enabled:
+        return None
+    symbols = resolved_scope.symbols
+    if not symbols:
+        if resolved_scope.summary.get("scope_mode") == "universe":
+            return None
+        raise ValueError(
+            "Bybit spot market data connector enabled, but resolved symbol scope is empty"
+        )
+    return create_bybit_spot_market_data_connector(
+        symbols=symbols,
+        market_data_runtime=market_data_runtime,
+        config=BybitSpotMarketDataConnectorConfig.from_settings(settings),
+    )
+
+
+def _resolve_canonical_bybit_market_data_scope(
+    *,
+    settings: Settings,
+) -> _ResolvedBybitConnectorScope:
+    return _resolve_bybit_connector_scope(
+        settings=settings,
+        enabled=bool(getattr(settings, "bybit_market_data_connector_enabled", False)),
+        raw_scope_mode=getattr(settings, "bybit_market_data_scope_mode", "manual"),
+        raw_symbol_scope=getattr(settings, "bybit_market_data_connector_symbol", ""),
+        contour="linear",
+    )
+
+
+def _resolve_canonical_bybit_spot_market_data_scope(
+    *,
+    settings: Settings,
+) -> _ResolvedBybitConnectorScope:
+    return _resolve_bybit_connector_scope(
+        settings=settings,
+        enabled=bool(getattr(settings, "bybit_spot_market_data_connector_enabled", False)),
+        raw_scope_mode=getattr(settings, "bybit_spot_market_data_scope_mode", "manual"),
+        raw_symbol_scope=getattr(settings, "bybit_spot_market_data_connector_symbol", ""),
+        contour="spot",
+    )
+
+
+def _resolve_bybit_connector_scope(
+    *,
+    settings: Settings,
+    enabled: bool,
+    raw_scope_mode: object,
+    raw_symbol_scope: object,
+    contour: str,
+) -> _ResolvedBybitConnectorScope:
+    scope_mode = str(raw_scope_mode or "manual").strip().lower()
+    if scope_mode == "universe":
+        try:
+            selection = discover_bybit_universe(
+                BybitUniverseDiscoveryConfig(
+                    contour=cast("Any", contour),
+                    rest_base_url=(
+                        "https://api-testnet.bybit.com"
+                        if settings.bybit_testnet
+                        else "https://api.bybit.com"
+                    ),
+                    min_quote_volume_24h_usd=settings.bybit_universe_min_quote_volume_24h_usd,
+                    min_trade_count_24h=settings.bybit_universe_min_trade_count_24h,
+                    max_symbols_per_scope=settings.bybit_universe_max_symbols_per_scope,
+                )
+            )
+        except (OSError, TimeoutError, URLError) as exc:
+            if enabled:
+                raise RuntimeError(
+                    f"Bybit {contour} universe discovery is unavailable: {exc}"
+                ) from exc
+            return _ResolvedBybitConnectorScope(
+                symbols=(),
+                summary={
+                    "scope_mode": "universe",
+                    "total_instruments_discovered": None,
+                    "instruments_passed_coarse_filter": None,
+                },
+            )
+        return _ResolvedBybitConnectorScope(
+            symbols=selection.selected_symbols,
+            summary={
+                "scope_mode": selection.scope_mode,
+                "total_instruments_discovered": selection.total_instruments_discovered,
+                "instruments_passed_coarse_filter": selection.instruments_passed_coarse_filter,
+            },
+        )
+
+    symbols = _parse_bybit_symbol_scope(str(raw_symbol_scope or "").strip())
+    if enabled and not symbols:
+        raise ValueError(f"Bybit {contour} connector enabled, but symbol scope is empty")
+    return _ResolvedBybitConnectorScope(
+        symbols=symbols,
+        summary={
+            "scope_mode": "manual",
+            "total_instruments_discovered": None,
+            "instruments_passed_coarse_filter": None,
+        },
+    )
+
+
+def _parse_bybit_symbol_scope(raw_symbol_scope: str) -> tuple[str, ...]:
+    symbols = tuple(
+        symbol
+        for symbol in (part.strip() for part in raw_symbol_scope.replace("\n", ",").split(","))
+        if symbol
+    )
+    return tuple(dict.fromkeys(symbols))
+
+
+def _disabled_bybit_connector_diagnostics(*, enabled: bool = False) -> dict[str, object]:
     return {
-        "enabled": False,
+        "enabled": enabled,
         "exchange": "bybit",
         "symbol": None,
         "symbols": (),
-        "transport_status": "disabled",
-        "recovery_status": "idle",
+        "symbol_snapshots": (),
+        "transport_status": "idle" if enabled else "disabled",
+        "recovery_status": "waiting_for_scope" if enabled else "idle",
         "subscription_alive": False,
         "last_message_at": None,
         "trade_seen": False,
         "orderbook_seen": False,
         "best_bid": None,
         "best_ask": None,
-        "degraded_reason": None,
+        "degraded_reason": "waiting_for_qualifying_instruments" if enabled else None,
         "last_disconnect_reason": None,
         "retry_count": None,
         "ready": False,
         "started": False,
-        "lifecycle_state": "disabled",
+        "lifecycle_state": "waiting_for_scope" if enabled else "disabled",
         "reset_required": False,
+        "scope_mode": "manual",
+        "total_instruments_discovered": None,
+        "instruments_passed_coarse_filter": None,
+        "active_subscribed_scope_count": 0,
+        "live_trade_streams_count": 0,
+        "live_orderbook_count": 0,
+        "degraded_or_stale_count": 0,
     }
+
+
+def _disabled_bybit_spot_connector_diagnostics(*, enabled: bool = False) -> dict[str, object]:
+    return {
+        "enabled": enabled,
+        "exchange": "bybit_spot",
+        "symbol": None,
+        "symbols": (),
+        "symbol_snapshots": (),
+        "transport_status": "idle" if enabled else "disabled",
+        "recovery_status": "waiting_for_scope" if enabled else "idle",
+        "subscription_alive": False,
+        "last_message_at": None,
+        "trade_seen": False,
+        "orderbook_seen": False,
+        "best_bid": None,
+        "best_ask": None,
+        "degraded_reason": "waiting_for_qualifying_instruments" if enabled else None,
+        "last_disconnect_reason": None,
+        "retry_count": None,
+        "ready": False,
+        "started": False,
+        "lifecycle_state": "waiting_for_scope" if enabled else "disabled",
+        "reset_required": False,
+        "scope_mode": "manual",
+        "total_instruments_discovered": None,
+        "instruments_passed_coarse_filter": None,
+        "active_subscribed_scope_count": 0,
+        "live_trade_streams_count": 0,
+        "live_orderbook_count": 0,
+        "degraded_or_stale_count": 0,
+    }
+
+
+def _merge_bybit_scope_summary(
+    connector_diagnostics: dict[str, object],
+    scope_summary: dict[str, object] | None,
+) -> dict[str, object]:
+    merged = dict(connector_diagnostics)
+    if scope_summary is not None:
+        merged.update(scope_summary)
+    raw_symbol_snapshots = merged.get("symbol_snapshots")
+    symbol_snapshots = (
+        raw_symbol_snapshots if isinstance(raw_symbol_snapshots, (list, tuple)) else ()
+    )
+    live_trade_streams_count = sum(
+        1
+        for snapshot in symbol_snapshots
+        if isinstance(snapshot, dict) and bool(snapshot.get("trade_seen", False))
+    )
+    live_orderbook_count = sum(
+        1
+        for snapshot in symbol_snapshots
+        if isinstance(snapshot, dict) and bool(snapshot.get("orderbook_seen", False))
+    )
+    active_subscribed_scope_count = len([
+        snapshot for snapshot in symbol_snapshots if isinstance(snapshot, dict)
+    ])
+    if active_subscribed_scope_count == 0 and isinstance(merged.get("symbols"), (list, tuple)):
+        active_subscribed_scope_count = len(cast("list[str] | tuple[str, ...]", merged["symbols"]))
+    merged.setdefault("scope_mode", "manual")
+    merged["active_subscribed_scope_count"] = active_subscribed_scope_count
+    merged["live_trade_streams_count"] = live_trade_streams_count
+    merged["live_orderbook_count"] = live_orderbook_count
+    merged["degraded_or_stale_count"] = max(
+        0,
+        active_subscribed_scope_count - min(live_trade_streams_count, live_orderbook_count),
+    )
+    return merged
 
 
 def _build_risk_bar_completed_event(
