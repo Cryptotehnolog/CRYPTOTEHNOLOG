@@ -1380,12 +1380,10 @@ class BybitMarketDataConnector:
         observed_at = _utcnow()
         if previous_registry.topics:
             await websocket.send(
-                json.dumps(
-                    {
-                        "op": "unsubscribe",
-                        "args": list(previous_registry.topics),
-                    }
-                )
+                json.dumps({
+                    "op": "unsubscribe",
+                    "args": list(previous_registry.topics),
+                })
             )
         removed_symbols = tuple(
             symbol for symbol in self._active_symbols if symbol not in qualifying_symbols
@@ -1435,12 +1433,10 @@ class BybitMarketDataConnector:
                 self.parser.invalidate_orderbook_state(symbols=self._coarse_candidate_symbols)
                 if previous_registry.topics:
                     await websocket.send(
-                        json.dumps(
-                            {
-                                "op": "unsubscribe",
-                                "args": list(previous_registry.topics),
-                            }
-                        )
+                        json.dumps({
+                            "op": "unsubscribe",
+                            "args": list(previous_registry.topics),
+                        })
                     )
                 self._mark_resubscribing(
                     reason="trade_count_threshold_updated",

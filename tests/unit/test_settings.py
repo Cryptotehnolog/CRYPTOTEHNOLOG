@@ -500,16 +500,12 @@ class TestSettingsFactory:
         assert settings1 is not settings2
 
     def test_persist_settings_updates_survive_reload(self):
-        persisted = persist_settings_updates(
-            {
-                "bybit_market_data_scope_mode": "universe",
-                "bybit_market_data_connector_enabled": True,
-                "bybit_spot_market_data_connector_enabled": True,
-                "bybit_universe_min_trade_count_24h": 7,
-            }
-        )
+        persisted = persist_settings_updates({
+            "bybit_market_data_connector_enabled": True,
+            "bybit_spot_market_data_connector_enabled": True,
+            "bybit_universe_min_trade_count_24h": 7,
+        })
 
-        assert persisted.bybit_market_data_scope_mode == "universe"
         assert persisted.bybit_market_data_connector_enabled is True
         assert persisted.bybit_spot_market_data_connector_enabled is True
         assert persisted.bybit_universe_min_trade_count_24h == 7
@@ -517,7 +513,6 @@ class TestSettingsFactory:
 
         reloaded = reload_settings()
 
-        assert reloaded.bybit_market_data_scope_mode == "universe"
         assert reloaded.bybit_market_data_connector_enabled is True
         assert reloaded.bybit_spot_market_data_connector_enabled is True
         assert reloaded.bybit_universe_min_trade_count_24h == 7
@@ -526,17 +521,13 @@ class TestSettingsFactory:
         os.environ["BYBIT_UNIVERSE_MIN_QUOTE_VOLUME_24H_USD"] = "1234567"
 
         try:
-            persist_settings_updates(
-                {
-                    "bybit_market_data_scope_mode": "universe",
-                    "bybit_universe_min_trade_count_24h": 9,
-                }
-            )
+            persist_settings_updates({
+                "bybit_universe_min_trade_count_24h": 9,
+            })
             update_settings({"live_feed_retry_delay_seconds": 13})
 
             reloaded = reload_settings()
 
-            assert reloaded.bybit_market_data_scope_mode == "universe"
             assert reloaded.bybit_universe_min_trade_count_24h == 9
             assert reloaded.bybit_universe_min_quote_volume_24h_usd == 1234567.0
             assert reloaded.live_feed_retry_delay_seconds != 13

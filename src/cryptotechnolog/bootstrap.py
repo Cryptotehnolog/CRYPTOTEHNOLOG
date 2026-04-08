@@ -2379,9 +2379,7 @@ def _resolve_bybit_connector_scope(
         )
     except (OSError, TimeoutError, URLError) as exc:
         if enabled and not capture_discovery_errors:
-            raise RuntimeError(
-                f"Bybit {contour} universe discovery is unavailable: {exc}"
-            ) from exc
+            raise RuntimeError(f"Bybit {contour} universe discovery is unavailable: {exc}") from exc
         return _ResolvedBybitConnectorScope(
             symbols=(),
             truth=_BybitConnectorScopeTruth(
@@ -2582,9 +2580,7 @@ def _project_bybit_connector_diagnostics(  # noqa: PLR0912, PLR0915
         raw_symbol_snapshots if isinstance(raw_symbol_snapshots, (list, tuple)) else ()
     )
     selected_quote_volume_24h_usd_by_symbol = (
-        dict(scope_truth.selected_quote_volume_24h_usd_by_symbol)
-        if scope_truth is not None
-        else {}
+        dict(scope_truth.selected_quote_volume_24h_usd_by_symbol) if scope_truth is not None else {}
     )
     if selected_quote_volume_24h_usd_by_symbol and symbol_snapshots:
         enriched_symbol_snapshots: list[dict[str, object]] = []
@@ -2626,9 +2622,9 @@ def _project_bybit_connector_diagnostics(  # noqa: PLR0912, PLR0915
         merged["orderbook_seen"] = False
         merged["best_bid"] = None
         merged["best_ask"] = None
-    active_subscribed_scope_count = len(
-        [snapshot for snapshot in symbol_snapshots if isinstance(snapshot, dict)]
-    )
+    active_subscribed_scope_count = len([
+        snapshot for snapshot in symbol_snapshots if isinstance(snapshot, dict)
+    ])
     if active_subscribed_scope_count == 0 and isinstance(merged.get("symbols"), (list, tuple)):
         active_subscribed_scope_count = len(cast("list[str] | tuple[str, ...]", merged["symbols"]))
     merged.setdefault("scope_mode", "universe")

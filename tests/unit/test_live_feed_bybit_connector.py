@@ -732,6 +732,8 @@ async def test_bybit_connector_restores_derived_trade_count_state_from_local_sna
     connector = BybitMarketDataConnector(
         session=_session(),
         market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=1,
         derived_trade_count_store_path=store.path,
     )
 
@@ -1489,7 +1491,7 @@ def test_gap_after_restored_historical_window_requires_only_post_gap_live_tail()
     resumed = tracker.get_diagnostics(observed_at=resumed_at)
 
     assert ready_before_gap.ready is True
-    assert after_gap.state == "not_reliable_after_gap"
+    assert after_gap.state == "live_tail_pending_after_gap"
     assert after_gap.ready is False
     assert after_gap.observation_started_at == datetime(2026, 4, 5, 12, 0, tzinfo=UTC).isoformat()
     assert after_gap.reliable_after == gap_at.isoformat()
@@ -1831,13 +1833,11 @@ async def test_bybit_connector_subscribes_and_ingests_real_market_data_path() ->
     market_data_runtime = create_market_data_runtime(event_bus=event_bus)
     await market_data_runtime.start()
 
-    websocket = _FakeWebSocket(
-        [
-            json.dumps({"op": "subscribe", "success": True}),
-            json.dumps(_trade_message()),
-            json.dumps(_orderbook_snapshot_message()),
-        ]
-    )
+    websocket = _FakeWebSocket([
+        json.dumps({"op": "subscribe", "success": True}),
+        json.dumps(_trade_message()),
+        json.dumps(_orderbook_snapshot_message()),
+    ])
 
     async def websocket_factory(_: BybitMarketDataConnectorConfig) -> _FakeWebSocket:
         return websocket

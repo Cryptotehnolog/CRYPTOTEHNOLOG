@@ -668,12 +668,10 @@ class _StubProductionRuntime:
         self.bybit_instruments_passed_coarse_filter = 42
         self.bybit_instruments_passed_trade_count_filter = None
         self.bybit_active_scope_count = 42 if self.bybit_enabled else 0
-        self.settings = Settings.model_validate(
-            {
-                **get_settings().model_dump(mode="python"),
-                **updates,
-            }
-        )
+        self.settings = Settings.model_validate({
+            **get_settings().model_dump(mode="python"),
+            **updates,
+        })
         return self.settings
 
     def get_runtime_diagnostics(self) -> dict[str, object]:
@@ -1847,8 +1845,6 @@ def test_dashboard_live_feed_policy_settings_endpoint_syncs_canonical_runtime_tr
         diagnostics_response = client.get("/dashboard/settings/bybit-connector-diagnostics")
 
     assert response.status_code == 200
-    data = LiveFeedPolicySettingsDTO.model_validate(response.json())
-
     assert diagnostics_response.status_code == 200
     diagnostics = BybitConnectorDiagnosticsDTO.model_validate(diagnostics_response.json())
     assert diagnostics.scope_mode == "universe"

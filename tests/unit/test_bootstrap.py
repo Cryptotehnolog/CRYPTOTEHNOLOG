@@ -3686,13 +3686,11 @@ class TestProductionBootstrap:
 
         await handler(validation_event)
 
-        candidate = runtime.paper_runtime.get_candidate(
-            (
-                "BTC/USDT",
-                "bybit",
-                MarketDataTimeframe.M1,
-            )
-        )
+        candidate = runtime.paper_runtime.get_candidate((
+            "BTC/USDT",
+            "bybit",
+            MarketDataTimeframe.M1,
+        ))
         diagnostics = runtime.paper_runtime.get_runtime_diagnostics()
 
         assert candidate is not None
@@ -3828,10 +3826,18 @@ class TestProductionBootstrap:
             "cryptotechnolog.bootstrap.create_bybit_market_data_connector",
             lambda **_: fake_connector,
         )
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            lambda *_args, **_kwargs: BybitUniverseSelectionSummary(
+                scope_mode="universe",
+                total_instruments_discovered=42,
+                instruments_passed_coarse_filter=1,
+                selected_symbols=("BTC/USDT",),
+            ),
+        )
         runtime = await build_production_runtime(
             settings=make_settings(
                 bybit_market_data_connector_enabled=True,
-                bybit_market_data_connector_symbol="BTC/USDT",
             ),
             policy=ProductionBootstrapPolicy(
                 test_mode=True,
@@ -3898,11 +3904,19 @@ class TestProductionBootstrap:
             "cryptotechnolog.bootstrap.create_bybit_market_data_connector",
             _create_connector,
         )
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            lambda *_args, **_kwargs: BybitUniverseSelectionSummary(
+                scope_mode="universe",
+                total_instruments_discovered=42,
+                instruments_passed_coarse_filter=2,
+                selected_symbols=("BTC/USDT", "ETH/USDT"),
+            ),
+        )
 
         runtime = await build_production_runtime(
             settings=make_settings(
                 bybit_market_data_connector_enabled=True,
-                bybit_market_data_connector_symbol="BTC/USDT, ETH/USDT",
             ),
             policy=ProductionBootstrapPolicy(
                 test_mode=True,
@@ -4321,25 +4335,15 @@ class TestProductionBootstrap:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        fake_connector = _FakeBybitConnector()
         settings_holder = {
             "value": make_settings(
                 bybit_market_data_connector_enabled=True,
-                bybit_market_data_scope_mode="manual",
-                bybit_market_data_connector_symbol="BTC/USDT",
                 bybit_spot_market_data_connector_enabled=False,
-                bybit_spot_market_data_scope_mode="manual",
-                bybit_spot_market_data_connector_symbol=None,
                 bybit_universe_min_quote_volume_24h_usd=100000000,
                 bybit_universe_min_trade_count_24h=3,
                 bybit_universe_max_symbols_per_scope=100,
             )
         }
-
-        monkeypatch.setattr(
-            "cryptotechnolog.bootstrap.create_bybit_market_data_connector",
-            lambda **_kwargs: fake_connector,
-        )
         monkeypatch.setattr(
             "cryptotechnolog.bootstrap.discover_bybit_universe",
             Mock(side_effect=URLError("offline")),
@@ -4350,12 +4354,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -4370,22 +4372,19 @@ class TestProductionBootstrap:
             ),
         )
 
-        updated_settings = await runtime.update_live_feed_policy_settings(
-            {
-                "bybit_market_data_scope_mode": "universe",
-                "bybit_market_data_connector_symbol": None,
-                "bybit_spot_market_data_scope_mode": "universe",
-                "bybit_spot_market_data_connector_symbol": None,
-                "bybit_universe_min_quote_volume_24h_usd": 100000000,
-                "bybit_universe_min_trade_count_24h": 3,
-                "bybit_universe_max_symbols_per_scope": 100,
-            }
-        )
+        updated_settings = await runtime.update_live_feed_policy_settings({
+            "bybit_universe_min_quote_volume_24h_usd": 100000000,
+            "bybit_universe_min_trade_count_24h": 3,
+            "bybit_universe_max_symbols_per_scope": 100,
+        })
 
         diagnostics = runtime.get_runtime_diagnostics()["bybit_market_data_connector"]
 
-        assert updated_settings.bybit_market_data_scope_mode == "universe"
-        assert updated_settings.bybit_spot_market_data_scope_mode == "universe"
+        assert updated_settings.bybit_market_data_connector_enabled is True
+        assert updated_settings.bybit_spot_market_data_connector_enabled is False
+        assert updated_settings.bybit_universe_min_quote_volume_24h_usd == 100000000
+        assert updated_settings.bybit_universe_min_trade_count_24h == 3
+        assert updated_settings.bybit_universe_max_symbols_per_scope == 100
         assert runtime.bybit_market_data_connector is None
         assert diagnostics["enabled"] is True
         assert diagnostics["scope_mode"] == "universe"
@@ -4421,12 +4420,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -4481,12 +4478,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -4721,9 +4716,7 @@ class TestProductionBootstrap:
                 total_instruments_discovered=648,
                 instruments_passed_coarse_filter=8,
                 selected_symbols=("BTC/USDT",),
-                selected_quote_volume_24h_usd_by_symbol=(
-                    ("BTC/USDT", "8152724109.6241"),
-                ),
+                selected_quote_volume_24h_usd_by_symbol=(("BTC/USDT", "8152724109.6241"),),
             ),
             None,
         )
@@ -4747,13 +4740,22 @@ class TestProductionBootstrap:
             "cryptotechnolog.bootstrap.create_bybit_spot_market_data_connector",
             lambda **_: spot_connector,
         )
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            lambda config: BybitUniverseSelectionSummary(
+                scope_mode="universe",
+                total_instruments_discovered=20,
+                instruments_passed_coarse_filter=2,
+                selected_symbols=("BTC/USDT", "ETH/USDT")
+                if config.contour == "linear"
+                else ("BTC/USDT",),
+            ),
+        )
 
         runtime = await build_production_runtime(
             settings=make_settings(
                 bybit_market_data_connector_enabled=True,
-                bybit_market_data_connector_symbol="BTC/USDT",
                 bybit_spot_market_data_connector_enabled=True,
-                bybit_spot_market_data_connector_symbol="BTC/USDT",
             ),
             policy=ProductionBootstrapPolicy(
                 test_mode=True,
@@ -4806,13 +4808,22 @@ class TestProductionBootstrap:
             "cryptotechnolog.bootstrap.create_bybit_spot_market_data_connector",
             lambda **_: spot_connector,
         )
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            lambda config: BybitUniverseSelectionSummary(
+                scope_mode="universe",
+                total_instruments_discovered=20,
+                instruments_passed_coarse_filter=2,
+                selected_symbols=("BTC/USDT", "ETH/USDT")
+                if config.contour == "linear"
+                else ("BTC/USDT",),
+            ),
+        )
 
         runtime = await build_production_runtime(
             settings=make_settings(
                 bybit_market_data_connector_enabled=True,
-                bybit_market_data_connector_symbol="BTC/USDT",
                 bybit_spot_market_data_connector_enabled=True,
-                bybit_spot_market_data_connector_symbol="BTC/USDT",
             ),
             policy=ProductionBootstrapPolicy(
                 test_mode=True,
@@ -4880,12 +4891,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -4922,19 +4931,10 @@ class TestProductionBootstrap:
             selected_symbols=("BTC/USDT", "ETH/USDT", "SOL/USDT"),
         )
 
-        monkeypatch.setattr(
-            "cryptotechnolog.bootstrap.discover_bybit_universe",
-            Mock(side_effect=AssertionError("trade_count-only save must reuse discovery truth")),
-        )
-
         settings_holder = {
             "value": make_settings(
                 bybit_market_data_connector_enabled=False,
-                bybit_market_data_scope_mode="manual",
-                bybit_market_data_connector_symbol="BTC/USDT",
                 bybit_spot_market_data_connector_enabled=False,
-                bybit_spot_market_data_scope_mode="manual",
-                bybit_spot_market_data_connector_symbol="BTC/USDT",
                 bybit_universe_min_quote_volume_24h_usd=100000000,
                 bybit_universe_min_trade_count_24h=0,
                 bybit_universe_max_symbols_per_scope=100,
@@ -4946,12 +4946,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -4967,23 +4965,21 @@ class TestProductionBootstrap:
         )
         settings_holder["value"] = make_settings(
             bybit_market_data_connector_enabled=False,
-            bybit_market_data_scope_mode="universe",
-            bybit_market_data_connector_symbol=None,
             bybit_spot_market_data_connector_enabled=False,
-            bybit_spot_market_data_scope_mode="manual",
-            bybit_spot_market_data_connector_symbol="BTC/USDT",
             bybit_universe_min_quote_volume_24h_usd=100000000,
             bybit_universe_min_trade_count_24h=0,
             bybit_universe_max_symbols_per_scope=100,
         )
         runtime.settings = settings_holder["value"]
         runtime.bybit_market_data_scope_summary = linear_scope_truth
-
-        updated_settings = await runtime.update_live_feed_policy_settings(
-            {
-                "bybit_universe_min_trade_count_24h": 5,
-            }
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            Mock(side_effect=AssertionError("trade_count-only save must reuse discovery truth")),
         )
+
+        updated_settings = await runtime.update_live_feed_policy_settings({
+            "bybit_universe_min_trade_count_24h": 5,
+        })
 
         assert updated_settings.bybit_universe_min_trade_count_24h == 5
         assert runtime.bybit_market_data_scope_summary is not None
@@ -5016,16 +5012,9 @@ class TestProductionBootstrap:
             "cryptotechnolog.bootstrap.create_bybit_market_data_connector",
             lambda **_: linear_connector,
         )
-        monkeypatch.setattr(
-            "cryptotechnolog.bootstrap.discover_bybit_universe",
-            Mock(side_effect=AssertionError("enable must reuse existing discovery truth")),
-        )
-
         settings_holder = {
             "value": make_settings(
                 bybit_market_data_connector_enabled=False,
-                bybit_market_data_scope_mode="manual",
-                bybit_market_data_connector_symbol="BTC/USDT",
                 bybit_universe_min_quote_volume_24h_usd=100000000,
                 bybit_universe_min_trade_count_24h=5,
                 bybit_universe_max_symbols_per_scope=100,
@@ -5037,12 +5026,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -5058,14 +5045,16 @@ class TestProductionBootstrap:
         )
         settings_holder["value"] = make_settings(
             bybit_market_data_connector_enabled=False,
-            bybit_market_data_scope_mode="universe",
-            bybit_market_data_connector_symbol=None,
             bybit_universe_min_quote_volume_24h_usd=100000000,
             bybit_universe_min_trade_count_24h=5,
             bybit_universe_max_symbols_per_scope=100,
         )
         runtime.settings = settings_holder["value"]
         runtime.bybit_market_data_scope_summary = linear_scope_truth
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            Mock(side_effect=AssertionError("enable must reuse existing discovery truth")),
+        )
 
         diagnostics = await runtime.set_bybit_market_data_connector_enabled(True)
 
@@ -5119,12 +5108,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -5203,12 +5190,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -5257,12 +5242,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -5278,18 +5261,12 @@ class TestProductionBootstrap:
         )
         discover_calls.clear()
 
-        updated_settings = await runtime.update_live_feed_policy_settings(
-            {
-                "bybit_market_data_scope_mode": "universe",
-                "bybit_market_data_connector_symbol": None,
-                "bybit_spot_market_data_scope_mode": "universe",
-                "bybit_spot_market_data_connector_symbol": None,
-            }
-        )
+        updated_settings = await runtime.update_live_feed_policy_settings({
+            "bybit_universe_min_quote_volume_24h_usd": 100000000,
+        })
 
         assert discover_calls == ["linear", "spot"]
-        assert updated_settings.bybit_market_data_scope_mode == "universe"
-        assert updated_settings.bybit_spot_market_data_scope_mode == "universe"
+        assert updated_settings.bybit_universe_min_quote_volume_24h_usd == 100000000
 
     @pytest.mark.asyncio
     async def test_live_feed_policy_update_restarts_only_changed_bybit_contour(
@@ -5299,11 +5276,9 @@ class TestProductionBootstrap:
         linear_connector = _FakeBybitConnector()
         spot_connector = _FakeBybitConnector()
         spot_connector.exchange = "bybit_spot"
-        replacement_spot_connector = _FakeBybitConnector()
-        replacement_spot_connector.exchange = "bybit_spot"
 
         linear_factory = Mock(return_value=linear_connector)
-        spot_factory = Mock(side_effect=[spot_connector, replacement_spot_connector])
+        spot_factory = Mock(return_value=spot_connector)
 
         monkeypatch.setattr(
             "cryptotechnolog.bootstrap.create_bybit_market_data_connector",
@@ -5313,13 +5288,22 @@ class TestProductionBootstrap:
             "cryptotechnolog.bootstrap.create_bybit_spot_market_data_connector",
             spot_factory,
         )
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            lambda config: BybitUniverseSelectionSummary(
+                scope_mode="universe",
+                total_instruments_discovered=20,
+                instruments_passed_coarse_filter=2,
+                selected_symbols=("BTC/USDT", "ETH/USDT")
+                if config.contour == "linear"
+                else ("BTC/USDT",),
+            ),
+        )
 
         settings_holder = {
             "value": make_settings(
                 bybit_market_data_connector_enabled=True,
-                bybit_market_data_connector_symbol="BTC/USDT",
                 bybit_spot_market_data_connector_enabled=True,
-                bybit_spot_market_data_connector_symbol="BTC/USDT",
             )
         }
         monkeypatch.setattr(
@@ -5328,12 +5312,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -5363,17 +5345,15 @@ class TestProductionBootstrap:
         original_linear_connector = runtime.bybit_market_data_connector
         original_linear_task = runtime.bybit_market_data_connector_task
 
-        updated_settings = await runtime.update_live_feed_policy_settings(
-            {
-                "bybit_spot_market_data_connector_symbol": "ETH/USDT",
-            }
-        )
+        updated_settings = await runtime.update_live_feed_policy_settings({
+            "bybit_spot_market_data_connector_enabled": False,
+        })
 
-        assert updated_settings.bybit_spot_market_data_connector_symbol == "ETH/USDT"
+        assert updated_settings.bybit_spot_market_data_connector_enabled is False
         assert runtime.bybit_market_data_connector is original_linear_connector
         assert runtime.bybit_market_data_connector_task is original_linear_task
         assert linear_connector.stop_called is False
-        assert runtime.bybit_spot_market_data_connector is replacement_spot_connector
+        assert runtime.bybit_spot_market_data_connector is None
         assert spot_connector.stop_called is True
 
         await runtime._stop_opt_in_market_data_connectors()
@@ -5407,12 +5387,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -5460,11 +5438,9 @@ class TestProductionBootstrap:
         original_connector = runtime.bybit_market_data_connector
         original_task = runtime.bybit_market_data_connector_task
 
-        updated_settings = await runtime.update_live_feed_policy_settings(
-            {
-                "bybit_universe_min_trade_count_24h": 2,
-            }
-        )
+        updated_settings = await runtime.update_live_feed_policy_settings({
+            "bybit_universe_min_trade_count_24h": 2,
+        })
 
         assert updated_settings.bybit_universe_min_trade_count_24h == 2
         assert runtime.bybit_market_data_connector is original_connector
@@ -5504,12 +5480,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -5548,11 +5522,9 @@ class TestProductionBootstrap:
         await asyncio.wait_for(linear_connector.run_started.wait(), timeout=1.0)
 
         with pytest.raises(RuntimeError, match="transport_closed"):
-            await runtime.update_live_feed_policy_settings(
-                {
-                    "bybit_universe_min_trade_count_24h": 2,
-                }
-            )
+            await runtime.update_live_feed_policy_settings({
+                "bybit_universe_min_trade_count_24h": 2,
+            })
 
         assert settings_holder["value"].bybit_universe_min_trade_count_24h == 1_000_000_000
         assert linear_connector.updated_trade_count_thresholds == []
@@ -5589,12 +5561,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -5632,11 +5602,9 @@ class TestProductionBootstrap:
         await runtime._start_opt_in_market_data_connectors()
         await asyncio.wait_for(linear_connector.run_started.wait(), timeout=1.0)
 
-        updated_settings = await runtime.update_live_feed_policy_settings(
-            {
-                "bybit_universe_min_trade_count_24h": 2,
-            }
-        )
+        updated_settings = await runtime.update_live_feed_policy_settings({
+            "bybit_universe_min_trade_count_24h": 2,
+        })
         diagnostics = runtime.get_runtime_diagnostics()["bybit_market_data_connector"]
 
         assert updated_settings.bybit_universe_min_trade_count_24h == 2
@@ -5665,12 +5633,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -5713,12 +5679,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -5754,11 +5718,19 @@ class TestProductionBootstrap:
             "cryptotechnolog.bootstrap.create_bybit_market_data_connector",
             lambda **_: connector,
         )
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            lambda *_args, **_kwargs: BybitUniverseSelectionSummary(
+                scope_mode="universe",
+                total_instruments_discovered=10,
+                instruments_passed_coarse_filter=2,
+                selected_symbols=("BTC/USDT", "ETH/USDT"),
+            ),
+        )
 
         settings_holder = {
             "value": make_settings(
                 bybit_market_data_connector_enabled=False,
-                bybit_market_data_connector_symbol="BTC/USDT",
             )
         }
         monkeypatch.setattr(
@@ -5767,12 +5739,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -5851,12 +5821,10 @@ class TestProductionBootstrap:
         )
 
         def fake_update_settings(updates: dict[str, object]) -> Settings:
-            settings_holder["value"] = Settings.model_validate(
-                {
-                    **settings_holder["value"].model_dump(mode="python"),
-                    **updates,
-                }
-            )
+            settings_holder["value"] = Settings.model_validate({
+                **settings_holder["value"].model_dump(mode="python"),
+                **updates,
+            })
             return settings_holder["value"]
 
         monkeypatch.setattr("cryptotechnolog.bootstrap.update_settings", fake_update_settings)
@@ -5888,11 +5856,9 @@ class TestProductionBootstrap:
 
         runtime.health_checker.check_system = fake_check_system  # type: ignore[method-assign]
 
-        updated_settings = await runtime.update_live_feed_policy_settings(
-            {
-                "bybit_universe_min_trade_count_24h": 5,
-            }
-        )
+        updated_settings = await runtime.update_live_feed_policy_settings({
+            "bybit_universe_min_trade_count_24h": 5,
+        })
 
         assert updated_settings.bybit_universe_min_trade_count_24h == 5
         assert health_started.is_set() is False
@@ -5960,14 +5926,33 @@ class TestProductionBootstrap:
     ) -> None:
         fake_connector = _FakeBybitConnector()
         fake_connector.exchange = "bybit_spot"
+        captured_symbols: tuple[str, ...] | None = None
+
+        def _create_connector(**kwargs: object) -> _FakeBybitConnector:
+            nonlocal captured_symbols
+            raw_symbols = kwargs.get("symbols")
+            assert isinstance(raw_symbols, tuple)
+            captured_symbols = raw_symbols
+            fake_connector.symbols = raw_symbols
+            fake_connector.derived_trade_count_24h_by_symbol = dict.fromkeys(raw_symbols, None)
+            return fake_connector
+
         monkeypatch.setattr(
             "cryptotechnolog.bootstrap.create_bybit_spot_market_data_connector",
-            lambda **_: fake_connector,
+            _create_connector,
+        )
+        monkeypatch.setattr(
+            "cryptotechnolog.bootstrap.discover_bybit_universe",
+            lambda *_args, **_kwargs: BybitUniverseSelectionSummary(
+                scope_mode="universe",
+                total_instruments_discovered=42,
+                instruments_passed_coarse_filter=2,
+                selected_symbols=("BTC/USDT", "ETH/USDT"),
+            ),
         )
         runtime = await build_production_runtime(
             settings=make_settings(
                 bybit_spot_market_data_connector_enabled=True,
-                bybit_spot_market_data_connector_symbol="BTC/USDT, ETH/USDT",
             ),
             policy=ProductionBootstrapPolicy(
                 test_mode=True,
@@ -5983,9 +5968,10 @@ class TestProductionBootstrap:
         diagnostics = runtime.get_runtime_diagnostics()["bybit_spot_market_data_connector"]
 
         assert runtime.bybit_spot_market_data_connector is fake_connector
+        assert captured_symbols == ("BTC/USDT", "ETH/USDT")
         assert diagnostics["enabled"] is True
         assert diagnostics["exchange"] == "bybit_spot"
-        assert diagnostics["symbols"] == ("BTC/USDT",)
+        assert diagnostics["symbols"] == ("BTC/USDT", "ETH/USDT")
         assert diagnostics["transport_status"] == "connected"
 
         await runtime._stop_opt_in_market_data_connectors()
