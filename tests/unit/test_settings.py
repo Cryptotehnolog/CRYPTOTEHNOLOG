@@ -9,12 +9,57 @@ import tempfile
 import pytest
 
 from cryptotechnolog import __version__
+import cryptotechnolog.config.settings as settings_module
 from cryptotechnolog.config.settings import (
     Settings,
+    clear_runtime_settings_overrides,
+    get_runtime_settings_overrides_path,
     get_settings,
+    persist_settings_updates,
     reload_settings,
+    update_settings,
     validate_settings,
 )
+
+
+@pytest.fixture(autouse=True)
+def isolated_runtime_settings_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
+    overrides_store: dict[str, object] = {}
+
+    def fake_load_runtime_settings_overrides_unlocked(
+        base_settings: Settings | None = None,
+    ) -> dict[str, object]:
+        return dict(overrides_store)
+
+    def fake_write_runtime_settings_overrides_unlocked(
+        overrides: dict[str, object],
+        base_settings: Settings | None = None,
+    ) -> None:
+        overrides_store.clear()
+        overrides_store.update(overrides)
+
+    monkeypatch.setattr(
+        settings_module,
+        "_load_runtime_settings_overrides_unlocked",
+        fake_load_runtime_settings_overrides_unlocked,
+    )
+    monkeypatch.setattr(
+        settings_module,
+        "_write_runtime_settings_overrides_unlocked",
+        fake_write_runtime_settings_overrides_unlocked,
+    )
+    monkeypatch.setattr(
+        settings_module,
+        "_resolve_runtime_settings_overrides_path",
+        lambda base_settings=None: Path("runtime-settings-overrides.json"),
+    )
+    clear_runtime_settings_overrides()
+    reload_settings()
+    try:
+        yield
+    finally:
+        clear_runtime_settings_overrides()
+        reload_settings()
 
 
 @pytest.mark.unit
@@ -453,6 +498,51 @@ class TestSettingsFactory:
         # Should be a new instance
         assert reloaded_id != initial_id
         assert settings1 is not settings2
+
+    def test_persist_settings_updates_survive_reload(self):
+        persisted = persist_settings_updates(
+            {
+                "bybit_market_data_scope_mode": "universe",
+                "bybit_market_data_connector_enabled": True,
+                "bybit_spot_market_data_connector_enabled": True,
+                "bybit_universe_min_trade_count_24h": 7,
+            }
+        )
+
+        assert persisted.bybit_market_data_scope_mode == "universe"
+        assert persisted.bybit_market_data_connector_enabled is True
+        assert persisted.bybit_spot_market_data_connector_enabled is True
+        assert persisted.bybit_universe_min_trade_count_24h == 7
+        assert get_runtime_settings_overrides_path().name == "runtime-settings-overrides.json"
+
+        reloaded = reload_settings()
+
+        assert reloaded.bybit_market_data_scope_mode == "universe"
+        assert reloaded.bybit_market_data_connector_enabled is True
+        assert reloaded.bybit_spot_market_data_connector_enabled is True
+        assert reloaded.bybit_universe_min_trade_count_24h == 7
+
+    def test_reload_settings_merges_env_base_with_durable_overrides(self):
+        os.environ["BYBIT_UNIVERSE_MIN_QUOTE_VOLUME_24H_USD"] = "1234567"
+
+        try:
+            persist_settings_updates(
+                {
+                    "bybit_market_data_scope_mode": "universe",
+                    "bybit_universe_min_trade_count_24h": 9,
+                }
+            )
+            update_settings({"live_feed_retry_delay_seconds": 13})
+
+            reloaded = reload_settings()
+
+            assert reloaded.bybit_market_data_scope_mode == "universe"
+            assert reloaded.bybit_universe_min_trade_count_24h == 9
+            assert reloaded.bybit_universe_min_quote_volume_24h_usd == 1234567.0
+            assert reloaded.live_feed_retry_delay_seconds != 13
+        finally:
+            os.environ.pop("BYBIT_UNIVERSE_MIN_QUOTE_VOLUME_24H_USD", None)
+            reload_settings()
 
 
 if __name__ == "__main__":

@@ -1,2 +1,4 @@
 Set-Location "D:\CRYPTOTEHNOLOG\dashboard-frontend"
-& npm run dev -- --host 127.0.0.1 --port 5173
+# Local Vite startup workaround for Windows/sandbox spawn EPERM during config loading.
+# This is dev-only and does not change product runtime behavior.
+& npm run dev -- --configLoader runner --host 127.0.0.1 --port 5173

@@ -385,6 +385,36 @@ class MarketDataRuntime:
         await self._publish_quality_signals((signal,), correlation_id=correlation_id)
         return signal
 
+    async def clear_symbol_runtime_state(
+        self,
+        *,
+        symbol: str,
+        exchange: str,
+        reason: str,
+        detected_at: datetime | None = None,
+        correlation_id: UUID | None = None,
+    ) -> None:
+        """Очистить runtime truth для symbol после unsubscribe/narrowing boundary."""
+        self._ensure_started("clear_symbol_runtime_state")
+        for feed in ("trades", "orderbook"):
+            await self.mark_source_degraded(
+                symbol=symbol,
+                exchange=exchange,
+                feed=feed,
+                reason=reason,
+                detected_at=detected_at,
+                correlation_id=correlation_id,
+            )
+        self.orderbook_manager._books.pop((symbol, exchange), None)
+        self.state.last_trade_at.pop((symbol, exchange), None)
+        identity = build_symbol_identity(symbol, exchange)
+        self.state.metrics_by_identity.pop(identity, None)
+        self.state.quality_signals_by_identity.pop(identity, None)
+        self._refresh_diagnostics(
+            metrics_count=len(self.state.metrics_by_identity),
+            quality_signal_identities_count=len(self.state.quality_signals_by_identity),
+        )
+
     async def collect_symbol_metrics(
         self,
         *,

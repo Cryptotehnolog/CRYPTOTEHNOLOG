@@ -4,8 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { TerminalBadge } from "../components/TerminalBadge";
 import { getCorrelationPolicySettings } from "../api/getCorrelationPolicySettings";
-import { getBybitConnectorDiagnostics } from "../api/getBybitConnectorDiagnostics";
-import { getBybitSpotConnectorDiagnostics } from "../api/getBybitSpotConnectorDiagnostics";
 import { getDecisionChainSettings } from "../api/getDecisionChainSettings";
 import { getEventBusPolicySettings } from "../api/getEventBusPolicySettings";
 import { getFundingPolicySettings } from "../api/getFundingPolicySettings";
@@ -25,9 +23,6 @@ import { updateDecisionChainSettings } from "../api/updateDecisionChainSettings"
 import { updateEventBusPolicySettings } from "../api/updateEventBusPolicySettings";
 import { updateFundingPolicySettings } from "../api/updateFundingPolicySettings";
 import { updateHealthPolicySettings } from "../api/updateHealthPolicySettings";
-import { updateBybitConnectorEnabled } from "../api/updateBybitConnectorEnabled";
-import { updateBybitSpotConnectorEnabled } from "../api/updateBybitSpotConnectorEnabled";
-import { updateLiveFeedPolicySettings } from "../api/updateLiveFeedPolicySettings";
 import { updateManualApprovalPolicySettings } from "../api/updateManualApprovalPolicySettings";
 import { updateProtectionPolicySettings } from "../api/updateProtectionPolicySettings";
 import { updateReliabilityPolicySettings } from "../api/updateReliabilityPolicySettings";
@@ -40,13 +35,11 @@ import { updateWorkflowTimeoutSettings } from "../api/updateWorkflowTimeoutSetti
 import { useTerminalUiStore } from "../state/useTerminalUiStore";
 import { useTerminalWidgetStore } from "../state/useTerminalWidgetStore";
 import type {
-  BybitConnectorDiagnosticsResponse,
   CorrelationPolicySettingsResponse,
   DecisionChainSettingsResponse,
   EventBusPolicySettingsResponse,
   FundingPolicySettingsResponse,
   HealthPolicySettingsResponse,
-  LiveFeedPolicySettingsResponse,
   ManualApprovalPolicySettingsResponse,
   ProtectionPolicySettingsResponse,
   ReliabilityPolicySettingsResponse,
@@ -69,17 +62,7 @@ import {
   comparisonTable,
   comparisonTableCompact,
   comparisonTableWrap,
-  exchangeCard,
-  exchangeDiagnosticsBlock,
-  exchangeDiagnosticsGrid,
-  exchangeDiagnosticsHeader,
-  exchangeDiagnosticsItem,
-  exchangeDiagnosticsLabel,
-  exchangeDiagnosticsValue,
-  exchangeGrid,
   exchangeMeta,
-  exchangeRow,
-  exchangeToggle,
   fieldDescription,
   fieldInput,
   fieldLabel,
@@ -93,7 +76,6 @@ import {
   settingsForm,
   localStateNote,
   modeButton,
-  modeButtonActive,
   modeControls,
   pageRoot,
   sectionBody,
@@ -126,8 +108,6 @@ type FundingPolicyFieldKey = keyof FundingPolicySettingsResponse;
 type FundingPolicyDraft = Record<FundingPolicyFieldKey, string>;
 type HealthPolicyFieldKey = keyof HealthPolicySettingsResponse;
 type HealthPolicyDraft = Record<HealthPolicyFieldKey, string>;
-type LiveFeedPolicyFieldKey = keyof LiveFeedPolicySettingsResponse;
-type LiveFeedPolicyDraft = Record<LiveFeedPolicyFieldKey, string>;
 type EventBusPolicyFieldKey = keyof EventBusPolicySettingsResponse;
 type EventBusPolicyDraft = Record<EventBusPolicyFieldKey, string>;
 type ManualApprovalPolicyFieldKey = keyof ManualApprovalPolicySettingsResponse;
@@ -140,45 +120,6 @@ type SystemStatePolicyFieldKey = keyof SystemStatePolicySettingsResponse;
 type SystemStatePolicyDraft = Record<SystemStatePolicyFieldKey, string>;
 type SystemStateTimeoutFieldKey = keyof SystemStateTimeoutSettingsResponse;
 type SystemStateTimeoutDraft = Record<SystemStateTimeoutFieldKey, string>;
-
-const bybitConnectorDiagnosticsFields: Array<{
-  key: keyof BybitConnectorDiagnosticsResponse;
-  label: string;
-}> = [
-  { key: "enabled", label: "Connector" },
-  { key: "scope_mode", label: "Режим scope" },
-  { key: "symbols", label: "Текущий scope" },
-  { key: "transport_status", label: "Состояние транспорта" },
-  { key: "recovery_status", label: "Состояние восстановления" },
-  { key: "lifecycle_state", label: "Lifecycle state" },
-  { key: "ready", label: "Runtime готов" },
-  { key: "started", label: "Runtime запущен" },
-  { key: "subscription_alive", label: "Подписка жива" },
-  { key: "reset_required", label: "Нужен reset" },
-  { key: "retry_count", label: "Число retry" },
-  { key: "transport_rtt_ms", label: "RTT транспорта" },
-  { key: "last_message_at", label: "Время последнего сообщения" },
-  { key: "degraded_reason", label: "Причина деградации" },
-  { key: "last_disconnect_reason", label: "Причина последнего отключения" },
-];
-
-const bybitUniverseSummaryFields: Array<{
-  key:
-    | "total_instruments_discovered"
-    | "instruments_passed_coarse_filter"
-    | "active_subscribed_scope_count"
-    | "live_trade_streams_count"
-    | "live_orderbook_count"
-    | "degraded_or_stale_count";
-  label: string;
-}> = [
-  { key: "total_instruments_discovered", label: "Найдено инструментов" },
-  { key: "instruments_passed_coarse_filter", label: "Прошло coarse filter" },
-  { key: "active_subscribed_scope_count", label: "В active scope" },
-  { key: "live_trade_streams_count", label: "Живые trade streams" },
-  { key: "live_orderbook_count", label: "Живые orderbooks" },
-  { key: "degraded_or_stale_count", label: "Degraded или stale" },
-];
 
 const universePolicyFieldDefinitions: Array<{
   key: UniversePolicyFieldKey;
@@ -1150,99 +1091,6 @@ const manualApprovalPolicyFieldDefinitions: Array<{
   },
 ];
 
-const liveFeedPolicyFieldDefinitions: Array<{
-  key: LiveFeedPolicyFieldKey;
-  label: string;
-  description: string;
-  recommended: string;
-  inputType: "number" | "text" | "select";
-  inputMode?: "decimal" | "numeric" | "text";
-  step?: string;
-  options?: Array<{ value: string; label: string }>;
-}> = [
-  {
-    key: "retry_delay_seconds",
-    label: "Базовая задержка перед повторным подключением",
-    description: "Сколько секунд система ждёт перед новой попыткой подключиться к live feed.",
-    recommended: "5 сек",
-    inputType: "number",
-    inputMode: "numeric",
-    step: "1",
-  },
-  {
-    key: "bybit_connector_scope_mode",
-    label: "Режим scope для бессрочных фьючерсов",
-    description:
-      "Manual использует список инструментов ниже. Universe сам находит широкий рынок Bybit, применяет грубый 24h prefilter и передаёт итоговый scope в connector.",
-    recommended: "Manual для точечного контроля, Universe для широкого scope",
-    inputType: "select",
-    options: [
-      { value: "manual", label: "Manual" },
-      { value: "universe", label: "Universe" },
-    ],
-  },
-  {
-    key: "bybit_connector_symbol",
-    label: "Инструменты Bybit linear market data",
-    description:
-      "Используется только в режиме Manual. Укажите один или несколько инструментов Bybit linear/perpetual через запятую, например BTC/USDT, ETH/USDT.",
-    recommended: "Например BTC/USDT, ETH/USDT",
-    inputType: "text",
-    inputMode: "text",
-  },
-  {
-    key: "bybit_spot_connector_scope_mode",
-    label: "Режим scope для спотового рынка",
-    description:
-      "Manual использует список инструментов ниже. Universe сам находит широкий spot-рынок Bybit, применяет грубый 24h prefilter и передаёт итоговый scope в connector.",
-    recommended: "Manual для точечного контроля, Universe для широкого scope",
-    inputType: "select",
-    options: [
-      { value: "manual", label: "Manual" },
-      { value: "universe", label: "Universe" },
-    ],
-  },
-  {
-    key: "bybit_spot_connector_symbol",
-    label: "Инструменты Bybit spot market data",
-    description:
-      "Используется только в режиме Manual. Укажите один или несколько инструментов Bybit spot через запятую, например BTC/USDT, ETH/USDT.",
-    recommended: "Например BTC/USDT, ETH/USDT",
-    inputType: "text",
-    inputMode: "text",
-  },
-  {
-    key: "bybit_universe_min_quote_volume_24h_usd",
-    label: "Минимальный 24h quote volume для universe",
-    description:
-      "Грубый фильтр universe layer. Инструменты с меньшим оборотом не попадут в активный connector scope.",
-    recommended: "100 000 000 USD",
-    inputType: "number",
-    inputMode: "decimal",
-    step: "1000",
-  },
-  {
-    key: "bybit_universe_min_trade_count_24h",
-    label: "Минимальное число сделок за 24h",
-    description:
-      "Дополнительный coarse filter. 0 отключает фильтр по числу сделок, а рабочий стартовый ориентир — 200 000 сделок за 24h.",
-    recommended: "200 000, либо 0 чтобы отключить фильтр",
-    inputType: "number",
-    inputMode: "numeric",
-    step: "1",
-  },
-  {
-    key: "bybit_universe_max_symbols_per_scope",
-    label: "Максимальный размер активного scope",
-    description:
-      "Верхний safety cap на число инструментов, которое universe layer реально передаст в текущий multi-symbol connector после coarse prefilter. Это ограничение дополняет фильтры, а не заменяет их.",
-    recommended: "100",
-    inputType: "number",
-    inputMode: "numeric",
-    step: "1",
-  },
-];
-
 const workflowTimeoutFieldDefinitions: Array<{
   key: WorkflowTimeoutFieldKey;
   label: string;
@@ -1461,28 +1309,6 @@ function toWorkflowTimeoutDraft(values: WorkflowTimeoutsSettingsResponse): Workf
   };
 }
 
-const DEFAULT_BYBIT_CONNECTOR_SCOPE = "BTC/USDT";
-
-function toLiveFeedPolicyDraft(
-  values: LiveFeedPolicySettingsResponse,
-  options?: { applyDefaultBybitScope?: boolean },
-): LiveFeedPolicyDraft {
-  return {
-    retry_delay_seconds: String(values.retry_delay_seconds),
-    bybit_connector_scope_mode: values.bybit_connector_scope_mode,
-    bybit_connector_symbol:
-      values.bybit_connector_symbol ??
-      (options?.applyDefaultBybitScope ?? true ? DEFAULT_BYBIT_CONNECTOR_SCOPE : ""),
-    bybit_spot_connector_scope_mode: values.bybit_spot_connector_scope_mode,
-    bybit_spot_connector_symbol: values.bybit_spot_connector_symbol ?? "",
-    bybit_universe_min_quote_volume_24h_usd: String(
-      values.bybit_universe_min_quote_volume_24h_usd,
-    ),
-    bybit_universe_min_trade_count_24h: String(values.bybit_universe_min_trade_count_24h),
-    bybit_universe_max_symbols_per_scope: String(values.bybit_universe_max_symbols_per_scope),
-  };
-}
-
 const settingsQueryBehavior = {
   retry: 1,
   refetchOnWindowFocus: true,
@@ -1491,76 +1317,9 @@ const settingsQueryBehavior = {
 
 const settingsSaveButtonLabel = "Сохранить настройки";
 
-function formatBybitConnectorDiagnosticsTimestamp(value: string): string {
-  const parsedDate = new Date(value);
-  if (Number.isNaN(parsedDate.getTime())) {
-    return value;
-  }
-  return new Intl.DateTimeFormat("ru-RU", {
-    dateStyle: "short",
-    timeStyle: "medium",
-  }).format(parsedDate);
-}
-
-function formatBybitConnectorDiagnosticsValue(
-  key: keyof BybitConnectorDiagnosticsResponse,
-  value: BybitConnectorDiagnosticsResponse[keyof BybitConnectorDiagnosticsResponse],
-): string {
-  if (key === "symbols") {
-    return Array.isArray(value) && value.length > 0 ? value.join(", ") : "Нет данных";
-  }
-  if (key === "scope_mode") {
-    return value === "universe" ? "Universe" : "Manual";
-  }
-  if (key === "transport_rtt_ms") {
-    return typeof value === "number" ? `${value} ms` : "Нет данных";
-  }
-  if (typeof value === "boolean") {
-    return value ? "Да" : "Нет";
-  }
-  if (value === null) {
-    if (key === "degraded_reason") {
-      return "Деградации нет";
-    }
-    if (key === "last_disconnect_reason") {
-      return "Отключений не было";
-    }
-    if (key === "last_message_at") {
-      return "Сообщений ещё не было";
-    }
-    return "Нет данных";
-  }
-  if (key === "last_message_at") {
-    return formatBybitConnectorDiagnosticsTimestamp(String(value));
-  }
-  return String(value);
-}
-
-function parseBybitConfiguredSymbols(rawValue: string | null | undefined): string[] {
-  if (!rawValue) {
-    return [];
-  }
-  return Array.from(
-    new Set(
-      rawValue
-        .split(/[\n,]/)
-        .map((value) => value.trim())
-        .filter((value) => value.length > 0),
-    ),
-  );
-}
-
 export function TerminalSettingsPage() {
-  const mode = useTerminalUiStore((state) => state.mode);
-  const exchanges = useTerminalUiStore((state) => state.exchanges);
-  const setMode = useTerminalUiStore((state) => state.setMode);
-  const setExchangeConnected = useTerminalUiStore((state) => state.setExchangeConnected);
   const widgets = useTerminalWidgetStore((state) => state.widgets);
   const setWidgetVisible = useTerminalWidgetStore((state) => state.setWidgetVisible);
-  const nonBybitExchanges = useMemo(
-    () => exchanges.filter((exchange) => exchange.name !== "Bybit"),
-    [exchanges],
-  );
   const queryClient = useQueryClient();
   const [universeDraft, setUniverseDraft] = useState<UniversePolicyDraft | null>(null);
   const [decisionDraft, setDecisionDraft] = useState<DecisionChainDraft | null>(null);
@@ -1577,7 +1336,6 @@ export function TerminalSettingsPage() {
   const [workflowTimeoutDraft, setWorkflowTimeoutDraft] = useState<WorkflowTimeoutDraft | null>(
     null,
   );
-  const [liveFeedDraft, setLiveFeedDraft] = useState<LiveFeedPolicyDraft | null>(null);
   const [reliabilityDraft, setReliabilityDraft] = useState<ReliabilityPolicyDraft | null>(null);
   const [systemStateDraft, setSystemStateDraft] = useState<SystemStatePolicyDraft | null>(null);
   const [systemStateTimeoutDraft, setSystemStateTimeoutDraft] =
@@ -1593,7 +1351,6 @@ export function TerminalSettingsPage() {
   const [eventBusSaveNotice, setEventBusSaveNotice] = useState<string | null>(null);
   const [manualApprovalSaveNotice, setManualApprovalSaveNotice] = useState<string | null>(null);
   const [workflowTimeoutSaveNotice, setWorkflowTimeoutSaveNotice] = useState<string | null>(null);
-  const [liveFeedSaveNotice, setLiveFeedSaveNotice] = useState<string | null>(null);
   const [reliabilitySaveNotice, setReliabilitySaveNotice] = useState<string | null>(null);
   const [systemStateSaveNotice, setSystemStateSaveNotice] = useState<string | null>(null);
   const [systemStateTimeoutSaveNotice, setSystemStateTimeoutSaveNotice] = useState<string | null>(
@@ -1659,16 +1416,6 @@ export function TerminalSettingsPage() {
     ...settingsQueryBehavior,
     queryKey: ["dashboard", "settings", "live-feed-policy"],
     queryFn: getLiveFeedPolicySettings,
-  });
-  const bybitConnectorDiagnosticsQuery = useQuery({
-    ...settingsQueryBehavior,
-    queryKey: ["dashboard", "settings", "bybit-connector-diagnostics"],
-    queryFn: getBybitConnectorDiagnostics,
-  });
-  const bybitSpotConnectorDiagnosticsQuery = useQuery({
-    ...settingsQueryBehavior,
-    queryKey: ["dashboard", "settings", "bybit-spot-connector-diagnostics"],
-    queryFn: getBybitSpotConnectorDiagnostics,
   });
   const reliabilityPolicyQuery = useQuery({
     ...settingsQueryBehavior,
@@ -1741,11 +1488,6 @@ export function TerminalSettingsPage() {
       setWorkflowTimeoutDraft(toWorkflowTimeoutDraft(workflowTimeoutQuery.data));
     }
   }, [workflowTimeoutQuery.data]);
-  useEffect(() => {
-    if (liveFeedPolicyQuery.data) {
-      setLiveFeedDraft(toLiveFeedPolicyDraft(liveFeedPolicyQuery.data));
-    }
-  }, [liveFeedPolicyQuery.data]);
   useEffect(() => {
     if (reliabilityPolicyQuery.data) {
       setReliabilityDraft(toReliabilityPolicyDraft(reliabilityPolicyQuery.data));
@@ -1848,32 +1590,6 @@ export function TerminalSettingsPage() {
       queryClient.setQueryData(["dashboard", "settings", "workflow-timeouts"], data);
       setWorkflowTimeoutDraft(toWorkflowTimeoutDraft(data));
       setWorkflowTimeoutSaveNotice("Изменения сохранены");
-    },
-  });
-  const liveFeedPolicyMutation = useMutation({
-    mutationFn: updateLiveFeedPolicySettings,
-    onSuccess: (data) => {
-      queryClient.setQueryData(["dashboard", "settings", "live-feed-policy"], data);
-      setLiveFeedDraft(toLiveFeedPolicyDraft(data));
-      setLiveFeedSaveNotice("Изменения сохранены");
-    },
-  });
-  const bybitConnectorToggleMutation = useMutation({
-    mutationFn: updateBybitConnectorEnabled,
-    onSuccess: (data) => {
-      queryClient.setQueryData(["dashboard", "settings", "bybit-connector-diagnostics"], data);
-      void queryClient.invalidateQueries({
-        queryKey: ["dashboard", "settings", "bybit-connector-diagnostics"],
-      });
-    },
-  });
-  const bybitSpotConnectorToggleMutation = useMutation({
-    mutationFn: updateBybitSpotConnectorEnabled,
-    onSuccess: (data) => {
-      queryClient.setQueryData(["dashboard", "settings", "bybit-spot-connector-diagnostics"], data);
-      void queryClient.invalidateQueries({
-        queryKey: ["dashboard", "settings", "bybit-spot-connector-diagnostics"],
-      });
     },
   });
   const reliabilityPolicyMutation = useMutation({
@@ -2145,41 +1861,6 @@ export function TerminalSettingsPage() {
     const hasInvalidNumber = Object.values(payload).some((value) => Number.isNaN(value));
     return hasInvalidNumber ? null : payload;
   }, [workflowTimeoutDraft]);
-  const liveFeedPayload = useMemo<LiveFeedPolicySettingsResponse | null>(() => {
-    if (!liveFeedDraft) {
-      return null;
-    }
-
-    const retryDelaySeconds = Number.parseInt(liveFeedDraft.retry_delay_seconds, 10);
-    const bybitUniverseMinTradeCount24h = Number.parseInt(
-      liveFeedDraft.bybit_universe_min_trade_count_24h,
-      10,
-    );
-    const bybitUniverseMaxSymbolsPerScope = Number.parseInt(
-      liveFeedDraft.bybit_universe_max_symbols_per_scope,
-      10,
-    );
-    const payload: LiveFeedPolicySettingsResponse = {
-      retry_delay_seconds: retryDelaySeconds,
-      bybit_connector_scope_mode: liveFeedDraft.bybit_connector_scope_mode,
-      bybit_connector_symbol: liveFeedDraft.bybit_connector_symbol.trim() || null,
-      bybit_spot_connector_scope_mode: liveFeedDraft.bybit_spot_connector_scope_mode,
-      bybit_spot_connector_symbol: liveFeedDraft.bybit_spot_connector_symbol.trim() || null,
-      bybit_universe_min_quote_volume_24h_usd: Number(
-        liveFeedDraft.bybit_universe_min_quote_volume_24h_usd,
-      ),
-      bybit_universe_min_trade_count_24h: bybitUniverseMinTradeCount24h,
-      bybit_universe_max_symbols_per_scope: bybitUniverseMaxSymbolsPerScope,
-    };
-
-    const hasInvalidNumber = [
-      retryDelaySeconds,
-      bybitUniverseMinTradeCount24h,
-      bybitUniverseMaxSymbolsPerScope,
-      payload.bybit_universe_min_quote_volume_24h_usd,
-    ].some((value) => Number.isNaN(value));
-    return hasInvalidNumber ? null : payload;
-  }, [liveFeedDraft]);
   const systemStatePayload = useMemo<SystemStatePolicySettingsResponse | null>(() => {
     if (!systemStateDraft) {
       return null;
@@ -2282,13 +1963,6 @@ export function TerminalSettingsPage() {
     !!workflowTimeoutDraft &&
     JSON.stringify(toWorkflowTimeoutDraft(workflowTimeoutQuery.data)) !==
       JSON.stringify(workflowTimeoutDraft);
-  const isLiveFeedDirty =
-    !!liveFeedPolicyQuery.data &&
-    !!liveFeedDraft &&
-    JSON.stringify(
-      toLiveFeedPolicyDraft(liveFeedPolicyQuery.data, { applyDefaultBybitScope: false }),
-    ) !==
-      JSON.stringify(liveFeedDraft);
   const isReliabilityDirty =
     !!reliabilityPolicyQuery.data &&
     !!reliabilityDraft &&
@@ -2393,28 +2067,6 @@ export function TerminalSettingsPage() {
         : workflowTimeoutSaveNotice
           ? "success"
           : "neutral";
-  const liveFeedStatusTone =
-    liveFeedPolicyQuery.isLoading || liveFeedPolicyMutation.isPending
-      ? "warning"
-      : liveFeedPolicyQuery.isError || liveFeedPolicyMutation.isError
-        ? "danger"
-        : liveFeedSaveNotice
-          ? "success"
-          : "neutral";
-  const bybitConnectorDiagnosticsTone = bybitConnectorDiagnosticsQuery.isLoading
-    ? "warning"
-    : bybitConnectorDiagnosticsQuery.isError
-      ? "danger"
-      : bybitConnectorDiagnosticsQuery.data?.degraded_reason
-        ? "warning"
-        : "neutral";
-  const bybitSpotConnectorDiagnosticsTone = bybitSpotConnectorDiagnosticsQuery.isLoading
-    ? "warning"
-    : bybitSpotConnectorDiagnosticsQuery.isError
-      ? "danger"
-      : bybitSpotConnectorDiagnosticsQuery.data?.degraded_reason
-        ? "warning"
-        : "neutral";
   const reliabilityStatusTone =
     reliabilityPolicyQuery.isLoading || reliabilityPolicyMutation.isPending
       ? "warning"
@@ -2561,121 +2213,6 @@ export function TerminalSettingsPage() {
           : workflowTimeoutSaveNotice
             ? "Сохранено"
             : "Backend";
-  const liveFeedStatusLabel = liveFeedPolicyQuery.isLoading
-    ? "Загрузка"
-    : liveFeedPolicyMutation.isPending
-      ? "Сохранение"
-      : liveFeedPolicyQuery.isError
-        ? "Ошибка загрузки"
-        : liveFeedPolicyMutation.isError
-          ? "Ошибка сохранения"
-          : liveFeedSaveNotice
-            ? "Сохранено"
-            : "Backend";
-  const bybitConnectorDiagnosticsLabel = bybitConnectorDiagnosticsQuery.isLoading
-    ? "Загрузка"
-    : bybitConnectorToggleMutation.isPending
-      ? "Переключение"
-      : bybitConnectorDiagnosticsQuery.isError
-      ? "Ошибка"
-      : bybitConnectorDiagnosticsQuery.data?.enabled
-        ? "Runtime"
-        : "Disabled";
-  const bybitSpotConnectorDiagnosticsLabel = bybitSpotConnectorDiagnosticsQuery.isLoading
-    ? "Загрузка"
-    : bybitSpotConnectorToggleMutation.isPending
-      ? "Переключение"
-      : bybitSpotConnectorDiagnosticsQuery.isError
-        ? "Ошибка"
-        : bybitSpotConnectorDiagnosticsQuery.data?.enabled
-          ? "Runtime"
-          : "Disabled";
-  const bybitWidgetConnected = bybitConnectorDiagnosticsQuery.data?.transport_status === "connected";
-  const bybitSpotWidgetConnected =
-    bybitSpotConnectorDiagnosticsQuery.data?.transport_status === "connected";
-  const bybitConfiguredSymbols = parseBybitConfiguredSymbols(
-    liveFeedPolicyQuery.data?.bybit_connector_symbol ?? null,
-  );
-  const bybitSpotConfiguredSymbols = parseBybitConfiguredSymbols(
-    liveFeedPolicyQuery.data?.bybit_spot_connector_symbol ?? null,
-  );
-  const bybitScopeMode = liveFeedPolicyQuery.data?.bybit_connector_scope_mode ?? "manual";
-  const bybitSpotScopeMode = liveFeedPolicyQuery.data?.bybit_spot_connector_scope_mode ?? "manual";
-  const bybitConfiguredScope = bybitConfiguredSymbols.join(", ");
-  const bybitSpotConfiguredScope = bybitSpotConfiguredSymbols.join(", ");
-  const canToggleBybitConnector =
-    bybitScopeMode === "universe" || bybitConfiguredSymbols.length > 0;
-  const canToggleBybitSpotConnector =
-    bybitSpotScopeMode === "universe" || bybitSpotConfiguredSymbols.length > 0;
-  const bybitWidgetStatus = bybitConnectorDiagnosticsQuery.isLoading
-    ? "Загружаю backend truth..."
-    : bybitConnectorDiagnosticsQuery.isError
-      ? "Backend недоступен"
-      : bybitConnectorDiagnosticsQuery.data?.enabled
-        ? bybitWidgetConnected
-          ? "Подключена"
-          : "Подключается"
-        : "Отключена";
-  const bybitSpotWidgetStatus = bybitSpotConnectorDiagnosticsQuery.isLoading
-    ? "Загружаю backend truth..."
-    : bybitSpotConnectorDiagnosticsQuery.isError
-      ? "Backend недоступен"
-      : bybitSpotConnectorDiagnosticsQuery.data?.enabled
-        ? bybitSpotWidgetConnected
-          ? "Подключена"
-          : "Подключается"
-        : "Отключена";
-  const bybitRuntimeSymbols =
-    bybitConnectorDiagnosticsQuery.data?.symbols.filter((value) => value.trim().length > 0) ?? [];
-  const bybitSpotRuntimeSymbols =
-    bybitSpotConnectorDiagnosticsQuery.data?.symbols.filter((value) => value.trim().length > 0) ??
-    [];
-  const bybitRuntimeScope =
-    bybitRuntimeSymbols.length > 0 ? bybitRuntimeSymbols.join(", ") : null;
-  const bybitSpotRuntimeScope =
-    bybitSpotRuntimeSymbols.length > 0 ? bybitSpotRuntimeSymbols.join(", ") : null;
-  const bybitWidgetMeta = bybitConnectorDiagnosticsQuery.isLoading
-    ? "Ожидаю diagnostics snapshot"
-    : bybitConnectorDiagnosticsQuery.isError
-      ? "Не удалось получить runtime diagnostics"
-      : bybitConnectorDiagnosticsQuery.data?.enabled
-        ? bybitConnectorDiagnosticsQuery.data.scope_mode === "universe"
-          ? `${bybitConnectorDiagnosticsQuery.data.transport_status} · ${bybitConnectorDiagnosticsQuery.data.active_subscribed_scope_count} инструментов в active scope`
-          : `${bybitConnectorDiagnosticsQuery.data.transport_status} · ${bybitRuntimeScope ?? "scope не задан"}`
-        : bybitScopeMode === "universe"
-          ? "disabled · universe scope"
-          : `disabled · ${bybitConfiguredScope || "scope не задан"}`;
-  const bybitSpotWidgetMeta = bybitSpotConnectorDiagnosticsQuery.isLoading
-    ? "Ожидаю diagnostics snapshot"
-    : bybitSpotConnectorDiagnosticsQuery.isError
-      ? "Не удалось получить runtime diagnostics"
-      : bybitSpotConnectorDiagnosticsQuery.data?.enabled
-        ? bybitSpotConnectorDiagnosticsQuery.data.scope_mode === "universe"
-          ? `${bybitSpotConnectorDiagnosticsQuery.data.transport_status} · ${bybitSpotConnectorDiagnosticsQuery.data.active_subscribed_scope_count} инструментов в active scope`
-          : `${bybitSpotConnectorDiagnosticsQuery.data.transport_status} · ${bybitSpotRuntimeScope ?? "scope не задан"}`
-        : bybitSpotScopeMode === "universe"
-          ? "disabled · universe scope"
-          : `disabled · ${bybitSpotConfiguredScope || "scope не задан"}`;
-  const bybitLastMessageLabel =
-    bybitConnectorDiagnosticsQuery.data?.last_message_at != null
-      ? formatBybitConnectorDiagnosticsTimestamp(
-          bybitConnectorDiagnosticsQuery.data.last_message_at,
-        )
-      : "Сообщений ещё не было";
-  const isBybitUniverseScope = bybitConnectorDiagnosticsQuery.data?.scope_mode === "universe";
-  const bybitSpotLastMessageLabel =
-    bybitSpotConnectorDiagnosticsQuery.data?.last_message_at != null
-      ? formatBybitConnectorDiagnosticsTimestamp(
-          bybitSpotConnectorDiagnosticsQuery.data.last_message_at,
-        )
-      : "Сообщений ещё не было";
-  const isBybitSpotUniverseScope = bybitSpotConnectorDiagnosticsQuery.data?.scope_mode === "universe";
-  const bybitToggleButtonLabel =
-    bybitConnectorDiagnosticsQuery.data?.enabled === true ? "Отключить" : "Подключить";
-  const bybitToggleTargetEnabled = bybitToggleButtonLabel === "Подключить";
-  const bybitSpotToggleButtonLabel =
-    bybitSpotConnectorDiagnosticsQuery.data?.enabled === true ? "Отключить" : "Подключить";
-  const bybitSpotToggleTargetEnabled = bybitSpotToggleButtonLabel === "Подключить";
   const reliabilityStatusLabel = reliabilityPolicyQuery.isLoading
     ? "Загрузка"
     : reliabilityPolicyMutation.isPending
@@ -2878,19 +2415,6 @@ export function TerminalSettingsPage() {
       };
     });
   }
-  function updateLiveFeedDraftField(key: LiveFeedPolicyFieldKey, value: string) {
-    setLiveFeedSaveNotice(null);
-    setLiveFeedDraft((current) => {
-      if (!current) {
-        return current;
-      }
-      return {
-        ...current,
-        [key]: value,
-      };
-    });
-  }
-
   async function handleUniversePolicySave() {
     if (!universePayload) {
       return;
@@ -2975,53 +2499,8 @@ export function TerminalSettingsPage() {
     }
     await workflowTimeoutMutation.mutateAsync(workflowTimeoutPayload);
   }
-  async function handleLiveFeedPolicySave() {
-    if (!liveFeedPayload) {
-      return;
-    }
-    await liveFeedPolicyMutation.mutateAsync(liveFeedPayload);
-  }
-
   return (
     <div className={pageRoot}>
-      <section className={settingsCard}>
-        <div className={sectionHeader}>
-          <div>
-            <div className={sectionCaption}>Режим работы</div>
-            <h1 className={sectionTitle}>Управление режимом терминала</h1>
-          </div>
-          <TerminalBadge tone="neutral">
-            {mode === "manual" ? "Ручной режим" : "Авто режим"}
-          </TerminalBadge>
-        </div>
-
-        <div className={sectionBody}>
-          <div className={stateValue}>
-            Сейчас выбран: {mode === "manual" ? "Ручной режим" : "Авто режим"}
-          </div>
-          <div className={modeControls}>
-            <button
-              type="button"
-              className={`${modeButton} ${mode === "manual" ? modeButtonActive : ""}`}
-              onClick={() => setMode("manual")}
-            >
-              Ручной режим
-            </button>
-            <button
-              type="button"
-              className={`${modeButton} ${mode === "auto" ? modeButtonActive : ""}`}
-              onClick={() => setMode("auto")}
-            >
-              Авто режим
-            </button>
-          </div>
-          <div className={localStateNote}>
-            Локальное terminal-состояние для UX-отработки. Production backend action на этом шаге
-            не подключался.
-          </div>
-        </div>
-      </section>
-
       <section className={settingsCard}>
         <div className={sectionHeader}>
           <div>
@@ -3172,416 +2651,6 @@ export function TerminalSettingsPage() {
             </div>
           ) : null}
         </div>
-      </section>
-
-      <section className={settingsCard}>
-        <div className={sectionHeader}>
-          <div>
-            <div className={sectionCaption}>Рыночное подключение</div>
-            <h2 className={sectionTitle}>Подключение к рынку и переподключение</h2>
-          </div>
-          <TerminalBadge tone={liveFeedStatusTone}>{liveFeedStatusLabel}</TerminalBadge>
-        </div>
-
-        <div className={sectionBody}>
-          <div className={localStateNote}>
-            Эти параметры читаются из backend-настроек переподключения к рынку и сохраняются
-            обратно в canonical runtime settings path.
-          </div>
-
-          {liveFeedPolicyQuery.isLoading ? (
-            <div className={settingsErrorState}>
-              Загружаю настройки подключения к рынку и переподключения...
-            </div>
-          ) : null}
-
-          {liveFeedPolicyQuery.isError ? (
-            <div className={settingsErrorState}>
-              Не удалось загрузить настройки подключения к рынку и переподключения.
-            </div>
-          ) : null}
-
-          {liveFeedPolicyMutation.isError ? (
-            <div className={settingsErrorState}>
-              Не удалось сохранить изменения. Проверь значения и повтори сохранение.
-            </div>
-          ) : null}
-
-          {liveFeedDraft ? (
-            <div className={settingsForm}>
-              <div className={settingsFieldGrid}>
-                {liveFeedPolicyFieldDefinitions.map((field) => (
-                  <div key={field.key} className={settingsFieldCard}>
-                    <div className={settingsFieldHeader}>
-                      <div className={fieldLabel}>{field.label}</div>
-                      <div className={settingsFieldMeta}>Рекомендация: {field.recommended}</div>
-                    </div>
-                    <div className={fieldDescription}>{field.description}</div>
-                    {field.inputType === "select" ? (
-                      <select
-                        className={fieldInput}
-                        value={liveFeedDraft[field.key]}
-                        onChange={(event) =>
-                          updateLiveFeedDraftField(field.key, event.target.value)
-                        }
-                      >
-                        {field.options?.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type={field.inputType}
-                        inputMode={field.inputMode}
-                        step={field.step}
-                        className={fieldInput}
-                        placeholder={
-                          field.key === "bybit_connector_symbol" ||
-                          field.key === "bybit_spot_connector_symbol"
-                            ? "BTC/USDT, ETH/USDT"
-                            : undefined
-                        }
-                        value={liveFeedDraft[field.key]}
-                        onChange={(event) =>
-                          updateLiveFeedDraftField(field.key, event.target.value)
-                        }
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className={modeControls}>
-                <button
-                  type="button"
-                  className={`${modeButton} ${!isLiveFeedDirty || !liveFeedPayload || liveFeedPolicyMutation.isPending ? saveButtonDisabled : saveButton}`}
-                  disabled={
-                    !isLiveFeedDirty || !liveFeedPayload || liveFeedPolicyMutation.isPending
-                  }
-                  onClick={() => void handleLiveFeedPolicySave()}
-                >
-                  {liveFeedPolicyMutation.isPending ? "Сохраняю..." : settingsSaveButtonLabel}
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </section>
-
-      <section className={settingsCard}>
-        <div className={sectionHeader}>
-          <div>
-            <div className={sectionCaption}>Биржи</div>
-            <h2 className={sectionTitle}>Подключение торговых контуров</h2>
-          </div>
-          <TerminalBadge tone="accent">{exchanges.length} биржи</TerminalBadge>
-        </div>
-
-        <div className={exchangeGrid}>
-          <div className={exchangeCard}>
-            <div>
-              <div className={exchangeRow}>
-                <div>
-                  <div className={stateValue}>Bybit</div>
-                </div>
-              </div>
-
-              <div className={exchangeDiagnosticsBlock}>
-                <div className={exchangeRow}>
-                  <div>
-                    <div className={stateValue}>Бессрочные фьючерсы</div>
-                  </div>
-                  <button
-                    type="button"
-                    className={exchangeToggle}
-                    disabled={
-                      bybitConnectorDiagnosticsQuery.isLoading ||
-                      bybitConnectorDiagnosticsQuery.isError ||
-                      !canToggleBybitConnector ||
-                      bybitConnectorToggleMutation.isPending
-                    }
-                    onClick={() => {
-                      void bybitConnectorToggleMutation.mutateAsync({
-                        enabled: bybitToggleTargetEnabled,
-                      });
-                    }}
-                  >
-                    {bybitConnectorToggleMutation.isPending
-                      ? "Переключаю..."
-                      : bybitToggleButtonLabel}
-                  </button>
-                </div>
-
-                <div className={exchangeDiagnosticsBlock}>
-                  <div className={exchangeDiagnosticsHeader}>
-                    <TerminalBadge tone={bybitConnectorDiagnosticsTone}>
-                      {bybitConnectorDiagnosticsLabel}
-                    </TerminalBadge>
-                  </div>
-
-                  {bybitConnectorDiagnosticsQuery.isLoading ? (
-                    <div className={exchangeMeta}>Загружаю состояние подключения Bybit...</div>
-                  ) : null}
-
-                  {bybitConnectorDiagnosticsQuery.isError ? (
-                    <div className={exchangeMeta}>Не удалось загрузить состояние Bybit.</div>
-                  ) : null}
-
-                  {bybitConnectorToggleMutation.isError ? (
-                    <div className={exchangeMeta}>Не удалось переключить подключение Bybit.</div>
-                  ) : null}
-
-                  {!canToggleBybitConnector &&
-                  !bybitConnectorDiagnosticsQuery.isLoading &&
-                  !bybitConnectorDiagnosticsQuery.isError ? (
-                    <div className={exchangeMeta}>
-                      Сначала сохраните scope для perpetual contour в блоке «Подключение к рынку и
-                      переподключение»: либо список инструментов в Manual, либо режим Universe.
-                    </div>
-                  ) : null}
-
-                  {bybitConnectorDiagnosticsQuery.data ? (
-                    <>
-                      <div className={exchangeDiagnosticsGrid}>
-                        {bybitConnectorDiagnosticsFields.map((field) => (
-                          <div key={field.key} className={exchangeDiagnosticsItem}>
-                            <div className={exchangeDiagnosticsLabel}>{field.label}</div>
-                            <div className={exchangeDiagnosticsValue}>
-                              {formatBybitConnectorDiagnosticsValue(
-                                field.key,
-                                bybitConnectorDiagnosticsQuery.data[field.key],
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {isBybitUniverseScope ? (
-                        <div className={exchangeDiagnosticsBlock}>
-                          <div className={exchangeDiagnosticsHeader}>
-                            <div className={fieldLabel}>Сводка universe scope</div>
-                          </div>
-
-                          <div className={exchangeMeta}>
-                            Основной блок показывает summary по широкому scope. Подробный список
-                            всех инструментов вынесем в отдельный diagnostics view.
-                          </div>
-
-                          <div className={exchangeDiagnosticsGrid}>
-                            {bybitUniverseSummaryFields.map((field) => (
-                              <div key={`universe-${field.key}`} className={exchangeDiagnosticsItem}>
-                                <div className={exchangeDiagnosticsLabel}>{field.label}</div>
-                                <div className={exchangeDiagnosticsValue}>
-                                  {formatBybitConnectorDiagnosticsValue(
-                                    field.key,
-                                    bybitConnectorDiagnosticsQuery.data[field.key],
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : bybitConnectorDiagnosticsQuery.data.symbol_snapshots.length > 0 ? (
-                        <div className={exchangeDiagnosticsBlock}>
-                          <div className={exchangeDiagnosticsHeader}>
-                            <div className={fieldLabel}>Инструменты в текущем perpetual scope</div>
-                          </div>
-
-                          <div className={exchangeMeta}>
-                            Последнее сообщение по этому connector scope: {bybitLastMessageLabel}
-                          </div>
-
-                          <div className={exchangeDiagnosticsGrid}>
-                            {bybitConnectorDiagnosticsQuery.data.symbol_snapshots.map(
-                              (snapshot) => (
-                                <div
-                                  key={snapshot.symbol}
-                                  className={exchangeDiagnosticsItem}
-                                >
-                                  <div className={exchangeDiagnosticsLabel}>
-                                    {snapshot.symbol}
-                                  </div>
-                                  <div className={exchangeDiagnosticsValue}>
-                                    {snapshot.trade_seen ? "trade" : "trade нет"} ·{" "}
-                                    {snapshot.orderbook_seen ? "book" : "book нет"} · top bid{" "}
-                                    {snapshot.best_bid ?? "—"} · top ask {snapshot.best_ask ?? "—"}
-                                  </div>
-                                </div>
-                              ),
-                            )}
-                          </div>
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className={exchangeDiagnosticsBlock}>
-                <div className={exchangeRow}>
-                  <div>
-                    <div className={stateValue}>Спотовый рынок</div>
-                  </div>
-                  <button
-                    type="button"
-                    className={exchangeToggle}
-                    disabled={
-                      bybitSpotConnectorDiagnosticsQuery.isLoading ||
-                      bybitSpotConnectorDiagnosticsQuery.isError ||
-                      !canToggleBybitSpotConnector ||
-                      bybitSpotConnectorToggleMutation.isPending
-                    }
-                    onClick={() => {
-                      void bybitSpotConnectorToggleMutation.mutateAsync({
-                        enabled: bybitSpotToggleTargetEnabled,
-                      });
-                    }}
-                  >
-                    {bybitSpotConnectorToggleMutation.isPending
-                      ? "Переключаю..."
-                      : bybitSpotToggleButtonLabel}
-                  </button>
-                </div>
-
-                <div className={exchangeDiagnosticsBlock}>
-                  <div className={exchangeDiagnosticsHeader}>
-                    <TerminalBadge tone={bybitSpotConnectorDiagnosticsTone}>
-                      {bybitSpotConnectorDiagnosticsLabel}
-                    </TerminalBadge>
-                  </div>
-
-                  {bybitSpotConnectorDiagnosticsQuery.isLoading ? (
-                    <div className={exchangeMeta}>Загружаю состояние подключения Bybit spot...</div>
-                  ) : null}
-
-                  {bybitSpotConnectorDiagnosticsQuery.isError ? (
-                    <div className={exchangeMeta}>
-                      Не удалось загрузить состояние Bybit spot.
-                    </div>
-                  ) : null}
-
-                  {bybitSpotConnectorToggleMutation.isError ? (
-                    <div className={exchangeMeta}>
-                      Не удалось переключить подключение Bybit spot.
-                    </div>
-                  ) : null}
-
-                  {!canToggleBybitSpotConnector &&
-                  !bybitSpotConnectorDiagnosticsQuery.isLoading &&
-                  !bybitSpotConnectorDiagnosticsQuery.isError ? (
-                    <div className={exchangeMeta}>
-                      Сначала сохраните scope для spot contour в блоке «Подключение к рынку и
-                      переподключение»: либо список инструментов в Manual, либо режим Universe.
-                    </div>
-                  ) : null}
-
-                  {bybitSpotConnectorDiagnosticsQuery.data ? (
-                    <>
-                      <div className={exchangeDiagnosticsGrid}>
-                        {bybitConnectorDiagnosticsFields.map((field) => (
-                          <div key={`spot-${field.key}`} className={exchangeDiagnosticsItem}>
-                            <div className={exchangeDiagnosticsLabel}>{field.label}</div>
-                            <div className={exchangeDiagnosticsValue}>
-                              {formatBybitConnectorDiagnosticsValue(
-                                field.key,
-                                bybitSpotConnectorDiagnosticsQuery.data[field.key],
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {isBybitSpotUniverseScope ? (
-                        <div className={exchangeDiagnosticsBlock}>
-                          <div className={exchangeDiagnosticsHeader}>
-                            <div className={fieldLabel}>Сводка universe scope</div>
-                          </div>
-
-                          <div className={exchangeMeta}>
-                            Основной блок показывает summary по широкому scope. Подробный список
-                            всех инструментов вынесем в отдельный diagnostics view.
-                          </div>
-
-                          <div className={exchangeDiagnosticsGrid}>
-                            {bybitUniverseSummaryFields.map((field) => (
-                              <div
-                                key={`spot-universe-${field.key}`}
-                                className={exchangeDiagnosticsItem}
-                              >
-                                <div className={exchangeDiagnosticsLabel}>{field.label}</div>
-                                <div className={exchangeDiagnosticsValue}>
-                                  {formatBybitConnectorDiagnosticsValue(
-                                    field.key,
-                                    bybitSpotConnectorDiagnosticsQuery.data[field.key],
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : bybitSpotConnectorDiagnosticsQuery.data.symbol_snapshots.length > 0 ? (
-                        <div className={exchangeDiagnosticsBlock}>
-                          <div className={exchangeDiagnosticsHeader}>
-                            <div className={fieldLabel}>Инструменты в текущем spot scope</div>
-                          </div>
-
-                          <div className={exchangeMeta}>
-                            Последнее сообщение по этому spot connector scope: {bybitSpotLastMessageLabel}
-                          </div>
-
-                          <div className={exchangeDiagnosticsGrid}>
-                            {bybitSpotConnectorDiagnosticsQuery.data.symbol_snapshots.map(
-                              (snapshot) => (
-                                <div
-                                  key={`spot-${snapshot.symbol}`}
-                                  className={exchangeDiagnosticsItem}
-                                >
-                                  <div className={exchangeDiagnosticsLabel}>{snapshot.symbol}</div>
-                                  <div className={exchangeDiagnosticsValue}>
-                                    {snapshot.trade_seen ? "trade" : "trade нет"} ·{" "}
-                                    {snapshot.orderbook_seen ? "book" : "book нет"} · top bid{" "}
-                                    {snapshot.best_bid ?? "—"} · top ask {snapshot.best_ask ?? "—"}
-                                  </div>
-                                </div>
-                              ),
-                            )}
-                          </div>
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {nonBybitExchanges.map((exchange) => (
-            <div key={exchange.name} className={exchangeCard}>
-              <div>
-                <div className={exchangeRow}>
-                  <div>
-                    <div className={stateValue}>{exchange.name}</div>
-                    <div className={exchangeMeta}>
-                      {`${exchange.connected ? "Подключена" : "Отключена"} · ${exchange.ping}`}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className={exchangeToggle}
-                    onClick={() => {
-                      setExchangeConnected(exchange.name, !exchange.connected);
-                    }}
-                  >
-                    {exchange.connected ? "Отключить" : "Подключить"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
       </section>
 
       <section className={settingsCard}>

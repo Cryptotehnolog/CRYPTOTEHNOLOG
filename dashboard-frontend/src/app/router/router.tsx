@@ -22,6 +22,7 @@ import { PaperPage } from "../../modules/paper/pages/PaperPage";
 import { BacktestPage } from "../../modules/backtest/pages/BacktestPage";
 import { ReportingPage } from "../../modules/reporting/pages/ReportingPage";
 import { TerminalPage } from "../../modules/terminal/pages/TerminalPage";
+import { TerminalConnectorsPage } from "../../modules/terminal/pages/TerminalConnectorsPage";
 import { TerminalPositionsPage } from "../../modules/terminal/pages/TerminalPositionsPage";
 import { TerminalSettingsPage } from "../../modules/terminal/pages/TerminalSettingsPage";
 import { ModulePlaceholderPage } from "../../modules/placeholder/pages/ModulePlaceholderPage";
@@ -67,6 +68,10 @@ export const router = createBrowserRouter([
       {
         path: "positions",
         element: <TerminalPositionsPage />,
+      },
+      {
+        path: "connectors",
+        element: <TerminalConnectorsPage />,
       },
       {
         path: "settings",

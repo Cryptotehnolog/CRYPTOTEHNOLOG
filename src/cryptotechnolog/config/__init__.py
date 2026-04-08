@@ -14,7 +14,16 @@ from .logging import (
 )
 from .manager import ConfigManager, ConfigManagerError
 from .providers import InfisicalConfigProvider
-from .settings import Settings, get_settings, reload_settings, update_settings, validate_settings
+from .settings import (
+    Settings,
+    clear_runtime_settings_overrides,
+    get_runtime_settings_overrides_path,
+    get_settings,
+    persist_settings_updates,
+    reload_settings,
+    update_settings,
+    validate_settings,
+)
 
 __all__ = [
     "ConfigManager",
@@ -24,12 +33,15 @@ __all__ = [
     "Settings",
     "bind_context",
     "clear_context",
+    "clear_runtime_settings_overrides",
     "configure_logging",
     "get_context",
     "get_logger",
+    "get_runtime_settings_overrides_path",
     "get_settings",
     "log_exception",
     "log_performance",
+    "persist_settings_updates",
     "reload_settings",
     "update_settings",
     "validate_settings",

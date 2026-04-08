@@ -12,6 +12,7 @@ import {
   LineChart,
   Moon,
   Menu,
+  Plug,
   Settings,
   ShieldAlert,
   SunMedium,
@@ -70,6 +71,12 @@ const terminalSections: Array<{
   icon: typeof Home;
 }> = [
   { section: "home", label: "Главная", meta: "рабочий стол", icon: Home },
+  {
+    section: "connectors",
+    label: "Коннекторы",
+    meta: "биржи и живые подключения",
+    icon: Plug,
+  },
   { section: "market", label: "Рынок", meta: "наблюдение и контекст", icon: LineChart },
   { section: "positions", label: "Позиции", meta: "открытые сделки", icon: Wallet },
   {
@@ -111,6 +118,159 @@ const getBybitRttTone = (transportRttMs: number | null) => {
   return "bad" as const;
 };
 
+const isBybitTimeoutState = (diagnostics: {
+  last_disconnect_reason: string | null;
+  degraded_reason: string | null;
+}) => {
+  const timeoutText = `${diagnostics.last_disconnect_reason ?? ""} ${diagnostics.degraded_reason ?? ""}`
+    .toLowerCase();
+  return timeoutText.includes("timeout");
+};
+
+const getBybitPingFallback = (
+  diagnostics: Array<{
+    last_disconnect_reason: string | null;
+    degraded_reason: string | null;
+    transport_status: string;
+    policy_apply_status?: string | null;
+    subscription_alive: boolean;
+    trade_seen: boolean;
+    orderbook_seen: boolean;
+    application_heartbeat_latency_ms: number | null;
+    last_message_at: string | null;
+    message_age_ms: number | null;
+  }>,
+) => {
+  const anyAlive = diagnostics.some(
+    (item) =>
+      item.transport_status === "connected" &&
+      (item.subscription_alive ||
+        item.trade_seen ||
+        item.orderbook_seen ||
+        item.application_heartbeat_latency_ms !== null ||
+        item.last_message_at !== null ||
+        item.message_age_ms !== null),
+  );
+  if (anyAlive) {
+    return { label: "LIVE", tone: "good" as const };
+  }
+  const waitingForScope = diagnostics.some(
+    (item) =>
+      item.transport_status === "idle" &&
+      (item.degraded_reason === "discovery_unavailable" ||
+        item.policy_apply_status === "waiting_for_scope"),
+  );
+  if (waitingForScope) {
+    return { label: "WAITING", tone: "warn" as const };
+  }
+  return diagnostics.some(isBybitTimeoutState)
+    ? { label: "TIMEOUT", tone: "bad" as const }
+    : { label: "ERROR", tone: "bad" as const };
+};
+
+const formatBybitTransportStatus = (status: string) => {
+  switch (status) {
+    case "connected":
+      return "подключено";
+    case "connecting":
+      return "подключаемся";
+    case "disconnected":
+      return "нет соединения";
+    case "idle":
+      return "ожидает запуска";
+    case "disabled":
+      return "отключено";
+    default:
+      return status;
+  }
+};
+
+const isBybitRecoveryInProgress = (diagnostics: {
+  transport_status: string;
+  recovery_status: string;
+  derived_trade_count_state: string | null;
+  derived_trade_count_backfill_status: string | null;
+  universe_admission_state: string | null;
+}) =>
+  diagnostics.recovery_status !== "recovered" ||
+  diagnostics.universe_admission_state === "waiting_for_filter_readiness" ||
+  diagnostics.derived_trade_count_state === "warming_up" ||
+  diagnostics.derived_trade_count_state === "not_reliable_after_gap" ||
+  diagnostics.derived_trade_count_backfill_status === "pending" ||
+  diagnostics.derived_trade_count_backfill_status === "running" ||
+  (diagnostics.transport_status === "idle" &&
+    diagnostics.universe_admission_state === "waiting_for_filter_readiness");
+
+const getBybitContourHeaderState = (diagnostics: {
+  enabled: boolean;
+  transport_status: string;
+  policy_apply_status: string | null;
+  universe_admission_state: string | null;
+  operator_runtime_state: string | null;
+}) => {
+  if (!diagnostics.enabled) {
+    return "disabled" as const;
+  }
+  if (diagnostics.policy_apply_status === "deferred") {
+    return "deferred" as const;
+  }
+  if (diagnostics.universe_admission_state === "ready_for_selection") {
+    return "ready" as const;
+  }
+  if (diagnostics.operator_runtime_state === "waiting_for_live_tail") {
+    return "live_tail" as const;
+  }
+  if (diagnostics.transport_status === "connected") {
+    return "recovering" as const;
+  }
+  if (diagnostics.transport_status === "connecting" || diagnostics.transport_status === "idle") {
+    return "connecting" as const;
+  }
+  return "offline" as const;
+};
+
+const formatBybitContourHeaderDetail = (
+  label: string,
+  diagnostics: {
+    enabled: boolean;
+    transport_status: string;
+    universe_admission_state: string | null;
+    policy_apply_status: string | null;
+    policy_apply_reason: string | null;
+    degraded_reason?: string | null;
+    operator_runtime_state: string | null;
+    operator_confidence_state?: string | null;
+    historical_recovery_state?: string | null;
+    active_subscribed_scope_count: number;
+  },
+) => {
+  if (!diagnostics.enabled) {
+    return `${label}: отключён`;
+  }
+  if (diagnostics.policy_apply_status === "deferred") {
+    return `${label}: настройка сохранена, но начнёт действовать позже${diagnostics.policy_apply_reason ? ` · ${diagnostics.policy_apply_reason}` : ""}`;
+  }
+  if (diagnostics.operator_confidence_state === "streams_recovering") {
+    return `${label}: потоки данных восстанавливаются`;
+  }
+  if (diagnostics.universe_admission_state === "ready_for_selection") {
+    return `${label}: готов · ${diagnostics.active_subscribed_scope_count} инструментов в работе`;
+  }
+  if (diagnostics.operator_runtime_state === "waiting_for_live_tail") {
+    return `${label}: ждёт последние сделки после переподключения`;
+  }
+  if (diagnostics.historical_recovery_state === "retry_scheduled") {
+    return `${label}: повтор загрузки истории запланирован`;
+  }
+  if (
+    diagnostics.degraded_reason === "discovery_unavailable" ||
+    diagnostics.policy_apply_status === "waiting_for_scope"
+  ) {
+    return `${label}: ждёт список инструментов`;
+  }
+  return `${label}: ${formatBybitTransportStatus(diagnostics.transport_status)}`;
+};
+
 function RailIconButton(props: {
   label: string;
   onClick?: () => void;
@@ -147,7 +307,6 @@ export function TerminalShell() {
   const theme = useTerminalUiStore((state) => state.theme);
   const drawerOpen = useTerminalUiStore((state) => state.drawerOpen);
   const activeSection = useTerminalUiStore((state) => state.activeSection);
-  const mode = useTerminalUiStore((state) => state.mode);
   const exchanges = useTerminalUiStore((state) => state.exchanges);
   const openDrawer = useTerminalUiStore((state) => state.openDrawer);
   const closeDrawer = useTerminalUiStore((state) => state.closeDrawer);
@@ -185,7 +344,9 @@ export function TerminalShell() {
   }, []);
 
   const currentSection: TerminalSection =
-    location.pathname === "/terminal/settings"
+    location.pathname === "/terminal/connectors"
+      ? "connectors"
+      : location.pathname === "/terminal/settings"
       ? "settings"
       : location.pathname === "/terminal/positions"
         ? "positions"
@@ -196,6 +357,8 @@ export function TerminalShell() {
     navigate(
       section === "settings"
         ? "/terminal/settings"
+        : section === "connectors"
+          ? "/terminal/connectors"
         : section === "positions"
           ? "/terminal/positions"
           : "/terminal",
@@ -233,11 +396,27 @@ export function TerminalShell() {
         }
 
         const diagnostics = [bybitDiagnosticsQuery.data, bybitSpotDiagnosticsQuery.data];
-        const connectedDiagnostics = diagnostics.filter(
-          (item) => item.enabled && item.transport_status === "connected",
+        const enabledDiagnostics = diagnostics.filter((item) => item.enabled);
+        const connectedDiagnostics = enabledDiagnostics.filter(
+          (item) => item.transport_status === "connected",
         );
-        const anyEnabled = diagnostics.some((item) => item.enabled);
+        const contourStates = diagnostics.map(getBybitContourHeaderState);
+        const anyEnabled = enabledDiagnostics.length > 0;
         const connected = connectedDiagnostics.length > 0;
+        const recovering = enabledDiagnostics.some(isBybitRecoveryInProgress);
+        const fullyConnected =
+          anyEnabled &&
+          enabledDiagnostics.every(
+            (item) =>
+              item.transport_status === "connected" && !isBybitRecoveryInProgress(item),
+          );
+        const mixed = connected && recovering && !fullyConnected;
+        const connecting = enabledDiagnostics.some(
+          (item) =>
+            item.transport_status === "connecting" ||
+            item.lifecycle_state === "connecting" ||
+            item.transport_status === "idle",
+        );
         const aggregatedRtt = connectedDiagnostics.reduce<number | null>((best, item) => {
           if (item.transport_rtt_ms === null) {
             return best;
@@ -252,25 +431,77 @@ export function TerminalShell() {
           diagnostics.find((item) => item.enabled) ??
           diagnostics[0];
 
-        const ping = connected
-          ? aggregatedRtt !== null
-            ? `RTT ${aggregatedRtt} ms`
-            : "live"
-          : anyEnabled
-            ? primaryEnabledDiagnostics.transport_status
-            : "disabled";
+        let ping = "disabled";
+        let pingTone: "good" | "warn" | "bad" | "neutral" = "neutral";
+        let statusState:
+          | "connected"
+          | "mixed"
+          | "deferred"
+          | "recovering"
+          | "connecting"
+          | "disabled"
+          | "offline" =
+          "disabled";
+        let connectedState = false;
+        const title = [
+          formatBybitContourHeaderDetail("Perp", bybitDiagnosticsQuery.data),
+          formatBybitContourHeaderDetail("Spot", bybitSpotDiagnosticsQuery.data),
+        ].join("\n");
 
-        const pingTone = connected
-          ? getBybitRttTone(aggregatedRtt)
-          : anyEnabled
-            ? ("bad" as const)
-            : ("neutral" as const);
+        if (contourStates.some((state) => state === "deferred")) {
+          if (aggregatedRtt !== null) {
+            ping = `RTT ${aggregatedRtt} ms`;
+            pingTone = getBybitRttTone(aggregatedRtt);
+          } else {
+            const fallback = getBybitPingFallback(enabledDiagnostics);
+            ping = fallback.label;
+            pingTone = fallback.tone;
+          }
+          statusState = connected ? "mixed" : "deferred";
+          connectedState = connected;
+        } else if (mixed) {
+          if (aggregatedRtt !== null) {
+            ping = `RTT ${aggregatedRtt} ms`;
+            pingTone = getBybitRttTone(aggregatedRtt);
+          } else {
+            const fallback = getBybitPingFallback(enabledDiagnostics);
+            ping = fallback.label;
+            pingTone = fallback.tone;
+          }
+          statusState = "mixed";
+          connectedState = true;
+        } else if (fullyConnected || connected) {
+          if (aggregatedRtt !== null) {
+            ping = `RTT ${aggregatedRtt} ms`;
+            pingTone = getBybitRttTone(aggregatedRtt);
+          } else {
+            const fallback = getBybitPingFallback(enabledDiagnostics);
+            ping = fallback.label;
+            pingTone = fallback.tone;
+          }
+          statusState = "connected";
+          connectedState = true;
+        } else if (anyEnabled && recovering) {
+          ping = enabledDiagnostics.some(isBybitTimeoutState) ? "timeout" : "error";
+          pingTone = "bad";
+          statusState = "recovering";
+        } else if (anyEnabled && connecting) {
+          ping = primaryEnabledDiagnostics.transport_status;
+          pingTone = "warn";
+          statusState = "connecting";
+        } else if (anyEnabled) {
+          ping = primaryEnabledDiagnostics.transport_status;
+          pingTone = "bad";
+          statusState = "offline";
+        }
 
         return {
           ...exchange,
-          connected,
+          connected: connectedState,
+          statusState,
           ping,
           pingTone,
+          title,
         };
       }),
     [
@@ -320,7 +551,7 @@ export function TerminalShell() {
               <div className={topBarCluster}>
                 <div className={topBarStatusBlock}>
                   <div className={topBarStatusValue}>
-                    {mode === "manual" ? "Ручной режим" : "Авто режим"}
+                    Автоматический отбор
                   </div>
                 </div>
 
@@ -333,7 +564,8 @@ export function TerminalShell() {
                       <div
                         key={exchange.name}
                         className={topBarExchangeCapsule}
-                        data-exchange-state={exchange.connected ? "connected" : "offline"}
+                        data-exchange-state={exchange.statusState ?? (exchange.connected ? "connected" : "offline")}
+                        title={exchange.title}
                       >
                         <span className={topBarExchangeName}>{exchange.name}</span>
                         <span className={topBarExchangePing} data-ping-tone={exchange.pingTone}>

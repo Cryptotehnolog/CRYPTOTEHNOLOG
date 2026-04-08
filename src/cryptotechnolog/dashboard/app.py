@@ -13,7 +13,13 @@ from cryptotechnolog.bootstrap import (
     ProductionRuntime,
     start_production_runtime,
 )
-from cryptotechnolog.config import get_logger, get_settings, update_settings
+from cryptotechnolog.config import (
+    get_logger,
+    get_settings,
+)
+from cryptotechnolog.config import (
+    persist_settings_updates as update_settings,
+)
 from cryptotechnolog.core import EnhancedEventBus
 from cryptotechnolog.runtime_identity import get_runtime_version
 
@@ -92,6 +98,12 @@ def create_dashboard_app(
         )
         return LiveFeedPolicySettingsDTO.from_settings(settings)
 
+    async def _get_live_feed_policy() -> LiveFeedPolicySettingsDTO:
+        canonical_runtime = canonical_runtime_holder.runtime
+        if canonical_runtime is None:
+            return LiveFeedPolicySettingsDTO.from_settings(get_settings())
+        return LiveFeedPolicySettingsDTO.from_settings(canonical_runtime.settings)
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         owned_production_runtime: ProductionRuntime | None = None
@@ -137,6 +149,7 @@ def create_dashboard_app(
         create_dashboard_router(
             dashboard_runtime.overview_facade,
             runtime_diagnostics_supplier=_get_runtime_diagnostics,
+            live_feed_policy_get_handler=_get_live_feed_policy,
             live_feed_policy_update_handler=_update_live_feed_policy,
             bybit_connector_toggle_handler=_set_bybit_connector_enabled
             if production_runtime is not None or enable_canonical_runtime

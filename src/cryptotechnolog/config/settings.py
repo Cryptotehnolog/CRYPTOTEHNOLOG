@@ -3,6 +3,7 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import threading
 from typing import Any
@@ -155,11 +156,7 @@ class Settings(BaseSettings):
     bybit_api_secret: SecretStr | None = None
     bybit_testnet: bool = False
     bybit_market_data_connector_enabled: bool = False
-    bybit_market_data_scope_mode: str = "manual"
-    bybit_market_data_connector_symbol: str | None = None
     bybit_spot_market_data_connector_enabled: bool = False
-    bybit_spot_market_data_scope_mode: str = "manual"
-    bybit_spot_market_data_connector_symbol: str | None = None
     bybit_universe_min_quote_volume_24h_usd: float = 1000000.0
     bybit_universe_min_trade_count_24h: int = 0
     bybit_universe_max_symbols_per_scope: int = 100
@@ -917,6 +914,7 @@ class Settings(BaseSettings):
 
 _settings: Settings | None = None
 _settings_lock = threading.Lock()
+_RUNTIME_SETTINGS_OVERRIDES_PATH_ENV = "CRYPTOTECHNOLOG_RUNTIME_SETTINGS_OVERRIDES_PATH"
 
 
 def _normalize_config_value(value: Any) -> Any:
@@ -1050,20 +1048,6 @@ def _collect_bybit_universe_scope_validation_errors(
     settings_to_validate: Settings,
     validation_errors: list[str],
 ) -> None:
-    valid_scope_modes = {"manual", "universe"}
-    for field_name, value in (
-        ("bybit_market_data_scope_mode", settings_to_validate.bybit_market_data_scope_mode),
-        (
-            "bybit_spot_market_data_scope_mode",
-            settings_to_validate.bybit_spot_market_data_scope_mode,
-        ),
-    ):
-        normalized = value.strip().lower()
-        if normalized not in valid_scope_modes:
-            validation_errors.append(
-                f"{field_name} must be one of: {', '.join(sorted(valid_scope_modes))}"
-            )
-
     for field_name, value in (
         (
             "bybit_universe_min_quote_volume_24h_usd",
@@ -1391,6 +1375,70 @@ def validate_settings(
 
 
 # ==================== Settings Factory ====================
+def _resolve_runtime_settings_overrides_path(base_settings: Settings | None = None) -> Path:
+    configured_path = os.getenv(_RUNTIME_SETTINGS_OVERRIDES_PATH_ENV, "").strip()
+    if configured_path:
+        return Path(configured_path)
+    settings = base_settings or Settings()
+    return settings.data_dir / "runtime_settings_overrides.json"
+
+
+def _load_runtime_settings_overrides_unlocked(
+    base_settings: Settings | None = None,
+) -> dict[str, Any]:
+    path = _resolve_runtime_settings_overrides_path(base_settings)
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("Runtime settings overrides storage must contain a JSON object")
+    known_fields = Settings.model_fields
+    return {key: value for key, value in payload.items() if key in known_fields}
+
+
+def _write_runtime_settings_overrides_unlocked(
+    overrides: dict[str, Any],
+    base_settings: Settings | None = None,
+) -> None:
+    path = _resolve_runtime_settings_overrides_path(base_settings)
+    if not overrides:
+        if path.exists():
+            path.unlink()
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(f"{path.suffix}.tmp")
+    temp_path.write_text(
+        json.dumps(overrides, ensure_ascii=False, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    temp_path.replace(path)
+
+
+def _build_effective_settings_unlocked() -> Settings:
+    base_settings = Settings()
+    overrides = _load_runtime_settings_overrides_unlocked(base_settings)
+    if not overrides:
+        return base_settings
+    candidate_payload = base_settings.model_dump(mode="python")
+    candidate_payload.update(overrides)
+    return Settings.model_validate(candidate_payload)
+
+
+def get_runtime_settings_overrides_path() -> Path:
+    """Вернуть путь к durable runtime overrides storage."""
+    with _settings_lock:
+        current = _settings
+        return _resolve_runtime_settings_overrides_path(current)
+
+
+def clear_runtime_settings_overrides() -> None:
+    """Очистить durable runtime overrides storage и сбросить effective settings cache."""
+    global _settings  # noqa: PLW0603 - Required for singleton reset
+    with _settings_lock:
+        _write_runtime_settings_overrides_unlocked({})
+        _settings = _build_effective_settings_unlocked()
+
+
 def get_settings() -> Settings:
     """
     Get the global settings instance.
@@ -1401,7 +1449,7 @@ def get_settings() -> Settings:
     global _settings  # noqa: PLW0603 - Required for cached singleton access
     with _settings_lock:
         if _settings is None:
-            _settings = Settings()
+            _settings = _build_effective_settings_unlocked()
         return _settings
 
 
@@ -1414,7 +1462,7 @@ def update_settings(updates: dict[str, Any]) -> Settings:
     """
     global _settings  # noqa: PLW0603 - Required for cached singleton mutation
     with _settings_lock:
-        current = _settings or Settings()
+        current = _settings or _build_effective_settings_unlocked()
         candidate_payload = current.model_dump(mode="python")
         candidate_payload.update(updates)
         candidate = Settings.model_validate(candidate_payload)
@@ -1429,6 +1477,43 @@ def update_settings(updates: dict[str, Any]) -> Settings:
         return _settings
 
 
+def persist_settings_updates(updates: dict[str, Any]) -> Settings:
+    """
+    Persist runtime-editable settings to durable overrides storage and update effective cache.
+
+    This path is intended for control-plane settings that must survive process restart.
+    """
+    global _settings  # noqa: PLW0603 - Required for cached singleton mutation
+    with _settings_lock:
+        base_settings = Settings()
+        current = _settings or _build_effective_settings_unlocked()
+        candidate_payload = current.model_dump(mode="python")
+        candidate_payload.update(updates)
+        candidate = Settings.model_validate(candidate_payload)
+
+        validation_errors: list[str] = []
+        validation_errors.extend(_collect_runtime_secret_validation_errors(candidate))
+        validation_errors.extend(_collect_domain_validation_errors(candidate))
+        if validation_errors:
+            raise ValueError("; ".join(validation_errors))
+
+        persisted_overrides = _load_runtime_settings_overrides_unlocked(base_settings)
+        next_overrides = dict(persisted_overrides)
+        for key in updates:
+            if key not in Settings.model_fields:
+                continue
+            candidate_value = getattr(candidate, key)
+            base_value = getattr(base_settings, key)
+            if candidate_value == base_value:
+                next_overrides.pop(key, None)
+            else:
+                next_overrides[key] = candidate_value
+
+        _write_runtime_settings_overrides_unlocked(next_overrides, base_settings)
+        _settings = candidate
+        return _settings
+
+
 def reload_settings() -> Settings:
     """
     Reload settings from environment variables.
@@ -1438,7 +1523,7 @@ def reload_settings() -> Settings:
     """
     global _settings  # noqa: PLW0603 - Required for singleton pattern
     with _settings_lock:
-        _settings = Settings()
+        _settings = _build_effective_settings_unlocked()
     # Note: validate_settings() is NOT called here to avoid expensive directory creation
     # during tests. Call validate_settings() explicitly when needed.
     return _settings

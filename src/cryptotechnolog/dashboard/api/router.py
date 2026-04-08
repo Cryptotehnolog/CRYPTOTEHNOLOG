@@ -7,7 +7,13 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from fastapi import APIRouter, HTTPException
 
-from cryptotechnolog.config import get_logger, get_settings, update_settings
+from cryptotechnolog.config import (
+    get_logger,
+    get_settings,
+)
+from cryptotechnolog.config import (
+    persist_settings_updates as update_settings,
+)
 
 from ..dto.backtest import BacktestSummaryDTO
 from ..dto.execution import ExecutionSummaryDTO
@@ -120,6 +126,7 @@ def _build_settings_put_handler(
 
 def _register_settings_routes(
     router: APIRouter,
+    live_feed_policy_get_handler: Callable[[], Awaitable[LiveFeedPolicySettingsDTO]] | None = None,
     live_feed_policy_update_handler: Callable[
         [LiveFeedPolicySettingsDTO], Awaitable[LiveFeedPolicySettingsDTO]
     ]
@@ -260,16 +267,30 @@ def _register_settings_routes(
         "Обновить сроки жизни workflow и служебных контуров",
         "Обновляются workflow timeout settings",
     )
-    router.add_api_route(
-        "/settings/live-feed-policy",
-        _build_settings_get_handler(
-            LiveFeedPolicySettingsDTO,
-            "Запрошены current live feed policy settings",
-        ),
-        methods=["GET"],
-        response_model=LiveFeedPolicySettingsDTO,
-        summary="Получить текущие настройки подключения к рынку и переподключения",
-    )
+    if live_feed_policy_get_handler is None:
+        router.add_api_route(
+            "/settings/live-feed-policy",
+            _build_settings_get_handler(
+                LiveFeedPolicySettingsDTO,
+                "Запрошены current live feed policy settings",
+            ),
+            methods=["GET"],
+            response_model=LiveFeedPolicySettingsDTO,
+            summary="Получить текущие настройки подключения к рынку и переподключения",
+        )
+    else:
+
+        async def get_live_feed_policy_settings() -> LiveFeedPolicySettingsDTO:
+            logger.debug("Запрошены current live feed policy settings")
+            return await live_feed_policy_get_handler()
+
+        router.add_api_route(
+            "/settings/live-feed-policy",
+            get_live_feed_policy_settings,
+            methods=["GET"],
+            response_model=LiveFeedPolicySettingsDTO,
+            summary="Получить текущие настройки подключения к рынку и переподключения",
+        )
 
     if live_feed_policy_update_handler is None:
         router.add_api_route(
@@ -540,6 +561,7 @@ def _register_operational_summary_routes(router: APIRouter, facade: OverviewFaca
 def create_dashboard_router(
     facade: OverviewFacade,
     runtime_diagnostics_supplier: Callable[[], dict[str, Any]] | None = None,
+    live_feed_policy_get_handler: Callable[[], Awaitable[LiveFeedPolicySettingsDTO]] | None = None,
     live_feed_policy_update_handler: Callable[
         [LiveFeedPolicySettingsDTO], Awaitable[LiveFeedPolicySettingsDTO]
     ]
@@ -557,7 +579,11 @@ def create_dashboard_router(
 
     _register_core_summary_routes(router, facade)
     _register_positions_routes(router, facade)
-    _register_settings_routes(router, live_feed_policy_update_handler)
+    _register_settings_routes(
+        router,
+        live_feed_policy_get_handler,
+        live_feed_policy_update_handler,
+    )
     _register_connector_diagnostics_routes(
         router,
         runtime_diagnostics_supplier,

@@ -287,6 +287,21 @@ export const topBarExchangeCapsule = style({
     "&[data-exchange-state='connected']": {
       borderColor: "rgba(74, 222, 164, 0.58)",
     },
+    "&[data-exchange-state='mixed']": {
+      borderColor: "rgba(108, 214, 255, 0.5)",
+    },
+    "&[data-exchange-state='deferred']": {
+      borderColor: "rgba(245, 158, 11, 0.56)",
+    },
+    "&[data-exchange-state='recovering']": {
+      borderColor: "rgba(255, 202, 118, 0.58)",
+    },
+    "&[data-exchange-state='connecting']": {
+      borderColor: "rgba(255, 202, 118, 0.42)",
+    },
+    "&[data-exchange-state='disabled']": {
+      borderColor: "rgba(148, 163, 184, 0.28)",
+    },
     "&[data-exchange-state='offline']": {
       borderColor: "rgba(255, 105, 95, 0.52)",
     },
@@ -297,6 +312,21 @@ export const topBarExchangeCapsule = style({
     },
     [`${shellTone.light} &[data-exchange-state='connected']`]: {
       borderColor: "rgba(15, 139, 95, 0.5)",
+    },
+    [`${shellTone.light} &[data-exchange-state='mixed']`]: {
+      borderColor: "rgba(10, 121, 221, 0.42)",
+    },
+    [`${shellTone.light} &[data-exchange-state='deferred']`]: {
+      borderColor: "rgba(180, 83, 9, 0.42)",
+    },
+    [`${shellTone.light} &[data-exchange-state='recovering']`]: {
+      borderColor: "rgba(168, 106, 20, 0.5)",
+    },
+    [`${shellTone.light} &[data-exchange-state='connecting']`]: {
+      borderColor: "rgba(168, 106, 20, 0.36)",
+    },
+    [`${shellTone.light} &[data-exchange-state='disabled']`]: {
+      borderColor: "rgba(100, 116, 139, 0.34)",
     },
     [`${shellTone.light} &[data-exchange-state='offline']`]: {
       borderColor: "rgba(216, 61, 61, 0.46)",

@@ -25,7 +25,6 @@ class BybitUniverseInstrument:
 
     symbol: str
     quote_volume_24h_usd: Decimal
-    trade_count_24h: int | None
 
 
 @dataclass(slots=True, frozen=True)
@@ -36,6 +35,7 @@ class BybitUniverseSelectionSummary:
     total_instruments_discovered: int | None
     instruments_passed_coarse_filter: int | None
     selected_symbols: tuple[str, ...]
+    selected_quote_volume_24h_usd_by_symbol: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(slots=True, frozen=True)
@@ -84,20 +84,12 @@ def discover_bybit_universe(
             or ticker.get("turnover24H")
             or ticker.get("quote_volume_24h"),
         )
-        trade_count_24h = _optional_int(
-            ticker.get("tradeCount24h") or ticker.get("trades24h") or ticker.get("trade_count_24h"),
-        )
         if quote_volume_24h_usd < Decimal(str(config.min_quote_volume_24h_usd)):
-            continue
-        if config.min_trade_count_24h > 0 and (
-            trade_count_24h is None or trade_count_24h < config.min_trade_count_24h
-        ):
             continue
         candidates.append(
             BybitUniverseInstrument(
                 symbol=normalize_bybit_symbol(raw_symbol),
                 quote_volume_24h_usd=quote_volume_24h_usd,
-                trade_count_24h=trade_count_24h,
             )
         )
 
@@ -105,17 +97,21 @@ def discover_bybit_universe(
         candidates,
         key=lambda item: (
             item.quote_volume_24h_usd,
-            item.trade_count_24h if item.trade_count_24h is not None else -1,
             item.symbol,
         ),
         reverse=True,
     )
     selected = tuple(item.symbol for item in ranked[: max(0, config.max_symbols_per_scope)])
+    selected_quote_volume_24h_usd_by_symbol = tuple(
+        (item.symbol, str(item.quote_volume_24h_usd))
+        for item in ranked[: max(0, config.max_symbols_per_scope)]
+    )
     return BybitUniverseSelectionSummary(
         scope_mode="universe",
         total_instruments_discovered=len(discovered_symbols),
         instruments_passed_coarse_filter=len(ranked),
         selected_symbols=selected,
+        selected_quote_volume_24h_usd_by_symbol=selected_quote_volume_24h_usd_by_symbol,
     )
 
 
@@ -218,18 +214,6 @@ def _decimal_or_zero(raw_value: object) -> Decimal:
         return Decimal(str(raw_value))
     except (ArithmeticError, InvalidOperation, ValueError):
         return Decimal("0")
-
-
-def _optional_int(raw_value: object) -> int | None:
-    if raw_value is None:
-        return None
-    normalized = str(raw_value).strip()
-    if not normalized:
-        return None
-    try:
-        return int(normalized)
-    except ValueError:
-        return None
 
 
 __all__ = [

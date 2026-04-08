@@ -690,18 +690,6 @@ class LiveFeedPolicySettingsDTO(BaseModel):
     retry_delay_seconds: int = Field(
         description="Базовая задержка перед повторным подключением к live feed в секундах.",
     )
-    bybit_connector_scope_mode: str = Field(
-        description="Режим формирования scope для Bybit linear/perpetual: manual или universe.",
-    )
-    bybit_connector_symbol: str | None = Field(
-        description="Canonical Bybit linear/perpetual public connector scope. Несколько инструментов можно указать через запятую.",
-    )
-    bybit_spot_connector_scope_mode: str = Field(
-        description="Режим формирования scope для Bybit spot: manual или universe.",
-    )
-    bybit_spot_connector_symbol: str | None = Field(
-        description="Canonical Bybit spot public connector scope. Несколько инструментов можно указать через запятую.",
-    )
     bybit_universe_min_quote_volume_24h_usd: float = Field(
         description="Минимальный 24h quote volume в USD для coarse prefilter universe.",
     )
@@ -717,23 +705,15 @@ class LiveFeedPolicySettingsDTO(BaseModel):
         """Build DTO from canonical project settings."""
         return cls(
             retry_delay_seconds=settings.live_feed_retry_delay_seconds,
-            bybit_connector_scope_mode=settings.bybit_market_data_scope_mode,
-            bybit_connector_symbol=settings.bybit_market_data_connector_symbol,
-            bybit_spot_connector_scope_mode=settings.bybit_spot_market_data_scope_mode,
-            bybit_spot_connector_symbol=settings.bybit_spot_market_data_connector_symbol,
             bybit_universe_min_quote_volume_24h_usd=settings.bybit_universe_min_quote_volume_24h_usd,
             bybit_universe_min_trade_count_24h=settings.bybit_universe_min_trade_count_24h,
             bybit_universe_max_symbols_per_scope=settings.bybit_universe_max_symbols_per_scope,
         )
 
-    def to_settings_update(self) -> dict[str, float | int | str | None]:
+    def to_settings_update(self) -> dict[str, float | int]:
         """Convert DTO back into Settings field updates."""
         return {
             "live_feed_retry_delay_seconds": self.retry_delay_seconds,
-            "bybit_market_data_scope_mode": self.bybit_connector_scope_mode,
-            "bybit_market_data_connector_symbol": self.bybit_connector_symbol,
-            "bybit_spot_market_data_scope_mode": self.bybit_spot_connector_scope_mode,
-            "bybit_spot_market_data_connector_symbol": self.bybit_spot_connector_symbol,
             "bybit_universe_min_quote_volume_24h_usd": self.bybit_universe_min_quote_volume_24h_usd,
             "bybit_universe_min_trade_count_24h": self.bybit_universe_min_trade_count_24h,
             "bybit_universe_max_symbols_per_scope": self.bybit_universe_max_symbols_per_scope,
@@ -754,6 +734,18 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
         )
         best_ask: str | None = Field(
             description="Лучший ask для этого инструмента из текущего snapshot."
+        )
+        volume_24h_usd: str | None = Field(
+            default=None,
+            description="Оборот инструмента за 24 часа в USD, если метрика уже доступна.",
+        )
+        derived_trade_count_24h: int | None = Field(
+            default=None,
+            description="Derived rolling 24h trade count, когда слой trade-count уже надёжен.",
+        )
+        observed_trade_count_since_reset: int = Field(
+            default=0,
+            description="Сколько trade ticks накоплено с последнего reliability reset.",
         )
 
     enabled: bool = Field(description="Включён ли Bybit connector в текущем runtime.")
@@ -778,6 +770,58 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
     transport_rtt_ms: int | None = Field(
         description="RTT transport-level websocket ping/pong в миллисекундах."
     )
+    last_ping_sent_at: str | None = Field(
+        default=None,
+        description="Когда transport-level ping в последний раз был отправлен.",
+    )
+    last_pong_at: str | None = Field(
+        default=None,
+        description="Когда transport-level pong в последний раз был успешно получен.",
+    )
+    application_ping_sent_at: str | None = Field(
+        default=None,
+        description="Когда Bybit application-level ping был отправлен в последний раз.",
+    )
+    application_pong_at: str | None = Field(
+        default=None,
+        description="Когда Bybit application-level pong был получен в последний раз.",
+    )
+    application_heartbeat_latency_ms: int | None = Field(
+        default=None,
+        description="Latency ответа Bybit на application-level ping в миллисекундах.",
+    )
+    last_ping_timeout_at: str | None = Field(
+        default=None,
+        description="Когда в последний раз был зафиксирован ping timeout.",
+    )
+    last_ping_timeout_message_age_ms: int | None = Field(
+        default=None,
+        description="Сколько прошло с последнего входящего сообщения в момент ping timeout.",
+    )
+    last_ping_timeout_loop_lag_ms: int | None = Field(
+        default=None,
+        description="Оценка event-loop lag вблизи последнего ping timeout.",
+    )
+    last_ping_timeout_backfill_status: str | None = Field(
+        default=None,
+        description="Какой historical backfill status был в момент последнего ping timeout.",
+    )
+    last_ping_timeout_processed_archives: int | None = Field(
+        default=None,
+        description="Сколько archive unit-ов было обработано в момент последнего ping timeout.",
+    )
+    last_ping_timeout_total_archives: int | None = Field(
+        default=None,
+        description="Сколько archive unit-ов планировалось обработать всего в момент последнего ping timeout.",
+    )
+    last_ping_timeout_cache_source: str | None = Field(
+        default=None,
+        description="Какой archive cache source был актуален в момент последнего ping timeout.",
+    )
+    last_ping_timeout_ignored_due_to_recent_messages: bool = Field(
+        default=False,
+        description="Был ли последний ping timeout проигнорирован, потому что входящие сообщения продолжали приходить.",
+    )
     degraded_reason: str | None = Field(description="Причина деградации connector-а, если есть.")
     last_disconnect_reason: str | None = Field(
         description="Последняя причина disconnect connector-а, если есть."
@@ -793,14 +837,246 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
     reset_required: bool = Field(
         description="Требуется ли reset/recovery boundary перед честным продолжением ingest path."
     )
+    derived_trade_count_state: str | None = Field(
+        default=None,
+        description="Readiness state derived trade_count_24h layer: warming_up, ready, not_reliable_after_gap или live_tail_pending_after_gap.",
+    )
+    derived_trade_count_ready: bool = Field(
+        default=False,
+        description="Готов ли derived trade_count_24h слой для честного использования в admission logic.",
+    )
+    derived_trade_count_observation_started_at: str | None = Field(
+        default=None,
+        description="Когда началось текущее непрерывное накопление derived trade_count_24h.",
+    )
+    derived_trade_count_reliable_after: str | None = Field(
+        default=None,
+        description="Когда derived trade_count_24h станет ready при непрерывном накоплении без gap.",
+    )
+    derived_trade_count_last_gap_at: str | None = Field(
+        default=None,
+        description="Когда последний disconnect/gap сделал derived trade_count_24h ненадёжным.",
+    )
+    derived_trade_count_last_gap_reason: str | None = Field(
+        default=None,
+        description="Последняя причина gap/reset для derived trade_count_24h слоя.",
+    )
+    derived_trade_count_backfill_status: str | None = Field(
+        default=None,
+        description="Статус последней попытки historical backfill для derived trade_count_24h.",
+    )
+    derived_trade_count_backfill_needed: bool | None = Field(
+        default=None,
+        description="Нужен ли historical backfill для текущего derived trade_count_24h состояния.",
+    )
+    derived_trade_count_backfill_processed_archives: int | None = Field(
+        default=None,
+        description="Сколько архивных unit-ов historical backfill уже обработал.",
+    )
+    derived_trade_count_backfill_total_archives: int | None = Field(
+        default=None,
+        description="Сколько архивных unit-ов historical backfill планирует обработать всего.",
+    )
+    derived_trade_count_backfill_progress_percent: int | None = Field(
+        default=None,
+        description="Прогресс historical backfill в процентах по архивным unit-ам, а не по readiness фильтра.",
+    )
+    derived_trade_count_last_backfill_at: str | None = Field(
+        default=None,
+        description="Когда historical backfill в последний раз применялся или честно завершился ошибкой.",
+    )
+    derived_trade_count_last_backfill_source: str | None = Field(
+        default=None,
+        description="Источник historical backfill для derived trade_count_24h слоя.",
+    )
+    derived_trade_count_last_backfill_reason: str | None = Field(
+        default=None,
+        description="Последняя причина unavailable/partial historical backfill для derived trade_count_24h.",
+    )
+    desired_scope_mode: str | None = Field(
+        default=None,
+        description="Какой scope_mode сохранён как desired policy truth для этого contour-а.",
+    )
+    desired_trade_count_filter_minimum: int | None = Field(
+        default=None,
+        description="Какой min_trade_count_24h сохранён как desired policy truth.",
+    )
+    applied_scope_mode: str | None = Field(
+        default=None,
+        description="Какой scope_mode сейчас реально применён к running connector-у.",
+    )
+    applied_trade_count_filter_minimum: int | None = Field(
+        default=None,
+        description="Какой min_trade_count_24h сейчас реально применён к running connector-у.",
+    )
+    policy_apply_status: str | None = Field(
+        default=None,
+        description="Статус применения saved Bybit policy к runtime: applied, deferred, waiting_for_scope или not_running.",
+    )
+    policy_apply_reason: str | None = Field(
+        default=None,
+        description="Почему runtime apply был отложен или ограничен, если это произошло.",
+    )
+    operator_runtime_state: str | None = Field(
+        default=None,
+        description="Operator-facing runtime truth: disabled, apply_deferred, connecting, waiting_for_live_tail, warming_up, ready, live, transport_unavailable или no_qualifying_instruments.",
+    )
+    operator_runtime_reason: str | None = Field(
+        default=None,
+        description="Краткая operator-facing причина текущего runtime state.",
+    )
+    operator_confidence_state: str | None = Field(
+        default=None,
+        description="Operator-facing confidence layer: steady, preserved_after_gap, cold_recovery, streams_recovering, deferred, transport_unavailable, steady_but_empty или disabled.",
+    )
+    operator_confidence_reason: str | None = Field(
+        default=None,
+        description="Краткая причина текущего operator confidence state.",
+    )
+    historical_recovery_state: str | None = Field(
+        default=None,
+        description="Состояние historical recovery coordinator: not_applicable, idle, pending, backfilling, retry_scheduled или live_tail_only.",
+    )
+    historical_recovery_reason: str | None = Field(
+        default=None,
+        description="Краткая причина текущего состояния historical recovery coordinator.",
+    )
+    historical_recovery_retry_pending: bool = Field(
+        default=False,
+        description="Запланирован ли delayed retry для latest-archive backfill.",
+    )
+    historical_recovery_backfill_task_active: bool = Field(
+        default=False,
+        description="Идёт ли сейчас активный historical backfill task.",
+    )
+    historical_recovery_retry_task_active: bool = Field(
+        default=False,
+        description="Идёт ли сейчас активный retry task latest closed-day archive.",
+    )
+    historical_recovery_cutoff_at: str | None = Field(
+        default=None,
+        description="По какой cutoff boundary сейчас или в последний раз планировался historical recovery plan.",
+    )
+    archive_cache_enabled: bool = Field(
+        default=False,
+        description="Включён ли disk-backed archive cache для этого contour-а.",
+    )
+    archive_cache_memory_hits: int = Field(
+        default=0,
+        description="Сколько раз payload был взят из in-memory archive cache.",
+    )
+    archive_cache_disk_hits: int = Field(
+        default=0,
+        description="Сколько раз payload был взят из disk archive cache.",
+    )
+    archive_cache_misses: int = Field(
+        default=0,
+        description="Сколько раз archive пришлось реально запрашивать с внешнего источника.",
+    )
+    archive_cache_writes: int = Field(
+        default=0,
+        description="Сколько archive payloads было записано в disk cache.",
+    )
+    archive_cache_last_hit_source: str | None = Field(
+        default=None,
+        description="Последний источник archive payload: memory, disk или network.",
+    )
+    archive_cache_last_url: str | None = Field(
+        default=None,
+        description="Последний archive URL, который использовался в backfill path.",
+    )
+    archive_cache_last_cleanup_at: str | None = Field(
+        default=None,
+        description="Когда disk archive cache в последний раз проходил cleanup.",
+    )
+    archive_cache_last_pruned_files: int = Field(
+        default=0,
+        description="Сколько cache files было удалено в последнем cleanup pass.",
+    )
+    archive_cache_last_network_fetch_ms: int | None = Field(
+        default=None,
+        description="Сколько занял последний network fetch archive payload в миллисекундах.",
+    )
+    archive_cache_last_disk_read_ms: int | None = Field(
+        default=None,
+        description="Сколько заняло последнее чтение archive payload с диска в миллисекундах.",
+    )
+    archive_cache_last_gzip_decode_ms: int | None = Field(
+        default=None,
+        description="Сколько заняла последняя стадия gzip decode в миллисекундах.",
+    )
+    archive_cache_last_csv_parse_ms: int | None = Field(
+        default=None,
+        description="Сколько заняла последняя стадия csv parse в миллисекундах.",
+    )
+    archive_cache_last_archive_total_ms: int | None = Field(
+        default=None,
+        description="Сколько заняла полная обработка последнего archive unit в миллисекундах.",
+    )
+    archive_cache_last_symbol_total_ms: int | None = Field(
+        default=None,
+        description="Сколько заняла последняя полная historical обработка одного symbol path.",
+    )
+    archive_cache_last_symbol: str | None = Field(
+        default=None,
+        description="Для какого symbol path в последний раз зафиксировано полное historical время.",
+    )
+    archive_cache_total_network_fetch_ms: int = Field(
+        default=0,
+        description="Суммарное время network fetch archive payloads в миллисекундах.",
+    )
+    archive_cache_total_disk_read_ms: int = Field(
+        default=0,
+        description="Суммарное время чтения archive payloads с диска в миллисекундах.",
+    )
+    archive_cache_total_gzip_decode_ms: int = Field(
+        default=0,
+        description="Суммарное время gzip decode по historical archives в миллисекундах.",
+    )
+    archive_cache_total_csv_parse_ms: int = Field(
+        default=0,
+        description="Суммарное время csv parse по historical archives в миллисекундах.",
+    )
+    archive_cache_total_archive_total_ms: int = Field(
+        default=0,
+        description="Суммарное полное время обработки archive units в миллисекундах.",
+    )
+    archive_cache_total_symbol_total_ms: int = Field(
+        default=0,
+        description="Суммарное полное время historical symbol paths в миллисекундах.",
+    )
     scope_mode: str = Field(
-        description="Режим формирования текущего connector scope: manual или universe."
+        description="Режим формирования текущего connector scope. Для Bybit public connectors теперь всегда universe."
+    )
+    discovery_status: str | None = Field(
+        default=None,
+        description="Статус universe discovery truth: ready, unavailable или not_applicable.",
+    )
+    discovery_error: str | None = Field(
+        default=None,
+        description="Последняя ошибка universe discovery, если source оказался недоступен.",
     )
     total_instruments_discovered: int | None = Field(
         description="Сколько инструментов было найдено на этапе universe discovery."
     )
     instruments_passed_coarse_filter: int | None = Field(
         description="Сколько инструментов прошло coarse prefilter до handoff в connector."
+    )
+    quote_volume_filter_ready: bool | None = Field(
+        default=None,
+        description="Готов ли volume-based discovery filter для universe admission.",
+    )
+    trade_count_filter_ready: bool | None = Field(
+        default=None,
+        description="Готов ли derived trade_count_24h filter для universe admission.",
+    )
+    instruments_passed_trade_count_filter: int | None = Field(
+        default=None,
+        description="Сколько инструментов прошло derived trade_count_24h filter, когда он уже ready.",
+    )
+    universe_admission_state: str | None = Field(
+        default=None,
+        description="Состояние universe admission: waiting_for_filter_readiness, waiting_for_live_tail, waiting_for_qualifying_instruments или ready_for_selection.",
     )
     active_subscribed_scope_count: int = Field(
         description="Сколько инструментов реально находится в active subscribed scope."
@@ -855,6 +1131,15 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
                         best_ask=snapshot.get("best_ask")
                         if isinstance(snapshot.get("best_ask"), str)
                         else None,
+                        volume_24h_usd=snapshot.get("volume_24h_usd")
+                        if isinstance(snapshot.get("volume_24h_usd"), str)
+                        else None,
+                        derived_trade_count_24h=snapshot.get("derived_trade_count_24h")
+                        if isinstance(snapshot.get("derived_trade_count_24h"), int)
+                        else None,
+                        observed_trade_count_since_reset=int(
+                            snapshot.get("observed_trade_count_since_reset", 0)
+                        ),
                     )
                 )
 
@@ -883,6 +1168,47 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
             transport_rtt_ms=connector.get("transport_rtt_ms")
             if isinstance(connector.get("transport_rtt_ms"), int)
             else None,
+            last_ping_sent_at=connector.get("last_ping_sent_at")
+            if isinstance(connector.get("last_ping_sent_at"), str)
+            else None,
+            last_pong_at=connector.get("last_pong_at")
+            if isinstance(connector.get("last_pong_at"), str)
+            else None,
+            application_ping_sent_at=connector.get("application_ping_sent_at")
+            if isinstance(connector.get("application_ping_sent_at"), str)
+            else None,
+            application_pong_at=connector.get("application_pong_at")
+            if isinstance(connector.get("application_pong_at"), str)
+            else None,
+            application_heartbeat_latency_ms=connector.get("application_heartbeat_latency_ms")
+            if isinstance(connector.get("application_heartbeat_latency_ms"), int)
+            else None,
+            last_ping_timeout_at=connector.get("last_ping_timeout_at")
+            if isinstance(connector.get("last_ping_timeout_at"), str)
+            else None,
+            last_ping_timeout_message_age_ms=connector.get("last_ping_timeout_message_age_ms")
+            if isinstance(connector.get("last_ping_timeout_message_age_ms"), int)
+            else None,
+            last_ping_timeout_loop_lag_ms=connector.get("last_ping_timeout_loop_lag_ms")
+            if isinstance(connector.get("last_ping_timeout_loop_lag_ms"), int)
+            else None,
+            last_ping_timeout_backfill_status=connector.get("last_ping_timeout_backfill_status")
+            if isinstance(connector.get("last_ping_timeout_backfill_status"), str)
+            else None,
+            last_ping_timeout_processed_archives=connector.get(
+                "last_ping_timeout_processed_archives"
+            )
+            if isinstance(connector.get("last_ping_timeout_processed_archives"), int)
+            else None,
+            last_ping_timeout_total_archives=connector.get("last_ping_timeout_total_archives")
+            if isinstance(connector.get("last_ping_timeout_total_archives"), int)
+            else None,
+            last_ping_timeout_cache_source=connector.get("last_ping_timeout_cache_source")
+            if isinstance(connector.get("last_ping_timeout_cache_source"), str)
+            else None,
+            last_ping_timeout_ignored_due_to_recent_messages=bool(
+                connector.get("last_ping_timeout_ignored_due_to_recent_messages", False)
+            ),
             degraded_reason=connector.get("degraded_reason")
             if isinstance(connector.get("degraded_reason"), str)
             else None,
@@ -898,12 +1224,190 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
             if isinstance(connector.get("lifecycle_state"), str)
             else None,
             reset_required=bool(connector.get("reset_required", False)),
-            scope_mode=str(connector.get("scope_mode", "manual")),
+            derived_trade_count_state=connector.get("derived_trade_count_state")
+            if isinstance(connector.get("derived_trade_count_state"), str)
+            else None,
+            derived_trade_count_ready=bool(connector.get("derived_trade_count_ready", False)),
+            derived_trade_count_observation_started_at=connector.get(
+                "derived_trade_count_observation_started_at"
+            )
+            if isinstance(connector.get("derived_trade_count_observation_started_at"), str)
+            else None,
+            derived_trade_count_reliable_after=connector.get("derived_trade_count_reliable_after")
+            if isinstance(connector.get("derived_trade_count_reliable_after"), str)
+            else None,
+            derived_trade_count_last_gap_at=connector.get("derived_trade_count_last_gap_at")
+            if isinstance(connector.get("derived_trade_count_last_gap_at"), str)
+            else None,
+            derived_trade_count_last_gap_reason=connector.get("derived_trade_count_last_gap_reason")
+            if isinstance(connector.get("derived_trade_count_last_gap_reason"), str)
+            else None,
+            derived_trade_count_backfill_status=connector.get("derived_trade_count_backfill_status")
+            if isinstance(connector.get("derived_trade_count_backfill_status"), str)
+            else None,
+            derived_trade_count_backfill_needed=connector.get("derived_trade_count_backfill_needed")
+            if isinstance(connector.get("derived_trade_count_backfill_needed"), bool)
+            else None,
+            derived_trade_count_backfill_processed_archives=connector.get(
+                "derived_trade_count_backfill_processed_archives"
+            )
+            if isinstance(connector.get("derived_trade_count_backfill_processed_archives"), int)
+            else None,
+            derived_trade_count_backfill_total_archives=connector.get(
+                "derived_trade_count_backfill_total_archives"
+            )
+            if isinstance(connector.get("derived_trade_count_backfill_total_archives"), int)
+            else None,
+            derived_trade_count_backfill_progress_percent=connector.get(
+                "derived_trade_count_backfill_progress_percent"
+            )
+            if isinstance(connector.get("derived_trade_count_backfill_progress_percent"), int)
+            else None,
+            derived_trade_count_last_backfill_at=connector.get(
+                "derived_trade_count_last_backfill_at"
+            )
+            if isinstance(connector.get("derived_trade_count_last_backfill_at"), str)
+            else None,
+            derived_trade_count_last_backfill_source=connector.get(
+                "derived_trade_count_last_backfill_source"
+            )
+            if isinstance(connector.get("derived_trade_count_last_backfill_source"), str)
+            else None,
+            derived_trade_count_last_backfill_reason=connector.get(
+                "derived_trade_count_last_backfill_reason"
+            )
+            if isinstance(connector.get("derived_trade_count_last_backfill_reason"), str)
+            else None,
+            desired_scope_mode=connector.get("desired_scope_mode")
+            if isinstance(connector.get("desired_scope_mode"), str)
+            else None,
+            desired_trade_count_filter_minimum=connector.get("desired_trade_count_filter_minimum")
+            if isinstance(connector.get("desired_trade_count_filter_minimum"), int)
+            else None,
+            applied_scope_mode=connector.get("applied_scope_mode")
+            if isinstance(connector.get("applied_scope_mode"), str)
+            else None,
+            applied_trade_count_filter_minimum=connector.get("applied_trade_count_filter_minimum")
+            if isinstance(connector.get("applied_trade_count_filter_minimum"), int)
+            else None,
+            policy_apply_status=connector.get("policy_apply_status")
+            if isinstance(connector.get("policy_apply_status"), str)
+            else None,
+            policy_apply_reason=connector.get("policy_apply_reason")
+            if isinstance(connector.get("policy_apply_reason"), str)
+            else None,
+            operator_runtime_state=connector.get("operator_runtime_state")
+            if isinstance(connector.get("operator_runtime_state"), str)
+            else None,
+            operator_runtime_reason=connector.get("operator_runtime_reason")
+            if isinstance(connector.get("operator_runtime_reason"), str)
+            else None,
+            operator_confidence_state=connector.get("operator_confidence_state")
+            if isinstance(connector.get("operator_confidence_state"), str)
+            else None,
+            operator_confidence_reason=connector.get("operator_confidence_reason")
+            if isinstance(connector.get("operator_confidence_reason"), str)
+            else None,
+            historical_recovery_state=connector.get("historical_recovery_state")
+            if isinstance(connector.get("historical_recovery_state"), str)
+            else None,
+            historical_recovery_reason=connector.get("historical_recovery_reason")
+            if isinstance(connector.get("historical_recovery_reason"), str)
+            else None,
+            historical_recovery_retry_pending=bool(
+                connector.get("historical_recovery_retry_pending", False)
+            ),
+            historical_recovery_backfill_task_active=bool(
+                connector.get("historical_recovery_backfill_task_active", False)
+            ),
+            historical_recovery_retry_task_active=bool(
+                connector.get("historical_recovery_retry_task_active", False)
+            ),
+            historical_recovery_cutoff_at=connector.get("historical_recovery_cutoff_at")
+            if isinstance(connector.get("historical_recovery_cutoff_at"), str)
+            else None,
+            archive_cache_enabled=bool(connector.get("archive_cache_enabled", False)),
+            archive_cache_memory_hits=int(connector.get("archive_cache_memory_hits", 0)),
+            archive_cache_disk_hits=int(connector.get("archive_cache_disk_hits", 0)),
+            archive_cache_misses=int(connector.get("archive_cache_misses", 0)),
+            archive_cache_writes=int(connector.get("archive_cache_writes", 0)),
+            archive_cache_last_hit_source=connector.get("archive_cache_last_hit_source")
+            if isinstance(connector.get("archive_cache_last_hit_source"), str)
+            else None,
+            archive_cache_last_url=connector.get("archive_cache_last_url")
+            if isinstance(connector.get("archive_cache_last_url"), str)
+            else None,
+            archive_cache_last_cleanup_at=connector.get("archive_cache_last_cleanup_at")
+            if isinstance(connector.get("archive_cache_last_cleanup_at"), str)
+            else None,
+            archive_cache_last_pruned_files=int(
+                connector.get("archive_cache_last_pruned_files", 0)
+            ),
+            archive_cache_last_network_fetch_ms=connector.get("archive_cache_last_network_fetch_ms")
+            if isinstance(connector.get("archive_cache_last_network_fetch_ms"), int)
+            else None,
+            archive_cache_last_disk_read_ms=connector.get("archive_cache_last_disk_read_ms")
+            if isinstance(connector.get("archive_cache_last_disk_read_ms"), int)
+            else None,
+            archive_cache_last_gzip_decode_ms=connector.get("archive_cache_last_gzip_decode_ms")
+            if isinstance(connector.get("archive_cache_last_gzip_decode_ms"), int)
+            else None,
+            archive_cache_last_csv_parse_ms=connector.get("archive_cache_last_csv_parse_ms")
+            if isinstance(connector.get("archive_cache_last_csv_parse_ms"), int)
+            else None,
+            archive_cache_last_archive_total_ms=connector.get("archive_cache_last_archive_total_ms")
+            if isinstance(connector.get("archive_cache_last_archive_total_ms"), int)
+            else None,
+            archive_cache_last_symbol_total_ms=connector.get("archive_cache_last_symbol_total_ms")
+            if isinstance(connector.get("archive_cache_last_symbol_total_ms"), int)
+            else None,
+            archive_cache_last_symbol=connector.get("archive_cache_last_symbol")
+            if isinstance(connector.get("archive_cache_last_symbol"), str)
+            else None,
+            archive_cache_total_network_fetch_ms=int(
+                connector.get("archive_cache_total_network_fetch_ms", 0)
+            ),
+            archive_cache_total_disk_read_ms=int(
+                connector.get("archive_cache_total_disk_read_ms", 0)
+            ),
+            archive_cache_total_gzip_decode_ms=int(
+                connector.get("archive_cache_total_gzip_decode_ms", 0)
+            ),
+            archive_cache_total_csv_parse_ms=int(
+                connector.get("archive_cache_total_csv_parse_ms", 0)
+            ),
+            archive_cache_total_archive_total_ms=int(
+                connector.get("archive_cache_total_archive_total_ms", 0)
+            ),
+            archive_cache_total_symbol_total_ms=int(
+                connector.get("archive_cache_total_symbol_total_ms", 0)
+            ),
+            scope_mode=str(connector.get("scope_mode", "universe")),
+            discovery_status=connector.get("discovery_status")
+            if isinstance(connector.get("discovery_status"), str)
+            else None,
+            discovery_error=connector.get("discovery_error")
+            if isinstance(connector.get("discovery_error"), str)
+            else None,
             total_instruments_discovered=connector.get("total_instruments_discovered")
             if isinstance(connector.get("total_instruments_discovered"), int)
             else None,
             instruments_passed_coarse_filter=connector.get("instruments_passed_coarse_filter")
             if isinstance(connector.get("instruments_passed_coarse_filter"), int)
+            else None,
+            quote_volume_filter_ready=connector.get("quote_volume_filter_ready")
+            if isinstance(connector.get("quote_volume_filter_ready"), bool)
+            else None,
+            trade_count_filter_ready=connector.get("trade_count_filter_ready")
+            if isinstance(connector.get("trade_count_filter_ready"), bool)
+            else None,
+            instruments_passed_trade_count_filter=connector.get(
+                "instruments_passed_trade_count_filter"
+            )
+            if isinstance(connector.get("instruments_passed_trade_count_filter"), int)
+            else None,
+            universe_admission_state=connector.get("universe_admission_state")
+            if isinstance(connector.get("universe_admission_state"), str)
             else None,
             active_subscribed_scope_count=int(connector.get("active_subscribed_scope_count", 0)),
             live_trade_streams_count=int(connector.get("live_trade_streams_count", 0)),

@@ -20,8 +20,10 @@ from .bybit import (
     BybitOrderBookProjector,
     BybitSubscriptionRegistry,
     BybitWebSocketConnection,
+    _default_trade_count_store_path,
     normalize_bybit_symbol,
 )
+from .bybit_trade_backfill import create_bybit_historical_trade_backfill_service
 from .models import FeedSessionIdentity
 
 if TYPE_CHECKING:
@@ -70,6 +72,8 @@ def create_bybit_spot_market_data_connector(
     symbols: tuple[str, ...],
     market_data_runtime: MarketDataRuntime,
     config: BybitSpotMarketDataConnectorConfig | None = None,
+    universe_scope_mode: bool = False,
+    universe_min_trade_count_24h: int = 0,
 ) -> BybitSpotMarketDataConnector:
     session = FeedSessionIdentity(
         exchange="bybit_spot",
@@ -82,6 +86,14 @@ def create_bybit_spot_market_data_connector(
         market_data_runtime=market_data_runtime,
         config=resolved_config,
         parser=BybitMarketDataParser(max_orderbook_levels=resolved_config.max_orderbook_levels),
+        universe_scope_mode=universe_scope_mode,
+        universe_min_trade_count_24h=universe_min_trade_count_24h,
+        derived_trade_count_store_path=_default_trade_count_store_path("bybit_spot"),
+        historical_trade_backfill_service=(
+            None
+            if get_settings().bybit_testnet
+            else create_bybit_historical_trade_backfill_service(contour="spot")
+        ),
     )
 
 

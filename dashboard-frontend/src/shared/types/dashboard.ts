@@ -635,10 +635,6 @@ export type WorkflowTimeoutsSettingsResponse = {
 
 export type LiveFeedPolicySettingsResponse = {
   retry_delay_seconds: number;
-  bybit_connector_scope_mode: string;
-  bybit_connector_symbol: string | null;
-  bybit_spot_connector_scope_mode: string;
-  bybit_spot_connector_symbol: string | null;
   bybit_universe_min_quote_volume_24h_usd: number;
   bybit_universe_min_trade_count_24h: number;
   bybit_universe_max_symbols_per_scope: number;
@@ -650,6 +646,9 @@ export type BybitConnectorSymbolSnapshotResponse = {
   orderbook_seen: boolean;
   best_bid: string | null;
   best_ask: string | null;
+  volume_24h_usd: string | null;
+  derived_trade_count_24h: number | null;
+  observed_trade_count_since_reset: number;
 };
 
 export type BybitConnectorDiagnosticsResponse = {
@@ -667,6 +666,9 @@ export type BybitConnectorDiagnosticsResponse = {
   last_message_at: string | null;
   message_age_ms: number | null;
   transport_rtt_ms: number | null;
+  application_ping_sent_at: string | null;
+  application_pong_at: string | null;
+  application_heartbeat_latency_ms: number | null;
   degraded_reason: string | null;
   last_disconnect_reason: string | null;
   retry_count: number | null;
@@ -674,9 +676,52 @@ export type BybitConnectorDiagnosticsResponse = {
   started: boolean;
   lifecycle_state: string | null;
   reset_required: boolean;
+  derived_trade_count_state: string | null;
+  derived_trade_count_ready: boolean;
+  derived_trade_count_observation_started_at: string | null;
+  derived_trade_count_reliable_after: string | null;
+  derived_trade_count_last_gap_at: string | null;
+  derived_trade_count_last_gap_reason: string | null;
+  derived_trade_count_backfill_status: string | null;
+  derived_trade_count_backfill_needed: boolean | null;
+  derived_trade_count_backfill_processed_archives: number | null;
+  derived_trade_count_backfill_total_archives: number | null;
+  derived_trade_count_backfill_progress_percent: number | null;
+  derived_trade_count_last_backfill_at: string | null;
+  derived_trade_count_last_backfill_source: string | null;
+  derived_trade_count_last_backfill_reason: string | null;
+  desired_scope_mode: string | null;
+  desired_trade_count_filter_minimum: number | null;
+  applied_scope_mode: string | null;
+  applied_trade_count_filter_minimum: number | null;
+  policy_apply_status: string | null;
+  policy_apply_reason: string | null;
+  operator_runtime_state: string | null;
+  operator_runtime_reason: string | null;
+  operator_confidence_state: string | null;
+  operator_confidence_reason: string | null;
+  historical_recovery_state: string | null;
+  historical_recovery_reason: string | null;
+  historical_recovery_retry_pending: boolean;
+  historical_recovery_backfill_task_active: boolean;
+  historical_recovery_retry_task_active: boolean;
+  historical_recovery_cutoff_at: string | null;
+  archive_cache_enabled: boolean;
+  archive_cache_memory_hits: number;
+  archive_cache_disk_hits: number;
+  archive_cache_misses: number;
+  archive_cache_writes: number;
+  archive_cache_last_hit_source: string | null;
+  archive_cache_last_url: string | null;
+  archive_cache_last_cleanup_at: string | null;
+  archive_cache_last_pruned_files: number;
   scope_mode: string;
   total_instruments_discovered: number | null;
   instruments_passed_coarse_filter: number | null;
+  quote_volume_filter_ready: boolean | null;
+  trade_count_filter_ready: boolean | null;
+  instruments_passed_trade_count_filter: number | null;
+  universe_admission_state: string | null;
   active_subscribed_scope_count: number;
   live_trade_streams_count: number;
   live_orderbook_count: number;

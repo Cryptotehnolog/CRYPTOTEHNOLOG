@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock
 
@@ -7,7 +8,12 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
 
-from cryptotechnolog.config import get_settings, reload_settings
+from cryptotechnolog.config import (
+    clear_runtime_settings_overrides,
+    get_settings,
+    reload_settings,
+)
+import cryptotechnolog.config.settings as settings_module
 from cryptotechnolog.config.settings import Settings
 from cryptotechnolog.dashboard.api import create_dashboard_router
 from cryptotechnolog.dashboard.app import create_dashboard_app
@@ -90,6 +96,46 @@ from cryptotechnolog.dashboard.dto.validation import (
 
 if TYPE_CHECKING:
     from cryptotechnolog.dashboard.facade.overview_facade import OverviewFacade
+
+
+@pytest.fixture(autouse=True)
+def isolated_runtime_settings_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
+    overrides_store: dict[str, object] = {}
+
+    def fake_load_runtime_settings_overrides_unlocked(
+        base_settings=None,
+    ) -> dict[str, object]:
+        return dict(overrides_store)
+
+    def fake_write_runtime_settings_overrides_unlocked(
+        overrides: dict[str, object],
+        base_settings=None,
+    ) -> None:
+        overrides_store.clear()
+        overrides_store.update(overrides)
+
+    monkeypatch.setattr(
+        settings_module,
+        "_load_runtime_settings_overrides_unlocked",
+        fake_load_runtime_settings_overrides_unlocked,
+    )
+    monkeypatch.setattr(
+        settings_module,
+        "_write_runtime_settings_overrides_unlocked",
+        fake_write_runtime_settings_overrides_unlocked,
+    )
+    monkeypatch.setattr(
+        settings_module,
+        "_resolve_runtime_settings_overrides_path",
+        lambda base_settings=None: Path("runtime-settings-overrides.json"),
+    )
+    clear_runtime_settings_overrides()
+    reload_settings()
+    try:
+        yield
+    finally:
+        clear_runtime_settings_overrides()
+        reload_settings()
 
 
 class _StubFacade:
@@ -584,10 +630,12 @@ class _StubProductionRuntime:
     def __init__(self) -> None:
         self.bybit_enabled = True
         self.bybit_spot_enabled = False
-        self.bybit_scope_mode = "manual"
-        self.bybit_total_instruments_discovered: int | None = None
-        self.bybit_instruments_passed_coarse_filter: int | None = None
-        self.bybit_active_scope_count = 2
+        self.bybit_scope_mode = "universe"
+        self.settings = get_settings()
+        self.bybit_total_instruments_discovered: int | None = 350
+        self.bybit_instruments_passed_coarse_filter: int | None = 42
+        self.bybit_instruments_passed_trade_count_filter: int | None = None
+        self.bybit_active_scope_count = 42
         self.startup = AsyncMock()
         self.shutdown = AsyncMock()
         self.set_bybit_market_data_connector_enabled = AsyncMock(
@@ -615,21 +663,18 @@ class _StubProductionRuntime:
         self,
         updates: dict[str, object],
     ) -> Settings:
-        scope_mode = updates.get("bybit_market_data_scope_mode")
-        if isinstance(scope_mode, str):
-            self.bybit_scope_mode = scope_mode
-        if self.bybit_scope_mode == "universe":
-            self.bybit_total_instruments_discovered = 350
-            self.bybit_instruments_passed_coarse_filter = 42
-            self.bybit_active_scope_count = 42
-        else:
-            self.bybit_total_instruments_discovered = None
-            self.bybit_instruments_passed_coarse_filter = None
-            self.bybit_active_scope_count = 2 if self.bybit_enabled else 0
-        return Settings.model_validate({
-            **get_settings().model_dump(mode="python"),
-            **updates,
-        })
+        self.bybit_scope_mode = "universe"
+        self.bybit_total_instruments_discovered = 350
+        self.bybit_instruments_passed_coarse_filter = 42
+        self.bybit_instruments_passed_trade_count_filter = None
+        self.bybit_active_scope_count = 42 if self.bybit_enabled else 0
+        self.settings = Settings.model_validate(
+            {
+                **get_settings().model_dump(mode="python"),
+                **updates,
+            }
+        )
+        return self.settings
 
     def get_runtime_diagnostics(self) -> dict[str, object]:
         return {
@@ -677,6 +722,12 @@ class _StubProductionRuntime:
                 "scope_mode": self.bybit_scope_mode,
                 "total_instruments_discovered": self.bybit_total_instruments_discovered,
                 "instruments_passed_coarse_filter": self.bybit_instruments_passed_coarse_filter,
+                "quote_volume_filter_ready": self.bybit_scope_mode == "universe",
+                "trade_count_filter_ready": False if self.bybit_scope_mode == "universe" else None,
+                "instruments_passed_trade_count_filter": self.bybit_instruments_passed_trade_count_filter,
+                "universe_admission_state": (
+                    "waiting_for_filter_readiness" if self.bybit_scope_mode == "universe" else None
+                ),
                 "active_subscribed_scope_count": self.bybit_active_scope_count
                 if self.bybit_enabled
                 else 0,
@@ -728,9 +779,13 @@ class _StubProductionRuntime:
                 else None,
                 "degraded_reason": None,
                 "last_disconnect_reason": None,
-                "scope_mode": "manual",
-                "total_instruments_discovered": None,
-                "instruments_passed_coarse_filter": None,
+                "scope_mode": "universe",
+                "total_instruments_discovered": 120,
+                "instruments_passed_coarse_filter": 18,
+                "quote_volume_filter_ready": True,
+                "trade_count_filter_ready": False,
+                "instruments_passed_trade_count_filter": None,
+                "universe_admission_state": "waiting_for_filter_readiness",
                 "active_subscribed_scope_count": 2 if self.bybit_spot_enabled else 0,
                 "live_trade_streams_count": 2 if self.bybit_spot_enabled else 0,
                 "live_orderbook_count": 2 if self.bybit_spot_enabled else 0,
@@ -1704,10 +1759,6 @@ def test_dashboard_live_feed_policy_settings_endpoint_returns_current_values() -
     data = LiveFeedPolicySettingsDTO.model_validate(response.json())
     settings = get_settings()
     assert data.retry_delay_seconds == settings.live_feed_retry_delay_seconds
-    assert data.bybit_connector_scope_mode == settings.bybit_market_data_scope_mode
-    assert data.bybit_connector_symbol == settings.bybit_market_data_connector_symbol
-    assert data.bybit_spot_connector_scope_mode == settings.bybit_spot_market_data_scope_mode
-    assert data.bybit_spot_connector_symbol == settings.bybit_spot_market_data_connector_symbol
     assert (
         data.bybit_universe_min_quote_volume_24h_usd
         == settings.bybit_universe_min_quote_volume_24h_usd
@@ -1728,10 +1779,6 @@ def test_dashboard_live_feed_policy_settings_endpoint_updates_current_values() -
             "/dashboard/settings/live-feed-policy",
             json={
                 "retry_delay_seconds": 9,
-                "bybit_connector_scope_mode": "universe",
-                "bybit_connector_symbol": "BTC/USDT, ETH/USDT",
-                "bybit_spot_connector_scope_mode": "manual",
-                "bybit_spot_connector_symbol": "BTC/USDT, ETH/USDT",
                 "bybit_universe_min_quote_volume_24h_usd": 2500000.0,
                 "bybit_universe_min_trade_count_24h": 1000,
                 "bybit_universe_max_symbols_per_scope": 80,
@@ -1741,25 +1788,45 @@ def test_dashboard_live_feed_policy_settings_endpoint_updates_current_values() -
         assert response.status_code == 200
         data = LiveFeedPolicySettingsDTO.model_validate(response.json())
         assert data.retry_delay_seconds == 9
-        assert data.bybit_connector_scope_mode == "universe"
-        assert data.bybit_connector_symbol == "BTC/USDT, ETH/USDT"
-        assert data.bybit_spot_connector_scope_mode == "manual"
-        assert data.bybit_spot_connector_symbol == "BTC/USDT, ETH/USDT"
         assert data.bybit_universe_min_quote_volume_24h_usd == 2500000.0
         assert data.bybit_universe_min_trade_count_24h == 1000
         assert data.bybit_universe_max_symbols_per_scope == 80
 
         settings = get_settings()
         assert settings.live_feed_retry_delay_seconds == 9
-        assert settings.bybit_market_data_scope_mode == "universe"
-        assert settings.bybit_market_data_connector_symbol == "BTC/USDT, ETH/USDT"
-        assert settings.bybit_spot_market_data_scope_mode == "manual"
-        assert settings.bybit_spot_market_data_connector_symbol == "BTC/USDT, ETH/USDT"
         assert settings.bybit_universe_min_quote_volume_24h_usd == 2500000.0
         assert settings.bybit_universe_min_trade_count_24h == 1000
         assert settings.bybit_universe_max_symbols_per_scope == 80
     finally:
         reload_settings()
+
+
+def test_live_feed_policy_dto_returns_automatic_only_settings_update() -> None:
+    dto = LiveFeedPolicySettingsDTO(
+        retry_delay_seconds=5,
+        bybit_universe_min_quote_volume_24h_usd=1000000.0,
+        bybit_universe_min_trade_count_24h=5,
+        bybit_universe_max_symbols_per_scope=100,
+    )
+
+    updates = dto.to_settings_update()
+
+    assert "bybit_market_data_scope_mode" not in updates
+    assert "bybit_market_data_connector_symbol" not in updates
+    assert "bybit_spot_market_data_scope_mode" not in updates
+    assert "bybit_spot_market_data_connector_symbol" not in updates
+
+
+def test_live_feed_policy_dto_ignores_removed_manual_scope_settings() -> None:
+    settings = Settings()
+
+    dto = LiveFeedPolicySettingsDTO.from_settings(settings)
+
+    dumped = dto.model_dump()
+    assert "bybit_connector_scope_mode" not in dumped
+    assert "bybit_connector_symbol" not in dumped
+    assert "bybit_spot_connector_scope_mode" not in dumped
+    assert "bybit_spot_connector_symbol" not in dumped
 
 
 def test_dashboard_live_feed_policy_settings_endpoint_syncs_canonical_runtime_truth_in_full_app() -> (
@@ -1772,10 +1839,6 @@ def test_dashboard_live_feed_policy_settings_endpoint_syncs_canonical_runtime_tr
             "/dashboard/settings/live-feed-policy",
             json={
                 "retry_delay_seconds": 5,
-                "bybit_connector_scope_mode": "universe",
-                "bybit_connector_symbol": None,
-                "bybit_spot_connector_scope_mode": "manual",
-                "bybit_spot_connector_symbol": None,
                 "bybit_universe_min_quote_volume_24h_usd": 1000000.0,
                 "bybit_universe_min_trade_count_24h": 0,
                 "bybit_universe_max_symbols_per_scope": 100,
@@ -1785,17 +1848,82 @@ def test_dashboard_live_feed_policy_settings_endpoint_syncs_canonical_runtime_tr
 
     assert response.status_code == 200
     data = LiveFeedPolicySettingsDTO.model_validate(response.json())
-    assert data.bybit_connector_scope_mode == "universe"
 
     assert diagnostics_response.status_code == 200
     diagnostics = BybitConnectorDiagnosticsDTO.model_validate(diagnostics_response.json())
     assert diagnostics.scope_mode == "universe"
+    assert diagnostics.discovery_status is None
+    assert diagnostics.discovery_error is None
     assert diagnostics.total_instruments_discovered == 350
     assert diagnostics.instruments_passed_coarse_filter == 42
+    assert diagnostics.quote_volume_filter_ready is True
+    assert diagnostics.trade_count_filter_ready is False
+    assert diagnostics.instruments_passed_trade_count_filter is None
+    assert diagnostics.universe_admission_state == "waiting_for_filter_readiness"
 
     production_runtime = app.state.production_runtime
     assert production_runtime is not None
     production_runtime.update_live_feed_policy_settings.assert_awaited_once()
+
+
+def test_dashboard_live_feed_policy_get_endpoint_prefers_canonical_runtime_truth_in_full_app() -> (
+    None
+):
+    app = create_dashboard_app(production_runtime=_StubProductionRuntime())
+
+    with TestClient(app) as client:
+        response = client.put(
+            "/dashboard/settings/live-feed-policy",
+            json={
+                "retry_delay_seconds": 7,
+                "bybit_universe_min_quote_volume_24h_usd": 2500000.0,
+                "bybit_universe_min_trade_count_24h": 2,
+                "bybit_universe_max_symbols_per_scope": 80,
+            },
+        )
+        followup_response = client.get("/dashboard/settings/live-feed-policy")
+
+    assert response.status_code == 200
+    assert followup_response.status_code == 200
+
+    data = LiveFeedPolicySettingsDTO.model_validate(followup_response.json())
+    assert data.retry_delay_seconds == 7
+    assert data.bybit_universe_min_quote_volume_24h_usd == 2500000.0
+    assert data.bybit_universe_min_trade_count_24h == 2
+    assert data.bybit_universe_max_symbols_per_scope == 80
+
+
+def test_dashboard_live_feed_policy_settings_survive_reload_via_durable_overrides() -> None:
+    app = FastAPI()
+    app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    with TestClient(app) as client:
+        response = client.put(
+            "/dashboard/settings/live-feed-policy",
+            json={
+                "retry_delay_seconds": 11,
+                "bybit_universe_min_quote_volume_24h_usd": 3500000.0,
+                "bybit_universe_min_trade_count_24h": 6,
+                "bybit_universe_max_symbols_per_scope": 77,
+            },
+        )
+
+    assert response.status_code == 200
+
+    reload_settings()
+
+    reloaded_app = FastAPI()
+    reloaded_app.include_router(create_dashboard_router(cast("OverviewFacade", _StubFacade())))
+
+    with TestClient(reloaded_app) as client:
+        followup_response = client.get("/dashboard/settings/live-feed-policy")
+
+    assert followup_response.status_code == 200
+    data = LiveFeedPolicySettingsDTO.model_validate(followup_response.json())
+    assert data.retry_delay_seconds == 11
+    assert data.bybit_universe_min_quote_volume_24h_usd == 3500000.0
+    assert data.bybit_universe_min_trade_count_24h == 6
+    assert data.bybit_universe_max_symbols_per_scope == 77
 
 
 def test_dashboard_bybit_connector_diagnostics_endpoint_returns_disabled_snapshot_by_default() -> (
@@ -1813,9 +1941,13 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_returns_disabled_snapsho
     assert data.symbol is None
     assert data.symbols == ()
     assert data.symbol_snapshots == ()
-    assert data.scope_mode == "manual"
+    assert data.scope_mode == "universe"
     assert data.total_instruments_discovered is None
     assert data.instruments_passed_coarse_filter is None
+    assert data.quote_volume_filter_ready is None
+    assert data.trade_count_filter_ready is None
+    assert data.instruments_passed_trade_count_filter is None
+    assert data.universe_admission_state is None
     assert data.active_subscribed_scope_count == 0
     assert data.live_trade_streams_count == 0
     assert data.live_orderbook_count == 0
@@ -1855,16 +1987,20 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_returns_full_disabled_sn
     assert data.transport_rtt_ms is None
     assert data.symbols == ()
     assert data.symbol_snapshots == ()
-    assert data.scope_mode == "manual"
+    assert data.scope_mode == "universe"
     assert data.total_instruments_discovered is None
     assert data.instruments_passed_coarse_filter is None
+    assert data.quote_volume_filter_ready is False
+    assert data.trade_count_filter_ready is False
+    assert data.instruments_passed_trade_count_filter is None
+    assert data.universe_admission_state is None
     assert data.active_subscribed_scope_count == 0
     assert data.live_trade_streams_count == 0
     assert data.live_orderbook_count == 0
     assert data.degraded_or_stale_count == 0
 
 
-def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapshot() -> None:
+def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapshot() -> None:  # noqa: PLR0915
     app = FastAPI()
     app.include_router(
         create_dashboard_router(
@@ -1900,9 +2036,35 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
                     "started": True,
                     "lifecycle_state": "connected",
                     "reset_required": False,
+                    "derived_trade_count_state": "warming_up",
+                    "derived_trade_count_ready": False,
+                    "derived_trade_count_observation_started_at": None,
+                    "derived_trade_count_reliable_after": None,
+                    "derived_trade_count_last_gap_at": None,
+                    "derived_trade_count_last_gap_reason": None,
+                    "derived_trade_count_backfill_status": "running",
+                    "derived_trade_count_backfill_needed": True,
+                    "derived_trade_count_backfill_processed_archives": 7,
+                    "derived_trade_count_backfill_total_archives": 12,
+                    "derived_trade_count_backfill_progress_percent": 58,
+                    "derived_trade_count_last_backfill_at": "2026-04-01T09:45:20.060548+00:00",
+                    "derived_trade_count_last_backfill_source": "bybit_public_archive",
+                    "derived_trade_count_last_backfill_reason": None,
+                    "desired_scope_mode": "universe",
+                    "desired_trade_count_filter_minimum": 5,
+                    "applied_scope_mode": "universe",
+                    "applied_trade_count_filter_minimum": 5,
+                    "policy_apply_status": "applied",
+                    "policy_apply_reason": None,
                     "scope_mode": "universe",
+                    "discovery_status": "ready",
+                    "discovery_error": None,
                     "total_instruments_discovered": 350,
                     "instruments_passed_coarse_filter": 42,
+                    "quote_volume_filter_ready": True,
+                    "trade_count_filter_ready": False,
+                    "instruments_passed_trade_count_filter": None,
+                    "universe_admission_state": "waiting_for_filter_readiness",
                     "active_subscribed_scope_count": 1,
                     "live_trade_streams_count": 1,
                     "live_orderbook_count": 1,
@@ -1937,13 +2099,88 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
     assert data.last_message_at == "2026-04-01T09:45:40.060548+00:00"
     assert data.message_age_ms == 42
     assert data.transport_rtt_ms == 18
+    assert data.derived_trade_count_state == "warming_up"
+    assert data.derived_trade_count_ready is False
+    assert data.derived_trade_count_backfill_status == "running"
+    assert data.derived_trade_count_backfill_needed is True
+    assert data.derived_trade_count_backfill_processed_archives == 7
+    assert data.derived_trade_count_backfill_total_archives == 12
+    assert data.derived_trade_count_backfill_progress_percent == 58
+    assert data.derived_trade_count_last_backfill_at == "2026-04-01T09:45:20.060548+00:00"
+    assert data.derived_trade_count_last_backfill_source == "bybit_public_archive"
+    assert data.desired_scope_mode == "universe"
+    assert data.desired_trade_count_filter_minimum == 5
+    assert data.applied_scope_mode == "universe"
+    assert data.applied_trade_count_filter_minimum == 5
+    assert data.policy_apply_status == "applied"
+    assert data.policy_apply_reason is None
     assert data.scope_mode == "universe"
+    assert data.discovery_status == "ready"
+    assert data.discovery_error is None
     assert data.total_instruments_discovered == 350
     assert data.instruments_passed_coarse_filter == 42
+    assert data.quote_volume_filter_ready is True
+    assert data.trade_count_filter_ready is False
+    assert data.instruments_passed_trade_count_filter is None
+    assert data.universe_admission_state == "waiting_for_filter_readiness"
     assert data.active_subscribed_scope_count == 1
     assert data.live_trade_streams_count == 1
     assert data.live_orderbook_count == 1
     assert data.degraded_or_stale_count == 0
+
+
+def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_discovery_error() -> None:
+    app = FastAPI()
+    app.include_router(
+        create_dashboard_router(
+            cast("OverviewFacade", _StubFacade()),
+            runtime_diagnostics_supplier=lambda: {
+                "bybit_market_data_connector": {
+                    "enabled": True,
+                    "symbols": (),
+                    "symbol_snapshots": (),
+                    "transport_status": "idle",
+                    "recovery_status": "waiting_for_scope",
+                    "subscription_alive": False,
+                    "trade_seen": False,
+                    "orderbook_seen": False,
+                    "best_bid": None,
+                    "best_ask": None,
+                    "last_message_at": None,
+                    "message_age_ms": None,
+                    "transport_rtt_ms": None,
+                    "degraded_reason": "discovery_unavailable",
+                    "last_disconnect_reason": None,
+                    "retry_count": None,
+                    "ready": False,
+                    "started": False,
+                    "lifecycle_state": "waiting_for_scope",
+                    "reset_required": False,
+                    "scope_mode": "universe",
+                    "discovery_status": "unavailable",
+                    "discovery_error": "urlopen error offline",
+                    "total_instruments_discovered": None,
+                    "instruments_passed_coarse_filter": None,
+                    "quote_volume_filter_ready": False,
+                    "trade_count_filter_ready": False,
+                    "instruments_passed_trade_count_filter": None,
+                    "universe_admission_state": "waiting_for_filter_readiness",
+                    "active_subscribed_scope_count": 0,
+                    "live_trade_streams_count": 0,
+                    "live_orderbook_count": 0,
+                    "degraded_or_stale_count": 0,
+                }
+            },
+        )
+    )
+
+    client = TestClient(app)
+    response = client.get("/dashboard/settings/bybit-connector-diagnostics")
+
+    assert response.status_code == 200
+    data = BybitConnectorDiagnosticsDTO.model_validate(response.json())
+    assert data.discovery_status == "unavailable"
+    assert data.discovery_error == "urlopen error offline"
 
 
 def test_dashboard_bybit_connector_diagnostics_endpoint_prefers_canonical_runtime_in_full_app() -> (

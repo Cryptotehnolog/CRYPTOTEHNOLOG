@@ -33,6 +33,27 @@ from .bybit_spot import (
     BybitSpotMarketDataConnectorConfig,
     create_bybit_spot_market_data_connector,
 )
+from .bybit_trade_backfill import (
+    BybitHistoricalRecoveryPlan,
+    BybitHistoricalTradeBackfillConfig,
+    BybitHistoricalTradeBackfillResult,
+    BybitHistoricalTradeBackfillService,
+    BybitTradeBackfillContour,
+    create_bybit_historical_trade_backfill_service,
+)
+from .bybit_recovery_coordinator import (
+    BybitHistoricalRecoveryCoordinator,
+    BybitHistoricalRecoveryCoordinatorSnapshot,
+    BybitHistoricalRecoveryDecision,
+    classify_bybit_historical_recovery_result,
+)
+from .bybit_trade_count import (
+    BybitDerivedTradeCountDiagnostics,
+    BybitDerivedTradeCountPersistedState,
+    BybitDerivedTradeCountPersistenceStore,
+    BybitDerivedTradeCountSymbolSnapshot,
+    BybitDerivedTradeCountTracker,
+)
 from .bybit_universe import (
     BybitMarketContour,
     BybitUniverseDiscoveryConfig,
@@ -68,6 +89,18 @@ from .runtime import (
 )
 
 __all__ = [
+    "BybitDerivedTradeCountDiagnostics",
+    "BybitDerivedTradeCountPersistedState",
+    "BybitDerivedTradeCountPersistenceStore",
+    "BybitDerivedTradeCountSymbolSnapshot",
+    "BybitDerivedTradeCountTracker",
+    "BybitHistoricalRecoveryPlan",
+    "BybitHistoricalRecoveryCoordinator",
+    "BybitHistoricalRecoveryCoordinatorSnapshot",
+    "BybitHistoricalRecoveryDecision",
+    "BybitHistoricalTradeBackfillConfig",
+    "BybitHistoricalTradeBackfillResult",
+    "BybitHistoricalTradeBackfillService",
     "BybitMarketContour",
     "BybitMarketDataConnector",
     "BybitMarketDataConnectorConfig",
@@ -78,6 +111,7 @@ __all__ = [
     "BybitSpotMarketDataConnector",
     "BybitSpotMarketDataConnectorConfig",
     "BybitSubscriptionRegistry",
+    "BybitTradeBackfillContour",
     "BybitUniverseDiscoveryConfig",
     "BybitUniverseInstrument",
     "BybitUniverseSelectionSummary",
@@ -100,6 +134,8 @@ __all__ = [
     "LiveFeedMarketDataIngress",
     "LiveFeedMarketDataIngressResult",
     "UnsupportedFeedIngressError",
+    "create_bybit_historical_trade_backfill_service",
+    "classify_bybit_historical_recovery_result",
     "create_bybit_market_data_connector",
     "create_bybit_spot_market_data_connector",
     "create_live_feed_market_data_ingress",
