@@ -4299,7 +4299,7 @@ class TestProductionBootstrap:
             Mock(side_effect=URLError("offline")),
         )
 
-        runtime = await start_production_runtime(
+        runtime = await build_production_runtime(
             settings=make_settings(
                 bybit_market_data_connector_enabled=True,
                 bybit_market_data_scope_mode="universe",
@@ -4315,6 +4315,57 @@ class TestProductionBootstrap:
                 include_legacy_risk_listener=False,
             ),
         )
+        runtime.controller.startup = AsyncMock(  # type: ignore[method-assign]
+            return_value=StartupResult(
+                success=True,
+                duration_ms=5,
+                phase_reached=StartupPhase.READY,
+                components_initialized=["database", "redis", "event_bus"],
+                components_failed=[],
+            )
+        )
+        runtime.controller.shutdown = AsyncMock(  # type: ignore[method-assign]
+            return_value=ShutdownResult(
+                success=True,
+                duration_ms=3,
+                phase_reached=ShutdownPhase.COMPLETED,
+                components_stopped=[],
+            ),
+        )
+        runtime.health_checker.check_system = AsyncMock(  # type: ignore[method-assign]
+            return_value=SystemHealth(
+                overall_status=HealthStatus.HEALTHY,
+                components={},
+                runtime_identity=runtime.identity,
+            )
+        )
+        with (
+            patch(
+                "cryptotechnolog.bootstrap.build_production_runtime",
+                new=AsyncMock(return_value=runtime),
+            ),
+            patch.object(
+                ProductionRuntime,
+                "_validate_started_runtime",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
+            runtime = await start_production_runtime(
+                settings=make_settings(
+                    bybit_market_data_connector_enabled=True,
+                    bybit_market_data_scope_mode="universe",
+                    bybit_market_data_connector_symbol=None,
+                    bybit_spot_market_data_connector_enabled=True,
+                    bybit_spot_market_data_scope_mode="universe",
+                    bybit_spot_market_data_connector_symbol=None,
+                ),
+                policy=ProductionBootstrapPolicy(
+                    test_mode=True,
+                    enable_event_bus_persistence=False,
+                    enable_risk_persistence=False,
+                    include_legacy_risk_listener=False,
+                ),
+            )
         try:
             diagnostics = runtime.get_runtime_diagnostics()
             linear = diagnostics["bybit_market_data_connector"]

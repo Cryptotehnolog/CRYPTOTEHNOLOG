@@ -28,6 +28,12 @@ from .bybit import (
     create_bybit_market_data_connector,
     normalize_bybit_symbol,
 )
+from .bybit_recovery_coordinator import (
+    BybitHistoricalRecoveryCoordinator,
+    BybitHistoricalRecoveryCoordinatorSnapshot,
+    BybitHistoricalRecoveryDecision,
+    classify_bybit_historical_recovery_result,
+)
 from .bybit_spot import (
     BybitSpotMarketDataConnector,
     BybitSpotMarketDataConnectorConfig,
@@ -40,12 +46,6 @@ from .bybit_trade_backfill import (
     BybitHistoricalTradeBackfillService,
     BybitTradeBackfillContour,
     create_bybit_historical_trade_backfill_service,
-)
-from .bybit_recovery_coordinator import (
-    BybitHistoricalRecoveryCoordinator,
-    BybitHistoricalRecoveryCoordinatorSnapshot,
-    BybitHistoricalRecoveryDecision,
-    classify_bybit_historical_recovery_result,
 )
 from .bybit_trade_count import (
     BybitDerivedTradeCountDiagnostics,
