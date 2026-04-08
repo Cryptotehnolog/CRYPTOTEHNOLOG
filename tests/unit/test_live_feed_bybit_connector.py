@@ -1323,13 +1323,14 @@ async def test_latest_closed_day_skip_schedules_delayed_backfill_retry_until_arc
         assert connector._latest_archive_backfill_retry_pending is True
         assert connector._historical_trade_backfill_pending is True
         assert connector._historical_trade_backfill_retry_task is not None
+        retry_task = connector._historical_trade_backfill_retry_task
 
         release_retry_sleep.set()
-        for _ in range(20):
-            if load_window_calls >= 2 and connector._historical_trade_backfill_task is None:
-                break
-            await asyncio.sleep(0)
-        else:
+        await asyncio.wait_for(retry_task, timeout=1.0)
+        if connector._historical_trade_backfill_task is not None:
+            await asyncio.wait_for(connector._historical_trade_backfill_task, timeout=1.0)
+
+        if load_window_calls < 2:
             pytest.fail("delayed backfill retry did not execute a second archive load")
 
         restored = connector.get_operator_diagnostics()
