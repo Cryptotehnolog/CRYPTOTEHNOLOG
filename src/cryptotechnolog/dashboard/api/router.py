@@ -328,8 +328,14 @@ def _register_settings_routes(
 def _register_connector_diagnostics_routes(
     router: APIRouter,
     runtime_diagnostics_supplier: Callable[[], dict[str, Any]] | None,
+    bybit_connector_projection_supplier: Callable[[], dict[str, Any]] | None,
+    bybit_spot_connector_projection_supplier: Callable[[], dict[str, Any]] | None,
+    bybit_spot_v2_compact_diagnostics_supplier: Callable[[], Awaitable[dict[str, Any]]] | None,
+    bybit_spot_runtime_status_supplier: Callable[[], dict[str, Any]] | None,
+    bybit_spot_product_snapshot_supplier: Callable[[], Awaitable[dict[str, Any]]] | None,
     bybit_connector_toggle_handler: Callable[[bool], Awaitable[dict[str, Any]]] | None,
     bybit_spot_connector_toggle_handler: Callable[[bool], Awaitable[dict[str, Any]]] | None,
+    bybit_spot_runtime_state_handler: Callable[[bool], Awaitable[dict[str, Any]]] | None,
 ) -> None:
     @router.get(
         "/settings/bybit-connector-diagnostics",
@@ -338,9 +344,11 @@ def _register_connector_diagnostics_routes(
     )
     async def get_bybit_connector_diagnostics() -> BybitConnectorDiagnosticsDTO:
         logger.debug("Запрошен Bybit connector diagnostics snapshot")
-        diagnostics = (
-            runtime_diagnostics_supplier() if runtime_diagnostics_supplier is not None else {}
-        )
+        if bybit_connector_projection_supplier is not None:
+            return BybitConnectorDiagnosticsDTO.from_connector_projection(
+                bybit_connector_projection_supplier()
+            )
+        diagnostics = runtime_diagnostics_supplier() if runtime_diagnostics_supplier is not None else {}
         return BybitConnectorDiagnosticsDTO.from_runtime_diagnostics(diagnostics)
 
     @router.put(
@@ -372,15 +380,59 @@ def _register_connector_diagnostics_routes(
     )
     async def get_bybit_spot_connector_diagnostics() -> BybitConnectorDiagnosticsDTO:
         logger.debug("Запрошен Bybit spot connector diagnostics snapshot")
-        diagnostics = (
-            runtime_diagnostics_supplier() if runtime_diagnostics_supplier is not None else {}
-        )
+        if bybit_spot_connector_projection_supplier is not None:
+            return BybitConnectorDiagnosticsDTO.from_connector_projection(
+                bybit_spot_connector_projection_supplier()
+            )
+        diagnostics = runtime_diagnostics_supplier() if runtime_diagnostics_supplier is not None else {}
         connector_diagnostics = dict(diagnostics)
         connector_diagnostics["bybit_market_data_connector"] = diagnostics.get(
             "bybit_spot_market_data_connector",
             {},
         )
         return BybitConnectorDiagnosticsDTO.from_runtime_diagnostics(connector_diagnostics)
+
+    @router.get(
+        "/settings/bybit-spot-v2-diagnostics",
+        response_model=dict[str, Any],
+        summary="Получить компактный diagnostics snapshot Bybit spot v2",
+    )
+    async def get_bybit_spot_v2_diagnostics() -> dict[str, Any]:
+        logger.debug("Запрошен Bybit spot v2 compact diagnostics snapshot")
+        if bybit_spot_v2_compact_diagnostics_supplier is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Bybit spot v2 compact diagnostics недоступен",
+            )
+        return await bybit_spot_v2_compact_diagnostics_supplier()
+
+    @router.get(
+        "/settings/bybit-spot-runtime-status",
+        response_model=dict[str, Any],
+        summary="Получить быстрый operator-facing runtime status Bybit spot",
+    )
+    async def get_bybit_spot_runtime_status() -> dict[str, Any]:
+        logger.debug("Запрошен Bybit spot runtime status snapshot")
+        if bybit_spot_runtime_status_supplier is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Bybit spot runtime status недоступен",
+            )
+        return bybit_spot_runtime_status_supplier()
+
+    @router.get(
+        "/settings/bybit-spot-product-snapshot",
+        response_model=dict[str, Any],
+        summary="Получить canonical product snapshot Bybit spot screen",
+    )
+    async def get_bybit_spot_product_snapshot() -> dict[str, Any]:
+        logger.debug("Запрошен Bybit spot product snapshot")
+        if bybit_spot_product_snapshot_supplier is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Bybit spot product snapshot недоступен",
+            )
+        return await bybit_spot_product_snapshot_supplier()
 
     @router.put(
         "/settings/bybit-spot-connector-enabled",
@@ -411,6 +463,30 @@ def _register_connector_diagnostics_routes(
             {},
         )
         return BybitConnectorDiagnosticsDTO.from_runtime_diagnostics(connector_diagnostics)
+
+    @router.put(
+        "/settings/bybit-spot-runtime-state",
+        response_model=dict[str, Any],
+        summary="Явно запустить или остановить canonical Bybit spot runtime",
+    )
+    async def update_bybit_spot_runtime_state(
+        payload: BybitConnectorToggleDTO,
+    ) -> dict[str, Any]:
+        logger.info(
+            "Обновляется canonical Bybit spot runtime desired state",
+            desired_running=payload.enabled,
+        )
+        if bybit_spot_runtime_state_handler is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Canonical backend runtime недоступен для управления Bybit spot runtime",
+            )
+        try:
+            return await bybit_spot_runtime_state_handler(payload.enabled)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 def _register_core_summary_routes(router: APIRouter, facade: OverviewFacade) -> None:
@@ -561,6 +637,11 @@ def _register_operational_summary_routes(router: APIRouter, facade: OverviewFaca
 def create_dashboard_router(
     facade: OverviewFacade,
     runtime_diagnostics_supplier: Callable[[], dict[str, Any]] | None = None,
+    bybit_connector_projection_supplier: Callable[[], dict[str, Any]] | None = None,
+    bybit_spot_connector_projection_supplier: Callable[[], dict[str, Any]] | None = None,
+    bybit_spot_v2_compact_diagnostics_supplier: Callable[[], Awaitable[dict[str, Any]]] | None = None,
+    bybit_spot_runtime_status_supplier: Callable[[], dict[str, Any]] | None = None,
+    bybit_spot_product_snapshot_supplier: Callable[[], Awaitable[dict[str, Any]]] | None = None,
     live_feed_policy_get_handler: Callable[[], Awaitable[LiveFeedPolicySettingsDTO]] | None = None,
     live_feed_policy_update_handler: Callable[
         [LiveFeedPolicySettingsDTO], Awaitable[LiveFeedPolicySettingsDTO]
@@ -568,6 +649,7 @@ def create_dashboard_router(
     | None = None,
     bybit_connector_toggle_handler: Callable[[bool], Awaitable[dict[str, Any]]] | None = None,
     bybit_spot_connector_toggle_handler: Callable[[bool], Awaitable[dict[str, Any]]] | None = None,
+    bybit_spot_runtime_state_handler: Callable[[bool], Awaitable[dict[str, Any]]] | None = None,
 ) -> APIRouter:
     """
     Создать router панели управления.
@@ -587,8 +669,14 @@ def create_dashboard_router(
     _register_connector_diagnostics_routes(
         router,
         runtime_diagnostics_supplier,
+        bybit_connector_projection_supplier,
+        bybit_spot_connector_projection_supplier,
+        bybit_spot_v2_compact_diagnostics_supplier,
+        bybit_spot_runtime_status_supplier,
+        bybit_spot_product_snapshot_supplier,
         bybit_connector_toggle_handler,
         bybit_spot_connector_toggle_handler,
+        bybit_spot_runtime_state_handler,
     )
     _register_operational_summary_routes(router, facade)
 

@@ -21,14 +21,17 @@ from .bybit import (
     BybitSubscriptionRegistry,
     BybitWebSocketConnection,
     _default_trade_count_store_path,
-    normalize_bybit_symbol,
 )
+from .bybit_trade_ledger_query import BybitTradeLedgerTradeCountQueryService
+from .bybit_symbols import normalize_bybit_symbol
 from .bybit_trade_backfill import create_bybit_historical_trade_backfill_service
 from .models import FeedSessionIdentity
 
 if TYPE_CHECKING:
     from cryptotechnolog.config.settings import Settings
     from cryptotechnolog.market_data import MarketDataRuntime
+
+    from .bybit_trade_ledger_contracts import IBybitTradeLedgerRepository
 
 _BYBIT_MAINNET_SPOT_PUBLIC_URL = "wss://stream.bybit.com/v5/public/spot"
 _BYBIT_TESTNET_SPOT_PUBLIC_URL = "wss://stream-testnet.bybit.com/v5/public/spot"
@@ -74,7 +77,14 @@ def create_bybit_spot_market_data_connector(
     config: BybitSpotMarketDataConnectorConfig | None = None,
     universe_scope_mode: bool = False,
     universe_min_trade_count_24h: int = 0,
+    ledger_trade_count_query_service: BybitTradeLedgerTradeCountQueryService | None = None,
+    ledger_repository: IBybitTradeLedgerRepository | None = None,
 ) -> BybitSpotMarketDataConnector:
+    """Create the current legacy Bybit spot connector support path.
+
+    This constructor remains in production as the legacy contour. New feature work
+    should be implemented in a separate v2 path instead of extending this slice.
+    """
     session = FeedSessionIdentity(
         exchange="bybit_spot",
         stream_kind="market_data",
@@ -88,6 +98,8 @@ def create_bybit_spot_market_data_connector(
         parser=BybitMarketDataParser(max_orderbook_levels=resolved_config.max_orderbook_levels),
         universe_scope_mode=universe_scope_mode,
         universe_min_trade_count_24h=universe_min_trade_count_24h,
+        ledger_trade_count_query_service=ledger_trade_count_query_service,
+        ledger_repository=ledger_repository,
         derived_trade_count_store_path=_default_trade_count_store_path("bybit_spot"),
         historical_trade_backfill_service=(
             None

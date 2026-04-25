@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 
@@ -690,14 +690,15 @@ class LiveFeedPolicySettingsDTO(BaseModel):
     retry_delay_seconds: int = Field(
         description="Базовая задержка перед повторным подключением к live feed в секундах.",
     )
-    bybit_universe_min_quote_volume_24h_usd: float = Field(
-        description="Минимальный 24h quote volume в USD для coarse prefilter universe.",
+    bybit_spot_universe_min_quote_volume_24h_usd: float = Field(
+        description="Минимальный 24h quote volume в USD для coarse prefilter universe of spot.",
     )
-    bybit_universe_min_trade_count_24h: int = Field(
-        description="Минимальное число сделок за 24h для coarse prefilter universe.",
+    bybit_spot_universe_min_trade_count_24h: int = Field(
+        description="Минимальное число сделок за 24h для spot final selection.",
     )
-    bybit_universe_max_symbols_per_scope: int = Field(
-        description="Максимальное число инструментов, передаваемых в active connector scope.",
+    bybit_spot_quote_asset_filter: Literal["usdt", "usdc", "usdt_usdc"] = Field(
+        default="usdt_usdc",
+        description="Какие quote-asset пары допускаются в spot universe: usdt, usdc или usdt_usdc.",
     )
 
     @classmethod
@@ -705,18 +706,24 @@ class LiveFeedPolicySettingsDTO(BaseModel):
         """Build DTO from canonical project settings."""
         return cls(
             retry_delay_seconds=settings.live_feed_retry_delay_seconds,
-            bybit_universe_min_quote_volume_24h_usd=settings.bybit_universe_min_quote_volume_24h_usd,
-            bybit_universe_min_trade_count_24h=settings.bybit_universe_min_trade_count_24h,
-            bybit_universe_max_symbols_per_scope=settings.bybit_universe_max_symbols_per_scope,
+            bybit_spot_universe_min_quote_volume_24h_usd=(
+                settings.bybit_spot_universe_min_quote_volume_24h_usd
+            ),
+            bybit_spot_universe_min_trade_count_24h=(
+                settings.bybit_spot_universe_min_trade_count_24h
+            ),
+            bybit_spot_quote_asset_filter=settings.bybit_spot_quote_asset_filter,
         )
 
     def to_settings_update(self) -> dict[str, float | int]:
         """Convert DTO back into Settings field updates."""
         return {
             "live_feed_retry_delay_seconds": self.retry_delay_seconds,
-            "bybit_universe_min_quote_volume_24h_usd": self.bybit_universe_min_quote_volume_24h_usd,
-            "bybit_universe_min_trade_count_24h": self.bybit_universe_min_trade_count_24h,
-            "bybit_universe_max_symbols_per_scope": self.bybit_universe_max_symbols_per_scope,
+            "bybit_spot_universe_min_quote_volume_24h_usd": (
+                self.bybit_spot_universe_min_quote_volume_24h_usd
+            ),
+            "bybit_spot_universe_min_trade_count_24h": self.bybit_spot_universe_min_trade_count_24h,
+            "bybit_spot_quote_asset_filter": self.bybit_spot_quote_asset_filter,
         }
 
 
@@ -725,9 +732,19 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
 
     class SymbolSnapshotDTO(BaseModel):
         symbol: str = Field(description="Инструмент внутри текущего Bybit connector scope.")
-        trade_seen: bool = Field(description="Поступали ли trade ticks для этого инструмента.")
+        trade_seen: bool = Field(
+            description="Session-local ingest flag: поступали ли trade ticks для этого инструмента в текущем runtime."
+        )
         orderbook_seen: bool = Field(
-            description="Поступал ли честный orderbook snapshot для этого инструмента."
+            description="Session-local ingest flag: поступал ли orderbook snapshot для этого инструмента в текущем runtime."
+        )
+        trade_ingest_seen: bool = Field(
+            default=False,
+            description="Явный session-local ingest flag для trade ticks по этому инструменту."
+        )
+        orderbook_ingest_seen: bool = Field(
+            default=False,
+            description="Явный session-local ingest flag для orderbook snapshot по этому инструменту."
         )
         best_bid: str | None = Field(
             description="Лучший bid для этого инструмента из текущего snapshot."
@@ -743,9 +760,246 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
             default=None,
             description="Derived rolling 24h trade count, когда слой trade-count уже надёжен.",
         )
+        bucket_trade_count_24h: int | None = Field(
+            default=None,
+            description="Текущая bucket-based operational truth для rolling 24h trade count.",
+        )
+        ledger_trade_count_24h: int | None = Field(
+            default=None,
+            description="Read-only ledger-based rolling 24h trade count без product switch.",
+        )
+        trade_count_reconciliation_verdict: str | None = Field(
+            default=None,
+            description="Read-only comparison verdict между bucket и ledger truth для этого symbol.",
+        )
+        trade_count_reconciliation_reason: str | None = Field(
+            default=None,
+            description="Machine-readable причина reconciliation verdict для этого symbol.",
+        )
+        trade_count_reconciliation_absolute_diff: int | None = Field(
+            default=None,
+            description="Абсолютное расхождение между bucket и ledger trade count.",
+        )
+        trade_count_reconciliation_tolerance: int | None = Field(
+            default=None,
+            description="Какой tolerance policy был применён при reconciliation comparison.",
+        )
+        trade_count_cutover_readiness_state: str | None = Field(
+            default=None,
+            description="Read-only readiness groundwork state для этого symbol.",
+        )
+        trade_count_cutover_readiness_reason: str | None = Field(
+            default=None,
+            description="Machine-readable причина symbol-level cutover readiness state.",
+        )
         observed_trade_count_since_reset: int = Field(
             default=0,
             description="Сколько trade ticks накоплено с последнего reliability reset.",
+        )
+        product_trade_count_24h: int | None = Field(
+            default=None,
+            description="User-facing 24h trade count. Может быть partial только вместе с non-final product state.",
+        )
+        product_trade_count_state: str | None = Field(
+            default=None,
+            description="Machine-readable product truth state для user-facing 24h trade count.",
+        )
+        product_trade_count_reason: str | None = Field(
+            default=None,
+            description="Machine-readable причина текущего product truth state для user-facing count.",
+        )
+        product_trade_count_truth_owner: str | None = Field(
+            default=None,
+            description="Кто владеет final product truth для symbol-level trade_count_24h.",
+        )
+        product_trade_count_truth_source: str | None = Field(
+            default=None,
+            description="Из какого source path пришёл final product truth для symbol-level trade_count_24h.",
+        )
+
+    class CutoverDiscussionVerdictCountDTO(BaseModel):
+        name: str = Field(description="Имя reconciliation verdict внутри discussion artifact.")
+        count: int = Field(description="Сколько symbol paths попало в этот reconciliation verdict.")
+
+    class CutoverDiscussionExceptionDTO(BaseModel):
+        symbol: str = Field(description="Какой symbol попал в discussion exceptions summary.")
+        reconciliation_verdict: str | None = Field(
+            default=None,
+            description="Какой reconciliation verdict делает symbol exception-worthy.",
+        )
+        reconciliation_reason: str | None = Field(
+            default=None,
+            description="Machine-readable reconciliation reason для symbol exception.",
+        )
+        cutover_readiness_state: str | None = Field(
+            default=None,
+            description="Какой readiness state виден для symbol exception.",
+        )
+        cutover_readiness_reason: str | None = Field(
+            default=None,
+            description="Machine-readable readiness reason для symbol exception.",
+        )
+
+    class CutoverDiscussionArtifactDTO(BaseModel):
+        discussion_state: str = Field(description="Operator-facing discussion state для current scope.")
+        headline: str = Field(description="Краткая operator-readable summary line для cutover discussion.")
+        contour: str = Field(description="Какой contour сейчас обсуждается.")
+        scope_mode: str = Field(description="Какой scope_mode относится к discussion artifact.")
+        scope_symbol_count: int = Field(description="Сколько symbols входит в current discussion scope.")
+        reconciliation_summary: tuple["BybitConnectorDiagnosticsDTO.CutoverDiscussionVerdictCountDTO", ...] = Field(
+            description="Aggregate breakdown reconciliation verdicts внутри discussion artifact."
+        )
+        cutover_readiness_state: str = Field(description="Aggregate readiness state внутри discussion artifact.")
+        cutover_readiness_reason: str = Field(description="Aggregate readiness reason внутри discussion artifact.")
+        cutover_evaluation_state: str = Field(description="Formal evaluation verdict внутри discussion artifact.")
+        cutover_evaluation_reasons: tuple[str, ...] = Field(
+            description="Machine-readable evaluation reasons внутри discussion artifact."
+        )
+        manual_review_state: str = Field(description="Manual-review verdict внутри discussion artifact.")
+        manual_review_reasons: tuple[str, ...] = Field(
+            description="Machine-readable manual-review reasons внутри discussion artifact."
+        )
+        compared_symbols: int = Field(description="Сколько symbols реально сравнивались для discussion artifact.")
+        ready_symbols: int = Field(description="Сколько symbols сейчас выглядят ready внутри discussion artifact.")
+        not_ready_symbols: int = Field(description="Сколько symbols сейчас not_ready внутри discussion artifact.")
+        blocked_symbols: int = Field(description="Сколько symbols блокируют discussion artifact.")
+        symbol_exceptions: tuple["BybitConnectorDiagnosticsDTO.CutoverDiscussionExceptionDTO", ...] = Field(
+            description="Symbol-level exceptions summary для operator cutover discussion."
+        )
+
+    class CutoverReviewRecordDTO(BaseModel):
+        captured_at: str = Field(description="Когда текущий cutover review record snapshot был собран.")
+        contour: str = Field(description="Какой contour зафиксирован в review record.")
+        scope_mode: str = Field(description="Какой scope_mode зафиксирован в review record.")
+        scope_symbol_count: int = Field(description="Сколько symbols входит в archived review record.")
+        discussion_state: str = Field(description="Какой discussion state зафиксирован в review record.")
+        manual_review_state: str = Field(description="Какой manual-review state зафиксирован в review record.")
+        cutover_evaluation_state: str = Field(description="Какой evaluation state зафиксирован в review record.")
+        cutover_readiness_state: str = Field(description="Какой readiness state зафиксирован в review record.")
+        compared_symbols: int = Field(description="Сколько compared symbols зафиксировано в review record.")
+        ready_symbols: int = Field(description="Сколько ready symbols зафиксировано в review record.")
+        not_ready_symbols: int = Field(description="Сколько not_ready symbols зафиксировано в review record.")
+        blocked_symbols: int = Field(description="Сколько blocked symbols зафиксировано в review record.")
+        headline: str = Field(description="Какой operator-facing headline зафиксирован в review record.")
+        reasons_summary: tuple[str, ...] = Field(
+            description="Какой machine-readable reasons summary зафиксирован в review record."
+        )
+        symbol_exceptions: tuple["BybitConnectorDiagnosticsDTO.CutoverDiscussionExceptionDTO", ...] = Field(
+            description="Какие symbol-level exceptions зафиксированы в review record."
+        )
+
+    class CutoverReviewPackageDTO(BaseModel):
+        contour: str = Field(description="Какой contour зафиксирован в review package.")
+        scope_mode: str = Field(description="Какой scope_mode зафиксирован в review package.")
+        scope_symbol_count: int = Field(description="Сколько symbols входит в review package.")
+        discussion_state: str = Field(description="Какой discussion state включён в review package.")
+        manual_review_state: str = Field(description="Какой manual-review state включён в review package.")
+        cutover_evaluation_state: str = Field(description="Какой evaluation state включён в review package.")
+        cutover_readiness_state: str = Field(description="Какой readiness state включён в review package.")
+        compared_symbols: int = Field(description="Сколько compared symbols включено в review package.")
+        ready_symbols: int = Field(description="Сколько ready symbols включено в review package.")
+        not_ready_symbols: int = Field(description="Сколько not_ready symbols включено в review package.")
+        blocked_symbols: int = Field(description="Сколько blocked symbols включено в review package.")
+        headline: str = Field(description="Какой headline включён в review package.")
+        reasons_summary: tuple[str, ...] = Field(
+            description="Какой reasons summary включён в review package."
+        )
+        review_record: "BybitConnectorDiagnosticsDTO.CutoverReviewRecordDTO" = Field(
+            description="Какой review record snapshot вложен в review package."
+        )
+        symbol_exceptions: tuple["BybitConnectorDiagnosticsDTO.CutoverDiscussionExceptionDTO", ...] = Field(
+            description="Какие symbol-level exceptions включены в review package."
+        )
+
+    class CutoverReviewCatalogDTO(BaseModel):
+        contour: str = Field(description="Какой contour сейчас отражён в review catalog.")
+        scope_mode: str = Field(description="Какой scope_mode сейчас отражён в review catalog.")
+        headline: str = Field(description="Какой current package headline отражён в review catalog.")
+        discussion_state: str = Field(description="Какой discussion state отражён в review catalog.")
+        manual_review_state: str = Field(description="Какой manual-review state отражён в review catalog.")
+        cutover_evaluation_state: str = Field(description="Какой evaluation state отражён в review catalog.")
+        cutover_readiness_state: str = Field(description="Какой readiness state отражён в review catalog.")
+        compared_symbols: int = Field(description="Сколько compared symbols отражено в review catalog.")
+        ready_symbols: int = Field(description="Сколько ready symbols отражено в review catalog.")
+        not_ready_symbols: int = Field(description="Сколько not_ready symbols отражено в review catalog.")
+        blocked_symbols: int = Field(description="Сколько blocked symbols отражено в review catalog.")
+        reasons_summary: tuple[str, ...] = Field(
+            description="Какой summary-level reasons bundle отражён в review catalog."
+        )
+        current_review_package: "BybitConnectorDiagnosticsDTO.CutoverReviewPackageDTO" = Field(
+            description="Какой current review package payload вложен в review catalog."
+        )
+
+    class CutoverReviewSnapshotCollectionDTO(BaseModel):
+        contour: str = Field(description="Какой contour сейчас отражён в review snapshot collection.")
+        scope_mode: str = Field(description="Какой scope_mode сейчас отражён в review snapshot collection.")
+        headline: str = Field(description="Какой current headline отражён в review snapshot collection.")
+        discussion_state: str = Field(description="Какой discussion state отражён в review snapshot collection.")
+        manual_review_state: str = Field(description="Какой manual-review state отражён в review snapshot collection.")
+        cutover_evaluation_state: str = Field(description="Какой evaluation state отражён в review snapshot collection.")
+        cutover_readiness_state: str = Field(description="Какой readiness state отражён в review snapshot collection.")
+        compared_symbols: int = Field(description="Сколько compared symbols отражено в review snapshot collection.")
+        ready_symbols: int = Field(description="Сколько ready symbols отражено в review snapshot collection.")
+        not_ready_symbols: int = Field(description="Сколько not_ready symbols отражено в review snapshot collection.")
+        blocked_symbols: int = Field(description="Сколько blocked symbols отражено в review snapshot collection.")
+        reasons_summary: tuple[str, ...] = Field(
+            description="Какой reasons summary отражён в review snapshot collection."
+        )
+        current_review_package_headline: str = Field(
+            description="Какой current review package headline отражён в listing shape."
+        )
+        current_review_package_discussion_state: str = Field(
+            description="Какой current review package discussion state отражён в listing shape."
+        )
+        current_review_catalog: "BybitConnectorDiagnosticsDTO.CutoverReviewCatalogDTO" = Field(
+            description="Какой current review catalog payload вложен в review snapshot collection."
+        )
+
+    class CutoverReviewCompactDigestDTO(BaseModel):
+        contour: str = Field(description="Какой contour сейчас отражён в compact digest.")
+        scope_mode: str = Field(description="Какой scope_mode сейчас отражён в compact digest.")
+        headline: str = Field(description="Какой краткий headline отражён в compact digest.")
+        discussion_state: str = Field(description="Какой discussion state отражён в compact digest.")
+        manual_review_state: str = Field(description="Какой manual-review state отражён в compact digest.")
+        cutover_evaluation_state: str = Field(description="Какой evaluation state отражён в compact digest.")
+        cutover_readiness_state: str = Field(description="Какой readiness state отражён в compact digest.")
+        compared_symbols: int = Field(description="Сколько compared symbols отражено в compact digest.")
+        ready_symbols: int = Field(description="Сколько ready symbols отражено в compact digest.")
+        not_ready_symbols: int = Field(description="Сколько not_ready symbols отражено в compact digest.")
+        blocked_symbols: int = Field(description="Сколько blocked symbols отражено в compact digest.")
+        reasons_summary: tuple[str, ...] = Field(
+            description="Какой reasons summary отражён в compact digest."
+        )
+        compact_symbol_exceptions: tuple[str, ...] = Field(
+            description="Какой compact symbol-exception summary отражён в compact digest."
+        )
+        current_review_snapshot_collection: "BybitConnectorDiagnosticsDTO.CutoverReviewSnapshotCollectionDTO" = Field(
+            description="Какой current review snapshot collection payload вложен в compact digest."
+        )
+
+    class CutoverExportReportBundleDTO(BaseModel):
+        contour: str = Field(description="Какой contour сейчас отражён в export/report bundle.")
+        scope_mode: str = Field(description="Какой scope_mode сейчас отражён в export/report bundle.")
+        headline: str = Field(description="Какой headline сейчас отражён в export/report bundle.")
+        discussion_state: str = Field(description="Какой discussion state отражён в export/report bundle.")
+        manual_review_state: str = Field(description="Какой manual-review state отражён в export/report bundle.")
+        cutover_evaluation_state: str = Field(description="Какой evaluation state отражён в export/report bundle.")
+        cutover_readiness_state: str = Field(description="Какой readiness state отражён в export/report bundle.")
+        compared_symbols: int = Field(description="Сколько compared symbols отражено в export/report bundle.")
+        ready_symbols: int = Field(description="Сколько ready symbols отражено в export/report bundle.")
+        not_ready_symbols: int = Field(description="Сколько not_ready symbols отражено в export/report bundle.")
+        blocked_symbols: int = Field(description="Сколько blocked symbols отражено в export/report bundle.")
+        reasons_summary: tuple[str, ...] = Field(
+            description="Какой reasons summary отражён в export/report bundle."
+        )
+        compact_symbol_exceptions: tuple[str, ...] = Field(
+            description="Какой compact symbol-exception summary отражён в export/report bundle."
+        )
+        export_text_summary: str = Field(
+            description="Какой export-friendly text summary отражён в export/report bundle."
+        )
+        current_compact_digest: "BybitConnectorDiagnosticsDTO.CutoverReviewCompactDigestDTO" = Field(
+            description="Какой current compact digest вложен в export/report bundle."
         )
 
     enabled: bool = Field(description="Включён ли Bybit connector в текущем runtime.")
@@ -827,7 +1081,7 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
         description="Последняя причина disconnect connector-а, если есть."
     )
     retry_count: int | None = Field(
-        description="Количество reconnect/retry попыток в текущем lifecycle окне."
+        description="Накопительное количество reconnect/retry попыток за lifecycle текущего runtime instance. Не сбрасывается после успешного reconnect и не описывает само по себе текущую деградацию transport path."
     )
     ready: bool = Field(description="Считает ли feed runtime connector готовым к работе.")
     started: bool = Field(description="Поднят ли feed runtime lifecycle connector-а.")
@@ -893,6 +1147,122 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
         default=None,
         description="Последняя причина unavailable/partial historical backfill для derived trade_count_24h.",
     )
+    ledger_trade_count_available: bool = Field(
+        default=False,
+        description="Доступен ли сейчас read-only ledger query path для trade count diagnostics.",
+    )
+    ledger_trade_count_last_error: str | None = Field(
+        default=None,
+        description="Последняя ошибка ledger trade count read-path, если query временно недоступен.",
+    )
+    ledger_trade_count_last_synced_at: str | None = Field(
+        default=None,
+        description="Когда ledger trade count diagnostics в последний раз успешно обновлялся.",
+    )
+    trade_count_cutover_readiness_state: str | None = Field(
+        default=None,
+        description="Aggregate read-only readiness groundwork state для текущего scope/contour.",
+    )
+    trade_count_cutover_readiness_reason: str | None = Field(
+        default=None,
+        description="Machine-readable причина aggregate cutover readiness state.",
+    )
+    trade_count_cutover_compared_symbols: int = Field(
+        default=0,
+        description="Сколько symbol paths реально вошло в aggregate readiness comparison.",
+    )
+    trade_count_cutover_ready_symbols: int = Field(
+        default=0,
+        description="Сколько symbol paths сейчас выглядят ready_for_cutover_evaluation.",
+    )
+    trade_count_cutover_not_ready_symbols: int = Field(
+        default=0,
+        description="Сколько symbol paths сейчас помечены как not_ready.",
+    )
+    trade_count_cutover_blocked_symbols: int = Field(
+        default=0,
+        description="Сколько symbol paths сейчас блокируют readiness evaluation.",
+    )
+    trade_count_cutover_evaluation_state: str | None = Field(
+        default=None,
+        description="Formal read-only evaluation state для manual cutover review discussion.",
+    )
+    trade_count_cutover_evaluation_reasons: tuple[str, ...] = Field(
+        default=(),
+        description="Machine-readable formal evaluation reasons поверх readiness/reconciliation surface.",
+    )
+    trade_count_cutover_evaluation_minimum_compared_symbols: int = Field(
+        default=1,
+        description="Минимум compared symbols, требуемый formal evaluation policy.",
+    )
+    trade_count_cutover_manual_review_state: str | None = Field(
+        default=None,
+        description="Scoped read-only governance/manual-review state для текущего contour/scope.",
+    )
+    trade_count_cutover_manual_review_reasons: tuple[str, ...] = Field(
+        default=(),
+        description="Machine-readable governance/manual-review reasons поверх evaluation verdict.",
+    )
+    trade_count_cutover_manual_review_evaluation_state: str | None = Field(
+        default=None,
+        description="Какой formal cutover evaluation state лежит под текущим manual-review verdict.",
+    )
+    trade_count_cutover_manual_review_contour: str | None = Field(
+        default=None,
+        description="Какой contour сейчас оценивается для manual-review surface.",
+    )
+    trade_count_cutover_manual_review_scope_mode: str | None = Field(
+        default=None,
+        description="Какой scope_mode относится к текущему manual-review surface.",
+    )
+    trade_count_cutover_manual_review_scope_symbol_count: int = Field(
+        default=0,
+        description="Сколько symbols входит в текущий manual-review scope.",
+    )
+    trade_count_cutover_manual_review_compared_symbols: int = Field(
+        default=0,
+        description="Сколько symbols реально вошло в manual-review comparison scope.",
+    )
+    trade_count_cutover_manual_review_ready_symbols: int = Field(
+        default=0,
+        description="Сколько symbols поддерживают current manual-review verdict.",
+    )
+    trade_count_cutover_manual_review_not_ready_symbols: int = Field(
+        default=0,
+        description="Сколько symbols помечены как not_ready внутри manual-review surface.",
+    )
+    trade_count_cutover_manual_review_blocked_symbols: int = Field(
+        default=0,
+        description="Сколько symbols блокируют current manual-review surface.",
+    )
+    trade_count_cutover_discussion_artifact: CutoverDiscussionArtifactDTO | None = Field(
+        default=None,
+        description="Operator-facing read-only summary artifact для current cutover discussion.",
+    )
+    trade_count_cutover_review_record: CutoverReviewRecordDTO | None = Field(
+        default=None,
+        description="Read-only archived-style cutover review record snapshot для current discussion state.",
+    )
+    trade_count_cutover_review_package: CutoverReviewPackageDTO | None = Field(
+        default=None,
+        description="Read-only cutover review package bundle поверх discussion artifact и review record.",
+    )
+    trade_count_cutover_review_catalog: CutoverReviewCatalogDTO | None = Field(
+        default=None,
+        description="Read-only cutover review catalog/index поверх current review package bundle.",
+    )
+    trade_count_cutover_review_snapshot_collection: CutoverReviewSnapshotCollectionDTO | None = Field(
+        default=None,
+        description="Read-only review snapshot collection/listing поверх current review catalog.",
+    )
+    trade_count_cutover_review_compact_digest: CutoverReviewCompactDigestDTO | None = Field(
+        default=None,
+        description="Read-only compact review digest поверх current review snapshot collection.",
+    )
+    trade_count_cutover_export_report_bundle: CutoverExportReportBundleDTO | None = Field(
+        default=None,
+        description="Read-only cutover export/report bundle поверх current compact digest.",
+    )
     desired_scope_mode: str | None = Field(
         default=None,
         description="Какой scope_mode сохранён как desired policy truth для этого contour-а.",
@@ -908,6 +1278,50 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
     applied_trade_count_filter_minimum: int | None = Field(
         default=None,
         description="Какой min_trade_count_24h сейчас реально применён к running connector-у.",
+    )
+    trade_count_product_truth_state: str | None = Field(
+        default=None,
+        description="Aggregate user-facing truth state для 24h trade count по текущему scope.",
+    )
+    trade_count_product_truth_reason: str | None = Field(
+        default=None,
+        description="Machine-readable причина aggregate trade-count product truth state.",
+    )
+    trade_count_truth_model: str | None = Field(
+        default=None,
+        description="Final truth model для trade_count_24h ownership boundary.",
+    )
+    trade_count_canonical_truth_owner: str | None = Field(
+        default=None,
+        description="Кто владеет canonical trade truth для product path.",
+    )
+    trade_count_canonical_truth_source: str | None = Field(
+        default=None,
+        description="Какой source path является canonical для product trade_count_24h.",
+    )
+    trade_count_operational_truth_owner: str | None = Field(
+        default=None,
+        description="Кто владеет connector runtime operational truth.",
+    )
+    trade_count_operational_truth_source: str | None = Field(
+        default=None,
+        description="Какой source path используется как operational trade truth.",
+    )
+    trade_count_connector_canonical_role: str | None = Field(
+        default=None,
+        description="Роль connector runtime по отношению к canonical trade truth.",
+    )
+    trade_count_admission_basis: str | None = Field(
+        default=None,
+        description="На какой truth basis сейчас опирается trade-count admission/filter path.",
+    )
+    trade_count_admission_truth_owner: str | None = Field(
+        default=None,
+        description="Кто владеет truth path, на который опирается admission.",
+    )
+    trade_count_admission_truth_source: str | None = Field(
+        default=None,
+        description="Какой source path используется admission для trade-count фильтра.",
     )
     policy_apply_status: str | None = Field(
         default=None,
@@ -932,6 +1346,30 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
     operator_confidence_reason: str | None = Field(
         default=None,
         description="Краткая причина текущего operator confidence state.",
+    )
+    operator_state_surface: dict[str, object] | None = Field(
+        default=None,
+        description="Компактный operator-facing surface: runtime и ledger_sync оси.",
+    )
+    operational_recovery_state: str | None = Field(
+        default=None,
+        description="Операционное recovery состояние для operator-facing слоя.",
+    )
+    operational_recovery_reason: str | None = Field(
+        default=None,
+        description="Причина текущего operational recovery state.",
+    )
+    canonical_ledger_sync_state: str | None = Field(
+        default=None,
+        description="Состояние canonical ledger sync для operator-facing слоя.",
+    )
+    canonical_ledger_sync_reason: str | None = Field(
+        default=None,
+        description="Причина текущего canonical ledger sync state.",
+    )
+    post_recovery_materialization_status: str | None = Field(
+        default=None,
+        description="Статус post-recovery materialization stage.",
     )
     historical_recovery_state: str | None = Field(
         default=None,
@@ -1092,6 +1530,17 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
     )
 
     @classmethod
+    def from_connector_projection(
+        cls,
+        connector: object,
+    ) -> BybitConnectorDiagnosticsDTO:
+        """Build DTO from explicit backend connector projection contract."""
+        if not isinstance(connector, dict):
+            connector = {}
+
+        return cls._from_connector_payload(connector)
+
+    @classmethod
     def from_runtime_diagnostics(
         cls,
         diagnostics: object,
@@ -1103,6 +1552,14 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
             if isinstance(raw_connector, dict):
                 connector = raw_connector
 
+        return cls._from_connector_payload(connector)
+
+    @classmethod
+    def _from_connector_payload(
+        cls,
+        connector: dict[str, object],
+    ) -> BybitConnectorDiagnosticsDTO:
+        
         raw_symbols = connector.get("symbols")
         symbols = (
             tuple(entry for entry in raw_symbols if isinstance(entry, str))
@@ -1125,6 +1582,15 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
                         symbol=raw_symbol,
                         trade_seen=bool(snapshot.get("trade_seen", False)),
                         orderbook_seen=bool(snapshot.get("orderbook_seen", False)),
+                        trade_ingest_seen=bool(
+                            snapshot.get("trade_ingest_seen", snapshot.get("trade_seen", False))
+                        ),
+                        orderbook_ingest_seen=bool(
+                            snapshot.get(
+                                "orderbook_ingest_seen",
+                                snapshot.get("orderbook_seen", False),
+                            )
+                        ),
                         best_bid=snapshot.get("best_bid")
                         if isinstance(snapshot.get("best_bid"), str)
                         else None,
@@ -1137,9 +1603,64 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
                         derived_trade_count_24h=snapshot.get("derived_trade_count_24h")
                         if isinstance(snapshot.get("derived_trade_count_24h"), int)
                         else None,
+                        bucket_trade_count_24h=snapshot.get("bucket_trade_count_24h")
+                        if isinstance(snapshot.get("bucket_trade_count_24h"), int)
+                        else None,
+                        ledger_trade_count_24h=snapshot.get("ledger_trade_count_24h")
+                        if isinstance(snapshot.get("ledger_trade_count_24h"), int)
+                        else None,
+                        trade_count_reconciliation_verdict=snapshot.get(
+                            "trade_count_reconciliation_verdict"
+                        )
+                        if isinstance(snapshot.get("trade_count_reconciliation_verdict"), str)
+                        else None,
+                        trade_count_reconciliation_reason=snapshot.get(
+                            "trade_count_reconciliation_reason"
+                        )
+                        if isinstance(snapshot.get("trade_count_reconciliation_reason"), str)
+                        else None,
+                        trade_count_reconciliation_absolute_diff=snapshot.get(
+                            "trade_count_reconciliation_absolute_diff"
+                        )
+                        if isinstance(snapshot.get("trade_count_reconciliation_absolute_diff"), int)
+                        else None,
+                        trade_count_reconciliation_tolerance=snapshot.get(
+                            "trade_count_reconciliation_tolerance"
+                        )
+                        if isinstance(snapshot.get("trade_count_reconciliation_tolerance"), int)
+                        else None,
+                        trade_count_cutover_readiness_state=snapshot.get(
+                            "trade_count_cutover_readiness_state"
+                        )
+                        if isinstance(snapshot.get("trade_count_cutover_readiness_state"), str)
+                        else None,
+                        trade_count_cutover_readiness_reason=snapshot.get(
+                            "trade_count_cutover_readiness_reason"
+                        )
+                        if isinstance(snapshot.get("trade_count_cutover_readiness_reason"), str)
+                        else None,
                         observed_trade_count_since_reset=int(
                             snapshot.get("observed_trade_count_since_reset", 0)
                         ),
+                        product_trade_count_24h=snapshot.get("product_trade_count_24h")
+                        if isinstance(snapshot.get("product_trade_count_24h"), int)
+                        else None,
+                        product_trade_count_state=snapshot.get("product_trade_count_state")
+                        if isinstance(snapshot.get("product_trade_count_state"), str)
+                        else None,
+                        product_trade_count_reason=snapshot.get("product_trade_count_reason")
+                        if isinstance(snapshot.get("product_trade_count_reason"), str)
+                        else None,
+                        product_trade_count_truth_owner=snapshot.get(
+                            "product_trade_count_truth_owner"
+                        )
+                        if isinstance(snapshot.get("product_trade_count_truth_owner"), str)
+                        else None,
+                        product_trade_count_truth_source=snapshot.get(
+                            "product_trade_count_truth_source"
+                        )
+                        if isinstance(snapshot.get("product_trade_count_truth_source"), str)
+                        else None,
                     )
                 )
 
@@ -1278,6 +1799,1077 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
             )
             if isinstance(connector.get("derived_trade_count_last_backfill_reason"), str)
             else None,
+            ledger_trade_count_available=bool(connector.get("ledger_trade_count_available", False)),
+            ledger_trade_count_last_error=connector.get("ledger_trade_count_last_error")
+            if isinstance(connector.get("ledger_trade_count_last_error"), str)
+            else None,
+            ledger_trade_count_last_synced_at=connector.get("ledger_trade_count_last_synced_at")
+            if isinstance(connector.get("ledger_trade_count_last_synced_at"), str)
+            else None,
+            trade_count_cutover_readiness_state=connector.get("trade_count_cutover_readiness_state")
+            if isinstance(connector.get("trade_count_cutover_readiness_state"), str)
+            else None,
+            trade_count_cutover_readiness_reason=connector.get("trade_count_cutover_readiness_reason")
+            if isinstance(connector.get("trade_count_cutover_readiness_reason"), str)
+            else None,
+            trade_count_cutover_compared_symbols=connector.get("trade_count_cutover_compared_symbols")
+            if isinstance(connector.get("trade_count_cutover_compared_symbols"), int)
+            else 0,
+            trade_count_cutover_ready_symbols=connector.get("trade_count_cutover_ready_symbols")
+            if isinstance(connector.get("trade_count_cutover_ready_symbols"), int)
+            else 0,
+            trade_count_cutover_not_ready_symbols=connector.get("trade_count_cutover_not_ready_symbols")
+            if isinstance(connector.get("trade_count_cutover_not_ready_symbols"), int)
+            else 0,
+            trade_count_cutover_blocked_symbols=connector.get("trade_count_cutover_blocked_symbols")
+            if isinstance(connector.get("trade_count_cutover_blocked_symbols"), int)
+            else 0,
+            trade_count_cutover_evaluation_state=connector.get("trade_count_cutover_evaluation_state")
+            if isinstance(connector.get("trade_count_cutover_evaluation_state"), str)
+            else None,
+            trade_count_cutover_evaluation_reasons=tuple(
+                str(reason)
+                for reason in connector.get("trade_count_cutover_evaluation_reasons", ())
+                if isinstance(reason, str)
+            ),
+            trade_count_cutover_evaluation_minimum_compared_symbols=connector.get(
+                "trade_count_cutover_evaluation_minimum_compared_symbols"
+            )
+            if isinstance(
+                connector.get("trade_count_cutover_evaluation_minimum_compared_symbols"), int
+            )
+            else 1,
+            trade_count_cutover_manual_review_state=connector.get(
+                "trade_count_cutover_manual_review_state"
+            )
+            if isinstance(connector.get("trade_count_cutover_manual_review_state"), str)
+            else None,
+            trade_count_cutover_manual_review_reasons=tuple(
+                str(reason)
+                for reason in connector.get("trade_count_cutover_manual_review_reasons", ())
+                if isinstance(reason, str)
+            ),
+            trade_count_cutover_manual_review_evaluation_state=connector.get(
+                "trade_count_cutover_manual_review_evaluation_state"
+            )
+            if isinstance(connector.get("trade_count_cutover_manual_review_evaluation_state"), str)
+            else None,
+            trade_count_cutover_manual_review_contour=connector.get(
+                "trade_count_cutover_manual_review_contour"
+            )
+            if isinstance(connector.get("trade_count_cutover_manual_review_contour"), str)
+            else None,
+            trade_count_cutover_manual_review_scope_mode=connector.get(
+                "trade_count_cutover_manual_review_scope_mode"
+            )
+            if isinstance(connector.get("trade_count_cutover_manual_review_scope_mode"), str)
+            else None,
+            trade_count_cutover_manual_review_scope_symbol_count=connector.get(
+                "trade_count_cutover_manual_review_scope_symbol_count"
+            )
+            if isinstance(connector.get("trade_count_cutover_manual_review_scope_symbol_count"), int)
+            else 0,
+            trade_count_cutover_manual_review_compared_symbols=connector.get(
+                "trade_count_cutover_manual_review_compared_symbols"
+            )
+            if isinstance(connector.get("trade_count_cutover_manual_review_compared_symbols"), int)
+            else 0,
+            trade_count_cutover_manual_review_ready_symbols=connector.get(
+                "trade_count_cutover_manual_review_ready_symbols"
+            )
+            if isinstance(connector.get("trade_count_cutover_manual_review_ready_symbols"), int)
+            else 0,
+            trade_count_cutover_manual_review_not_ready_symbols=connector.get(
+                "trade_count_cutover_manual_review_not_ready_symbols"
+            )
+            if isinstance(
+                connector.get("trade_count_cutover_manual_review_not_ready_symbols"), int
+            )
+            else 0,
+            trade_count_cutover_manual_review_blocked_symbols=connector.get(
+                "trade_count_cutover_manual_review_blocked_symbols"
+            )
+            if isinstance(connector.get("trade_count_cutover_manual_review_blocked_symbols"), int)
+            else 0,
+            trade_count_cutover_discussion_artifact=(
+                cls.CutoverDiscussionArtifactDTO(
+                    discussion_state=str(artifact.get("discussion_state", "discussion_not_ready")),
+                    headline=str(artifact.get("headline", "")),
+                    contour=str(artifact.get("contour", "unknown")),
+                    scope_mode=str(artifact.get("scope_mode", "universe")),
+                    scope_symbol_count=int(artifact.get("scope_symbol_count", 0)),
+                    reconciliation_summary=tuple(
+                        cls.CutoverDiscussionVerdictCountDTO(
+                            name=str(item.get("name", "")),
+                            count=int(item.get("count", 0)),
+                        )
+                        for item in artifact.get("reconciliation_summary", ())
+                        if isinstance(item, dict)
+                    ),
+                    cutover_readiness_state=str(artifact.get("cutover_readiness_state", "")),
+                    cutover_readiness_reason=str(artifact.get("cutover_readiness_reason", "")),
+                    cutover_evaluation_state=str(artifact.get("cutover_evaluation_state", "")),
+                    cutover_evaluation_reasons=tuple(
+                        str(reason)
+                        for reason in artifact.get("cutover_evaluation_reasons", ())
+                        if isinstance(reason, str)
+                    ),
+                    manual_review_state=str(artifact.get("manual_review_state", "")),
+                    manual_review_reasons=tuple(
+                        str(reason)
+                        for reason in artifact.get("manual_review_reasons", ())
+                        if isinstance(reason, str)
+                    ),
+                    compared_symbols=int(artifact.get("compared_symbols", 0)),
+                    ready_symbols=int(artifact.get("ready_symbols", 0)),
+                    not_ready_symbols=int(artifact.get("not_ready_symbols", 0)),
+                    blocked_symbols=int(artifact.get("blocked_symbols", 0)),
+                    symbol_exceptions=tuple(
+                        cls.CutoverDiscussionExceptionDTO(
+                            symbol=str(item.get("symbol", "")),
+                            reconciliation_verdict=(
+                                str(item["reconciliation_verdict"])
+                                if isinstance(item.get("reconciliation_verdict"), str)
+                                else None
+                            ),
+                            reconciliation_reason=(
+                                str(item["reconciliation_reason"])
+                                if isinstance(item.get("reconciliation_reason"), str)
+                                else None
+                            ),
+                            cutover_readiness_state=(
+                                str(item["cutover_readiness_state"])
+                                if isinstance(item.get("cutover_readiness_state"), str)
+                                else None
+                            ),
+                            cutover_readiness_reason=(
+                                str(item["cutover_readiness_reason"])
+                                if isinstance(item.get("cutover_readiness_reason"), str)
+                                else None
+                            ),
+                        )
+                        for item in artifact.get("symbol_exceptions", ())
+                        if isinstance(item, dict)
+                    ),
+                )
+                if isinstance(connector.get("trade_count_cutover_discussion_artifact"), dict)
+                and isinstance(
+                    (artifact := connector.get("trade_count_cutover_discussion_artifact")), dict
+                )
+                else None
+            ),
+            trade_count_cutover_review_record=(
+                cls.CutoverReviewRecordDTO(
+                    captured_at=str(record.get("captured_at", "")),
+                    contour=str(record.get("contour", "unknown")),
+                    scope_mode=str(record.get("scope_mode", "universe")),
+                    scope_symbol_count=int(record.get("scope_symbol_count", 0)),
+                    discussion_state=str(record.get("discussion_state", "")),
+                    manual_review_state=str(record.get("manual_review_state", "")),
+                    cutover_evaluation_state=str(record.get("cutover_evaluation_state", "")),
+                    cutover_readiness_state=str(record.get("cutover_readiness_state", "")),
+                    compared_symbols=int(record.get("compared_symbols", 0)),
+                    ready_symbols=int(record.get("ready_symbols", 0)),
+                    not_ready_symbols=int(record.get("not_ready_symbols", 0)),
+                    blocked_symbols=int(record.get("blocked_symbols", 0)),
+                    headline=str(record.get("headline", "")),
+                    reasons_summary=tuple(
+                        str(reason)
+                        for reason in record.get("reasons_summary", ())
+                        if isinstance(reason, str)
+                    ),
+                    symbol_exceptions=tuple(
+                        cls.CutoverDiscussionExceptionDTO(
+                            symbol=str(item.get("symbol", "")),
+                            reconciliation_verdict=(
+                                str(item["reconciliation_verdict"])
+                                if isinstance(item.get("reconciliation_verdict"), str)
+                                else None
+                            ),
+                            reconciliation_reason=(
+                                str(item["reconciliation_reason"])
+                                if isinstance(item.get("reconciliation_reason"), str)
+                                else None
+                            ),
+                            cutover_readiness_state=(
+                                str(item["cutover_readiness_state"])
+                                if isinstance(item.get("cutover_readiness_state"), str)
+                                else None
+                            ),
+                            cutover_readiness_reason=(
+                                str(item["cutover_readiness_reason"])
+                                if isinstance(item.get("cutover_readiness_reason"), str)
+                                else None
+                            ),
+                        )
+                        for item in record.get("symbol_exceptions", ())
+                        if isinstance(item, dict)
+                    ),
+                )
+                if isinstance(connector.get("trade_count_cutover_review_record"), dict)
+                and isinstance((record := connector.get("trade_count_cutover_review_record")), dict)
+                else None
+            ),
+            trade_count_cutover_review_package=(
+                cls.CutoverReviewPackageDTO(
+                    contour=str(package.get("contour", "unknown")),
+                    scope_mode=str(package.get("scope_mode", "universe")),
+                    scope_symbol_count=int(package.get("scope_symbol_count", 0)),
+                    discussion_state=str(package.get("discussion_state", "")),
+                    manual_review_state=str(package.get("manual_review_state", "")),
+                    cutover_evaluation_state=str(package.get("cutover_evaluation_state", "")),
+                    cutover_readiness_state=str(package.get("cutover_readiness_state", "")),
+                    compared_symbols=int(package.get("compared_symbols", 0)),
+                    ready_symbols=int(package.get("ready_symbols", 0)),
+                    not_ready_symbols=int(package.get("not_ready_symbols", 0)),
+                    blocked_symbols=int(package.get("blocked_symbols", 0)),
+                    headline=str(package.get("headline", "")),
+                    reasons_summary=tuple(
+                        str(reason)
+                        for reason in package.get("reasons_summary", ())
+                        if isinstance(reason, str)
+                    ),
+                    review_record=cls.CutoverReviewRecordDTO(
+                        captured_at=str(package_record.get("captured_at", "")),
+                        contour=str(package_record.get("contour", "unknown")),
+                        scope_mode=str(package_record.get("scope_mode", "universe")),
+                        scope_symbol_count=int(package_record.get("scope_symbol_count", 0)),
+                        discussion_state=str(package_record.get("discussion_state", "")),
+                        manual_review_state=str(package_record.get("manual_review_state", "")),
+                        cutover_evaluation_state=str(
+                            package_record.get("cutover_evaluation_state", "")
+                        ),
+                        cutover_readiness_state=str(
+                            package_record.get("cutover_readiness_state", "")
+                        ),
+                        compared_symbols=int(package_record.get("compared_symbols", 0)),
+                        ready_symbols=int(package_record.get("ready_symbols", 0)),
+                        not_ready_symbols=int(package_record.get("not_ready_symbols", 0)),
+                        blocked_symbols=int(package_record.get("blocked_symbols", 0)),
+                        headline=str(package_record.get("headline", "")),
+                        reasons_summary=tuple(
+                            str(reason)
+                            for reason in package_record.get("reasons_summary", ())
+                            if isinstance(reason, str)
+                        ),
+                        symbol_exceptions=tuple(
+                            cls.CutoverDiscussionExceptionDTO(
+                                symbol=str(item.get("symbol", "")),
+                                reconciliation_verdict=(
+                                    str(item["reconciliation_verdict"])
+                                    if isinstance(item.get("reconciliation_verdict"), str)
+                                    else None
+                                ),
+                                reconciliation_reason=(
+                                    str(item["reconciliation_reason"])
+                                    if isinstance(item.get("reconciliation_reason"), str)
+                                    else None
+                                ),
+                                cutover_readiness_state=(
+                                    str(item["cutover_readiness_state"])
+                                    if isinstance(item.get("cutover_readiness_state"), str)
+                                    else None
+                                ),
+                                cutover_readiness_reason=(
+                                    str(item["cutover_readiness_reason"])
+                                    if isinstance(item.get("cutover_readiness_reason"), str)
+                                    else None
+                                ),
+                            )
+                            for item in package_record.get("symbol_exceptions", ())
+                            if isinstance(item, dict)
+                        ),
+                    ),
+                    symbol_exceptions=tuple(
+                        cls.CutoverDiscussionExceptionDTO(
+                            symbol=str(item.get("symbol", "")),
+                            reconciliation_verdict=(
+                                str(item["reconciliation_verdict"])
+                                if isinstance(item.get("reconciliation_verdict"), str)
+                                else None
+                            ),
+                            reconciliation_reason=(
+                                str(item["reconciliation_reason"])
+                                if isinstance(item.get("reconciliation_reason"), str)
+                                else None
+                            ),
+                            cutover_readiness_state=(
+                                str(item["cutover_readiness_state"])
+                                if isinstance(item.get("cutover_readiness_state"), str)
+                                else None
+                            ),
+                            cutover_readiness_reason=(
+                                str(item["cutover_readiness_reason"])
+                                if isinstance(item.get("cutover_readiness_reason"), str)
+                                else None
+                            ),
+                        )
+                        for item in package.get("symbol_exceptions", ())
+                        if isinstance(item, dict)
+                    ),
+                )
+                if isinstance(connector.get("trade_count_cutover_review_package"), dict)
+                and isinstance((package := connector.get("trade_count_cutover_review_package")), dict)
+                and isinstance((package_record := package.get("review_record")), dict)
+                else None
+            ),
+            trade_count_cutover_review_catalog=(
+                cls.CutoverReviewCatalogDTO(
+                    contour=str(catalog.get("contour", "unknown")),
+                    scope_mode=str(catalog.get("scope_mode", "universe")),
+                    headline=str(catalog.get("headline", "")),
+                    discussion_state=str(catalog.get("discussion_state", "")),
+                    manual_review_state=str(catalog.get("manual_review_state", "")),
+                    cutover_evaluation_state=str(catalog.get("cutover_evaluation_state", "")),
+                    cutover_readiness_state=str(catalog.get("cutover_readiness_state", "")),
+                    compared_symbols=int(catalog.get("compared_symbols", 0)),
+                    ready_symbols=int(catalog.get("ready_symbols", 0)),
+                    not_ready_symbols=int(catalog.get("not_ready_symbols", 0)),
+                    blocked_symbols=int(catalog.get("blocked_symbols", 0)),
+                    reasons_summary=tuple(
+                        str(reason)
+                        for reason in catalog.get("reasons_summary", ())
+                        if isinstance(reason, str)
+                    ),
+                    current_review_package=cls.CutoverReviewPackageDTO(
+                        contour=str(catalog_package.get("contour", "unknown")),
+                        scope_mode=str(catalog_package.get("scope_mode", "universe")),
+                        scope_symbol_count=int(catalog_package.get("scope_symbol_count", 0)),
+                        discussion_state=str(catalog_package.get("discussion_state", "")),
+                        manual_review_state=str(catalog_package.get("manual_review_state", "")),
+                        cutover_evaluation_state=str(
+                            catalog_package.get("cutover_evaluation_state", "")
+                        ),
+                        cutover_readiness_state=str(
+                            catalog_package.get("cutover_readiness_state", "")
+                        ),
+                        compared_symbols=int(catalog_package.get("compared_symbols", 0)),
+                        ready_symbols=int(catalog_package.get("ready_symbols", 0)),
+                        not_ready_symbols=int(catalog_package.get("not_ready_symbols", 0)),
+                        blocked_symbols=int(catalog_package.get("blocked_symbols", 0)),
+                        headline=str(catalog_package.get("headline", "")),
+                        reasons_summary=tuple(
+                            str(reason)
+                            for reason in catalog_package.get("reasons_summary", ())
+                            if isinstance(reason, str)
+                        ),
+                        review_record=cls.CutoverReviewRecordDTO(
+                            captured_at=str(catalog_record.get("captured_at", "")),
+                            contour=str(catalog_record.get("contour", "unknown")),
+                            scope_mode=str(catalog_record.get("scope_mode", "universe")),
+                            scope_symbol_count=int(catalog_record.get("scope_symbol_count", 0)),
+                            discussion_state=str(catalog_record.get("discussion_state", "")),
+                            manual_review_state=str(catalog_record.get("manual_review_state", "")),
+                            cutover_evaluation_state=str(
+                                catalog_record.get("cutover_evaluation_state", "")
+                            ),
+                            cutover_readiness_state=str(
+                                catalog_record.get("cutover_readiness_state", "")
+                            ),
+                            compared_symbols=int(catalog_record.get("compared_symbols", 0)),
+                            ready_symbols=int(catalog_record.get("ready_symbols", 0)),
+                            not_ready_symbols=int(catalog_record.get("not_ready_symbols", 0)),
+                            blocked_symbols=int(catalog_record.get("blocked_symbols", 0)),
+                            headline=str(catalog_record.get("headline", "")),
+                            reasons_summary=tuple(
+                                str(reason)
+                                for reason in catalog_record.get("reasons_summary", ())
+                                if isinstance(reason, str)
+                            ),
+                            symbol_exceptions=tuple(
+                                cls.CutoverDiscussionExceptionDTO(
+                                    symbol=str(item.get("symbol", "")),
+                                    reconciliation_verdict=(
+                                        str(item["reconciliation_verdict"])
+                                        if isinstance(item.get("reconciliation_verdict"), str)
+                                        else None
+                                    ),
+                                    reconciliation_reason=(
+                                        str(item["reconciliation_reason"])
+                                        if isinstance(item.get("reconciliation_reason"), str)
+                                        else None
+                                    ),
+                                    cutover_readiness_state=(
+                                        str(item["cutover_readiness_state"])
+                                        if isinstance(item.get("cutover_readiness_state"), str)
+                                        else None
+                                    ),
+                                    cutover_readiness_reason=(
+                                        str(item["cutover_readiness_reason"])
+                                        if isinstance(item.get("cutover_readiness_reason"), str)
+                                        else None
+                                    ),
+                                )
+                                for item in catalog_record.get("symbol_exceptions", ())
+                                if isinstance(item, dict)
+                            ),
+                        ),
+                        symbol_exceptions=tuple(
+                            cls.CutoverDiscussionExceptionDTO(
+                                symbol=str(item.get("symbol", "")),
+                                reconciliation_verdict=(
+                                    str(item["reconciliation_verdict"])
+                                    if isinstance(item.get("reconciliation_verdict"), str)
+                                    else None
+                                ),
+                                reconciliation_reason=(
+                                    str(item["reconciliation_reason"])
+                                    if isinstance(item.get("reconciliation_reason"), str)
+                                    else None
+                                ),
+                                cutover_readiness_state=(
+                                    str(item["cutover_readiness_state"])
+                                    if isinstance(item.get("cutover_readiness_state"), str)
+                                    else None
+                                ),
+                                cutover_readiness_reason=(
+                                    str(item["cutover_readiness_reason"])
+                                    if isinstance(item.get("cutover_readiness_reason"), str)
+                                    else None
+                                ),
+                            )
+                            for item in catalog_package.get("symbol_exceptions", ())
+                            if isinstance(item, dict)
+                        ),
+                    ),
+                )
+                if isinstance(connector.get("trade_count_cutover_review_catalog"), dict)
+                and isinstance((catalog := connector.get("trade_count_cutover_review_catalog")), dict)
+                and isinstance((catalog_package := catalog.get("current_review_package")), dict)
+                and isinstance((catalog_record := catalog_package.get("review_record")), dict)
+                else None
+            ),
+            trade_count_cutover_review_snapshot_collection=(
+                cls.CutoverReviewSnapshotCollectionDTO(
+                    contour=str(collection.get("contour", "unknown")),
+                    scope_mode=str(collection.get("scope_mode", "universe")),
+                    headline=str(collection.get("headline", "")),
+                    discussion_state=str(collection.get("discussion_state", "")),
+                    manual_review_state=str(collection.get("manual_review_state", "")),
+                    cutover_evaluation_state=str(
+                        collection.get("cutover_evaluation_state", "")
+                    ),
+                    cutover_readiness_state=str(
+                        collection.get("cutover_readiness_state", "")
+                    ),
+                    compared_symbols=int(collection.get("compared_symbols", 0)),
+                    ready_symbols=int(collection.get("ready_symbols", 0)),
+                    not_ready_symbols=int(collection.get("not_ready_symbols", 0)),
+                    blocked_symbols=int(collection.get("blocked_symbols", 0)),
+                    reasons_summary=tuple(
+                        str(reason)
+                        for reason in collection.get("reasons_summary", ())
+                        if isinstance(reason, str)
+                    ),
+                    current_review_package_headline=str(
+                        collection.get("current_review_package_headline", "")
+                    ),
+                    current_review_package_discussion_state=str(
+                        collection.get("current_review_package_discussion_state", "")
+                    ),
+                    current_review_catalog=cls.CutoverReviewCatalogDTO(
+                        contour=str(collection_catalog.get("contour", "unknown")),
+                        scope_mode=str(collection_catalog.get("scope_mode", "universe")),
+                        headline=str(collection_catalog.get("headline", "")),
+                        discussion_state=str(collection_catalog.get("discussion_state", "")),
+                        manual_review_state=str(
+                            collection_catalog.get("manual_review_state", "")
+                        ),
+                        cutover_evaluation_state=str(
+                            collection_catalog.get("cutover_evaluation_state", "")
+                        ),
+                        cutover_readiness_state=str(
+                            collection_catalog.get("cutover_readiness_state", "")
+                        ),
+                        compared_symbols=int(collection_catalog.get("compared_symbols", 0)),
+                        ready_symbols=int(collection_catalog.get("ready_symbols", 0)),
+                        not_ready_symbols=int(collection_catalog.get("not_ready_symbols", 0)),
+                        blocked_symbols=int(collection_catalog.get("blocked_symbols", 0)),
+                        reasons_summary=tuple(
+                            str(reason)
+                            for reason in collection_catalog.get("reasons_summary", ())
+                            if isinstance(reason, str)
+                        ),
+                        current_review_package=cls.CutoverReviewPackageDTO(
+                            contour=str(collection_package.get("contour", "unknown")),
+                            scope_mode=str(collection_package.get("scope_mode", "universe")),
+                            scope_symbol_count=int(
+                                collection_package.get("scope_symbol_count", 0)
+                            ),
+                            discussion_state=str(
+                                collection_package.get("discussion_state", "")
+                            ),
+                            manual_review_state=str(
+                                collection_package.get("manual_review_state", "")
+                            ),
+                            cutover_evaluation_state=str(
+                                collection_package.get("cutover_evaluation_state", "")
+                            ),
+                            cutover_readiness_state=str(
+                                collection_package.get("cutover_readiness_state", "")
+                            ),
+                            compared_symbols=int(collection_package.get("compared_symbols", 0)),
+                            ready_symbols=int(collection_package.get("ready_symbols", 0)),
+                            not_ready_symbols=int(
+                                collection_package.get("not_ready_symbols", 0)
+                            ),
+                            blocked_symbols=int(collection_package.get("blocked_symbols", 0)),
+                            headline=str(collection_package.get("headline", "")),
+                            reasons_summary=tuple(
+                                str(reason)
+                                for reason in collection_package.get("reasons_summary", ())
+                                if isinstance(reason, str)
+                            ),
+                            review_record=cls.CutoverReviewRecordDTO(
+                                captured_at=str(collection_record.get("captured_at", "")),
+                                contour=str(collection_record.get("contour", "unknown")),
+                                scope_mode=str(
+                                    collection_record.get("scope_mode", "universe")
+                                ),
+                                scope_symbol_count=int(
+                                    collection_record.get("scope_symbol_count", 0)
+                                ),
+                                discussion_state=str(
+                                    collection_record.get("discussion_state", "")
+                                ),
+                                manual_review_state=str(
+                                    collection_record.get("manual_review_state", "")
+                                ),
+                                cutover_evaluation_state=str(
+                                    collection_record.get("cutover_evaluation_state", "")
+                                ),
+                                cutover_readiness_state=str(
+                                    collection_record.get("cutover_readiness_state", "")
+                                ),
+                                compared_symbols=int(
+                                    collection_record.get("compared_symbols", 0)
+                                ),
+                                ready_symbols=int(collection_record.get("ready_symbols", 0)),
+                                not_ready_symbols=int(
+                                    collection_record.get("not_ready_symbols", 0)
+                                ),
+                                blocked_symbols=int(
+                                    collection_record.get("blocked_symbols", 0)
+                                ),
+                                headline=str(collection_record.get("headline", "")),
+                                reasons_summary=tuple(
+                                    str(reason)
+                                    for reason in collection_record.get(
+                                        "reasons_summary",
+                                        (),
+                                    )
+                                    if isinstance(reason, str)
+                                ),
+                                symbol_exceptions=tuple(
+                                    cls.CutoverDiscussionExceptionDTO(
+                                        symbol=str(item.get("symbol", "")),
+                                        reconciliation_verdict=(
+                                            str(item["reconciliation_verdict"])
+                                            if isinstance(
+                                                item.get("reconciliation_verdict"),
+                                                str,
+                                            )
+                                            else None
+                                        ),
+                                        reconciliation_reason=(
+                                            str(item["reconciliation_reason"])
+                                            if isinstance(item.get("reconciliation_reason"), str)
+                                            else None
+                                        ),
+                                        cutover_readiness_state=(
+                                            str(item["cutover_readiness_state"])
+                                            if isinstance(
+                                                item.get("cutover_readiness_state"),
+                                                str,
+                                            )
+                                            else None
+                                        ),
+                                        cutover_readiness_reason=(
+                                            str(item["cutover_readiness_reason"])
+                                            if isinstance(
+                                                item.get("cutover_readiness_reason"),
+                                                str,
+                                            )
+                                            else None
+                                        ),
+                                    )
+                                    for item in collection_record.get(
+                                        "symbol_exceptions",
+                                        (),
+                                    )
+                                    if isinstance(item, dict)
+                                ),
+                            ),
+                            symbol_exceptions=tuple(
+                                cls.CutoverDiscussionExceptionDTO(
+                                    symbol=str(item.get("symbol", "")),
+                                    reconciliation_verdict=(
+                                        str(item["reconciliation_verdict"])
+                                        if isinstance(item.get("reconciliation_verdict"), str)
+                                        else None
+                                    ),
+                                    reconciliation_reason=(
+                                        str(item["reconciliation_reason"])
+                                        if isinstance(item.get("reconciliation_reason"), str)
+                                        else None
+                                    ),
+                                    cutover_readiness_state=(
+                                        str(item["cutover_readiness_state"])
+                                        if isinstance(item.get("cutover_readiness_state"), str)
+                                        else None
+                                    ),
+                                    cutover_readiness_reason=(
+                                        str(item["cutover_readiness_reason"])
+                                        if isinstance(item.get("cutover_readiness_reason"), str)
+                                        else None
+                                    ),
+                                )
+                                for item in collection_package.get("symbol_exceptions", ())
+                                if isinstance(item, dict)
+                            ),
+                        ),
+                    ),
+                )
+                if isinstance(connector.get("trade_count_cutover_review_snapshot_collection"), dict)
+                and isinstance(
+                    (
+                        collection := connector.get(
+                            "trade_count_cutover_review_snapshot_collection"
+                        )
+                    ),
+                    dict,
+                )
+                and isinstance((collection_catalog := collection.get("current_review_catalog")), dict)
+                and isinstance(
+                    (collection_package := collection_catalog.get("current_review_package")),
+                    dict,
+                )
+                and isinstance((collection_record := collection_package.get("review_record")), dict)
+                else None
+            ),
+            trade_count_cutover_review_compact_digest=(
+                cls.CutoverReviewCompactDigestDTO(
+                    contour=str(digest.get("contour", "unknown")),
+                    scope_mode=str(digest.get("scope_mode", "universe")),
+                    headline=str(digest.get("headline", "")),
+                    discussion_state=str(digest.get("discussion_state", "")),
+                    manual_review_state=str(digest.get("manual_review_state", "")),
+                    cutover_evaluation_state=str(digest.get("cutover_evaluation_state", "")),
+                    cutover_readiness_state=str(digest.get("cutover_readiness_state", "")),
+                    compared_symbols=int(digest.get("compared_symbols", 0)),
+                    ready_symbols=int(digest.get("ready_symbols", 0)),
+                    not_ready_symbols=int(digest.get("not_ready_symbols", 0)),
+                    blocked_symbols=int(digest.get("blocked_symbols", 0)),
+                    reasons_summary=tuple(
+                        str(reason)
+                        for reason in digest.get("reasons_summary", ())
+                        if isinstance(reason, str)
+                    ),
+                    compact_symbol_exceptions=tuple(
+                        str(symbol)
+                        for symbol in digest.get("compact_symbol_exceptions", ())
+                        if isinstance(symbol, str)
+                    ),
+                    current_review_snapshot_collection=cls.CutoverReviewSnapshotCollectionDTO(
+                        contour=str(digest_collection.get("contour", "unknown")),
+                        scope_mode=str(digest_collection.get("scope_mode", "universe")),
+                        headline=str(digest_collection.get("headline", "")),
+                        discussion_state=str(digest_collection.get("discussion_state", "")),
+                        manual_review_state=str(digest_collection.get("manual_review_state", "")),
+                        cutover_evaluation_state=str(
+                            digest_collection.get("cutover_evaluation_state", "")
+                        ),
+                        cutover_readiness_state=str(
+                            digest_collection.get("cutover_readiness_state", "")
+                        ),
+                        compared_symbols=int(digest_collection.get("compared_symbols", 0)),
+                        ready_symbols=int(digest_collection.get("ready_symbols", 0)),
+                        not_ready_symbols=int(digest_collection.get("not_ready_symbols", 0)),
+                        blocked_symbols=int(digest_collection.get("blocked_symbols", 0)),
+                        reasons_summary=tuple(
+                            str(reason)
+                            for reason in digest_collection.get("reasons_summary", ())
+                            if isinstance(reason, str)
+                        ),
+                        current_review_package_headline=str(
+                            digest_collection.get("current_review_package_headline", "")
+                        ),
+                        current_review_package_discussion_state=str(
+                            digest_collection.get(
+                                "current_review_package_discussion_state",
+                                "",
+                            )
+                        ),
+                        current_review_catalog=cls.CutoverReviewCatalogDTO(
+                            contour=str(digest_catalog.get("contour", "unknown")),
+                            scope_mode=str(digest_catalog.get("scope_mode", "universe")),
+                            headline=str(digest_catalog.get("headline", "")),
+                            discussion_state=str(digest_catalog.get("discussion_state", "")),
+                            manual_review_state=str(
+                                digest_catalog.get("manual_review_state", "")
+                            ),
+                            cutover_evaluation_state=str(
+                                digest_catalog.get("cutover_evaluation_state", "")
+                            ),
+                            cutover_readiness_state=str(
+                                digest_catalog.get("cutover_readiness_state", "")
+                            ),
+                            compared_symbols=int(digest_catalog.get("compared_symbols", 0)),
+                            ready_symbols=int(digest_catalog.get("ready_symbols", 0)),
+                            not_ready_symbols=int(digest_catalog.get("not_ready_symbols", 0)),
+                            blocked_symbols=int(digest_catalog.get("blocked_symbols", 0)),
+                            reasons_summary=tuple(
+                                str(reason)
+                                for reason in digest_catalog.get("reasons_summary", ())
+                                if isinstance(reason, str)
+                            ),
+                            current_review_package=cls.CutoverReviewPackageDTO(
+                                contour=str(digest_package.get("contour", "unknown")),
+                                scope_mode=str(digest_package.get("scope_mode", "universe")),
+                                scope_symbol_count=int(digest_package.get("scope_symbol_count", 0)),
+                                discussion_state=str(digest_package.get("discussion_state", "")),
+                                manual_review_state=str(digest_package.get("manual_review_state", "")),
+                                cutover_evaluation_state=str(
+                                    digest_package.get("cutover_evaluation_state", "")
+                                ),
+                                cutover_readiness_state=str(
+                                    digest_package.get("cutover_readiness_state", "")
+                                ),
+                                compared_symbols=int(digest_package.get("compared_symbols", 0)),
+                                ready_symbols=int(digest_package.get("ready_symbols", 0)),
+                                not_ready_symbols=int(digest_package.get("not_ready_symbols", 0)),
+                                blocked_symbols=int(digest_package.get("blocked_symbols", 0)),
+                                headline=str(digest_package.get("headline", "")),
+                                reasons_summary=tuple(
+                                    str(reason)
+                                    for reason in digest_package.get("reasons_summary", ())
+                                    if isinstance(reason, str)
+                                ),
+                                review_record=cls.CutoverReviewRecordDTO(
+                                    captured_at=str(digest_record.get("captured_at", "")),
+                                    contour=str(digest_record.get("contour", "unknown")),
+                                    scope_mode=str(digest_record.get("scope_mode", "universe")),
+                                    scope_symbol_count=int(digest_record.get("scope_symbol_count", 0)),
+                                    discussion_state=str(digest_record.get("discussion_state", "")),
+                                    manual_review_state=str(digest_record.get("manual_review_state", "")),
+                                    cutover_evaluation_state=str(
+                                        digest_record.get("cutover_evaluation_state", "")
+                                    ),
+                                    cutover_readiness_state=str(
+                                        digest_record.get("cutover_readiness_state", "")
+                                    ),
+                                    compared_symbols=int(digest_record.get("compared_symbols", 0)),
+                                    ready_symbols=int(digest_record.get("ready_symbols", 0)),
+                                    not_ready_symbols=int(digest_record.get("not_ready_symbols", 0)),
+                                    blocked_symbols=int(digest_record.get("blocked_symbols", 0)),
+                                    headline=str(digest_record.get("headline", "")),
+                                    reasons_summary=tuple(
+                                        str(reason)
+                                        for reason in digest_record.get("reasons_summary", ())
+                                        if isinstance(reason, str)
+                                    ),
+                                    symbol_exceptions=tuple(
+                                        cls.CutoverDiscussionExceptionDTO(
+                                            symbol=str(item.get("symbol", "")),
+                                            reconciliation_verdict=(
+                                                str(item["reconciliation_verdict"])
+                                                if isinstance(item.get("reconciliation_verdict"), str)
+                                                else None
+                                            ),
+                                            reconciliation_reason=(
+                                                str(item["reconciliation_reason"])
+                                                if isinstance(item.get("reconciliation_reason"), str)
+                                                else None
+                                            ),
+                                            cutover_readiness_state=(
+                                                str(item["cutover_readiness_state"])
+                                                if isinstance(item.get("cutover_readiness_state"), str)
+                                                else None
+                                            ),
+                                            cutover_readiness_reason=(
+                                                str(item["cutover_readiness_reason"])
+                                                if isinstance(item.get("cutover_readiness_reason"), str)
+                                                else None
+                                            ),
+                                        )
+                                        for item in digest_record.get("symbol_exceptions", ())
+                                        if isinstance(item, dict)
+                                    ),
+                                ),
+                                symbol_exceptions=tuple(
+                                    cls.CutoverDiscussionExceptionDTO(
+                                        symbol=str(item.get("symbol", "")),
+                                        reconciliation_verdict=(
+                                            str(item["reconciliation_verdict"])
+                                            if isinstance(item.get("reconciliation_verdict"), str)
+                                            else None
+                                        ),
+                                        reconciliation_reason=(
+                                            str(item["reconciliation_reason"])
+                                            if isinstance(item.get("reconciliation_reason"), str)
+                                            else None
+                                        ),
+                                        cutover_readiness_state=(
+                                            str(item["cutover_readiness_state"])
+                                            if isinstance(item.get("cutover_readiness_state"), str)
+                                            else None
+                                        ),
+                                        cutover_readiness_reason=(
+                                            str(item["cutover_readiness_reason"])
+                                            if isinstance(item.get("cutover_readiness_reason"), str)
+                                            else None
+                                        ),
+                                    )
+                                    for item in digest_package.get("symbol_exceptions", ())
+                                    if isinstance(item, dict)
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+                if isinstance(connector.get("trade_count_cutover_review_compact_digest"), dict)
+                and isinstance(
+                    (digest := connector.get("trade_count_cutover_review_compact_digest")),
+                    dict,
+                )
+                and isinstance(
+                    (digest_collection := digest.get("current_review_snapshot_collection")),
+                    dict,
+                )
+                and isinstance((digest_catalog := digest_collection.get("current_review_catalog")), dict)
+                and isinstance((digest_package := digest_catalog.get("current_review_package")), dict)
+                and isinstance((digest_record := digest_package.get("review_record")), dict)
+                else None
+            ),
+            trade_count_cutover_export_report_bundle=(
+                cls.CutoverExportReportBundleDTO(
+                    contour=str(bundle.get("contour", "unknown")),
+                    scope_mode=str(bundle.get("scope_mode", "universe")),
+                    headline=str(bundle.get("headline", "")),
+                    discussion_state=str(bundle.get("discussion_state", "")),
+                    manual_review_state=str(bundle.get("manual_review_state", "")),
+                    cutover_evaluation_state=str(bundle.get("cutover_evaluation_state", "")),
+                    cutover_readiness_state=str(bundle.get("cutover_readiness_state", "")),
+                    compared_symbols=int(bundle.get("compared_symbols", 0)),
+                    ready_symbols=int(bundle.get("ready_symbols", 0)),
+                    not_ready_symbols=int(bundle.get("not_ready_symbols", 0)),
+                    blocked_symbols=int(bundle.get("blocked_symbols", 0)),
+                    reasons_summary=tuple(
+                        str(reason)
+                        for reason in bundle.get("reasons_summary", ())
+                        if isinstance(reason, str)
+                    ),
+                    compact_symbol_exceptions=tuple(
+                        str(symbol)
+                        for symbol in bundle.get("compact_symbol_exceptions", ())
+                        if isinstance(symbol, str)
+                    ),
+                    export_text_summary=str(bundle.get("export_text_summary", "")),
+                    current_compact_digest=cls.CutoverReviewCompactDigestDTO(
+                        contour=str(bundle_digest.get("contour", "unknown")),
+                        scope_mode=str(bundle_digest.get("scope_mode", "universe")),
+                        headline=str(bundle_digest.get("headline", "")),
+                        discussion_state=str(bundle_digest.get("discussion_state", "")),
+                        manual_review_state=str(bundle_digest.get("manual_review_state", "")),
+                        cutover_evaluation_state=str(
+                            bundle_digest.get("cutover_evaluation_state", "")
+                        ),
+                        cutover_readiness_state=str(
+                            bundle_digest.get("cutover_readiness_state", "")
+                        ),
+                        compared_symbols=int(bundle_digest.get("compared_symbols", 0)),
+                        ready_symbols=int(bundle_digest.get("ready_symbols", 0)),
+                        not_ready_symbols=int(bundle_digest.get("not_ready_symbols", 0)),
+                        blocked_symbols=int(bundle_digest.get("blocked_symbols", 0)),
+                        reasons_summary=tuple(
+                            str(reason)
+                            for reason in bundle_digest.get("reasons_summary", ())
+                            if isinstance(reason, str)
+                        ),
+                        compact_symbol_exceptions=tuple(
+                            str(symbol)
+                            for symbol in bundle_digest.get("compact_symbol_exceptions", ())
+                            if isinstance(symbol, str)
+                        ),
+                        current_review_snapshot_collection=cls.CutoverReviewSnapshotCollectionDTO(
+                            contour=str(bundle_collection.get("contour", "unknown")),
+                            scope_mode=str(bundle_collection.get("scope_mode", "universe")),
+                            headline=str(bundle_collection.get("headline", "")),
+                            discussion_state=str(bundle_collection.get("discussion_state", "")),
+                            manual_review_state=str(
+                                bundle_collection.get("manual_review_state", "")
+                            ),
+                            cutover_evaluation_state=str(
+                                bundle_collection.get("cutover_evaluation_state", "")
+                            ),
+                            cutover_readiness_state=str(
+                                bundle_collection.get("cutover_readiness_state", "")
+                            ),
+                            compared_symbols=int(bundle_collection.get("compared_symbols", 0)),
+                            ready_symbols=int(bundle_collection.get("ready_symbols", 0)),
+                            not_ready_symbols=int(
+                                bundle_collection.get("not_ready_symbols", 0)
+                            ),
+                            blocked_symbols=int(bundle_collection.get("blocked_symbols", 0)),
+                            reasons_summary=tuple(
+                                str(reason)
+                                for reason in bundle_collection.get("reasons_summary", ())
+                                if isinstance(reason, str)
+                            ),
+                            current_review_package_headline=str(
+                                bundle_collection.get("current_review_package_headline", "")
+                            ),
+                            current_review_package_discussion_state=str(
+                                bundle_collection.get(
+                                    "current_review_package_discussion_state",
+                                    "",
+                                )
+                            ),
+                            current_review_catalog=cls.CutoverReviewCatalogDTO(
+                                contour=str(bundle_catalog.get("contour", "unknown")),
+                                scope_mode=str(bundle_catalog.get("scope_mode", "universe")),
+                                headline=str(bundle_catalog.get("headline", "")),
+                                discussion_state=str(bundle_catalog.get("discussion_state", "")),
+                                manual_review_state=str(
+                                    bundle_catalog.get("manual_review_state", "")
+                                ),
+                                cutover_evaluation_state=str(
+                                    bundle_catalog.get("cutover_evaluation_state", "")
+                                ),
+                                cutover_readiness_state=str(
+                                    bundle_catalog.get("cutover_readiness_state", "")
+                                ),
+                                compared_symbols=int(bundle_catalog.get("compared_symbols", 0)),
+                                ready_symbols=int(bundle_catalog.get("ready_symbols", 0)),
+                                not_ready_symbols=int(
+                                    bundle_catalog.get("not_ready_symbols", 0)
+                                ),
+                                blocked_symbols=int(bundle_catalog.get("blocked_symbols", 0)),
+                                reasons_summary=tuple(
+                                    str(reason)
+                                    for reason in bundle_catalog.get("reasons_summary", ())
+                                    if isinstance(reason, str)
+                                ),
+                                current_review_package=cls.CutoverReviewPackageDTO(
+                                    contour=str(bundle_package.get("contour", "unknown")),
+                                    scope_mode=str(bundle_package.get("scope_mode", "universe")),
+                                    scope_symbol_count=int(bundle_package.get("scope_symbol_count", 0)),
+                                    discussion_state=str(bundle_package.get("discussion_state", "")),
+                                    manual_review_state=str(bundle_package.get("manual_review_state", "")),
+                                    cutover_evaluation_state=str(
+                                        bundle_package.get("cutover_evaluation_state", "")
+                                    ),
+                                    cutover_readiness_state=str(
+                                        bundle_package.get("cutover_readiness_state", "")
+                                    ),
+                                    compared_symbols=int(bundle_package.get("compared_symbols", 0)),
+                                    ready_symbols=int(bundle_package.get("ready_symbols", 0)),
+                                    not_ready_symbols=int(bundle_package.get("not_ready_symbols", 0)),
+                                    blocked_symbols=int(bundle_package.get("blocked_symbols", 0)),
+                                    headline=str(bundle_package.get("headline", "")),
+                                    reasons_summary=tuple(
+                                        str(reason)
+                                        for reason in bundle_package.get("reasons_summary", ())
+                                        if isinstance(reason, str)
+                                    ),
+                                    review_record=cls.CutoverReviewRecordDTO(
+                                        captured_at=str(bundle_record.get("captured_at", "")),
+                                        contour=str(bundle_record.get("contour", "unknown")),
+                                        scope_mode=str(bundle_record.get("scope_mode", "universe")),
+                                        scope_symbol_count=int(bundle_record.get("scope_symbol_count", 0)),
+                                        discussion_state=str(bundle_record.get("discussion_state", "")),
+                                        manual_review_state=str(bundle_record.get("manual_review_state", "")),
+                                        cutover_evaluation_state=str(
+                                            bundle_record.get("cutover_evaluation_state", "")
+                                        ),
+                                        cutover_readiness_state=str(
+                                            bundle_record.get("cutover_readiness_state", "")
+                                        ),
+                                        compared_symbols=int(bundle_record.get("compared_symbols", 0)),
+                                        ready_symbols=int(bundle_record.get("ready_symbols", 0)),
+                                        not_ready_symbols=int(bundle_record.get("not_ready_symbols", 0)),
+                                        blocked_symbols=int(bundle_record.get("blocked_symbols", 0)),
+                                        headline=str(bundle_record.get("headline", "")),
+                                        reasons_summary=tuple(
+                                            str(reason)
+                                            for reason in bundle_record.get("reasons_summary", ())
+                                            if isinstance(reason, str)
+                                        ),
+                                        symbol_exceptions=tuple(
+                                            cls.CutoverDiscussionExceptionDTO(
+                                                symbol=str(item.get("symbol", "")),
+                                                reconciliation_verdict=(
+                                                    str(item["reconciliation_verdict"])
+                                                    if isinstance(item.get("reconciliation_verdict"), str)
+                                                    else None
+                                                ),
+                                                reconciliation_reason=(
+                                                    str(item["reconciliation_reason"])
+                                                    if isinstance(item.get("reconciliation_reason"), str)
+                                                    else None
+                                                ),
+                                                cutover_readiness_state=(
+                                                    str(item["cutover_readiness_state"])
+                                                    if isinstance(item.get("cutover_readiness_state"), str)
+                                                    else None
+                                                ),
+                                                cutover_readiness_reason=(
+                                                    str(item["cutover_readiness_reason"])
+                                                    if isinstance(item.get("cutover_readiness_reason"), str)
+                                                    else None
+                                                ),
+                                            )
+                                            for item in bundle_record.get("symbol_exceptions", ())
+                                            if isinstance(item, dict)
+                                        ),
+                                    ),
+                                    symbol_exceptions=tuple(
+                                        cls.CutoverDiscussionExceptionDTO(
+                                            symbol=str(item.get("symbol", "")),
+                                            reconciliation_verdict=(
+                                                str(item["reconciliation_verdict"])
+                                                if isinstance(item.get("reconciliation_verdict"), str)
+                                                else None
+                                            ),
+                                            reconciliation_reason=(
+                                                str(item["reconciliation_reason"])
+                                                if isinstance(item.get("reconciliation_reason"), str)
+                                                else None
+                                            ),
+                                            cutover_readiness_state=(
+                                                str(item["cutover_readiness_state"])
+                                                if isinstance(item.get("cutover_readiness_state"), str)
+                                                else None
+                                            ),
+                                            cutover_readiness_reason=(
+                                                str(item["cutover_readiness_reason"])
+                                                if isinstance(item.get("cutover_readiness_reason"), str)
+                                                else None
+                                            ),
+                                        )
+                                        for item in bundle_package.get("symbol_exceptions", ())
+                                        if isinstance(item, dict)
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+                if isinstance(connector.get("trade_count_cutover_export_report_bundle"), dict)
+                and isinstance(
+                    (bundle := connector.get("trade_count_cutover_export_report_bundle")),
+                    dict,
+                )
+                and isinstance((bundle_digest := bundle.get("current_compact_digest")), dict)
+                and isinstance(
+                    (bundle_collection := bundle_digest.get("current_review_snapshot_collection")),
+                    dict,
+                )
+                and isinstance((bundle_catalog := bundle_collection.get("current_review_catalog")), dict)
+                and isinstance((bundle_package := bundle_catalog.get("current_review_package")), dict)
+                and isinstance((bundle_record := bundle_package.get("review_record")), dict)
+                else None
+            ),
             desired_scope_mode=connector.get("desired_scope_mode")
             if isinstance(connector.get("desired_scope_mode"), str)
             else None,
@@ -1289,6 +2881,39 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
             else None,
             applied_trade_count_filter_minimum=connector.get("applied_trade_count_filter_minimum")
             if isinstance(connector.get("applied_trade_count_filter_minimum"), int)
+            else None,
+            trade_count_product_truth_state=connector.get("trade_count_product_truth_state")
+            if isinstance(connector.get("trade_count_product_truth_state"), str)
+            else None,
+            trade_count_product_truth_reason=connector.get("trade_count_product_truth_reason")
+            if isinstance(connector.get("trade_count_product_truth_reason"), str)
+            else None,
+            trade_count_truth_model=connector.get("trade_count_truth_model")
+            if isinstance(connector.get("trade_count_truth_model"), str)
+            else None,
+            trade_count_canonical_truth_owner=connector.get("trade_count_canonical_truth_owner")
+            if isinstance(connector.get("trade_count_canonical_truth_owner"), str)
+            else None,
+            trade_count_canonical_truth_source=connector.get("trade_count_canonical_truth_source")
+            if isinstance(connector.get("trade_count_canonical_truth_source"), str)
+            else None,
+            trade_count_operational_truth_owner=connector.get("trade_count_operational_truth_owner")
+            if isinstance(connector.get("trade_count_operational_truth_owner"), str)
+            else None,
+            trade_count_operational_truth_source=connector.get("trade_count_operational_truth_source")
+            if isinstance(connector.get("trade_count_operational_truth_source"), str)
+            else None,
+            trade_count_connector_canonical_role=connector.get("trade_count_connector_canonical_role")
+            if isinstance(connector.get("trade_count_connector_canonical_role"), str)
+            else None,
+            trade_count_admission_basis=connector.get("trade_count_admission_basis")
+            if isinstance(connector.get("trade_count_admission_basis"), str)
+            else None,
+            trade_count_admission_truth_owner=connector.get("trade_count_admission_truth_owner")
+            if isinstance(connector.get("trade_count_admission_truth_owner"), str)
+            else None,
+            trade_count_admission_truth_source=connector.get("trade_count_admission_truth_source")
+            if isinstance(connector.get("trade_count_admission_truth_source"), str)
             else None,
             policy_apply_status=connector.get("policy_apply_status")
             if isinstance(connector.get("policy_apply_status"), str)
@@ -1307,6 +2932,26 @@ class BybitConnectorDiagnosticsDTO(BaseModel):
             else None,
             operator_confidence_reason=connector.get("operator_confidence_reason")
             if isinstance(connector.get("operator_confidence_reason"), str)
+            else None,
+            operator_state_surface=connector.get("operator_state_surface")
+            if isinstance(connector.get("operator_state_surface"), dict)
+            else None,
+            operational_recovery_state=connector.get("operational_recovery_state")
+            if isinstance(connector.get("operational_recovery_state"), str)
+            else None,
+            operational_recovery_reason=connector.get("operational_recovery_reason")
+            if isinstance(connector.get("operational_recovery_reason"), str)
+            else None,
+            canonical_ledger_sync_state=connector.get("canonical_ledger_sync_state")
+            if isinstance(connector.get("canonical_ledger_sync_state"), str)
+            else None,
+            canonical_ledger_sync_reason=connector.get("canonical_ledger_sync_reason")
+            if isinstance(connector.get("canonical_ledger_sync_reason"), str)
+            else None,
+            post_recovery_materialization_status=connector.get(
+                "post_recovery_materialization_status"
+            )
+            if isinstance(connector.get("post_recovery_materialization_status"), str)
             else None,
             historical_recovery_state=connector.get("historical_recovery_state")
             if isinstance(connector.get("historical_recovery_state"), str)

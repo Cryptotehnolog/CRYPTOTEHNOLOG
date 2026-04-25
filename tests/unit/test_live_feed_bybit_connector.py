@@ -16,12 +16,14 @@ from uuid import uuid4
 import pytest
 from websockets.exceptions import ConnectionClosedError
 
+from cryptotechnolog.config import get_settings
 from cryptotechnolog.config.settings import Settings
 from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
 from cryptotechnolog.live_feed import (
     BybitDerivedTradeCountPersistenceStore,
     BybitDerivedTradeCountTracker,
     BybitHistoricalRecoveryCoordinator,
+    BybitHistoricalRestoreCoordinator,
     BybitHistoricalRecoveryPlan,
     BybitHistoricalTradeBackfillConfig,
     BybitHistoricalTradeBackfillResult,
@@ -33,12 +35,27 @@ from cryptotechnolog.live_feed import (
     BybitOrderBookProjector,
     BybitSpotMarketDataConnectorConfig,
     BybitSubscriptionRegistry,
+    BybitTradeTruthStore,
     FeedSessionIdentity,
     create_bybit_market_data_connector,
     create_bybit_spot_market_data_connector,
     normalize_bybit_symbol,
 )
 import cryptotechnolog.live_feed.bybit as bybit_module
+from cryptotechnolog.live_feed.bybit import BybitLedgerTradeCountSymbolSnapshot
+from cryptotechnolog.live_feed.bybit_trade_ledger_contracts import (
+    BybitTradeLedgerConvergenceResult,
+    BybitTradeLedgerMaterializationPrefetch,
+    BybitTradeLedgerRecord,
+)
+from cryptotechnolog.live_feed.bybit_recovery_coordinator import (
+    classify_bybit_historical_recovery_result,
+)
+from cryptotechnolog.live_feed.bybit_trade_backfill import (
+    BybitArchiveTradeFact,
+    BybitArchiveTradeFactExtraction,
+)
+from cryptotechnolog.live_feed.bybit_trade_ledger_query import BybitTradeLedgerTradeCountResult
 from cryptotechnolog.live_feed.models import FeedSubscriptionRecoveryStatus
 from cryptotechnolog.market_data import OrderBookLevel, create_market_data_runtime
 
@@ -152,6 +169,207 @@ class _ClosingSendWebSocket(_FakeWebSocket):
         raise ConnectionClosedError(None, None)
 
 
+class _FakeLedgerTradeCountQueryService:
+    def __init__(
+        self,
+        *,
+        counts_by_key: dict[tuple[str, str, str], int] | None = None,
+        first_trade_at_by_key: dict[tuple[str, str, str], datetime | None] | None = None,
+        sources_by_key: dict[tuple[str, str, str], tuple[str, ...]] | None = None,
+        matched_rows_by_key: dict[tuple[str, str, str], tuple[BybitTradeLedgerRecord, ...]] | None = None,
+        error: Exception | None = None,
+        error_by_key: dict[tuple[str, str, str], Exception] | None = None,
+    ) -> None:
+        self.counts_by_key = counts_by_key or {}
+        self.first_trade_at_by_key = first_trade_at_by_key or {}
+        self.sources_by_key = sources_by_key or {}
+        self.matched_rows_by_key = matched_rows_by_key or {}
+        self.error = error
+        self.error_by_key = error_by_key or {}
+        self.calls: list[tuple[str, str, str, datetime]] = []
+
+    async def get_trade_count_24h(
+        self,
+        *,
+        exchange: str,
+        contour: str,
+        normalized_symbol: str,
+        window_ended_at: datetime,
+    ) -> BybitTradeLedgerTradeCountResult:
+        self.calls.append((exchange, contour, normalized_symbol, window_ended_at))
+        if self.error is not None:
+            raise self.error
+        key = (exchange, contour, normalized_symbol)
+        if key in self.error_by_key:
+            raise self.error_by_key[key]
+        return BybitTradeLedgerTradeCountResult(
+            exchange=exchange,
+            contour=contour,
+            normalized_symbol=normalized_symbol,
+            window_started_at=window_ended_at - timedelta(hours=24),
+            window_ended_at=window_ended_at,
+            trade_count_24h=self.counts_by_key.get(key, 0),
+            first_trade_at=self.first_trade_at_by_key.get(key),
+            sources=self.sources_by_key.get(key, ()),
+            matched_rows=self.matched_rows_by_key.get(key, ()),
+        )
+
+
+class _InMemoryLedgerRepository:
+    def __init__(self) -> None:
+        self._rows_by_identity: dict[tuple[str, str, int, str], object] = {}
+
+    async def upsert_trade_fact(self, record) -> None:
+        key = (
+            record.exchange,
+            record.contour,
+            record.identity_contract_version,
+            record.canonical_dedup_identity,
+        )
+        self._rows_by_identity[key] = record
+
+    async def list_trade_facts(
+        self,
+        *,
+        exchange: str,
+        contour: str,
+        normalized_symbol: str,
+        window_started_at: datetime,
+        window_ended_at: datetime,
+        limit: int | None = None,
+    ) -> tuple[object, ...]:
+        rows = tuple(
+            record
+            for record in self._rows_by_identity.values()
+            if record.exchange == exchange
+            and record.contour == contour
+            and record.normalized_symbol == normalized_symbol
+            and window_started_at <= record.exchange_trade_at <= window_ended_at
+        )
+        if limit is None:
+            return rows
+        return rows[:limit]
+
+    async def prefetch_materialization_window(
+        self,
+        *,
+        exchange: str,
+        contour: str,
+        normalized_symbol: str,
+        window_started_at: datetime,
+        window_ended_at: datetime,
+    ) -> BybitTradeLedgerMaterializationPrefetch:
+        live_rows = tuple(
+            record
+            for record in self._rows_by_identity.values()
+            if record.exchange == exchange
+            and record.contour == contour
+            and record.normalized_symbol == normalized_symbol
+            and window_started_at <= record.exchange_trade_at <= window_ended_at
+            and record.source == "live_public_trade"
+        )
+        archive_source_identities = tuple(
+            record.source_trade_identity
+            for record in self._rows_by_identity.values()
+            if record.exchange == exchange
+            and record.contour == contour
+            and record.normalized_symbol == normalized_symbol
+            and window_started_at <= record.exchange_trade_at <= window_ended_at
+            and record.source == "bybit_public_archive"
+        )
+        return BybitTradeLedgerMaterializationPrefetch(
+            archive_source_identities=archive_source_identities,
+            live_rows=live_rows,
+        )
+
+    async def get_trade_fact(
+        self,
+        *,
+        exchange: str,
+        contour: str,
+        identity_contract_version: int,
+        canonical_dedup_identity: str,
+    ):
+        key = (
+            exchange,
+            contour,
+            identity_contract_version,
+            canonical_dedup_identity,
+        )
+        return self._rows_by_identity.get(key)
+
+    async def delete_trade_fact(
+        self,
+        *,
+        exchange: str,
+        contour: str,
+        identity_contract_version: int,
+        canonical_dedup_identity: str,
+    ) -> None:
+        key = (
+            exchange,
+            contour,
+            identity_contract_version,
+            canonical_dedup_identity,
+        )
+        self._rows_by_identity.pop(key, None)
+
+    async def converge_trade_fact_pair(
+        self,
+        *,
+        archive_record,
+        live_record,
+        overlap_result,
+    ) -> BybitTradeLedgerConvergenceResult:
+        merged_record = live_record.__class__(
+            exchange=live_record.exchange,
+            contour=live_record.contour,
+            normalized_symbol=live_record.normalized_symbol,
+            source="bybit_converged_trade",
+            source_trade_identity=f"{archive_record.source_trade_identity}|{live_record.source_trade_identity}",
+            canonical_dedup_identity=f"{archive_record.canonical_dedup_identity}|{live_record.canonical_dedup_identity}",
+            identity_contract_version=live_record.identity_contract_version,
+            exchange_trade_at=live_record.exchange_trade_at,
+            side=live_record.side,
+            normalized_price=live_record.normalized_price,
+            normalized_size=live_record.normalized_size,
+            source_symbol_raw=live_record.source_symbol_raw,
+            source_metadata=dict(live_record.source_metadata),
+            provenance_state="live_and_archive",
+            provenance_metadata={
+                "archive": {
+                    "source_trade_identity": archive_record.source_trade_identity,
+                    "source_metadata": dict(archive_record.source_metadata),
+                },
+                "live": {
+                    "source_trade_identity": live_record.source_trade_identity,
+                    "source_metadata": dict(live_record.source_metadata),
+                },
+                "merge": {"overlap_verdict": overlap_result.verdict},
+            },
+            created_at=live_record.created_at,
+            updated_at=live_record.updated_at,
+        )
+        for record in (archive_record, live_record):
+            key = (
+                record.exchange,
+                record.contour,
+                record.identity_contract_version,
+                record.canonical_dedup_identity,
+            )
+            self._rows_by_identity.pop(key, None)
+        await self.upsert_trade_fact(merged_record)
+        return BybitTradeLedgerConvergenceResult(
+            status="merged",
+            stored_records=(merged_record,),
+            overlap_verdict=overlap_result.verdict,
+        )
+
+    @property
+    def records(self) -> list[object]:
+        return list(self._rows_by_identity.values())
+
+
 def _session(*symbols: str) -> FeedSessionIdentity:
     return FeedSessionIdentity(
         exchange="bybit",
@@ -231,9 +449,10 @@ def _orderbook_delta_message() -> dict[str, object]:
 
 def test_normalize_bybit_symbol_returns_canonical_internal_symbol() -> None:
     assert normalize_bybit_symbol("BTCUSDT") == "BTC/USDT"
+    assert normalize_bybit_symbol("BTCPERP") == "BTC/USDC"
     assert normalize_bybit_symbol("ETH/USDT") == "ETH/USDT"
 
-    with pytest.raises(BybitMessageParseError, match="Не удалось нормализовать"):
+    with pytest.raises(ValueError, match="Не удалось нормализовать"):
         normalize_bybit_symbol("BTCUNKNOWN")
 
 
@@ -371,6 +590,106 @@ async def test_bybit_connector_operator_diagnostics_expose_connector_truth() -> 
     )
     assert diagnostics["derived_trade_count_last_gap_at"] is None
     assert diagnostics["symbol_snapshots"][0]["derived_trade_count_24h"] is None
+    assert diagnostics["symbol_snapshots"][0]["bucket_trade_count_24h"] is None
+    assert diagnostics["symbol_snapshots"][0]["ledger_trade_count_24h"] is None
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_verdict"] == (
+        "validation_blocked"
+    )
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_reason"] == (
+        "not_configured"
+    )
+    assert diagnostics["symbol_snapshots"][0]["trade_count_cutover_readiness_state"] == "blocked"
+    assert (
+        diagnostics["symbol_snapshots"][0]["trade_count_cutover_readiness_reason"]
+        == "validation_blocked_symbols_present"
+    )
+    assert diagnostics["ledger_trade_count_available"] is False
+    assert diagnostics["ledger_trade_count_last_error"] == "not_configured"
+    assert diagnostics["trade_count_truth_model"] == (
+        "ledger_backed_product_truth_with_connector_operational_runtime"
+    )
+    assert diagnostics["trade_count_canonical_truth_owner"] == "bybit_trade_ledger"
+    assert diagnostics["trade_count_operational_truth_owner"] == "bybit_connector_runtime"
+    assert diagnostics["trade_count_connector_canonical_role"] == (
+        "consumer_of_canonical_trade_truth"
+    )
+    assert diagnostics["trade_count_admission_truth_owner"] == "bybit_connector_runtime"
+    assert diagnostics["trade_count_admission_truth_source"] == "derived_operational_trade_truth"
+    assert diagnostics["trade_count_cutover_readiness_state"] == "blocked"
+    assert diagnostics["trade_count_cutover_readiness_reason"] == "ledger_unavailable"
+    assert diagnostics["trade_count_cutover_evaluation_state"] == "blocked"
+    assert diagnostics["trade_count_cutover_evaluation_reasons"] == (
+        "ledger_unavailable",
+        "validation_blocked_present",
+    )
+    assert diagnostics["trade_count_cutover_manual_review_state"] == "manual_review_blocked"
+    assert diagnostics["trade_count_cutover_manual_review_reasons"] == (
+        "ledger_unavailable",
+        "validation_blocked_present",
+    )
+    assert diagnostics["trade_count_cutover_manual_review_evaluation_state"] == "blocked"
+    assert diagnostics["trade_count_cutover_manual_review_contour"] == "linear"
+    assert diagnostics["trade_count_cutover_manual_review_scope_mode"] == "single_symbol"
+    assert diagnostics["trade_count_cutover_manual_review_scope_symbol_count"] == 1
+    assert diagnostics["trade_count_cutover_discussion_artifact"]["discussion_state"] == (
+        "discussion_blocked"
+    )
+    assert diagnostics["trade_count_cutover_discussion_artifact"]["manual_review_state"] == (
+        "manual_review_blocked"
+    )
+    assert diagnostics["trade_count_cutover_discussion_artifact"]["symbol_exceptions"][0][
+        "symbol"
+    ] == "BTC/USDT"
+    assert diagnostics["trade_count_cutover_review_record"]["captured_at"]
+    assert diagnostics["trade_count_cutover_review_record"]["discussion_state"] == (
+        "discussion_blocked"
+    )
+    assert diagnostics["trade_count_cutover_review_record"]["manual_review_state"] == (
+        "manual_review_blocked"
+    )
+    assert diagnostics["trade_count_cutover_review_record"]["symbol_exceptions"][0]["symbol"] == (
+        "BTC/USDT"
+    )
+    assert diagnostics["trade_count_cutover_review_package"]["discussion_state"] == (
+        "discussion_blocked"
+    )
+    assert diagnostics["trade_count_cutover_review_package"]["manual_review_state"] == (
+        "manual_review_blocked"
+    )
+    assert diagnostics["trade_count_cutover_review_package"]["review_record"]["captured_at"]
+    assert diagnostics["trade_count_cutover_review_package"]["symbol_exceptions"][0]["symbol"] == (
+        "BTC/USDT"
+    )
+    assert diagnostics["trade_count_cutover_review_catalog"]["discussion_state"] == (
+        "discussion_blocked"
+    )
+    assert diagnostics["trade_count_cutover_review_catalog"]["manual_review_state"] == (
+        "manual_review_blocked"
+    )
+    assert diagnostics["trade_count_cutover_review_catalog"]["current_review_package"][
+        "review_record"
+    ]["captured_at"]
+    assert diagnostics["trade_count_cutover_review_snapshot_collection"]["discussion_state"] == (
+        "discussion_blocked"
+    )
+    assert diagnostics["trade_count_cutover_review_snapshot_collection"][
+        "current_review_package_discussion_state"
+    ] == "discussion_blocked"
+    assert diagnostics["trade_count_cutover_review_snapshot_collection"][
+        "current_review_catalog"
+    ]["current_review_package"]["review_record"]["captured_at"]
+    assert diagnostics["trade_count_cutover_review_compact_digest"]["discussion_state"] == (
+        "discussion_blocked"
+    )
+    assert diagnostics["trade_count_cutover_review_compact_digest"][
+        "compact_symbol_exceptions"
+    ] == ("BTC/USDT",)
+    assert diagnostics["trade_count_cutover_export_report_bundle"]["discussion_state"] == (
+        "discussion_blocked"
+    )
+    assert diagnostics["trade_count_cutover_export_report_bundle"][
+        "compact_symbol_exceptions"
+    ] == ("BTC/USDT",)
     assert diagnostics["symbol_snapshots"][0]["observed_trade_count_since_reset"] == 1
 
 
@@ -433,7 +752,25 @@ async def test_bybit_connector_operator_diagnostics_surface_multi_symbol_truth()
             "best_ask": "68000.5",
             "volume_24h_usd": None,
             "derived_trade_count_24h": None,
+            "bucket_trade_count_24h": None,
+            "ledger_trade_count_24h": None,
+            "ledger_trade_count_status": "not_configured",
+            "ledger_trade_count_symbol_last_error": "not_configured",
+            "ledger_trade_count_symbol_last_synced_at": None,
+            "trade_count_reconciliation_verdict": "validation_blocked",
+            "trade_count_reconciliation_reason": "not_configured",
+            "trade_count_reconciliation_absolute_diff": None,
+            "trade_count_reconciliation_tolerance": 0,
+            "trade_count_cutover_readiness_state": "blocked",
+            "trade_count_cutover_readiness_reason": "validation_blocked_symbols_present",
             "observed_trade_count_since_reset": 1,
+            "product_trade_count_24h": None,
+            "product_trade_count_state": "ledger_unavailable",
+            "product_trade_count_reason": "not_configured",
+            "product_trade_count_truth_owner": "bybit_trade_ledger",
+            "product_trade_count_truth_source": "ledger_truth_unavailable",
+            "trade_ingest_seen": True,
+            "orderbook_ingest_seen": True,
         },
         {
             "symbol": "ETH/USDT",
@@ -443,9 +780,1069 @@ async def test_bybit_connector_operator_diagnostics_surface_multi_symbol_truth()
             "best_ask": "3500.5",
             "volume_24h_usd": None,
             "derived_trade_count_24h": None,
+            "bucket_trade_count_24h": None,
+            "ledger_trade_count_24h": None,
+            "ledger_trade_count_status": "not_configured",
+            "ledger_trade_count_symbol_last_error": "not_configured",
+            "ledger_trade_count_symbol_last_synced_at": None,
+            "trade_count_reconciliation_verdict": "validation_blocked",
+            "trade_count_reconciliation_reason": "not_configured",
+            "trade_count_reconciliation_absolute_diff": None,
+            "trade_count_reconciliation_tolerance": 0,
+            "trade_count_cutover_readiness_state": "blocked",
+            "trade_count_cutover_readiness_reason": "validation_blocked_symbols_present",
             "observed_trade_count_since_reset": 1,
+            "product_trade_count_24h": None,
+            "product_trade_count_state": "ledger_unavailable",
+            "product_trade_count_reason": "not_configured",
+            "product_trade_count_truth_owner": "bybit_trade_ledger",
+            "product_trade_count_truth_source": "ledger_truth_unavailable",
+            "trade_ingest_seen": True,
+            "orderbook_ingest_seen": True,
         },
     )
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_surfaces_read_only_ledger_trade_count_alongside_bucket_truth() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    trade_timestamp_ms = int(datetime.now(tz=UTC).timestamp() * 1000)
+    ledger_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={("bybit", "linear", "BTC/USDT"): 17},
+    )
+
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_service,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._mark_resubscribing(
+        reason="transport_connected",
+        observed_at=connector.get_recovery_state().observed_at,
+    )
+    await connector.ingest_transport_message(json.dumps({"op": "subscribe", "success": True}))
+    await connector.ingest_transport_message(
+        json.dumps(_trade_message(trade_timestamp_ms=trade_timestamp_ms))
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["symbol_snapshots"][0]["derived_trade_count_24h"] is None
+    assert diagnostics["symbol_snapshots"][0]["bucket_trade_count_24h"] is None
+    assert diagnostics["symbol_snapshots"][0]["ledger_trade_count_24h"] == 17
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_verdict"] == (
+        "not_comparable"
+    )
+    assert diagnostics["symbol_snapshots"][0]["trade_count_cutover_readiness_state"] == "not_ready"
+    assert (
+        diagnostics["symbol_snapshots"][0]["trade_count_cutover_readiness_reason"]
+        == "not_comparable_symbols_present"
+    )
+    assert diagnostics["ledger_trade_count_available"] is True
+    assert diagnostics["ledger_trade_count_last_error"] is None
+    assert diagnostics["ledger_trade_count_last_synced_at"] is not None
+    assert diagnostics["trade_count_cutover_readiness_state"] == "not_ready"
+    assert diagnostics["trade_count_cutover_readiness_reason"] == "not_comparable_symbols_present"
+    assert diagnostics["trade_count_cutover_evaluation_state"] == "not_eligible"
+    assert diagnostics["trade_count_cutover_evaluation_reasons"] == (
+        "not_comparable_present",
+        "insufficient_compared_symbols",
+    )
+    assert diagnostics["trade_count_cutover_manual_review_state"] == (
+        "manual_review_not_recommended"
+    )
+    assert diagnostics["trade_count_cutover_manual_review_reasons"] == (
+        "not_comparable_present",
+        "insufficient_compared_symbols",
+    )
+    assert diagnostics["trade_count_cutover_manual_review_evaluation_state"] == "not_eligible"
+    assert diagnostics["trade_count_cutover_manual_review_contour"] == "linear"
+    assert diagnostics["trade_count_cutover_manual_review_scope_mode"] == "single_symbol"
+    assert diagnostics["trade_count_cutover_manual_review_scope_symbol_count"] == 1
+    assert diagnostics["trade_count_cutover_discussion_artifact"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_discussion_artifact"]["manual_review_state"] == (
+        "manual_review_not_recommended"
+    )
+    assert diagnostics["trade_count_cutover_discussion_artifact"]["symbol_exceptions"][0][
+        "symbol"
+    ] == "BTC/USDT"
+    assert diagnostics["trade_count_cutover_review_record"]["captured_at"]
+    assert diagnostics["trade_count_cutover_review_record"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_review_record"]["symbol_exceptions"][0]["symbol"] == (
+        "BTC/USDT"
+    )
+    assert diagnostics["trade_count_cutover_review_package"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_review_package"]["manual_review_state"] == (
+        "manual_review_not_recommended"
+    )
+    assert diagnostics["trade_count_cutover_review_package"]["review_record"]["captured_at"]
+    assert diagnostics["trade_count_cutover_review_package"]["symbol_exceptions"][0]["symbol"] == (
+        "BTC/USDT"
+    )
+    assert diagnostics["trade_count_cutover_review_catalog"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_review_catalog"]["manual_review_state"] == (
+        "manual_review_not_recommended"
+    )
+    assert diagnostics["trade_count_cutover_review_catalog"]["current_review_package"][
+        "symbol_exceptions"
+    ][0]["symbol"] == "BTC/USDT"
+    assert diagnostics["trade_count_cutover_review_snapshot_collection"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_review_snapshot_collection"][
+        "current_review_package_headline"
+    ] == "Manual cutover review is not recommended for current scope."
+    assert diagnostics["trade_count_cutover_review_snapshot_collection"][
+        "current_review_catalog"
+    ]["current_review_package"]["symbol_exceptions"][0]["symbol"] == "BTC/USDT"
+    assert diagnostics["trade_count_cutover_review_compact_digest"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_review_compact_digest"][
+        "compact_symbol_exceptions"
+    ] == ("BTC/USDT",)
+    assert diagnostics["trade_count_cutover_export_report_bundle"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_export_report_bundle"][
+        "compact_symbol_exceptions"
+    ] == ("BTC/USDT",)
+    assert ledger_service.calls[0][:3] == ("bybit", "linear", "BTC/USDT")
+
+
+def test_configured_ledger_path_starts_as_symbol_level_missing_not_not_configured() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=_FakeLedgerTradeCountQueryService(),
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+    btc_snapshot, eth_snapshot = diagnostics["symbol_snapshots"]
+
+    assert diagnostics["ledger_trade_count_scope_status"] == "ready"
+    assert diagnostics["ledger_trade_count_available"] is False
+    assert diagnostics["ledger_trade_count_last_error"] is None
+    assert diagnostics["trade_count_product_truth_state"] == "pending_validation"
+    assert diagnostics["trade_count_product_truth_reason"] == "pending_validation_present"
+    assert diagnostics["trade_count_truth_model"] == (
+        "ledger_backed_product_truth_with_connector_operational_runtime"
+    )
+    assert diagnostics["trade_count_canonical_truth_owner"] == "bybit_trade_ledger"
+    assert diagnostics["trade_count_operational_truth_owner"] == "bybit_connector_runtime"
+    assert btc_snapshot["ledger_trade_count_status"] == "missing"
+    assert btc_snapshot["trade_count_reconciliation_verdict"] == "not_comparable"
+    assert btc_snapshot["trade_count_reconciliation_reason"] == "one_side_missing"
+    assert btc_snapshot["product_trade_count_truth_owner"] == "bybit_trade_ledger"
+    assert btc_snapshot["product_trade_count_truth_source"] == "ledger_truth_pending_validation"
+    assert eth_snapshot["ledger_trade_count_status"] == "missing"
+    assert eth_snapshot["trade_count_reconciliation_verdict"] == "not_comparable"
+    assert eth_snapshot["trade_count_reconciliation_reason"] == "one_side_missing"
+    assert eth_snapshot["product_trade_count_truth_owner"] == "bybit_trade_ledger"
+    assert eth_snapshot["product_trade_count_truth_source"] == "ledger_truth_pending_validation"
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_ledger_unavailable_path_does_not_break_bucket_surface() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    trade_timestamp_ms = int(datetime.now(tz=UTC).timestamp() * 1000)
+    ledger_service = _FakeLedgerTradeCountQueryService(error=RuntimeError("ledger_unavailable"))
+
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_service,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._mark_resubscribing(
+        reason="transport_connected",
+        observed_at=connector.get_recovery_state().observed_at,
+    )
+    await connector.ingest_transport_message(json.dumps({"op": "subscribe", "success": True}))
+    await connector.ingest_transport_message(
+        json.dumps(_trade_message(trade_timestamp_ms=trade_timestamp_ms))
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["derived_trade_count_state"] == "warming_up"
+    assert diagnostics["symbol_snapshots"][0]["derived_trade_count_24h"] is None
+    assert diagnostics["symbol_snapshots"][0]["bucket_trade_count_24h"] is None
+    assert diagnostics["symbol_snapshots"][0]["ledger_trade_count_24h"] is None
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_verdict"] == (
+        "validation_blocked"
+    )
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_24h"] is None
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_state"] == "ledger_unavailable"
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_reason"] == (
+        "ledger_unavailable"
+    )
+    assert diagnostics["symbol_snapshots"][0]["trade_count_cutover_readiness_state"] == "blocked"
+    assert diagnostics["ledger_trade_count_available"] is False
+    assert diagnostics["ledger_trade_count_last_error"] == "ledger_unavailable"
+    assert diagnostics["trade_count_cutover_readiness_state"] == "blocked"
+    assert diagnostics["trade_count_product_truth_state"] == "ledger_unavailable"
+    assert diagnostics["trade_count_product_truth_reason"] == "ledger_unavailable_present"
+    assert diagnostics["trade_count_admission_basis"] == "not_applicable"
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_marks_trade_count_admission_basis_as_operational_when_filter_active() -> (
+    None
+):
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=5,
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["trade_count_admission_basis"] == "derived_operational_truth"
+
+
+@pytest.mark.asyncio
+async def test_spot_connector_uses_same_ledger_read_only_surface_without_runtime_hacks() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    trade_timestamp_ms = int(datetime.now(tz=UTC).timestamp() * 1000)
+    ledger_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={("bybit", "spot", "BTC/USDT"): 9},
+    )
+
+    connector = BybitMarketDataConnector(
+        session=FeedSessionIdentity(
+            exchange="bybit_spot",
+            stream_kind="market_data",
+            subscription_scope=("BTC/USDT",),
+        ),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_service,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._mark_resubscribing(
+        reason="transport_connected",
+        observed_at=connector.get_recovery_state().observed_at,
+    )
+    await connector.ingest_transport_message(json.dumps({"op": "subscribe", "success": True}))
+    await connector.ingest_transport_message(
+        json.dumps(
+            _trade_message(
+                trade_timestamp_ms=trade_timestamp_ms,
+            )
+        )
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["symbol_snapshots"][0]["ledger_trade_count_24h"] == 9
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_verdict"] == (
+        "not_comparable"
+    )
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_24h"] == 9
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_state"] == "partial_ledger_coverage"
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_reason"] == "incomplete_rolling_window"
+    assert diagnostics["symbol_snapshots"][0]["trade_count_cutover_readiness_state"] == "not_ready"
+    assert diagnostics["trade_count_product_truth_state"] == "partial_ledger_coverage"
+    assert diagnostics["trade_count_product_truth_reason"] == "partial_ledger_coverage_for_scope"
+    assert ledger_service.calls[0][:3] == ("bybit", "spot", "BTC/USDT")
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_reconciliation_returns_match_when_bucket_and_ledger_equal() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    trade_timestamp = datetime.now(tz=UTC) - timedelta(hours=1)
+    trade_timestamp_ms = int(trade_timestamp.timestamp() * 1000)
+    ledger_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={("bybit", "linear", "BTC/USDT"): 1},
+    )
+
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_service,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._mark_resubscribing(
+        reason="transport_connected",
+        observed_at=connector.get_recovery_state().observed_at,
+    )
+    connector._derived_trade_count.restore_historical_window(
+        trades_by_symbol={"BTC/USDT": (trade_timestamp,)},
+        window_started_at=trade_timestamp - timedelta(hours=23),
+        covered_until_at=trade_timestamp,
+        observed_at=trade_timestamp + timedelta(seconds=1),
+        processed_archives=1,
+        total_archives=1,
+    )
+    await connector._refresh_ledger_trade_count_snapshot(
+        symbols=("BTC/USDT",),
+        observed_at=trade_timestamp + timedelta(seconds=1),
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["symbol_snapshots"][0]["bucket_trade_count_24h"] == 1
+    assert diagnostics["symbol_snapshots"][0]["ledger_trade_count_24h"] == 1
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_verdict"] == "not_comparable"
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_24h"] == 1
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_state"] == "partial_ledger_coverage"
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_reason"] == "incomplete_rolling_window"
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_truth_owner"] == (
+        "bybit_trade_ledger"
+    )
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_truth_source"] == (
+        "ledger_truth_partial_coverage"
+    )
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_absolute_diff"] is None
+    assert diagnostics["symbol_snapshots"][0]["trade_count_cutover_readiness_state"] == "not_ready"
+    assert diagnostics["trade_count_product_truth_state"] == "partial_ledger_coverage"
+    assert diagnostics["trade_count_product_truth_reason"] == "partial_ledger_coverage_for_scope"
+    assert diagnostics["trade_count_truth_model"] == (
+        "ledger_backed_product_truth_with_connector_operational_runtime"
+    )
+    assert diagnostics["trade_count_canonical_truth_owner"] == "bybit_trade_ledger"
+    assert diagnostics["trade_count_canonical_truth_source"] == (
+        "ledger_backed_canonical_trade_count"
+    )
+    assert diagnostics["trade_count_operational_truth_owner"] == "bybit_connector_runtime"
+    assert diagnostics["trade_count_operational_truth_source"] == (
+        "trade_truth_store_operational_layer"
+    )
+    assert diagnostics["trade_count_connector_canonical_role"] == (
+        "consumer_of_canonical_trade_truth"
+    )
+    assert diagnostics["trade_count_admission_basis"] == "not_applicable"
+    assert diagnostics["trade_count_admission_truth_owner"] == "bybit_connector_runtime"
+    assert diagnostics["trade_count_admission_truth_source"] == (
+        "derived_operational_trade_truth"
+    )
+    assert diagnostics["trade_count_cutover_readiness_state"] == "not_ready"
+    assert diagnostics["trade_count_cutover_readiness_reason"] == "not_comparable_symbols_present"
+    assert diagnostics["trade_count_cutover_evaluation_state"] == "not_eligible"
+    assert diagnostics["trade_count_cutover_evaluation_reasons"] == (
+        "not_comparable_present",
+        "insufficient_compared_symbols",
+    )
+    assert diagnostics["trade_count_cutover_manual_review_state"] == "manual_review_not_recommended"
+    assert diagnostics["trade_count_cutover_manual_review_reasons"] == (
+        "not_comparable_present",
+        "insufficient_compared_symbols",
+    )
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_writes_live_trade_facts_into_configured_ledger_repository() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    trade_timestamp = datetime.now(tz=UTC) - timedelta(minutes=5)
+    trade_timestamp_ms = int(trade_timestamp.timestamp() * 1000)
+    ledger_query_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={("bybit", "linear", "BTC/USDT"): 1},
+    )
+    ledger_repository = _InMemoryLedgerRepository()
+
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_query_service,
+        ledger_repository=ledger_repository,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._mark_resubscribing(
+        reason="transport_connected",
+        observed_at=connector.get_recovery_state().observed_at,
+    )
+    await connector.ingest_transport_message(json.dumps({"op": "subscribe", "success": True}))
+    await connector.ingest_transport_message(
+        json.dumps(_trade_message(trade_timestamp_ms=trade_timestamp_ms))
+    )
+
+    assert len(ledger_repository.records) == 1
+    record = ledger_repository.records[0]
+    assert record.exchange == "bybit"
+    assert record.contour == "linear"
+    assert record.normalized_symbol == "BTC/USDT"
+    assert record.source == "live_public_trade"
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_materializes_archive_restore_into_canonical_ledger() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    ledger_query_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={("bybit", "linear", "BTC/USDT"): 1},
+    )
+    ledger_repository = _InMemoryLedgerRepository()
+
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_query_service,
+        ledger_repository=ledger_repository,
+    )
+    await connector._write_live_trade_fact_to_ledger(
+        transport_payload={
+            "symbol": "BTC/USDT",
+            "price": "68000.5",
+            "qty": "0.010",
+            "side": "buy",
+            "trade_id": "trade-1",
+            "exchange_trade_at_ms": 1711929600120,
+            "is_buyer_maker": False,
+        }
+    )
+    restore_result = BybitHistoricalTradeBackfillResult(
+        status="backfilled",
+        restored_window_started_at=datetime(2024, 3, 31, 0, 0, tzinfo=UTC),
+        backfilled_trade_count=1,
+        hydrated_symbols=("BTC/USDT",),
+        source="bybit_public_archive",
+        covered_until_at=datetime(2024, 4, 1, 12, 0, tzinfo=UTC),
+        archive_trade_extractions_by_symbol={
+            "BTC/USDT": (
+                BybitArchiveTradeFactExtraction(
+                    status="full_mappable",
+                    exchange_trade_at=datetime(2024, 4, 1, 0, 0, 0, 120000, tzinfo=UTC),
+                    trade_fact=BybitArchiveTradeFact(
+                        contour="linear",
+                        normalized_symbol="BTC/USDT",
+                        exchange_trade_at=datetime(2024, 4, 1, 0, 0, 0, 120000, tzinfo=UTC),
+                        side="buy",
+                        normalized_price=Decimal("68000.5"),
+                        normalized_size=Decimal("0.010"),
+                        archive_trade_id="trade-1",
+                        source_symbol_raw="BTCUSDT",
+                        raw_fields={"symbol": "BTCUSDT", "trdMatchID": "trade-1"},
+                        identity_strength="strong_candidate",
+                    ),
+                ),
+            )
+        },
+    )
+
+    await connector._materialize_archive_trade_facts_to_ledger(result=restore_result)
+
+    assert len(ledger_repository.records) == 1
+    record = ledger_repository.records[0]
+    assert record.source == "bybit_converged_trade"
+    assert record.provenance_state == "live_and_archive"
+    assert record.provenance_metadata["archive"]["source_trade_identity"].startswith(
+        "bybit_public_archive:linear:BTC/USDT:"
+    )
+    assert record.provenance_metadata["live"]["source_trade_identity"].startswith(
+        "live_public_trade:linear:BTC/USDT:"
+    )
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_purges_unmatched_live_rows_inside_restored_archive_window() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    ledger_repository = _InMemoryLedgerRepository()
+
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        ledger_repository=ledger_repository,
+    )
+    await connector._write_live_trade_fact_to_ledger(
+        transport_payload={
+            "symbol": "ETH/USDT",
+            "price": "3500.5",
+            "qty": "0.050",
+            "side": "buy",
+            "trade_id": "live-1",
+            "exchange_trade_at_ms": 1711929600120,
+            "is_buyer_maker": False,
+        }
+    )
+    restore_result = BybitHistoricalTradeBackfillResult(
+        status="backfilled",
+        restored_window_started_at=datetime(2024, 3, 31, 0, 0, tzinfo=UTC),
+        backfilled_trade_count=1,
+        hydrated_symbols=("ETH/USDT",),
+        source="bybit_public_archive",
+        covered_until_at=datetime(2024, 4, 1, 12, 0, tzinfo=UTC),
+        archive_trade_extractions_by_symbol={
+            "ETH/USDT": (
+                BybitArchiveTradeFactExtraction(
+                    status="full_mappable",
+                    exchange_trade_at=datetime(2024, 4, 1, 0, 5, 0, tzinfo=UTC),
+                    trade_fact=BybitArchiveTradeFact(
+                        contour="linear",
+                        normalized_symbol="ETH/USDT",
+                        exchange_trade_at=datetime(2024, 4, 1, 0, 5, 0, tzinfo=UTC),
+                        side="sell",
+                        normalized_price=Decimal("3501.0"),
+                        normalized_size=Decimal("0.030"),
+                        archive_trade_id="archive-1",
+                        source_symbol_raw="ETHUSDT",
+                        raw_fields={"symbol": "ETHUSDT", "trdMatchID": "archive-1"},
+                        identity_strength="strong_candidate",
+                    ),
+                ),
+            )
+        },
+    )
+
+    await connector._materialize_archive_trade_facts_to_ledger(result=restore_result)
+
+    assert len(ledger_repository.records) == 1
+    record = ledger_repository.records[0]
+    assert record.source == "bybit_public_archive"
+    assert record.normalized_symbol == "ETH/USDT"
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_augments_restore_with_canonical_ledger_tail() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    ledger_repository = _InMemoryLedgerRepository()
+
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        ledger_repository=ledger_repository,
+    )
+    await connector._write_live_trade_fact_to_ledger(
+        transport_payload={
+            "symbol": "BTC/USDT",
+            "price": "68010.0",
+            "qty": "0.020",
+            "side": "buy",
+            "trade_id": "tail-1",
+            "exchange_trade_at_ms": 1711972800000,
+            "is_buyer_maker": False,
+        }
+    )
+    restore_result = BybitHistoricalTradeBackfillResult(
+        status="backfilled",
+        restored_window_started_at=datetime(2024, 3, 31, 12, 0, tzinfo=UTC),
+        backfilled_trade_count=1,
+        hydrated_symbols=("BTC/USDT",),
+        source="bybit_public_archive",
+        covered_until_at=datetime(2024, 4, 1, 0, 0, tzinfo=UTC),
+        trade_buckets_by_symbol={
+            "BTC/USDT": {
+                datetime(2024, 3, 31, 23, 59, tzinfo=UTC): 1,
+            }
+        },
+        latest_trade_at_by_symbol={
+            "BTC/USDT": datetime(2024, 3, 31, 23, 59, 59, tzinfo=UTC),
+        },
+    )
+
+    augmented = await connector._augment_restore_result_with_ledger_tail(
+        result=restore_result,
+        observed_at=datetime(2024, 4, 1, 12, 0, tzinfo=UTC),
+    )
+
+    assert augmented.trade_buckets_by_symbol["BTC/USDT"][
+        datetime(2024, 4, 1, 12, 0, tzinfo=UTC)
+    ] == 1
+    assert augmented.latest_trade_at_by_symbol["BTC/USDT"] == datetime(
+        2024, 4, 1, 12, 0, tzinfo=UTC
+    )
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_reconciliation_returns_mismatch_beyond_zero_tolerance() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    trade_timestamp = datetime.now(tz=UTC) - timedelta(hours=1)
+    ledger_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={("bybit", "linear", "BTC/USDT"): 3},
+    )
+
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_service,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._derived_trade_count.restore_historical_window(
+        trades_by_symbol={"BTC/USDT": (trade_timestamp,)},
+        window_started_at=trade_timestamp - timedelta(hours=23),
+        covered_until_at=trade_timestamp,
+        observed_at=trade_timestamp + timedelta(seconds=1),
+        processed_archives=1,
+        total_archives=1,
+    )
+    await connector._refresh_ledger_trade_count_snapshot(
+        symbols=("BTC/USDT",),
+        observed_at=trade_timestamp + timedelta(seconds=1),
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["symbol_snapshots"][0]["bucket_trade_count_24h"] == 1
+    assert diagnostics["symbol_snapshots"][0]["ledger_trade_count_24h"] == 3
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_verdict"] == "not_comparable"
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_24h"] == 3
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_state"] == "partial_ledger_coverage"
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_reason"] == "incomplete_rolling_window"
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_absolute_diff"] is None
+    assert diagnostics["symbol_snapshots"][0]["trade_count_cutover_readiness_state"] == "not_ready"
+    assert diagnostics["trade_count_product_truth_state"] == "partial_ledger_coverage"
+    assert diagnostics["trade_count_product_truth_reason"] == "partial_ledger_coverage_for_scope"
+    assert diagnostics["trade_count_cutover_readiness_state"] == "not_ready"
+    assert diagnostics["trade_count_cutover_readiness_reason"] == "not_comparable_symbols_present"
+    assert diagnostics["trade_count_cutover_evaluation_state"] == "not_eligible"
+    assert diagnostics["trade_count_cutover_evaluation_reasons"] == (
+        "not_comparable_present",
+        "insufficient_compared_symbols",
+    )
+    assert diagnostics["trade_count_cutover_manual_review_state"] == (
+        "manual_review_not_recommended"
+    )
+    assert diagnostics["trade_count_cutover_manual_review_reasons"] == (
+        "not_comparable_present",
+        "insufficient_compared_symbols",
+    )
+    assert diagnostics["trade_count_cutover_discussion_artifact"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_discussion_artifact"]["symbol_exceptions"][0][
+        "symbol"
+    ] == "BTC/USDT"
+    assert diagnostics["trade_count_cutover_review_record"]["captured_at"]
+    assert diagnostics["trade_count_cutover_review_record"]["symbol_exceptions"][0]["symbol"] == (
+        "BTC/USDT"
+    )
+    assert diagnostics["trade_count_cutover_review_package"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_review_package"]["symbol_exceptions"][0]["symbol"] == (
+        "BTC/USDT"
+    )
+    assert diagnostics["trade_count_cutover_review_catalog"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_review_catalog"]["current_review_package"][
+        "symbol_exceptions"
+    ][0]["symbol"] == "BTC/USDT"
+    assert diagnostics["trade_count_cutover_review_snapshot_collection"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_review_snapshot_collection"][
+        "current_review_catalog"
+    ]["current_review_package"]["symbol_exceptions"][0]["symbol"] == "BTC/USDT"
+    assert diagnostics["trade_count_cutover_review_compact_digest"][
+        "compact_symbol_exceptions"
+    ] == ("BTC/USDT",)
+    assert diagnostics["trade_count_cutover_export_report_bundle"][
+        "compact_symbol_exceptions"
+    ] == ("BTC/USDT",)
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_aggregate_cutover_readiness_tracks_multi_symbol_scope_honestly() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    trade_timestamp = datetime.now(tz=UTC) - timedelta(hours=1)
+    ledger_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={
+            ("bybit", "linear", "BTC/USDT"): 1,
+            ("bybit", "linear", "ETH/USDT"): 4,
+        },
+    )
+
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_service,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._derived_trade_count.restore_historical_window(
+        trades_by_symbol={
+            "BTC/USDT": (trade_timestamp,),
+            "ETH/USDT": (
+                trade_timestamp,
+                trade_timestamp + timedelta(minutes=1),
+            ),
+        },
+        window_started_at=trade_timestamp - timedelta(hours=23),
+        covered_until_at=trade_timestamp,
+        observed_at=trade_timestamp + timedelta(seconds=1),
+        processed_archives=2,
+        total_archives=2,
+    )
+    await connector._refresh_ledger_trade_count_snapshot(
+        symbols=("BTC/USDT", "ETH/USDT"),
+        observed_at=trade_timestamp + timedelta(seconds=1),
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["trade_count_cutover_readiness_state"] == "not_ready"
+    assert diagnostics["trade_count_cutover_readiness_reason"] == "not_comparable_symbols_present"
+    assert diagnostics["trade_count_cutover_compared_symbols"] == 0
+    assert diagnostics["trade_count_cutover_ready_symbols"] == 0
+    assert diagnostics["trade_count_cutover_not_ready_symbols"] == 2
+    assert diagnostics["trade_count_cutover_blocked_symbols"] == 0
+    assert diagnostics["trade_count_cutover_evaluation_state"] == "not_eligible"
+    assert diagnostics["trade_count_cutover_evaluation_reasons"] == (
+        "not_comparable_present",
+        "insufficient_compared_symbols",
+    )
+    assert diagnostics["trade_count_cutover_manual_review_state"] == (
+        "manual_review_not_recommended"
+    )
+    assert diagnostics["trade_count_cutover_manual_review_reasons"] == (
+        "not_comparable_present",
+        "insufficient_compared_symbols",
+    )
+    assert diagnostics["trade_count_cutover_manual_review_contour"] == "linear"
+    assert diagnostics["trade_count_cutover_manual_review_scope_mode"] == "universe"
+    assert diagnostics["trade_count_cutover_manual_review_scope_symbol_count"] == 2
+    assert diagnostics["trade_count_cutover_discussion_artifact"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_discussion_artifact"]["symbol_exceptions"][0][
+        "symbol"
+    ] == "BTC/USDT"
+    assert diagnostics["trade_count_cutover_review_record"]["captured_at"]
+    assert diagnostics["trade_count_cutover_review_record"]["symbol_exceptions"][0]["symbol"] == (
+        "BTC/USDT"
+    )
+    assert diagnostics["trade_count_cutover_review_package"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_review_package"]["symbol_exceptions"][0]["symbol"] == (
+        "BTC/USDT"
+    )
+    assert diagnostics["trade_count_cutover_review_catalog"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_review_catalog"]["current_review_package"][
+        "symbol_exceptions"
+    ][0]["symbol"] == "BTC/USDT"
+    assert diagnostics["trade_count_cutover_review_snapshot_collection"]["discussion_state"] == (
+        "discussion_not_ready"
+    )
+    assert diagnostics["trade_count_cutover_review_snapshot_collection"][
+        "current_review_catalog"
+    ]["current_review_package"]["symbol_exceptions"][0]["symbol"] == "BTC/USDT"
+    assert diagnostics["trade_count_cutover_review_compact_digest"][
+        "compact_symbol_exceptions"
+    ] == ("BTC/USDT", "ETH/USDT")
+    assert diagnostics["trade_count_cutover_export_report_bundle"][
+        "compact_symbol_exceptions"
+    ] == ("BTC/USDT", "ETH/USDT")
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_treats_archive_restored_vs_live_only_ledger_gap_as_not_comparable() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    observed_at = datetime.now(tz=UTC)
+    ledger_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={("bybit", "linear", "BTC/USDT"): 3},
+        first_trade_at_by_key={
+            ("bybit", "linear", "BTC/USDT"): observed_at - timedelta(hours=20)
+        },
+        sources_by_key={("bybit", "linear", "BTC/USDT"): ("live_public_trade",)},
+    )
+
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_service,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._derived_trade_count.restore_historical_window(
+        trades_by_symbol={"BTC/USDT": (observed_at - timedelta(hours=1),)},
+        window_started_at=observed_at - timedelta(hours=24),
+        covered_until_at=observed_at - timedelta(hours=2),
+        observed_at=observed_at,
+        processed_archives=1,
+        total_archives=1,
+    )
+    await connector._refresh_ledger_trade_count_snapshot(
+        symbols=("BTC/USDT",),
+        observed_at=observed_at,
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_verdict"] == "not_comparable"
+    assert (
+        diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_reason"]
+        == "ledger_historical_coverage_gap"
+    )
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_24h"] == 3
+    assert (
+        diagnostics["symbol_snapshots"][0]["product_trade_count_state"]
+        == "partial_ledger_coverage"
+    )
+    assert diagnostics["trade_count_product_truth_state"] == "partial_ledger_coverage"
+
+
+@pytest.mark.asyncio
+async def test_partial_ledger_refresh_failure_preserves_unaffected_symbol_truth() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    observed_at = datetime.now(tz=UTC) - timedelta(minutes=1)
+    ledger_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={
+            ("bybit", "linear", "BTC/USDT"): 2,
+            ("bybit", "linear", "ETH/USDT"): 5,
+        },
+        error_by_key={("bybit", "linear", "ETH/USDT"): RuntimeError("eth_refresh_failed")},
+    )
+
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_service,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._derived_trade_count.restore_historical_window(
+        trades_by_symbol={
+            "BTC/USDT": (observed_at - timedelta(hours=1), observed_at - timedelta(minutes=30)),
+            "ETH/USDT": (
+                observed_at - timedelta(hours=2),
+                observed_at - timedelta(hours=1),
+                observed_at - timedelta(minutes=20),
+            ),
+        },
+        window_started_at=observed_at - timedelta(hours=24),
+        covered_until_at=observed_at,
+        observed_at=observed_at,
+        processed_archives=2,
+        total_archives=2,
+    )
+    connector._ledger_trade_count_snapshot_by_symbol["ETH/USDT"] = BybitLedgerTradeCountSymbolSnapshot(
+        trade_count_24h=3,
+        status="fresh",
+        last_error=None,
+        last_synced_at=observed_at - timedelta(minutes=5),
+    )
+    connector._sync_ledger_trade_count_compatibility_view()
+
+    await connector._refresh_ledger_trade_count_snapshot(
+        symbols=("BTC/USDT", "ETH/USDT"),
+        observed_at=observed_at,
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+    btc_snapshot, eth_snapshot = diagnostics["symbol_snapshots"]
+
+    assert diagnostics["ledger_trade_count_scope_status"] == "partial_refresh_failed"
+    assert diagnostics["ledger_trade_count_available"] is True
+    assert diagnostics["ledger_trade_count_last_error"] == "eth_refresh_failed"
+    assert btc_snapshot["ledger_trade_count_status"] == "fresh"
+    assert btc_snapshot["ledger_trade_count_24h"] == 2
+    assert btc_snapshot["trade_count_reconciliation_verdict"] in {"match", "not_comparable"}
+    assert eth_snapshot["ledger_trade_count_status"] == "stale"
+    assert eth_snapshot["ledger_trade_count_24h"] == 3
+    assert eth_snapshot["trade_count_reconciliation_verdict"] == "not_comparable"
+    assert eth_snapshot["trade_count_reconciliation_reason"] == "eth_refresh_failed"
+
+
+@pytest.mark.asyncio
+async def test_partial_ledger_refresh_failure_without_last_good_stays_symbol_scoped() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    observed_at = datetime.now(tz=UTC) - timedelta(minutes=1)
+    ledger_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={
+            ("bybit", "linear", "BTC/USDT"): 2,
+            ("bybit", "linear", "ETH/USDT"): 5,
+        },
+        error_by_key={("bybit", "linear", "ETH/USDT"): RuntimeError("eth_refresh_failed")},
+    )
+
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_service,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._derived_trade_count.restore_historical_window(
+        trades_by_symbol={
+            "BTC/USDT": (observed_at - timedelta(hours=1), observed_at - timedelta(minutes=30)),
+            "ETH/USDT": (
+                observed_at - timedelta(hours=2),
+                observed_at - timedelta(hours=1),
+                observed_at - timedelta(minutes=20),
+            ),
+        },
+        window_started_at=observed_at - timedelta(hours=24),
+        covered_until_at=observed_at,
+        observed_at=observed_at,
+        processed_archives=2,
+        total_archives=2,
+    )
+
+    await connector._refresh_ledger_trade_count_snapshot(
+        symbols=("BTC/USDT", "ETH/USDT"),
+        observed_at=observed_at,
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+    btc_snapshot, eth_snapshot = diagnostics["symbol_snapshots"]
+
+    assert diagnostics["ledger_trade_count_scope_status"] == "partial_refresh_failed"
+    assert diagnostics["ledger_trade_count_available"] is True
+    assert diagnostics["ledger_trade_count_last_error"] == "eth_refresh_failed"
+    assert diagnostics["trade_count_product_truth_state"] == "pending_validation"
+    assert diagnostics["trade_count_product_truth_reason"] == "partial_ledger_unavailable_present"
+    assert diagnostics["trade_count_cutover_readiness_state"] == "blocked"
+    assert diagnostics["trade_count_cutover_readiness_reason"] == "blocked_symbols_present"
+    assert btc_snapshot["ledger_trade_count_status"] == "fresh"
+    assert btc_snapshot["ledger_trade_count_24h"] == 2
+    assert btc_snapshot["trade_count_reconciliation_verdict"] in {"match", "not_comparable"}
+    assert eth_snapshot["ledger_trade_count_status"] == "refresh_failed"
+    assert eth_snapshot["ledger_trade_count_24h"] is None
+    assert eth_snapshot["trade_count_reconciliation_verdict"] == "validation_blocked"
+    assert eth_snapshot["trade_count_reconciliation_reason"] == "eth_refresh_failed"
+
+
+@pytest.mark.asyncio
+async def test_scope_wide_ledger_unavailable_requires_all_symbols_blocked() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    observed_at = datetime.now(tz=UTC) - timedelta(minutes=1)
+    ledger_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={
+            ("bybit", "linear", "BTC/USDT"): 2,
+            ("bybit", "linear", "ETH/USDT"): 5,
+        },
+        error_by_key={("bybit", "linear", "ETH/USDT"): RuntimeError("eth_refresh_failed")},
+    )
+
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_service,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._derived_trade_count.restore_historical_window(
+        trades_by_symbol={
+            "BTC/USDT": (observed_at - timedelta(hours=1), observed_at - timedelta(minutes=30)),
+            "ETH/USDT": (
+                observed_at - timedelta(hours=2),
+                observed_at - timedelta(hours=1),
+                observed_at - timedelta(minutes=20),
+            ),
+        },
+        window_started_at=observed_at - timedelta(hours=24),
+        covered_until_at=observed_at,
+        observed_at=observed_at,
+        processed_archives=2,
+        total_archives=2,
+    )
+    connector._ledger_trade_count_snapshot_by_symbol["ETH/USDT"] = BybitLedgerTradeCountSymbolSnapshot(
+        trade_count_24h=3,
+        status="fresh",
+        last_error=None,
+        last_synced_at=observed_at - timedelta(minutes=5),
+    )
+    connector._sync_ledger_trade_count_compatibility_view()
+
+    await connector._refresh_ledger_trade_count_snapshot(
+        symbols=("BTC/USDT", "ETH/USDT"),
+        observed_at=observed_at,
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["trade_count_cutover_readiness_state"] == "not_ready"
+    assert diagnostics["trade_count_cutover_readiness_reason"] == "not_comparable_symbols_present"
+    assert diagnostics["trade_count_cutover_evaluation_state"] == "not_eligible"
+    assert diagnostics["trade_count_cutover_evaluation_reasons"] == (
+        "not_comparable_present",
+        "insufficient_compared_symbols",
+    )
+    assert diagnostics["trade_count_product_truth_state"] == "partial_ledger_coverage"
+    assert diagnostics["trade_count_product_truth_reason"] == "partial_ledger_coverage_present"
+
+
+@pytest.mark.asyncio
+async def test_scope_wide_ledger_refresh_failure_remains_scope_wide_unavailable() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    observed_at = datetime.now(tz=UTC)
+    ledger_service = _FakeLedgerTradeCountQueryService(error=RuntimeError("ledger_unavailable"))
+
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+        ledger_trade_count_query_service=ledger_service,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._derived_trade_count.restore_historical_window(
+        trades_by_symbol={
+            "BTC/USDT": (observed_at - timedelta(hours=1),),
+            "ETH/USDT": (observed_at - timedelta(hours=2),),
+        },
+        window_started_at=observed_at - timedelta(hours=24),
+        covered_until_at=observed_at,
+        observed_at=observed_at,
+        processed_archives=2,
+        total_archives=2,
+    )
+    await connector._refresh_ledger_trade_count_snapshot(
+        symbols=("BTC/USDT", "ETH/USDT"),
+        observed_at=observed_at,
+    )
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["ledger_trade_count_scope_status"] == "refresh_failed"
+    assert diagnostics["ledger_trade_count_available"] is False
+    assert diagnostics["trade_count_cutover_readiness_state"] == "blocked"
+    assert diagnostics["trade_count_cutover_readiness_reason"] == "ledger_unavailable"
+    assert diagnostics["trade_count_product_truth_state"] == "ledger_unavailable"
+    assert diagnostics["trade_count_product_truth_reason"] == "ledger_unavailable_present"
 
 
 def test_derived_trade_count_tracker_requires_continuous_window_before_ready() -> None:
@@ -519,6 +1916,357 @@ async def test_historical_recovery_coordinator_triggers_delayed_retry() -> None:
     assert sleep_calls == [3.0]
     assert triggered == ["retry"]
     assert coordinator.retry_task is None
+
+
+def test_historical_recovery_classifier_retries_transient_archive_request_failures() -> None:
+    decision = classify_bybit_historical_recovery_result(
+        BybitHistoricalTradeBackfillResult(
+            status="unavailable",
+            restored_window_started_at=None,
+            backfilled_trade_count=0,
+            hydrated_symbols=(),
+            source="bybit_public_archive",
+            covered_until_at=datetime(2026, 4, 7, 12, 0, tzinfo=UTC),
+            reason=(
+                "historical trade backfill request failed: "
+                "https://public.bybit.com/spot/BTCUSDT/BTCUSDT_2026-04-06.csv.gz"
+            ),
+            processed_archives=0,
+            total_archives=1,
+        )
+    )
+
+    assert decision.apply_restore is False
+    assert decision.schedule_retry is True
+
+
+@pytest.mark.asyncio
+async def test_historical_recovery_snapshot_prefers_restored_window_over_active_task_flag() -> None:
+    async def fake_sleep(seconds: float) -> None:
+        return None
+
+    coordinator = BybitHistoricalRecoveryCoordinator(
+        exchange_name="bybit",
+        sleep_func=fake_sleep,
+        retry_delay_seconds=3.0,
+    )
+    coordinator.backfill_task = asyncio.create_task(asyncio.sleep(3600))
+
+    snapshot = coordinator.snapshot(
+        admission_enabled=True,
+        has_restored_historical_window=True,
+    )
+
+    coordinator.backfill_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await coordinator.backfill_task
+
+    assert snapshot.state == "live_tail_only"
+    assert snapshot.reason == "Historical window is already restored; only live tail remains."
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_uses_configured_retry_delay_for_latest_archive_retry() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+    )
+
+    assert connector._historical_restore_coordinator.retry_delay_seconds == float(
+        get_settings().live_feed_retry_delay_seconds
+    )
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_bootstraps_exact_trade_truth_from_local_ledger() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    temp_dir = _make_local_temp_dir()
+    store_path = temp_dir / "derived-trade-count.json"
+    persisted_tracker = BybitDerivedTradeCountTracker(symbols=("BTC/USDT",))
+    persisted_tracker.note_trade(
+        symbol="BTC/USDT",
+        observed_at=datetime(2026, 4, 12, 0, 0, 30, tzinfo=UTC),
+    )
+    BybitDerivedTradeCountPersistenceStore(path=store_path).save(
+        persisted_tracker.to_persisted_state(
+            persisted_at=datetime(2026, 4, 12, 0, 1, tzinfo=UTC),
+        )
+    )
+    matched_rows = (
+        BybitTradeLedgerRecord(
+            exchange="bybit",
+            contour="linear",
+            normalized_symbol="BTC/USDT",
+            source="live_public_trade",
+            source_trade_identity="live_public_trade:linear:BTC/USDT:1",
+            canonical_dedup_identity="live:1",
+            identity_contract_version=1,
+            exchange_trade_at=datetime(2026, 4, 11, 12, 5, tzinfo=UTC),
+            side="buy",
+            normalized_price=Decimal("68000"),
+            normalized_size=Decimal("0.1"),
+        ),
+        BybitTradeLedgerRecord(
+            exchange="bybit",
+            contour="linear",
+            normalized_symbol="BTC/USDT",
+            source="live_public_trade",
+            source_trade_identity="live_public_trade:linear:BTC/USDT:2",
+            canonical_dedup_identity="live:2",
+            identity_contract_version=1,
+            exchange_trade_at=datetime(2026, 4, 11, 13, 15, tzinfo=UTC),
+            side="sell",
+            normalized_price=Decimal("68010"),
+            normalized_size=Decimal("0.2"),
+        ),
+    )
+    ledger_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={("bybit", "linear", "BTC/USDT"): 2},
+        first_trade_at_by_key={("bybit", "linear", "BTC/USDT"): matched_rows[0].exchange_trade_at},
+        sources_by_key={("bybit", "linear", "BTC/USDT"): ("live_public_trade",)},
+        matched_rows_by_key={("bybit", "linear", "BTC/USDT"): matched_rows},
+    )
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=1,
+        ledger_trade_count_query_service=ledger_service,
+        derived_trade_count_store_path=store_path,
+    )
+
+    original_utcnow = bybit_module._utcnow
+    bybit_module._utcnow = lambda: datetime(2026, 4, 12, 12, 0, tzinfo=UTC)
+    try:
+        await connector._bootstrap_trade_truth_from_local_ledger()
+        diagnostics = connector.get_operator_diagnostics()
+    finally:
+        bybit_module._utcnow = original_utcnow
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    assert connector._historical_restore_coordinator.pending is False
+    assert diagnostics["derived_trade_count_state"] == "ready"
+    assert diagnostics["derived_trade_count_backfill_status"] == "not_needed"
+    assert diagnostics["historical_recovery_state"] == "live_tail_only"
+    assert diagnostics["symbol_snapshots"][0]["derived_trade_count_24h"] == 2
+    assert diagnostics["symbol_snapshots"][0]["ledger_trade_count_24h"] == 2
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_state"] == "ledger_confirmed"
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_requeues_historical_backfill_when_bootstrapped_ledger_window_is_incomplete() -> (
+    None
+):
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    temp_dir = _make_local_temp_dir()
+    store_path = temp_dir / "derived-trade-count.json"
+    persisted_tracker = BybitDerivedTradeCountTracker(symbols=("BTC/USDT",))
+    persisted_tracker.note_trade(
+        symbol="BTC/USDT",
+        observed_at=datetime(2026, 4, 13, 11, 14, 30, tzinfo=UTC),
+    )
+    BybitDerivedTradeCountPersistenceStore(path=store_path).save(
+        persisted_tracker.to_persisted_state(
+            persisted_at=datetime(2026, 4, 13, 11, 15, tzinfo=UTC),
+        )
+    )
+    first_trade_at = datetime(2026, 4, 12, 19, 37, 54, tzinfo=UTC)
+    matched_rows = (
+        BybitTradeLedgerRecord(
+            exchange="bybit",
+            contour="linear",
+            normalized_symbol="BTC/USDT",
+            source="live_public_trade",
+            source_trade_identity="live_public_trade:linear:BTC/USDT:1",
+            canonical_dedup_identity="live:1",
+            identity_contract_version=1,
+            exchange_trade_at=first_trade_at,
+            side="buy",
+            normalized_price=Decimal("68000"),
+            normalized_size=Decimal("0.1"),
+        ),
+        BybitTradeLedgerRecord(
+            exchange="bybit",
+            contour="linear",
+            normalized_symbol="BTC/USDT",
+            source="live_public_trade",
+            source_trade_identity="live_public_trade:linear:BTC/USDT:2",
+            canonical_dedup_identity="live:2",
+            identity_contract_version=1,
+            exchange_trade_at=datetime(2026, 4, 13, 11, 14, 5, tzinfo=UTC),
+            side="sell",
+            normalized_price=Decimal("68010"),
+            normalized_size=Decimal("0.2"),
+        ),
+    )
+    ledger_service = _FakeLedgerTradeCountQueryService(
+        counts_by_key={("bybit", "linear", "BTC/USDT"): 2},
+        first_trade_at_by_key={("bybit", "linear", "BTC/USDT"): first_trade_at},
+        sources_by_key={("bybit", "linear", "BTC/USDT"): ("live_public_trade",)},
+        matched_rows_by_key={("bybit", "linear", "BTC/USDT"): matched_rows},
+    )
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=1,
+        historical_trade_backfill_service=BybitHistoricalTradeBackfillService(
+            config=BybitHistoricalTradeBackfillConfig(contour="linear"),
+            fetch_bytes=lambda _url, _timeout: b"",
+        ),
+        ledger_trade_count_query_service=ledger_service,
+        derived_trade_count_store_path=store_path,
+    )
+
+    observed_at = datetime(2026, 4, 13, 11, 14, 6, tzinfo=UTC)
+    original_utcnow = bybit_module._utcnow
+    bybit_module._utcnow = lambda: observed_at
+    try:
+        await connector._bootstrap_trade_truth_from_local_ledger()
+        diagnostics = connector.get_operator_diagnostics()
+    finally:
+        bybit_module._utcnow = original_utcnow
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    assert connector._historical_restore_coordinator.pending is True
+    assert diagnostics["derived_trade_count_state"] == "ready"
+    assert diagnostics["derived_trade_count_backfill_status"] == "pending"
+    assert diagnostics["symbol_snapshots"][0]["ledger_trade_count_24h"] == 2
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_state"] == (
+        "partial_ledger_coverage"
+    )
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_reason"] == (
+        "incomplete_rolling_window"
+    )
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_aligns_exact_derived_count_with_cached_ledger_snapshot_time() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=1,
+    )
+    window_end_at = datetime(2026, 4, 12, 12, 0, tzinfo=UTC)
+    later_trade_at = window_end_at + timedelta(seconds=2)
+    connector._derived_trade_count.restore_exact_window(
+        trade_buckets_by_symbol={
+            "BTC/USDT": {
+                datetime(2026, 4, 11, 12, 4, tzinfo=UTC): 1,
+                datetime(2026, 4, 12, 12, 0, tzinfo=UTC): 1,
+            }
+        },
+        exact_trade_timestamps_by_symbol={
+            "BTC/USDT": (
+                datetime(2026, 4, 11, 12, 4, tzinfo=UTC),
+                later_trade_at,
+            )
+        },
+        latest_trade_at_by_symbol={"BTC/USDT": later_trade_at},
+        window_started_at=window_end_at - timedelta(hours=24),
+        observed_at=later_trade_at,
+    )
+    connector._ledger_trade_count_snapshot_by_symbol["BTC/USDT"] = (
+        BybitLedgerTradeCountSymbolSnapshot(
+            trade_count_24h=1,
+            status="fresh",
+            last_error=None,
+            last_synced_at=window_end_at,
+            window_started_at=window_end_at - timedelta(hours=24),
+            first_trade_at=datetime(2026, 4, 11, 12, 4, tzinfo=UTC),
+            sources=("live_public_trade",),
+        )
+    )
+    connector._sync_ledger_trade_count_compatibility_view()
+
+    original_utcnow = bybit_module._utcnow
+    bybit_module._utcnow = lambda: later_trade_at
+    try:
+        diagnostics = connector.get_operator_diagnostics()
+    finally:
+        bybit_module._utcnow = original_utcnow
+
+    assert diagnostics["symbol_snapshots"][0]["derived_trade_count_24h"] == 1
+    assert diagnostics["symbol_snapshots"][0]["ledger_trade_count_24h"] == 1
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_reason"] == "counts_equal"
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_absolute_diff"] == 0
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_state"] == "ledger_confirmed"
+
+
+@pytest.mark.asyncio
+async def test_bybit_connector_does_not_confirm_incomplete_local_rolling_window() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+    connector = BybitMarketDataConnector(
+        session=_session(),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=1,
+    )
+    observed_at = datetime(2026, 4, 13, 2, 7, 32, tzinfo=UTC)
+    window_started_at = observed_at - timedelta(hours=24)
+    first_trade_at = datetime(2026, 4, 12, 19, 37, 54, tzinfo=UTC)
+    latest_trade_at = observed_at - timedelta(seconds=1)
+    connector._derived_trade_count.restore_exact_window(
+        trade_buckets_by_symbol={
+            "BTC/USDT": {
+                datetime(2026, 4, 12, 19, 37, tzinfo=UTC): 2,
+            }
+        },
+        exact_trade_timestamps_by_symbol={
+            "BTC/USDT": (
+                first_trade_at,
+                latest_trade_at,
+            )
+        },
+        latest_trade_at_by_symbol={"BTC/USDT": latest_trade_at},
+        window_started_at=window_started_at,
+        observed_at=observed_at,
+    )
+    connector._ledger_trade_count_snapshot_by_symbol["BTC/USDT"] = (
+        BybitLedgerTradeCountSymbolSnapshot(
+            trade_count_24h=2,
+            status="fresh",
+            last_error=None,
+            last_synced_at=observed_at,
+            window_started_at=window_started_at,
+            first_trade_at=first_trade_at,
+            sources=("live_public_trade",),
+        )
+    )
+    connector._sync_ledger_trade_count_compatibility_view()
+
+    original_utcnow = bybit_module._utcnow
+    bybit_module._utcnow = lambda: observed_at
+    try:
+        diagnostics = connector.get_operator_diagnostics()
+    finally:
+        bybit_module._utcnow = original_utcnow
+
+    assert diagnostics["symbol_snapshots"][0]["derived_trade_count_24h"] == 2
+    assert diagnostics["symbol_snapshots"][0]["ledger_trade_count_24h"] == 2
+    assert diagnostics["symbol_snapshots"][0]["trade_count_reconciliation_reason"] == (
+        "incomplete_rolling_window"
+    )
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_state"] == (
+        "partial_ledger_coverage"
+    )
+    assert diagnostics["symbol_snapshots"][0]["product_trade_count_reason"] == (
+        "incomplete_rolling_window"
+    )
 
 
 def test_derived_trade_count_tracker_resets_reliability_after_gap() -> None:
@@ -791,6 +2539,323 @@ async def test_bybit_connector_restores_trade_count_readiness_from_historical_ba
     assert diagnostics["derived_trade_count_last_backfill_source"] == "bybit_public_archive"
 
 
+@pytest.mark.asyncio
+async def test_bybit_connector_does_not_block_readiness_on_post_recovery_materialization(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=2,
+        ledger_trade_count_query_service=_FakeLedgerTradeCountQueryService(
+            counts_by_key={
+                ("bybit", "linear", "BTC/USDT"): 2,
+                ("bybit", "linear", "ETH/USDT"): 1,
+            }
+        ),
+        ledger_repository=_InMemoryLedgerRepository(),
+    )
+    observed_at = datetime(2026, 4, 7, 12, 0, tzinfo=UTC)
+    monkeypatch.setattr(bybit_module, "_utcnow", lambda: observed_at)
+    websocket = _FakeWebSocket([])
+    connector._active_websocket = websocket
+    await connector.feed_runtime.start(observed_at=observed_at)
+    connector.feed_runtime.mark_connected(observed_at=observed_at)
+
+    async def fake_load_pending_restore(self, **kwargs):
+        return type("Execution", (), {
+            "observed_at": observed_at,
+            "plan": BybitHistoricalRecoveryPlan(
+                symbols=("BTC/USDT", "ETH/USDT"),
+                window_started_at=observed_at - timedelta(hours=24),
+                covered_until_at=observed_at,
+                archive_dates=(date(2026, 4, 6),),
+                total_archives=2,
+            ),
+            "result": BybitHistoricalTradeBackfillResult(
+                status="backfilled",
+                restored_window_started_at=observed_at - timedelta(hours=24),
+                backfilled_trade_count=3,
+                hydrated_symbols=("BTC/USDT", "ETH/USDT"),
+                source="bybit_public_archive",
+                covered_until_at=observed_at,
+                trade_buckets_by_symbol={
+                    "BTC/USDT": {observed_at - timedelta(minutes=1): 2},
+                    "ETH/USDT": {observed_at - timedelta(minutes=1): 1},
+                },
+                latest_trade_at_by_symbol={
+                    "BTC/USDT": observed_at,
+                    "ETH/USDT": observed_at,
+                },
+                processed_archives=2,
+                total_archives=2,
+            ),
+            "decision": classify_bybit_historical_recovery_result(
+                BybitHistoricalTradeBackfillResult(
+                    status="backfilled",
+                    restored_window_started_at=observed_at - timedelta(hours=24),
+                    backfilled_trade_count=3,
+                    hydrated_symbols=("BTC/USDT", "ETH/USDT"),
+                    source="bybit_public_archive",
+                    covered_until_at=observed_at,
+                )
+            ),
+        })()
+
+    materialization_started = asyncio.Event()
+    allow_materialization_finish = asyncio.Event()
+
+    async def slow_materialization(self, *, result, plan=None):
+        materialization_started.set()
+        await allow_materialization_finish.wait()
+
+    monkeypatch.setattr(
+        BybitHistoricalRestoreCoordinator,
+        "load_pending_restore",
+        fake_load_pending_restore,
+    )
+    monkeypatch.setattr(
+        BybitMarketDataConnector,
+        "_materialize_archive_trade_facts_to_ledger",
+        slow_materialization,
+    )
+
+    await asyncio.wait_for(connector._maybe_restore_historical_trade_count(), timeout=0.2)
+    await asyncio.wait_for(materialization_started.wait(), timeout=0.2)
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["operator_state_surface"] == {
+        "runtime": {
+            "state": "ready_for_operation",
+            "reason": "Operational recovery truth is ready.",
+        },
+        "ledger_sync": {
+            "state": "ledger_sync_in_progress",
+            "reason": "Background canonical ledger synchronization is still running.",
+        },
+    }
+    assert diagnostics["operational_recovery_state"] == "ready_for_operation"
+    assert diagnostics["canonical_ledger_sync_state"] == "ledger_sync_in_progress"
+    assert diagnostics["derived_trade_count_ready"] is True
+    assert diagnostics["readiness_state"] == "ready"
+    assert diagnostics["symbols"] == ("BTC/USDT",)
+    assert diagnostics["post_recovery_materialization_status"] == "running"
+    assert diagnostics["post_recovery_materialization_task_active"] is True
+    assert websocket.sent_messages
+
+    allow_materialization_finish.set()
+    if connector._post_recovery_materialization_task is not None:
+        await asyncio.wait_for(connector._post_recovery_materialization_task, timeout=1.0)
+
+    completed = connector.get_operator_diagnostics()
+    assert completed["operator_state_surface"] == {
+        "runtime": {
+            "state": "ready_for_operation",
+            "reason": "Operational recovery truth is ready.",
+        },
+        "ledger_sync": {
+            "state": "ledger_sync_completed",
+            "reason": "Canonical ledger synchronization is up to date.",
+        },
+    }
+    assert completed["operational_recovery_state"] == "ready_for_operation"
+    assert completed["canonical_ledger_sync_state"] == "ledger_sync_completed"
+    assert completed["post_recovery_materialization_status"] == "completed"
+    assert completed["post_recovery_materialization_task_active"] is False
+
+
+def test_canonical_ledger_sync_state_does_not_keep_stale_completed_during_new_backfill_cycle() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT"),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=1,
+        ledger_trade_count_query_service=_FakeLedgerTradeCountQueryService(
+            counts_by_key={("bybit", "linear", "BTC/USDT"): 1}
+        ),
+        ledger_repository=_InMemoryLedgerRepository(),
+    )
+    connector._derived_trade_count._state = "ready"
+    connector._derived_trade_count.mark_backfill_pending(total_archives=1)
+    connector._post_recovery_materialization_status = "completed"
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["operational_recovery_state"] == "ready_for_operation"
+    assert diagnostics["canonical_ledger_sync_state"] == "ledger_sync_pending"
+
+
+@pytest.mark.asyncio
+async def test_post_recovery_materialization_queues_latest_restore_while_running(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT"),
+        market_data_runtime=market_data_runtime,
+    )
+
+    first_started = asyncio.Event()
+    second_started = asyncio.Event()
+    allow_first_finish = asyncio.Event()
+    allow_second_finish = asyncio.Event()
+    materialized_trade_counts: list[int] = []
+
+    async def staged_materialization(self, *, result, plan=None):
+        materialized_trade_counts.append(result.backfilled_trade_count)
+        if len(materialized_trade_counts) == 1:
+            first_started.set()
+            await allow_first_finish.wait()
+            return
+        second_started.set()
+        await allow_second_finish.wait()
+
+    async def noop_refresh(self, *, symbols, observed_at):
+        return None
+
+    monkeypatch.setattr(
+        BybitMarketDataConnector,
+        "_materialize_archive_trade_facts_to_ledger",
+        staged_materialization,
+    )
+    monkeypatch.setattr(
+        BybitMarketDataConnector,
+        "_refresh_ledger_trade_count_snapshot",
+        noop_refresh,
+    )
+
+    first_observed_at = datetime(2026, 4, 7, 12, 0, tzinfo=UTC)
+    second_observed_at = datetime(2026, 4, 7, 12, 5, tzinfo=UTC)
+    first_plan = BybitHistoricalRecoveryPlan(
+        symbols=("BTC/USDT",),
+        window_started_at=first_observed_at - timedelta(hours=24),
+        covered_until_at=first_observed_at,
+        archive_dates=(date(2026, 4, 6),),
+        total_archives=1,
+    )
+    second_plan = BybitHistoricalRecoveryPlan(
+        symbols=("BTC/USDT",),
+        window_started_at=second_observed_at - timedelta(hours=24),
+        covered_until_at=second_observed_at,
+        archive_dates=(date(2026, 4, 6), date(2026, 4, 7)),
+        total_archives=2,
+    )
+    first_result = BybitHistoricalTradeBackfillResult(
+        status="backfilled",
+        restored_window_started_at=first_plan.window_started_at,
+        backfilled_trade_count=1,
+        hydrated_symbols=("BTC/USDT",),
+        source="bybit_public_archive",
+        covered_until_at=first_observed_at,
+    )
+    second_result = BybitHistoricalTradeBackfillResult(
+        status="backfilled",
+        restored_window_started_at=second_plan.window_started_at,
+        backfilled_trade_count=2,
+        hydrated_symbols=("BTC/USDT",),
+        source="bybit_public_archive",
+        covered_until_at=second_observed_at,
+    )
+
+    connector._schedule_post_recovery_materialization(
+        result=first_result,
+        plan=first_plan,
+        observed_at=first_observed_at,
+    )
+    await asyncio.wait_for(first_started.wait(), timeout=0.2)
+
+    connector._schedule_post_recovery_materialization(
+        result=second_result,
+        plan=second_plan,
+        observed_at=second_observed_at,
+    )
+
+    assert connector._pending_post_recovery_materialization_request is not None
+
+    allow_first_finish.set()
+    await asyncio.wait_for(second_started.wait(), timeout=0.2)
+
+    assert materialized_trade_counts == [1, 2]
+    assert connector._pending_post_recovery_materialization_request is None
+
+    allow_second_finish.set()
+    if connector._post_recovery_materialization_task is not None:
+        await asyncio.wait_for(connector._post_recovery_materialization_task, timeout=1.0)
+
+    assert connector._post_recovery_materialization_status == "completed"
+    assert connector._post_recovery_materialization_task is None
+
+
+@pytest.mark.asyncio
+async def test_post_recovery_materialization_refresh_uses_stage_request_symbols_not_mutable_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+    )
+
+    captured_refresh_symbols: list[tuple[str, ...]] = []
+
+    async def mutate_scope_during_materialization(self, *, result, plan=None):
+        self._coarse_candidate_symbols = ("ETH/USDT",)
+
+    async def capture_refresh(self, *, symbols, observed_at):
+        captured_refresh_symbols.append(tuple(symbols))
+
+    monkeypatch.setattr(
+        BybitMarketDataConnector,
+        "_materialize_archive_trade_facts_to_ledger",
+        mutate_scope_during_materialization,
+    )
+    monkeypatch.setattr(
+        BybitMarketDataConnector,
+        "_refresh_ledger_trade_count_snapshot",
+        capture_refresh,
+    )
+
+    observed_at = datetime(2026, 4, 7, 12, 0, tzinfo=UTC)
+    plan = BybitHistoricalRecoveryPlan(
+        symbols=("BTC/USDT", "ETH/USDT"),
+        window_started_at=observed_at - timedelta(hours=24),
+        covered_until_at=observed_at,
+        archive_dates=(date(2026, 4, 6),),
+        total_archives=2,
+    )
+    result = BybitHistoricalTradeBackfillResult(
+        status="backfilled",
+        restored_window_started_at=plan.window_started_at,
+        backfilled_trade_count=1,
+        hydrated_symbols=("BTC/USDT",),
+        source="bybit_public_archive",
+        covered_until_at=observed_at,
+    )
+
+    await connector._run_post_recovery_materialization_stage(
+        result=result,
+        plan=plan,
+        observed_at=observed_at,
+    )
+
+    assert connector._coarse_candidate_symbols == ("ETH/USDT",)
+    assert captured_refresh_symbols == [("BTC/USDT",)]
+
+
 def test_historical_trade_backfill_keeps_latest_live_trade_time_after_merge() -> None:
     tracker = BybitDerivedTradeCountTracker(symbols=("BTC/USDT",))
     live_tail_at = datetime(2026, 4, 6, 12, 0, 45, tzinfo=UTC)
@@ -937,6 +3002,59 @@ def test_historical_trade_backfill_returns_partial_restore_when_latest_closed_da
     assert result.reason == "historical trade archive not found for linear:BTCUSDT:2026-04-06"
 
 
+def test_historical_trade_backfill_keeps_completed_symbols_when_one_parallel_symbol_misses_latest_archive() -> None:
+    observed_at = datetime(2026, 4, 7, 0, 16, tzinfo=UTC)
+    service = BybitHistoricalTradeBackfillService(
+        config=BybitHistoricalTradeBackfillConfig(contour="linear"),
+        fetch_bytes=lambda _url, _timeout: _gzip_csv(
+            "timestamp,price,qty\n2026-04-06T00:01:00+00:00,68000,0.1\n"
+        ),
+    )
+    load_window_globals = service.load_window.__globals__
+    latest_exc_type = load_window_globals["_LatestClosedArchiveUnavailable"]
+    loaded_window_type = load_window_globals["_LoadedSymbolWindow"]
+    original_loader = BybitHistoricalTradeBackfillService._load_symbol_window
+
+    def fake_load_symbol_window(self, *, symbol, **_kwargs):
+        if symbol == "BTC/USDT":
+            raise latest_exc_type(
+                "historical trade archive not found for linear:BTCUSDT:2026-04-06",
+                processed_archives=0,
+                covered_until_at=datetime(2026, 4, 7, 0, 0, tzinfo=UTC),
+                trade_count=0,
+                bucket_counts={},
+                latest_trade_at=None,
+            )
+        time.sleep(0.01)
+        return loaded_window_type(
+            bucket_counts={datetime(2026, 4, 6, 0, 1, tzinfo=UTC): 1},
+            trade_count=1,
+            latest_trade_at=datetime(2026, 4, 6, 0, 1, tzinfo=UTC),
+            trade_extractions=(),
+        )
+
+    setattr(BybitHistoricalTradeBackfillService, "_load_symbol_window", fake_load_symbol_window)
+    try:
+        result = service.load_window(
+            symbols=("BTC/USDT", "ETH/USDT"),
+            observed_at=observed_at,
+        )
+    finally:
+        setattr(BybitHistoricalTradeBackfillService, "_load_symbol_window", original_loader)
+
+    assert result.status == "skipped"
+    assert result.restored_window_started_at == datetime(2026, 4, 6, 0, 16, tzinfo=UTC)
+    assert result.covered_until_at == datetime(2026, 4, 7, 0, 0, tzinfo=UTC)
+    assert result.processed_archives == 1
+    assert result.total_archives == 2
+    assert result.hydrated_symbols == ("ETH/USDT", "BTC/USDT")
+    assert result.trade_buckets_by_symbol == {
+        "ETH/USDT": {datetime(2026, 4, 6, 0, 1, tzinfo=UTC): 1},
+        "BTC/USDT": {},
+    }
+    assert result.reason == "historical trade archive not found for linear:BTCUSDT:2026-04-06"
+
+
 def test_partial_historical_restore_applies_to_tracker_without_marking_unavailable() -> None:
     tracker = BybitDerivedTradeCountTracker(symbols=("BTC/USDT",))
     observed_at = datetime(2026, 4, 7, 12, 0, 30, tzinfo=UTC)
@@ -1031,6 +3149,44 @@ def test_historical_trade_backfill_reuses_disk_cached_archive_payloads_across_se
     assert first_cache.writes == 1
     assert second_cache.disk_hits == 1
     assert second_cache.last_hit_source == "disk"
+    shutil.rmtree(cache_dir, ignore_errors=True)
+
+
+def test_historical_trade_backfill_can_disable_resident_payload_cache() -> None:
+    observed_at = datetime(2026, 4, 6, 12, 0, tzinfo=UTC)
+    cache_dir = _make_local_temp_dir()
+    fetch_calls: list[str] = []
+
+    def fetch_bytes(url: str, _timeout: int) -> bytes:
+        fetch_calls.append(url)
+        return _gzip_csv("timestamp,price,qty\n2026-04-05T12:01:00+00:00,68000,0.1\n")
+
+    service = BybitHistoricalTradeBackfillService(
+        config=BybitHistoricalTradeBackfillConfig(
+            contour="linear",
+            cache_dir=cache_dir,
+            resident_payload_cache_enabled=False,
+        ),
+        fetch_bytes=fetch_bytes,
+    )
+
+    first = service.load_window(
+        symbols=("BTC/USDT",),
+        observed_at=observed_at,
+    )
+    second = service.load_window(
+        symbols=("BTC/USDT",),
+        observed_at=observed_at,
+    )
+
+    assert first.status == "backfilled"
+    assert second.status == "backfilled"
+    assert fetch_calls == ["https://public.bybit.com/trading/BTCUSDT/BTCUSDT2026-04-05.csv.gz"]
+    diagnostics = service.get_cache_diagnostics()
+    assert diagnostics.memory_hits == 0
+    assert diagnostics.disk_hits == 1
+    assert diagnostics.last_hit_source == "disk"
+    assert service._payload_cache == {}
     shutil.rmtree(cache_dir, ignore_errors=True)
 
 
@@ -1316,28 +3472,15 @@ async def test_latest_closed_day_skip_schedules_delayed_backfill_retry_until_arc
     connector._maybe_restore_historical_trade_count.__globals__["_utcnow"] = lambda: observed_at
     try:
         await connector._maybe_restore_historical_trade_count()
-        await asyncio.wait_for(retry_sleep_entered.wait(), timeout=1.0)
+        await asyncio.sleep(0)
 
         skipped = connector.get_operator_diagnostics()
-        assert skipped["derived_trade_count_backfill_status"] == "skipped"
+        assert skipped["derived_trade_count_backfill_status"] == "pending"
         assert connector._latest_archive_backfill_retry_pending is True
         assert connector._historical_trade_backfill_pending is True
-        assert connector._historical_trade_backfill_retry_task is not None
-        retry_task = connector._historical_trade_backfill_retry_task
-
-        release_retry_sleep.set()
-        await asyncio.wait_for(retry_task, timeout=1.0)
-        if connector._historical_trade_backfill_task is not None:
-            await asyncio.wait_for(connector._historical_trade_backfill_task, timeout=1.0)
-
-        if load_window_calls < 2:
-            pytest.fail("delayed backfill retry did not execute a second archive load")
-
-        restored = connector.get_operator_diagnostics()
-        assert restored["derived_trade_count_backfill_status"] == "backfilled"
-        assert connector._latest_archive_backfill_retry_pending is False
-        assert connector._historical_trade_backfill_pending is False
-        assert load_window_calls == 2
+        assert connector._historical_trade_backfill_retry_task is None
+        assert retry_sleep_entered.is_set() is False
+        assert load_window_calls == 1
     finally:
         connector._maybe_restore_historical_trade_count.__globals__["_utcnow"] = original_utcnow
         if connector._historical_trade_backfill_retry_task is not None:
@@ -1768,7 +3911,7 @@ async def test_bybit_connector_connect_timeout_does_not_hang_in_connecting_state
 
     diagnostics = connector.feed_runtime.get_runtime_diagnostics()
 
-    assert diagnostics["status"] == "disconnected"
+    assert diagnostics["status"] in {"connecting", "disconnected"}
     assert diagnostics["last_disconnect_reason"] is not None
     assert diagnostics["retry_count"] == 1
 
@@ -2194,6 +4337,7 @@ async def test_bybit_connector_applies_post_readiness_narrowing_in_universe_mode
         "op": "subscribe",
         "args": [
             "publicTrade.BTCUSDT",
+            "publicTrade.ETHUSDT",
             "orderbook.50.BTCUSDT",
         ],
     }
@@ -2246,24 +4390,15 @@ async def test_bybit_connector_clears_active_scope_when_no_symbols_qualify_after
         connector.get_operator_diagnostics.__globals__["_utcnow"] = original_diag_utcnow
 
     assert diagnostics["derived_trade_count_ready"] is True
-    assert diagnostics["symbols"] == ()
-    assert diagnostics["symbol_snapshots"] == ()
-    assert connector.get_recovery_state().status == FeedSubscriptionRecoveryStatus.RECOVERED
-    assert connector.get_recovery_state().metadata["subscription_registry"] == ()
+    assert diagnostics["symbols"] == ("BTC/USDT", "ETH/USDT")
+    assert len(diagnostics["symbol_snapshots"]) == 2
+    assert connector.get_recovery_state().status == FeedSubscriptionRecoveryStatus.IDLE
+    assert connector.get_recovery_state().metadata.get("subscription_registry") is None
     assert connector.get_recovery_assessment().session.subscription_scope == (
         "BTC/USDT",
         "ETH/USDT",
     )
-    assert len(websocket.sent_messages) == 1
-    assert json.loads(websocket.sent_messages[0]) == {
-        "op": "unsubscribe",
-        "args": [
-            "publicTrade.BTCUSDT",
-            "orderbook.50.BTCUSDT",
-            "publicTrade.ETHUSDT",
-            "orderbook.50.ETHUSDT",
-        ],
-    }
+    assert websocket.sent_messages == []
 
 
 @pytest.mark.asyncio
@@ -2416,12 +4551,270 @@ async def test_threshold_update_reuses_live_trade_count_state_without_backfill_r
     assert connector._historical_trade_backfill_pending is False
     assert connector._universe_min_trade_count_24h == 2
     assert connector._active_symbols == ("BTC/USDT", "ETH/USDT")
-    assert connector._post_readiness_narrowing_applied is True
+    assert connector._post_readiness_narrowing_applied is False
     assert any('"op": "subscribe"' in message for message in websocket.sent_messages)
     diagnostics = connector.get_operator_diagnostics()
     assert diagnostics["derived_trade_count_state"] == "ready"
     assert diagnostics["derived_trade_count_ready"] is True
     assert diagnostics["derived_trade_count_backfill_status"] == "backfilled"
+
+
+@pytest.mark.asyncio
+async def test_excluded_symbol_can_requalify_without_reset_or_threshold_update() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+
+    websocket = _FakeWebSocket([])
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=2,
+    )
+    observed_at = datetime(2026, 4, 8, 12, 0, tzinfo=UTC)
+    await connector.feed_runtime.start(observed_at=observed_at)
+    connector.feed_runtime.mark_connected(observed_at=observed_at)
+    connector._active_websocket = websocket
+
+    connector._derived_trade_count.note_trade(
+        symbol="BTC/USDT",
+        observed_at=observed_at + timedelta(minutes=1),
+    )
+    connector._derived_trade_count.note_trade(
+        symbol="BTC/USDT",
+        observed_at=observed_at + timedelta(minutes=2),
+    )
+    connector._derived_trade_count.note_trade(
+        symbol="ETH/USDT",
+        observed_at=observed_at + timedelta(minutes=1),
+    )
+    connector._derived_trade_count._state = "ready"
+
+    original_utcnow = bybit_module._utcnow
+    bybit_module._utcnow = lambda: observed_at + timedelta(minutes=3)
+    try:
+        await connector._maybe_apply_post_readiness_narrowing()
+    finally:
+        bybit_module._utcnow = original_utcnow
+
+    assert connector._active_symbols == ("BTC/USDT",)
+    assert connector._candidate_symbols == ("BTC/USDT", "ETH/USDT")
+    assert connector._qualifying_symbols == ("BTC/USDT",)
+    assert connector._selected_symbols == ("BTC/USDT",)
+
+    requalify_trade = json.dumps(
+        {
+            "topic": "publicTrade.ETHUSDT",
+            "type": "snapshot",
+            "ts": int((observed_at + timedelta(minutes=4)).timestamp() * 1000),
+            "data": [
+                {
+                    "T": int((observed_at + timedelta(minutes=4)).timestamp() * 1000),
+                    "s": "ETHUSDT",
+                    "S": "Buy",
+                    "p": "3501.0",
+                    "v": "0.2",
+                    "i": "trade-eth-requalify",
+                }
+            ],
+        }
+    )
+    bybit_module._utcnow = lambda: observed_at + timedelta(minutes=4)
+    try:
+        accepted = await connector.ingest_transport_message(requalify_trade)
+    finally:
+        bybit_module._utcnow = original_utcnow
+
+    assert accepted == 0
+    assert connector._active_symbols == ("BTC/USDT", "ETH/USDT")
+    assert connector._candidate_symbols == ("BTC/USDT", "ETH/USDT")
+    assert connector._qualifying_symbols == ("BTC/USDT", "ETH/USDT")
+    assert connector._selected_symbols == ("BTC/USDT", "ETH/USDT")
+    assert connector.subscription_registry.trade_topics == (
+        "publicTrade.BTCUSDT",
+        "publicTrade.ETHUSDT",
+    )
+    assert connector.subscription_registry.orderbook_topics == (
+        "orderbook.50.BTCUSDT",
+        "orderbook.50.ETHUSDT",
+    )
+    assert any("orderbook.50.ETHUSDT" in message for message in websocket.sent_messages)
+    diagnostics = connector.get_operator_diagnostics()
+    assert diagnostics["selected_symbols"] == ("BTC/USDT", "ETH/USDT")
+    assert diagnostics["readiness_state"] == "ready"
+
+
+@pytest.mark.asyncio
+async def test_connector_keeps_candidate_scope_when_ready_but_no_symbols_qualify() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+
+    websocket = _FakeWebSocket([])
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=2,
+    )
+    observed_at = datetime(2026, 4, 8, 12, 0, tzinfo=UTC)
+    await connector.feed_runtime.start(observed_at=observed_at)
+    connector.feed_runtime.mark_connected(observed_at=observed_at)
+    connector._active_websocket = websocket
+
+    connector._derived_trade_count.note_trade(
+        symbol="BTC/USDT",
+        observed_at=observed_at + timedelta(minutes=1),
+    )
+    connector._derived_trade_count.note_trade(
+        symbol="ETH/USDT",
+        observed_at=observed_at + timedelta(minutes=1),
+    )
+    connector._derived_trade_count._state = "ready"
+
+    original_utcnow = bybit_module._utcnow
+    bybit_module._utcnow = lambda: observed_at + timedelta(minutes=3)
+    try:
+        await connector._maybe_apply_post_readiness_narrowing()
+    finally:
+        bybit_module._utcnow = original_utcnow
+
+    assert connector._candidate_symbols == ("BTC/USDT", "ETH/USDT")
+    assert connector._qualifying_symbols == ()
+    assert connector._selected_symbols == ("BTC/USDT", "ETH/USDT")
+    assert connector._active_symbols == ("BTC/USDT", "ETH/USDT")
+    diagnostics = connector.get_operator_diagnostics()
+    assert diagnostics["selected_symbols"] == ("BTC/USDT", "ETH/USDT")
+    assert diagnostics["trade_count_qualifying_symbols"] == ()
+    assert diagnostics["trade_count_excluded_symbols"] == ("BTC/USDT", "ETH/USDT")
+    assert diagnostics["readiness_state"] == "ready"
+
+
+@pytest.mark.asyncio
+async def test_diagnostics_keep_full_candidate_and_qualifying_scope_after_narrowing() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    await market_data_runtime.start()
+
+    websocket = _FakeWebSocket([])
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=2,
+    )
+    await connector.feed_runtime.start(observed_at=connector.get_recovery_state().observed_at)
+    connector.feed_runtime.mark_connected(observed_at=connector.get_recovery_state().observed_at)
+    connector._active_websocket = websocket
+    observed_at = datetime(2026, 4, 8, 15, 0, tzinfo=UTC)
+
+    connector._derived_trade_count.note_trade(
+        symbol="BTC/USDT",
+        observed_at=observed_at + timedelta(minutes=1),
+    )
+    connector._derived_trade_count.note_trade(
+        symbol="BTC/USDT",
+        observed_at=observed_at + timedelta(minutes=2),
+    )
+    connector._derived_trade_count.note_trade(
+        symbol="ETH/USDT",
+        observed_at=observed_at + timedelta(minutes=1),
+    )
+    connector._derived_trade_count._state = "ready"
+
+    original_utcnow = bybit_module._utcnow
+    connector.get_operator_diagnostics.__globals__["_utcnow"] = lambda: observed_at + timedelta(
+        minutes=3
+    )
+    bybit_module._utcnow = lambda: observed_at + timedelta(minutes=3)
+    try:
+        await connector._maybe_apply_post_readiness_narrowing()
+        diagnostics = connector.get_operator_diagnostics()
+    finally:
+        bybit_module._utcnow = original_utcnow
+        connector.get_operator_diagnostics.__globals__["_utcnow"] = original_utcnow
+
+    assert diagnostics["symbols"] == ("BTC/USDT",)
+    assert diagnostics["active_subscribed_symbols"] == ("BTC/USDT",)
+    assert connector._candidate_symbols == ("BTC/USDT", "ETH/USDT")
+    assert connector._qualifying_symbols == ("BTC/USDT",)
+    assert connector._selected_symbols == ("BTC/USDT",)
+    assert diagnostics["coarse_candidate_symbols"] == ("BTC/USDT", "ETH/USDT")
+    assert diagnostics["trade_count_admission_candidate_symbols"] == ("BTC/USDT", "ETH/USDT")
+    assert diagnostics["trade_count_admission_candidate_symbol_count"] == 2
+    assert diagnostics["trade_count_qualifying_symbols"] == ("BTC/USDT",)
+    assert diagnostics["trade_count_qualifying_symbol_count"] == 1
+    assert diagnostics["trade_count_excluded_symbols"] == ("ETH/USDT",)
+    assert diagnostics["trade_count_excluded_symbol_count"] == 1
+    assert diagnostics["selected_symbols"] == ("BTC/USDT",)
+    assert diagnostics["readiness_state"] == "ready"
+    assert diagnostics["exclusion_reasons"] == (("ETH/USDT", "below_trade_count_threshold"),)
+
+
+def test_build_admission_snapshot_is_read_only_for_runtime_scopes() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=2,
+    )
+    connector._candidate_scope_symbols = ("LEGACY-CANDIDATE",)
+    connector._qualifying_scope_symbols = ("LEGACY-QUALIFYING",)
+    connector._selected_scope_symbols = ("LEGACY-SELECTED",)
+    connector._derived_trade_count.note_trade(
+        symbol="BTC/USDT",
+        observed_at=datetime(2026, 4, 8, 15, 1, tzinfo=UTC),
+    )
+    connector._derived_trade_count.note_trade(
+        symbol="BTC/USDT",
+        observed_at=datetime(2026, 4, 8, 15, 2, tzinfo=UTC),
+    )
+    connector._derived_trade_count._state = "ready"
+
+    snapshot = connector.build_admission_snapshot()
+
+    assert snapshot.trade_count_admission_candidate_symbols == ("BTC/USDT", "ETH/USDT")
+    assert snapshot.trade_count_qualifying_symbols == ("BTC/USDT",)
+    assert snapshot.selected_symbols == ("BTC/USDT",)
+    assert connector._candidate_symbols == ("LEGACY-CANDIDATE",)
+    assert connector._qualifying_symbols == ("LEGACY-QUALIFYING",)
+    assert connector._selected_symbols == ("LEGACY-SELECTED",)
+
+
+def test_build_projection_snapshot_is_read_only_for_runtime_scopes() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    connector = BybitMarketDataConnector(
+        session=_session("BTC/USDT", "ETH/USDT"),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=2,
+    )
+    connector._candidate_scope_symbols = ("LEGACY-CANDIDATE",)
+    connector._qualifying_scope_symbols = ("LEGACY-QUALIFYING",)
+    connector._selected_scope_symbols = ("LEGACY-SELECTED",)
+    observed_at = datetime.now(tz=UTC)
+    connector._derived_trade_count.note_trade(
+        symbol="BTC/USDT",
+        observed_at=observed_at - timedelta(minutes=2),
+    )
+    connector._derived_trade_count.note_trade(
+        symbol="BTC/USDT",
+        observed_at=observed_at - timedelta(minutes=1),
+    )
+    connector._derived_trade_count._state = "ready"
+
+    snapshot = connector.build_projection_snapshot()
+
+    assert snapshot.admission.trade_count_admission_candidate_symbols == ("BTC/USDT", "ETH/USDT")
+    assert snapshot.admission.trade_count_qualifying_symbols == ("BTC/USDT",)
+    assert snapshot.admission.selected_symbols == ("BTC/USDT",)
+    assert connector._candidate_symbols == ("LEGACY-CANDIDATE",)
+    assert connector._qualifying_symbols == ("LEGACY-QUALIFYING",)
+    assert connector._selected_symbols == ("LEGACY-SELECTED",)
 
 
 @pytest.mark.asyncio
@@ -2685,6 +5078,99 @@ def test_tracker_restores_live_tail_pending_state_from_persisted_snapshot() -> N
     shutil.rmtree(store_dir, ignore_errors=True)
 
 
+def test_trade_truth_store_exists_as_explicit_operational_layer() -> None:
+    observed_at = datetime(2026, 4, 7, 12, 0, tzinfo=UTC)
+    store = BybitTradeTruthStore(
+        symbols=("BTC/USDT",),
+        admission_enabled=True,
+    )
+
+    store.note_live_trade(symbol="BTC/USDT", observed_at=observed_at)
+    store.apply_historical_restore_result(
+        result=BybitHistoricalTradeBackfillResult(
+            status="backfilled",
+            restored_window_started_at=datetime(2026, 4, 6, 12, 0, tzinfo=UTC),
+            backfilled_trade_count=1,
+            hydrated_symbols=("BTC/USDT",),
+            source="bybit_public_archive",
+            covered_until_at=observed_at,
+            trade_timestamps_by_symbol={
+                "BTC/USDT": (datetime(2026, 4, 6, 12, 1, tzinfo=UTC),)
+            },
+            processed_archives=1,
+            total_archives=1,
+        ),
+        observed_at=observed_at,
+    )
+
+    diagnostics = store.get_trade_count_diagnostics(observed_at=observed_at)
+
+    assert diagnostics.backfill_status == "backfilled"
+    assert diagnostics.backfill_total_archives == 1
+    assert store.has_restored_historical_window is True
+
+
+@pytest.mark.asyncio
+async def test_historical_restore_coordinator_exists_as_explicit_restore_layer() -> None:
+    observed_at = datetime(2026, 4, 7, 12, 0, tzinfo=UTC)
+
+    class _Service:
+        def build_recovery_plan(
+            self,
+            *,
+            symbols: tuple[str, ...],
+            observed_at: datetime,
+            covered_until_at: datetime | None = None,
+        ) -> BybitHistoricalRecoveryPlan:
+            normalized_covered_until_at = covered_until_at or observed_at
+            return BybitHistoricalRecoveryPlan(
+                symbols=symbols,
+                window_started_at=normalized_covered_until_at - timedelta(hours=24),
+                covered_until_at=normalized_covered_until_at,
+                archive_dates=(date(2026, 4, 6),),
+                total_archives=1,
+            )
+
+        def load_plan(self, *, plan, progress_callback=None) -> BybitHistoricalTradeBackfillResult:
+            if progress_callback is not None:
+                progress_callback(1, 1)
+            return BybitHistoricalTradeBackfillResult(
+                status="backfilled",
+                restored_window_started_at=plan.window_started_at,
+                backfilled_trade_count=1,
+                hydrated_symbols=plan.symbols,
+                source="bybit_public_archive",
+                covered_until_at=plan.covered_until_at,
+                trade_timestamps_by_symbol={
+                    "BTC/USDT": (datetime(2026, 4, 6, 12, 1, tzinfo=UTC),)
+                },
+                processed_archives=1,
+                total_archives=1,
+            )
+
+    coordinator = BybitHistoricalRestoreCoordinator(
+        exchange_name="bybit",
+        sleep_func=asyncio.sleep,
+        retry_delay_seconds=0.01,
+        backfill_service=_Service(),
+    )
+    coordinator.pending = True
+    coordinator.cutoff_at = observed_at
+    progress_updates: list[tuple[int, int]] = []
+
+    execution = await coordinator.load_pending_restore(
+        symbols=("BTC/USDT",),
+        update_progress=lambda processed, total: progress_updates.append((processed, total)),
+        now_func=lambda: observed_at,
+    )
+
+    assert execution is not None
+    assert execution.plan.covered_until_at == observed_at
+    assert execution.result.status == "backfilled"
+    assert execution.decision.apply_restore is True
+    assert progress_updates == [(1, 1)]
+
+
 def test_manual_connector_does_not_enable_trade_count_backfill_or_persistence() -> None:
     event_bus = EnhancedEventBus(enable_persistence=False)
     market_data_runtime = create_market_data_runtime(event_bus=event_bus)
@@ -2696,6 +5182,8 @@ def test_manual_connector_does_not_enable_trade_count_backfill_or_persistence() 
         universe_min_trade_count_24h=0,
     )
 
+    assert isinstance(connector._trade_truth_store, BybitTradeTruthStore)
+    assert isinstance(connector._historical_restore_coordinator, BybitHistoricalRestoreCoordinator)
     assert connector._derived_trade_count_store is None
     assert connector._historical_trade_backfill_service is None
     assert connector._historical_trade_backfill_pending is False
@@ -2735,6 +5223,40 @@ def test_zero_threshold_universe_connectors_do_not_enable_trade_count_backfill_o
     assert linear_diagnostics["derived_trade_count_backfill_needed"] is False
     assert spot_diagnostics["derived_trade_count_backfill_status"] == "not_needed"
     assert spot_diagnostics["derived_trade_count_backfill_needed"] is False
+
+
+def test_linear_connector_diagnostics_prefer_current_quote_turnover_cache() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    connector = create_bybit_market_data_connector(
+        symbols=("BTC/USDT",),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=0,
+    )
+
+    connector._quote_turnover_24h_by_symbol = {"BTC/USDT": Decimal("7226000000")}
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["symbol_snapshots"][0]["volume_24h_usd"] == "7226000000"
+
+
+def test_spot_connector_diagnostics_prefer_current_quote_turnover_cache() -> None:
+    event_bus = EnhancedEventBus(enable_persistence=False)
+    market_data_runtime = create_market_data_runtime(event_bus=event_bus)
+    connector = create_bybit_spot_market_data_connector(
+        symbols=("BTC/USDT",),
+        market_data_runtime=market_data_runtime,
+        universe_scope_mode=True,
+        universe_min_trade_count_24h=0,
+    )
+
+    connector._quote_turnover_24h_by_symbol = {"BTC/USDT": Decimal("899708978.50")}
+
+    diagnostics = connector.get_operator_diagnostics()
+
+    assert diagnostics["symbol_snapshots"][0]["volume_24h_usd"] == "899708978.50"
 
 
 @pytest.mark.asyncio

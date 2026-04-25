@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -638,6 +638,7 @@ class _StubProductionRuntime:
         self.bybit_active_scope_count = 42
         self.startup = AsyncMock()
         self.shutdown = AsyncMock()
+        self.await_post_start_bringup = AsyncMock()
         self.set_bybit_market_data_connector_enabled = AsyncMock(
             side_effect=self._set_bybit_market_data_connector_enabled
         )
@@ -646,6 +647,66 @@ class _StubProductionRuntime:
         )
         self.update_live_feed_policy_settings = AsyncMock(
             side_effect=self._update_live_feed_policy_settings
+        )
+        self.get_bybit_spot_product_snapshot = AsyncMock(
+            return_value={
+                "generation": "v2",
+                "desired_running": True,
+                "transport_status": "connected",
+                "lifecycle_state": "connected_live",
+                "subscription_alive": True,
+                "filtered_symbols_count": 5,
+                "selected_symbols_count": 2,
+                "symbols": ("BTC/USDT", "ETH/USDT"),
+                "observed_at": "2026-04-23T12:00:00+00:00",
+                "persistence_24h": {
+                    "live_trade_count_24h": 10,
+                    "archive_trade_count_24h": 20,
+                    "persisted_trade_count_24h": 30,
+                    "first_persisted_trade_at": None,
+                    "last_persisted_trade_at": None,
+                    "coverage_status": "hybrid",
+                },
+                "instrument_rows": [
+                    {"symbol": "BTC/USDT", "volume_24h_usd": "1", "trade_count_24h": 10},
+                    {"symbol": "ETH/USDT", "volume_24h_usd": "2", "trade_count_24h": 20},
+                ],
+                "screen_scope_reason": "strict_published_scope",
+                "contract_flags": {
+                    "row_count_matches_selected_symbols_count": True,
+                    "row_symbols_match_symbols": True,
+                    "pending_archive_rows_masked": True,
+                    "numeric_rows_respect_min_trade_count": True,
+                    "runtime_scope_diverges_from_snapshot": False,
+                },
+            }
+        )
+        self.get_bybit_spot_runtime_status = Mock(
+            return_value={
+                "generation": "v2",
+                "desired_running": True,
+                "transport_status": "connected",
+                "lifecycle_state": "connected_live",
+                "subscription_alive": True,
+                "filtered_symbols_count": 6,
+                "selected_symbols_count": 6,
+                "symbols": (
+                    "BTC/USDT",
+                    "ETH/USDT",
+                    "XRP/USDT",
+                    "SOL/USDT",
+                    "ADA/USDT",
+                    "DOGE/USDT",
+                ),
+                "screen_scope_reason": "strict_published_scope",
+                "contract_flags": {
+                    "trade_truth_incomplete": True,
+                    "strict_published_scope_empty": False,
+                    "coarse_scope_nonempty": True,
+                    "screen_scope_nonempty": True,
+                    "empty_screen_scope_with_live_coarse_universe": False,
+                },
+            }
         )
 
     async def _set_bybit_market_data_connector_enabled(self, enabled: bool) -> dict[str, object]:
@@ -1758,13 +1819,14 @@ def test_dashboard_live_feed_policy_settings_endpoint_returns_current_values() -
     settings = get_settings()
     assert data.retry_delay_seconds == settings.live_feed_retry_delay_seconds
     assert (
-        data.bybit_universe_min_quote_volume_24h_usd
-        == settings.bybit_universe_min_quote_volume_24h_usd
+        data.bybit_spot_universe_min_quote_volume_24h_usd
+        == settings.bybit_spot_universe_min_quote_volume_24h_usd
     )
-    assert data.bybit_universe_min_trade_count_24h == settings.bybit_universe_min_trade_count_24h
     assert (
-        data.bybit_universe_max_symbols_per_scope == settings.bybit_universe_max_symbols_per_scope
+        data.bybit_spot_universe_min_trade_count_24h
+        == settings.bybit_spot_universe_min_trade_count_24h
     )
+    assert data.bybit_spot_quote_asset_filter == settings.bybit_spot_quote_asset_filter
 
 
 def test_dashboard_live_feed_policy_settings_endpoint_updates_current_values() -> None:
@@ -1777,24 +1839,24 @@ def test_dashboard_live_feed_policy_settings_endpoint_updates_current_values() -
             "/dashboard/settings/live-feed-policy",
             json={
                 "retry_delay_seconds": 9,
-                "bybit_universe_min_quote_volume_24h_usd": 2500000.0,
-                "bybit_universe_min_trade_count_24h": 1000,
-                "bybit_universe_max_symbols_per_scope": 80,
+                "bybit_spot_universe_min_quote_volume_24h_usd": 2500000.0,
+                "bybit_spot_universe_min_trade_count_24h": 1000,
+                "bybit_spot_quote_asset_filter": "usdc",
             },
         )
 
         assert response.status_code == 200
         data = LiveFeedPolicySettingsDTO.model_validate(response.json())
         assert data.retry_delay_seconds == 9
-        assert data.bybit_universe_min_quote_volume_24h_usd == 2500000.0
-        assert data.bybit_universe_min_trade_count_24h == 1000
-        assert data.bybit_universe_max_symbols_per_scope == 80
+        assert data.bybit_spot_universe_min_quote_volume_24h_usd == 2500000.0
+        assert data.bybit_spot_universe_min_trade_count_24h == 1000
+        assert data.bybit_spot_quote_asset_filter == "usdc"
 
         settings = get_settings()
         assert settings.live_feed_retry_delay_seconds == 9
-        assert settings.bybit_universe_min_quote_volume_24h_usd == 2500000.0
-        assert settings.bybit_universe_min_trade_count_24h == 1000
-        assert settings.bybit_universe_max_symbols_per_scope == 80
+        assert settings.bybit_spot_universe_min_quote_volume_24h_usd == 2500000.0
+        assert settings.bybit_spot_universe_min_trade_count_24h == 1000
+        assert settings.bybit_spot_quote_asset_filter == "usdc"
     finally:
         reload_settings()
 
@@ -1802,9 +1864,9 @@ def test_dashboard_live_feed_policy_settings_endpoint_updates_current_values() -
 def test_live_feed_policy_dto_returns_automatic_only_settings_update() -> None:
     dto = LiveFeedPolicySettingsDTO(
         retry_delay_seconds=5,
-        bybit_universe_min_quote_volume_24h_usd=1000000.0,
-        bybit_universe_min_trade_count_24h=5,
-        bybit_universe_max_symbols_per_scope=100,
+        bybit_spot_universe_min_quote_volume_24h_usd=1000000.0,
+        bybit_spot_universe_min_trade_count_24h=5,
+        bybit_spot_quote_asset_filter="usdt_usdc",
     )
 
     updates = dto.to_settings_update()
@@ -1837,9 +1899,9 @@ def test_dashboard_live_feed_policy_settings_endpoint_syncs_canonical_runtime_tr
             "/dashboard/settings/live-feed-policy",
             json={
                 "retry_delay_seconds": 5,
-                "bybit_universe_min_quote_volume_24h_usd": 1000000.0,
-                "bybit_universe_min_trade_count_24h": 0,
-                "bybit_universe_max_symbols_per_scope": 100,
+                "bybit_spot_universe_min_quote_volume_24h_usd": 1000000.0,
+                "bybit_spot_universe_min_trade_count_24h": 0,
+                "bybit_spot_quote_asset_filter": "usdt_usdc",
             },
         )
         diagnostics_response = client.get("/dashboard/settings/bybit-connector-diagnostics")
@@ -1872,9 +1934,9 @@ def test_dashboard_live_feed_policy_get_endpoint_prefers_canonical_runtime_truth
             "/dashboard/settings/live-feed-policy",
             json={
                 "retry_delay_seconds": 7,
-                "bybit_universe_min_quote_volume_24h_usd": 2500000.0,
-                "bybit_universe_min_trade_count_24h": 2,
-                "bybit_universe_max_symbols_per_scope": 80,
+                "bybit_spot_universe_min_quote_volume_24h_usd": 2500000.0,
+                "bybit_spot_universe_min_trade_count_24h": 2,
+                "bybit_spot_quote_asset_filter": "usdt",
             },
         )
         followup_response = client.get("/dashboard/settings/live-feed-policy")
@@ -1884,9 +1946,9 @@ def test_dashboard_live_feed_policy_get_endpoint_prefers_canonical_runtime_truth
 
     data = LiveFeedPolicySettingsDTO.model_validate(followup_response.json())
     assert data.retry_delay_seconds == 7
-    assert data.bybit_universe_min_quote_volume_24h_usd == 2500000.0
-    assert data.bybit_universe_min_trade_count_24h == 2
-    assert data.bybit_universe_max_symbols_per_scope == 80
+    assert data.bybit_spot_universe_min_quote_volume_24h_usd == 2500000.0
+    assert data.bybit_spot_universe_min_trade_count_24h == 2
+    assert data.bybit_spot_quote_asset_filter == "usdt"
 
 
 def test_dashboard_live_feed_policy_settings_survive_reload_via_durable_overrides() -> None:
@@ -1898,9 +1960,9 @@ def test_dashboard_live_feed_policy_settings_survive_reload_via_durable_override
             "/dashboard/settings/live-feed-policy",
             json={
                 "retry_delay_seconds": 11,
-                "bybit_universe_min_quote_volume_24h_usd": 3500000.0,
-                "bybit_universe_min_trade_count_24h": 6,
-                "bybit_universe_max_symbols_per_scope": 77,
+                "bybit_spot_universe_min_quote_volume_24h_usd": 3500000.0,
+                "bybit_spot_universe_min_trade_count_24h": 6,
+                "bybit_spot_quote_asset_filter": "usdc",
             },
         )
 
@@ -1917,9 +1979,9 @@ def test_dashboard_live_feed_policy_settings_survive_reload_via_durable_override
     assert followup_response.status_code == 200
     data = LiveFeedPolicySettingsDTO.model_validate(followup_response.json())
     assert data.retry_delay_seconds == 11
-    assert data.bybit_universe_min_quote_volume_24h_usd == 3500000.0
-    assert data.bybit_universe_min_trade_count_24h == 6
-    assert data.bybit_universe_max_symbols_per_scope == 77
+    assert data.bybit_spot_universe_min_quote_volume_24h_usd == 3500000.0
+    assert data.bybit_spot_universe_min_trade_count_24h == 6
+    assert data.bybit_spot_quote_asset_filter == "usdc"
 
 
 def test_dashboard_bybit_connector_diagnostics_endpoint_returns_disabled_snapshot_by_default() -> (
@@ -2013,6 +2075,18 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
                             "orderbook_seen": True,
                             "best_bid": "68499.90",
                             "best_ask": "68500.00",
+                            "derived_trade_count_24h": 11,
+                            "bucket_trade_count_24h": 11,
+                            "ledger_trade_count_24h": 9,
+                            "trade_count_reconciliation_verdict": "mismatch",
+                            "trade_count_reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                            "trade_count_reconciliation_absolute_diff": 2,
+                            "trade_count_reconciliation_tolerance": 0,
+                            "trade_count_cutover_readiness_state": "not_ready",
+                            "trade_count_cutover_readiness_reason": "mismatch_present",
+                            "product_trade_count_24h": None,
+                            "product_trade_count_state": "reconciliation_mismatch",
+                            "product_trade_count_reason": "difference_exceeds_absolute_tolerance",
                         },
                     ),
                     "transport_status": "connected",
@@ -2046,10 +2120,493 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
                     "derived_trade_count_last_backfill_at": "2026-04-01T09:45:20.060548+00:00",
                     "derived_trade_count_last_backfill_source": "bybit_public_archive",
                     "derived_trade_count_last_backfill_reason": None,
+                    "ledger_trade_count_available": True,
+                    "ledger_trade_count_last_error": None,
+                    "ledger_trade_count_last_synced_at": "2026-04-01T09:45:39.000000+00:00",
+                    "trade_count_cutover_readiness_state": "not_ready",
+                    "trade_count_cutover_readiness_reason": "mismatch_present",
+                    "trade_count_cutover_compared_symbols": 1,
+                    "trade_count_cutover_ready_symbols": 0,
+                    "trade_count_cutover_not_ready_symbols": 1,
+                    "trade_count_cutover_blocked_symbols": 0,
+                    "trade_count_cutover_evaluation_state": "not_eligible",
+                    "trade_count_cutover_evaluation_reasons": ("mismatches_present",),
+                    "trade_count_cutover_evaluation_minimum_compared_symbols": 1,
+                    "trade_count_cutover_manual_review_state": "manual_review_not_recommended",
+                    "trade_count_cutover_manual_review_reasons": ("mismatches_present",),
+                    "trade_count_cutover_manual_review_evaluation_state": "not_eligible",
+                    "trade_count_cutover_manual_review_contour": "linear",
+                    "trade_count_cutover_manual_review_scope_mode": "universe",
+                    "trade_count_cutover_manual_review_scope_symbol_count": 1,
+                    "trade_count_cutover_manual_review_compared_symbols": 1,
+                    "trade_count_cutover_manual_review_ready_symbols": 0,
+                    "trade_count_cutover_manual_review_not_ready_symbols": 1,
+                    "trade_count_cutover_manual_review_blocked_symbols": 0,
+                    "trade_count_cutover_discussion_artifact": {
+                        "discussion_state": "discussion_not_ready",
+                        "headline": "Manual cutover review is not recommended for current scope.",
+                        "contour": "linear",
+                        "scope_mode": "universe",
+                        "scope_symbol_count": 1,
+                        "reconciliation_summary": (
+                            {"name": "mismatch", "count": 1},
+                        ),
+                        "cutover_readiness_state": "not_ready",
+                        "cutover_readiness_reason": "mismatch_present",
+                        "cutover_evaluation_state": "not_eligible",
+                        "cutover_evaluation_reasons": ("mismatches_present",),
+                        "manual_review_state": "manual_review_not_recommended",
+                        "manual_review_reasons": ("mismatches_present",),
+                        "compared_symbols": 1,
+                        "ready_symbols": 0,
+                        "not_ready_symbols": 1,
+                        "blocked_symbols": 0,
+                        "symbol_exceptions": (
+                            {
+                                "symbol": "BTC/USDT",
+                                "reconciliation_verdict": "mismatch",
+                                "reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                                "cutover_readiness_state": "not_ready",
+                                "cutover_readiness_reason": "mismatch_present",
+                            },
+                        ),
+                    },
+                    "trade_count_cutover_review_record": {
+                        "captured_at": "2026-04-01T09:45:40.060548+00:00",
+                        "contour": "linear",
+                        "scope_mode": "universe",
+                        "scope_symbol_count": 1,
+                        "discussion_state": "discussion_not_ready",
+                        "manual_review_state": "manual_review_not_recommended",
+                        "cutover_evaluation_state": "not_eligible",
+                        "cutover_readiness_state": "not_ready",
+                        "compared_symbols": 1,
+                        "ready_symbols": 0,
+                        "not_ready_symbols": 1,
+                        "blocked_symbols": 0,
+                        "headline": "Manual cutover review is not recommended for current scope.",
+                        "reasons_summary": ("mismatches_present", "mismatch_present"),
+                        "symbol_exceptions": (
+                            {
+                                "symbol": "BTC/USDT",
+                                "reconciliation_verdict": "mismatch",
+                                "reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                                "cutover_readiness_state": "not_ready",
+                                "cutover_readiness_reason": "mismatch_present",
+                            },
+                        ),
+                    },
+                    "trade_count_cutover_review_package": {
+                        "contour": "linear",
+                        "scope_mode": "universe",
+                        "scope_symbol_count": 1,
+                        "discussion_state": "discussion_not_ready",
+                        "manual_review_state": "manual_review_not_recommended",
+                        "cutover_evaluation_state": "not_eligible",
+                        "cutover_readiness_state": "not_ready",
+                        "compared_symbols": 1,
+                        "ready_symbols": 0,
+                        "not_ready_symbols": 1,
+                        "blocked_symbols": 0,
+                        "headline": "Manual cutover review is not recommended for current scope.",
+                        "reasons_summary": ("mismatches_present", "mismatch_present"),
+                        "review_record": {
+                            "captured_at": "2026-04-01T09:45:40.060548+00:00",
+                            "contour": "linear",
+                            "scope_mode": "universe",
+                            "scope_symbol_count": 1,
+                            "discussion_state": "discussion_not_ready",
+                            "manual_review_state": "manual_review_not_recommended",
+                            "cutover_evaluation_state": "not_eligible",
+                            "cutover_readiness_state": "not_ready",
+                            "compared_symbols": 1,
+                            "ready_symbols": 0,
+                            "not_ready_symbols": 1,
+                            "blocked_symbols": 0,
+                            "headline": "Manual cutover review is not recommended for current scope.",
+                            "reasons_summary": ("mismatches_present", "mismatch_present"),
+                            "symbol_exceptions": (
+                                {
+                                    "symbol": "BTC/USDT",
+                                    "reconciliation_verdict": "mismatch",
+                                    "reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                                    "cutover_readiness_state": "not_ready",
+                                    "cutover_readiness_reason": "mismatch_present",
+                                },
+                            ),
+                        },
+                        "symbol_exceptions": (
+                            {
+                                "symbol": "BTC/USDT",
+                                "reconciliation_verdict": "mismatch",
+                                "reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                                "cutover_readiness_state": "not_ready",
+                                "cutover_readiness_reason": "mismatch_present",
+                            },
+                        ),
+                    },
+                    "trade_count_cutover_review_catalog": {
+                        "contour": "linear",
+                        "scope_mode": "universe",
+                        "headline": "Manual cutover review is not recommended for current scope.",
+                        "discussion_state": "discussion_not_ready",
+                        "manual_review_state": "manual_review_not_recommended",
+                        "cutover_evaluation_state": "not_eligible",
+                        "cutover_readiness_state": "not_ready",
+                        "compared_symbols": 1,
+                        "ready_symbols": 0,
+                        "not_ready_symbols": 1,
+                        "blocked_symbols": 0,
+                        "reasons_summary": ("mismatches_present", "mismatch_present"),
+                        "current_review_package": {
+                            "contour": "linear",
+                            "scope_mode": "universe",
+                            "scope_symbol_count": 1,
+                            "discussion_state": "discussion_not_ready",
+                            "manual_review_state": "manual_review_not_recommended",
+                            "cutover_evaluation_state": "not_eligible",
+                            "cutover_readiness_state": "not_ready",
+                            "compared_symbols": 1,
+                            "ready_symbols": 0,
+                            "not_ready_symbols": 1,
+                            "blocked_symbols": 0,
+                            "headline": "Manual cutover review is not recommended for current scope.",
+                            "reasons_summary": ("mismatches_present", "mismatch_present"),
+                            "review_record": {
+                                "captured_at": "2026-04-01T09:45:40.060548+00:00",
+                                "contour": "linear",
+                                "scope_mode": "universe",
+                                "scope_symbol_count": 1,
+                                "discussion_state": "discussion_not_ready",
+                                "manual_review_state": "manual_review_not_recommended",
+                                "cutover_evaluation_state": "not_eligible",
+                                "cutover_readiness_state": "not_ready",
+                                "compared_symbols": 1,
+                                "ready_symbols": 0,
+                                "not_ready_symbols": 1,
+                                "blocked_symbols": 0,
+                                "headline": "Manual cutover review is not recommended for current scope.",
+                                "reasons_summary": ("mismatches_present", "mismatch_present"),
+                                "symbol_exceptions": (
+                                    {
+                                        "symbol": "BTC/USDT",
+                                        "reconciliation_verdict": "mismatch",
+                                        "reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                                        "cutover_readiness_state": "not_ready",
+                                        "cutover_readiness_reason": "mismatch_present",
+                                    },
+                                ),
+                            },
+                            "symbol_exceptions": (
+                                {
+                                    "symbol": "BTC/USDT",
+                                    "reconciliation_verdict": "mismatch",
+                                    "reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                                    "cutover_readiness_state": "not_ready",
+                                    "cutover_readiness_reason": "mismatch_present",
+                                },
+                            ),
+                        },
+                    },
+                    "trade_count_cutover_review_snapshot_collection": {
+                        "contour": "linear",
+                        "scope_mode": "universe",
+                        "headline": "Manual cutover review is not recommended for current scope.",
+                        "discussion_state": "discussion_not_ready",
+                        "manual_review_state": "manual_review_not_recommended",
+                        "cutover_evaluation_state": "not_eligible",
+                        "cutover_readiness_state": "not_ready",
+                        "compared_symbols": 1,
+                        "ready_symbols": 0,
+                        "not_ready_symbols": 1,
+                        "blocked_symbols": 0,
+                        "reasons_summary": ("mismatches_present", "mismatch_present"),
+                        "current_review_package_headline": "Manual cutover review is not recommended for current scope.",
+                        "current_review_package_discussion_state": "discussion_not_ready",
+                        "current_review_catalog": {
+                            "contour": "linear",
+                            "scope_mode": "universe",
+                            "headline": "Manual cutover review is not recommended for current scope.",
+                            "discussion_state": "discussion_not_ready",
+                            "manual_review_state": "manual_review_not_recommended",
+                            "cutover_evaluation_state": "not_eligible",
+                            "cutover_readiness_state": "not_ready",
+                            "compared_symbols": 1,
+                            "ready_symbols": 0,
+                            "not_ready_symbols": 1,
+                            "blocked_symbols": 0,
+                            "reasons_summary": ("mismatches_present", "mismatch_present"),
+                            "current_review_package": {
+                                "contour": "linear",
+                                "scope_mode": "universe",
+                                "scope_symbol_count": 1,
+                                "discussion_state": "discussion_not_ready",
+                                "manual_review_state": "manual_review_not_recommended",
+                                "cutover_evaluation_state": "not_eligible",
+                                "cutover_readiness_state": "not_ready",
+                                "compared_symbols": 1,
+                                "ready_symbols": 0,
+                                "not_ready_symbols": 1,
+                                "blocked_symbols": 0,
+                                "headline": "Manual cutover review is not recommended for current scope.",
+                                "reasons_summary": ("mismatches_present", "mismatch_present"),
+                                "review_record": {
+                                    "captured_at": "2026-04-01T09:45:40.060548+00:00",
+                                    "contour": "linear",
+                                    "scope_mode": "universe",
+                                    "scope_symbol_count": 1,
+                                    "discussion_state": "discussion_not_ready",
+                                    "manual_review_state": "manual_review_not_recommended",
+                                    "cutover_evaluation_state": "not_eligible",
+                                    "cutover_readiness_state": "not_ready",
+                                    "compared_symbols": 1,
+                                    "ready_symbols": 0,
+                                    "not_ready_symbols": 1,
+                                    "blocked_symbols": 0,
+                                    "headline": "Manual cutover review is not recommended for current scope.",
+                                    "reasons_summary": (
+                                        "mismatches_present",
+                                        "mismatch_present",
+                                    ),
+                                    "symbol_exceptions": (
+                                        {
+                                            "symbol": "BTC/USDT",
+                                            "reconciliation_verdict": "mismatch",
+                                            "reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                                            "cutover_readiness_state": "not_ready",
+                                            "cutover_readiness_reason": "mismatch_present",
+                                        },
+                                    ),
+                                },
+                                "symbol_exceptions": (
+                                    {
+                                        "symbol": "BTC/USDT",
+                                        "reconciliation_verdict": "mismatch",
+                                        "reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                                        "cutover_readiness_state": "not_ready",
+                                        "cutover_readiness_reason": "mismatch_present",
+                                    },
+                                ),
+                            },
+                        },
+                    },
+                    "trade_count_cutover_review_compact_digest": {
+                        "contour": "linear",
+                        "scope_mode": "universe",
+                        "headline": "Manual cutover review is not recommended for current scope.",
+                        "discussion_state": "discussion_not_ready",
+                        "manual_review_state": "manual_review_not_recommended",
+                        "cutover_evaluation_state": "not_eligible",
+                        "cutover_readiness_state": "not_ready",
+                        "compared_symbols": 1,
+                        "ready_symbols": 0,
+                        "not_ready_symbols": 1,
+                        "blocked_symbols": 0,
+                        "reasons_summary": ("mismatches_present", "mismatch_present"),
+                        "compact_symbol_exceptions": ("BTC/USDT",),
+                        "current_review_snapshot_collection": {
+                            "contour": "linear",
+                            "scope_mode": "universe",
+                            "headline": "Manual cutover review is not recommended for current scope.",
+                            "discussion_state": "discussion_not_ready",
+                            "manual_review_state": "manual_review_not_recommended",
+                            "cutover_evaluation_state": "not_eligible",
+                            "cutover_readiness_state": "not_ready",
+                            "compared_symbols": 1,
+                            "ready_symbols": 0,
+                            "not_ready_symbols": 1,
+                            "blocked_symbols": 0,
+                            "reasons_summary": ("mismatches_present", "mismatch_present"),
+                            "current_review_package_headline": "Manual cutover review is not recommended for current scope.",
+                            "current_review_package_discussion_state": "discussion_not_ready",
+                            "current_review_catalog": {
+                                "contour": "linear",
+                                "scope_mode": "universe",
+                                "headline": "Manual cutover review is not recommended for current scope.",
+                                "discussion_state": "discussion_not_ready",
+                                "manual_review_state": "manual_review_not_recommended",
+                                "cutover_evaluation_state": "not_eligible",
+                                "cutover_readiness_state": "not_ready",
+                                "compared_symbols": 1,
+                                "ready_symbols": 0,
+                                "not_ready_symbols": 1,
+                                "blocked_symbols": 0,
+                                "reasons_summary": ("mismatches_present", "mismatch_present"),
+                                "current_review_package": {
+                                    "contour": "linear",
+                                    "scope_mode": "universe",
+                                    "scope_symbol_count": 1,
+                                    "discussion_state": "discussion_not_ready",
+                                    "manual_review_state": "manual_review_not_recommended",
+                                    "cutover_evaluation_state": "not_eligible",
+                                    "cutover_readiness_state": "not_ready",
+                                    "compared_symbols": 1,
+                                    "ready_symbols": 0,
+                                    "not_ready_symbols": 1,
+                                    "blocked_symbols": 0,
+                                    "headline": "Manual cutover review is not recommended for current scope.",
+                                    "reasons_summary": ("mismatches_present", "mismatch_present"),
+                                    "review_record": {
+                                        "captured_at": "2026-04-01T09:45:40.060548+00:00",
+                                        "contour": "linear",
+                                        "scope_mode": "universe",
+                                        "scope_symbol_count": 1,
+                                        "discussion_state": "discussion_not_ready",
+                                        "manual_review_state": "manual_review_not_recommended",
+                                        "cutover_evaluation_state": "not_eligible",
+                                        "cutover_readiness_state": "not_ready",
+                                        "compared_symbols": 1,
+                                        "ready_symbols": 0,
+                                        "not_ready_symbols": 1,
+                                        "blocked_symbols": 0,
+                                        "headline": "Manual cutover review is not recommended for current scope.",
+                                        "reasons_summary": (
+                                            "mismatches_present",
+                                            "mismatch_present",
+                                        ),
+                                        "symbol_exceptions": (
+                                            {
+                                                "symbol": "BTC/USDT",
+                                                "reconciliation_verdict": "mismatch",
+                                                "reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                                                "cutover_readiness_state": "not_ready",
+                                                "cutover_readiness_reason": "mismatch_present",
+                                            },
+                                        ),
+                                    },
+                                    "symbol_exceptions": (
+                                        {
+                                            "symbol": "BTC/USDT",
+                                            "reconciliation_verdict": "mismatch",
+                                            "reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                                            "cutover_readiness_state": "not_ready",
+                                            "cutover_readiness_reason": "mismatch_present",
+                                        },
+                                    ),
+                                },
+                            },
+                        },
+                    },
+                    "trade_count_cutover_export_report_bundle": {
+                        "contour": "linear",
+                        "scope_mode": "universe",
+                        "headline": "Manual cutover review is not recommended for current scope.",
+                        "discussion_state": "discussion_not_ready",
+                        "manual_review_state": "manual_review_not_recommended",
+                        "cutover_evaluation_state": "not_eligible",
+                        "cutover_readiness_state": "not_ready",
+                        "compared_symbols": 1,
+                        "ready_symbols": 0,
+                        "not_ready_symbols": 1,
+                        "blocked_symbols": 0,
+                        "reasons_summary": ("mismatches_present", "mismatch_present"),
+                        "compact_symbol_exceptions": ("BTC/USDT",),
+                        "export_text_summary": "Manual cutover review is not recommended for current scope. [discussion=discussion_not_ready; manual_review=manual_review_not_recommended; evaluation=not_eligible; readiness=not_ready; compared=1; ready=0; not_ready=1; blocked=0]",
+                        "current_compact_digest": {
+                            "contour": "linear",
+                            "scope_mode": "universe",
+                            "headline": "Manual cutover review is not recommended for current scope.",
+                            "discussion_state": "discussion_not_ready",
+                            "manual_review_state": "manual_review_not_recommended",
+                            "cutover_evaluation_state": "not_eligible",
+                            "cutover_readiness_state": "not_ready",
+                            "compared_symbols": 1,
+                            "ready_symbols": 0,
+                            "not_ready_symbols": 1,
+                            "blocked_symbols": 0,
+                            "reasons_summary": ("mismatches_present", "mismatch_present"),
+                            "compact_symbol_exceptions": ("BTC/USDT",),
+                            "current_review_snapshot_collection": {
+                                "contour": "linear",
+                                "scope_mode": "universe",
+                                "headline": "Manual cutover review is not recommended for current scope.",
+                                "discussion_state": "discussion_not_ready",
+                                "manual_review_state": "manual_review_not_recommended",
+                                "cutover_evaluation_state": "not_eligible",
+                                "cutover_readiness_state": "not_ready",
+                                "compared_symbols": 1,
+                                "ready_symbols": 0,
+                                "not_ready_symbols": 1,
+                                "blocked_symbols": 0,
+                                "reasons_summary": ("mismatches_present", "mismatch_present"),
+                                "current_review_package_headline": "Manual cutover review is not recommended for current scope.",
+                                "current_review_package_discussion_state": "discussion_not_ready",
+                                "current_review_catalog": {
+                                    "contour": "linear",
+                                    "scope_mode": "universe",
+                                    "headline": "Manual cutover review is not recommended for current scope.",
+                                    "discussion_state": "discussion_not_ready",
+                                    "manual_review_state": "manual_review_not_recommended",
+                                    "cutover_evaluation_state": "not_eligible",
+                                    "cutover_readiness_state": "not_ready",
+                                    "compared_symbols": 1,
+                                    "ready_symbols": 0,
+                                    "not_ready_symbols": 1,
+                                    "blocked_symbols": 0,
+                                    "reasons_summary": ("mismatches_present", "mismatch_present"),
+                                    "current_review_package": {
+                                        "contour": "linear",
+                                        "scope_mode": "universe",
+                                        "scope_symbol_count": 1,
+                                        "discussion_state": "discussion_not_ready",
+                                        "manual_review_state": "manual_review_not_recommended",
+                                        "cutover_evaluation_state": "not_eligible",
+                                        "cutover_readiness_state": "not_ready",
+                                        "compared_symbols": 1,
+                                        "ready_symbols": 0,
+                                        "not_ready_symbols": 1,
+                                        "blocked_symbols": 0,
+                                        "headline": "Manual cutover review is not recommended for current scope.",
+                                        "reasons_summary": ("mismatches_present", "mismatch_present"),
+                                        "review_record": {
+                                            "captured_at": "2026-04-01T09:45:40.060548+00:00",
+                                            "contour": "linear",
+                                            "scope_mode": "universe",
+                                            "scope_symbol_count": 1,
+                                            "discussion_state": "discussion_not_ready",
+                                            "manual_review_state": "manual_review_not_recommended",
+                                            "cutover_evaluation_state": "not_eligible",
+                                            "cutover_readiness_state": "not_ready",
+                                            "compared_symbols": 1,
+                                            "ready_symbols": 0,
+                                            "not_ready_symbols": 1,
+                                            "blocked_symbols": 0,
+                                            "headline": "Manual cutover review is not recommended for current scope.",
+                                            "reasons_summary": (
+                                                "mismatches_present",
+                                                "mismatch_present",
+                                            ),
+                                            "symbol_exceptions": (
+                                                {
+                                                    "symbol": "BTC/USDT",
+                                                    "reconciliation_verdict": "mismatch",
+                                                    "reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                                                    "cutover_readiness_state": "not_ready",
+                                                    "cutover_readiness_reason": "mismatch_present",
+                                                },
+                                            ),
+                                        },
+                                        "symbol_exceptions": (
+                                            {
+                                                "symbol": "BTC/USDT",
+                                                "reconciliation_verdict": "mismatch",
+                                                "reconciliation_reason": "difference_exceeds_absolute_tolerance",
+                                                "cutover_readiness_state": "not_ready",
+                                                "cutover_readiness_reason": "mismatch_present",
+                                            },
+                                        ),
+                                    },
+                                },
+                            },
+                        },
+                    },
                     "desired_scope_mode": "universe",
                     "desired_trade_count_filter_minimum": 5,
                     "applied_scope_mode": "universe",
                     "applied_trade_count_filter_minimum": 5,
+                    "trade_count_product_truth_state": "reconciliation_mismatch",
+                    "trade_count_product_truth_reason": "reconciliation_mismatch_present",
+                    "trade_count_admission_basis": "derived_operational_truth",
                     "policy_apply_status": "applied",
                     "policy_apply_reason": None,
                     "scope_mode": "universe",
@@ -2080,6 +2637,24 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
     assert data.symbols == ("BTC/USDT",)
     assert len(data.symbol_snapshots) == 1
     assert data.symbol_snapshots[0].symbol == "BTC/USDT"
+    assert data.symbol_snapshots[0].derived_trade_count_24h == 11
+    assert data.symbol_snapshots[0].bucket_trade_count_24h == 11
+    assert data.symbol_snapshots[0].ledger_trade_count_24h == 9
+    assert data.symbol_snapshots[0].trade_count_reconciliation_verdict == "mismatch"
+    assert (
+        data.symbol_snapshots[0].trade_count_reconciliation_reason
+        == "difference_exceeds_absolute_tolerance"
+    )
+    assert data.symbol_snapshots[0].trade_count_reconciliation_absolute_diff == 2
+    assert data.symbol_snapshots[0].trade_count_reconciliation_tolerance == 0
+    assert data.symbol_snapshots[0].trade_count_cutover_readiness_state == "not_ready"
+    assert data.symbol_snapshots[0].trade_count_cutover_readiness_reason == "mismatch_present"
+    assert data.symbol_snapshots[0].product_trade_count_24h is None
+    assert data.symbol_snapshots[0].product_trade_count_state == "reconciliation_mismatch"
+    assert (
+        data.symbol_snapshots[0].product_trade_count_reason
+        == "difference_exceeds_absolute_tolerance"
+    )
     assert data.transport_status == "connected"
     assert data.lifecycle_state == "connected"
     assert data.ready is True
@@ -2104,6 +2679,99 @@ def test_dashboard_bybit_connector_diagnostics_endpoint_surfaces_runtime_snapsho
     assert data.derived_trade_count_backfill_progress_percent == 58
     assert data.derived_trade_count_last_backfill_at == "2026-04-01T09:45:20.060548+00:00"
     assert data.derived_trade_count_last_backfill_source == "bybit_public_archive"
+    assert data.ledger_trade_count_available is True
+    assert data.ledger_trade_count_last_error is None
+    assert data.ledger_trade_count_last_synced_at == "2026-04-01T09:45:39.000000+00:00"
+    assert data.trade_count_cutover_readiness_state == "not_ready"
+    assert data.trade_count_cutover_readiness_reason == "mismatch_present"
+    assert data.trade_count_cutover_compared_symbols == 1
+    assert data.trade_count_cutover_ready_symbols == 0
+    assert data.trade_count_cutover_not_ready_symbols == 1
+    assert data.trade_count_cutover_blocked_symbols == 0
+    assert data.trade_count_cutover_evaluation_state == "not_eligible"
+    assert data.trade_count_cutover_evaluation_reasons == ("mismatches_present",)
+    assert data.trade_count_cutover_evaluation_minimum_compared_symbols == 1
+    assert data.trade_count_product_truth_state == "reconciliation_mismatch"
+    assert data.trade_count_product_truth_reason == "reconciliation_mismatch_present"
+    assert data.trade_count_admission_basis == "derived_operational_truth"
+    assert data.trade_count_cutover_manual_review_state == "manual_review_not_recommended"
+    assert data.trade_count_cutover_manual_review_reasons == ("mismatches_present",)
+    assert data.trade_count_cutover_manual_review_evaluation_state == "not_eligible"
+    assert data.trade_count_cutover_manual_review_contour == "linear"
+    assert data.trade_count_cutover_manual_review_scope_mode == "universe"
+    assert data.trade_count_cutover_manual_review_scope_symbol_count == 1
+    assert data.trade_count_cutover_manual_review_compared_symbols == 1
+    assert data.trade_count_cutover_manual_review_ready_symbols == 0
+    assert data.trade_count_cutover_manual_review_not_ready_symbols == 1
+    assert data.trade_count_cutover_manual_review_blocked_symbols == 0
+    assert data.trade_count_cutover_discussion_artifact is not None
+    assert data.trade_count_cutover_discussion_artifact.discussion_state == "discussion_not_ready"
+    assert data.trade_count_cutover_discussion_artifact.manual_review_state == (
+        "manual_review_not_recommended"
+    )
+    assert data.trade_count_cutover_discussion_artifact.cutover_evaluation_state == "not_eligible"
+    assert data.trade_count_cutover_discussion_artifact.symbol_exceptions[0].symbol == "BTC/USDT"
+    assert data.trade_count_cutover_review_record is not None
+    assert data.trade_count_cutover_review_record.captured_at == "2026-04-01T09:45:40.060548+00:00"
+    assert data.trade_count_cutover_review_record.discussion_state == "discussion_not_ready"
+    assert data.trade_count_cutover_review_record.manual_review_state == (
+        "manual_review_not_recommended"
+    )
+    assert data.trade_count_cutover_review_record.symbol_exceptions[0].symbol == "BTC/USDT"
+    assert data.trade_count_cutover_review_package is not None
+    assert data.trade_count_cutover_review_package.discussion_state == "discussion_not_ready"
+    assert data.trade_count_cutover_review_package.manual_review_state == (
+        "manual_review_not_recommended"
+    )
+    assert data.trade_count_cutover_review_package.review_record.captured_at == (
+        "2026-04-01T09:45:40.060548+00:00"
+    )
+    assert data.trade_count_cutover_review_package.symbol_exceptions[0].symbol == "BTC/USDT"
+    assert data.trade_count_cutover_review_catalog is not None
+    assert data.trade_count_cutover_review_catalog.discussion_state == "discussion_not_ready"
+    assert data.trade_count_cutover_review_catalog.manual_review_state == (
+        "manual_review_not_recommended"
+    )
+    assert data.trade_count_cutover_review_catalog.current_review_package.review_record.captured_at == (
+        "2026-04-01T09:45:40.060548+00:00"
+    )
+    assert data.trade_count_cutover_review_catalog.current_review_package.symbol_exceptions[0].symbol == (
+        "BTC/USDT"
+    )
+    assert data.trade_count_cutover_review_snapshot_collection is not None
+    assert data.trade_count_cutover_review_snapshot_collection.discussion_state == (
+        "discussion_not_ready"
+    )
+    assert data.trade_count_cutover_review_snapshot_collection.current_review_package_headline == (
+        "Manual cutover review is not recommended for current scope."
+    )
+    assert data.trade_count_cutover_review_snapshot_collection.current_review_catalog.current_review_package.review_record.captured_at == (
+        "2026-04-01T09:45:40.060548+00:00"
+    )
+    assert data.trade_count_cutover_review_snapshot_collection.current_review_catalog.current_review_package.symbol_exceptions[0].symbol == (
+        "BTC/USDT"
+    )
+    assert data.trade_count_cutover_review_compact_digest is not None
+    assert data.trade_count_cutover_review_compact_digest.discussion_state == (
+        "discussion_not_ready"
+    )
+    assert data.trade_count_cutover_review_compact_digest.compact_symbol_exceptions == (
+        "BTC/USDT",
+    )
+    assert data.trade_count_cutover_review_compact_digest.current_review_snapshot_collection.current_review_catalog.current_review_package.review_record.captured_at == (
+        "2026-04-01T09:45:40.060548+00:00"
+    )
+    assert data.trade_count_cutover_export_report_bundle is not None
+    assert data.trade_count_cutover_export_report_bundle.discussion_state == (
+        "discussion_not_ready"
+    )
+    assert data.trade_count_cutover_export_report_bundle.compact_symbol_exceptions == (
+        "BTC/USDT",
+    )
+    assert "discussion=discussion_not_ready" in data.trade_count_cutover_export_report_bundle.export_text_summary
+    assert data.trade_count_cutover_export_report_bundle.current_compact_digest.current_review_snapshot_collection.current_review_catalog.current_review_package.review_record.captured_at == (
+        "2026-04-01T09:45:40.060548+00:00"
+    )
     assert data.desired_scope_mode == "universe"
     assert data.desired_trade_count_filter_minimum == 5
     assert data.applied_scope_mode == "universe"
@@ -2252,6 +2920,115 @@ def test_dashboard_bybit_spot_connector_toggle_endpoint_updates_canonical_runtim
     production_runtime = app.state.production_runtime
     assert production_runtime is not None
     production_runtime.set_bybit_spot_market_data_connector_enabled.assert_awaited_once_with(True)
+
+
+def test_dashboard_bybit_spot_product_snapshot_waits_for_post_start_bringup() -> None:
+    runtime = _StubProductionRuntime()
+    app = create_dashboard_app(production_runtime=runtime)
+
+    with TestClient(app) as client:
+        response = client.get("/dashboard/settings/bybit-spot-product-snapshot")
+
+    assert response.status_code == 200
+    runtime.await_post_start_bringup.assert_awaited()
+    runtime.get_bybit_spot_product_snapshot.assert_awaited_once()
+
+
+def test_dashboard_bybit_spot_runtime_status_endpoint_exposes_frozen_contract_fields() -> None:
+    runtime = _StubProductionRuntime()
+    app = create_dashboard_app(production_runtime=runtime)
+
+    with TestClient(app) as client:
+        response = client.get("/dashboard/settings/bybit-spot-runtime-status")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["generation"] == "v2"
+    assert data["desired_running"] is True
+    assert data["transport_status"] == "connected"
+    assert data["lifecycle_state"] == "connected_live"
+    assert data["selected_symbols_count"] == 6
+    assert data["filtered_symbols_count"] == 6
+    assert data["symbols"] == [
+        "BTC/USDT",
+        "ETH/USDT",
+        "XRP/USDT",
+        "SOL/USDT",
+        "ADA/USDT",
+        "DOGE/USDT",
+    ]
+    assert data["screen_scope_reason"] == "strict_published_scope"
+    assert data["contract_flags"] == {
+        "trade_truth_incomplete": True,
+        "strict_published_scope_empty": False,
+        "coarse_scope_nonempty": True,
+        "screen_scope_nonempty": True,
+        "empty_screen_scope_with_live_coarse_universe": False,
+    }
+    runtime.get_bybit_spot_runtime_status.assert_called_once_with()
+
+
+def test_dashboard_bybit_spot_product_snapshot_endpoint_exposes_frozen_contract_fields() -> None:
+    runtime = _StubProductionRuntime()
+    app = create_dashboard_app(production_runtime=runtime)
+
+    with TestClient(app) as client:
+        response = client.get("/dashboard/settings/bybit-spot-product-snapshot")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["generation"] == "v2"
+    assert data["desired_running"] is True
+    assert data["transport_status"] == "connected"
+    assert data["lifecycle_state"] == "connected_live"
+    assert data["selected_symbols_count"] == 2
+    assert data["filtered_symbols_count"] == 5
+    assert data["symbols"] == ["BTC/USDT", "ETH/USDT"]
+    assert data["observed_at"] == "2026-04-23T12:00:00+00:00"
+    assert data["persistence_24h"] == {
+        "live_trade_count_24h": 10,
+        "archive_trade_count_24h": 20,
+        "persisted_trade_count_24h": 30,
+        "first_persisted_trade_at": None,
+        "last_persisted_trade_at": None,
+        "coverage_status": "hybrid",
+    }
+    assert data["instrument_rows"] == [
+        {"symbol": "BTC/USDT", "volume_24h_usd": "1", "trade_count_24h": 10},
+        {"symbol": "ETH/USDT", "volume_24h_usd": "2", "trade_count_24h": 20},
+    ]
+    assert data["screen_scope_reason"] == "strict_published_scope"
+    assert data["contract_flags"] == {
+        "row_count_matches_selected_symbols_count": True,
+        "row_symbols_match_symbols": True,
+        "pending_archive_rows_masked": True,
+        "numeric_rows_respect_min_trade_count": True,
+        "runtime_scope_diverges_from_snapshot": False,
+    }
+
+
+def test_dashboard_bybit_spot_api_surface_keeps_runtime_scope_and_product_snapshot_nonempty() -> None:
+    runtime = _StubProductionRuntime()
+    app = create_dashboard_app(production_runtime=runtime)
+
+    with TestClient(app) as client:
+        runtime_response = client.get("/dashboard/settings/bybit-spot-runtime-status")
+        snapshot_response = client.get("/dashboard/settings/bybit-spot-product-snapshot")
+
+    assert runtime_response.status_code == 200
+    assert snapshot_response.status_code == 200
+    runtime_data = runtime_response.json()
+    snapshot_data = snapshot_response.json()
+
+    assert runtime_data["filtered_symbols_count"] > 0
+    assert runtime_data["selected_symbols_count"] > 0
+    assert snapshot_data["selected_symbols_count"] > 0
+    assert snapshot_data["instrument_rows"]
+    assert runtime_data["screen_scope_reason"]
+    assert snapshot_data["screen_scope_reason"]
+    assert isinstance(runtime_data["contract_flags"], dict)
+    assert isinstance(snapshot_data["contract_flags"], dict)
+    assert runtime_data["selected_symbols_count"] >= snapshot_data["selected_symbols_count"]
 
 
 def test_dashboard_overview_endpoint_returns_snapshot_in_full_app_runtime(

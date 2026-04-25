@@ -6,7 +6,7 @@ import json
 import os
 from pathlib import Path
 import threading
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -160,6 +160,9 @@ class Settings(BaseSettings):
     bybit_universe_min_quote_volume_24h_usd: float = 1000000.0
     bybit_universe_min_trade_count_24h: int = 0
     bybit_universe_max_symbols_per_scope: int = 100
+    bybit_spot_universe_min_quote_volume_24h_usd: float = 1000000.0
+    bybit_spot_universe_min_trade_count_24h: int = 0
+    bybit_spot_quote_asset_filter: Literal["usdt", "usdc", "usdt_usdc"] = "usdt_usdc"
 
     # OKX
     okx_api_key: SecretStr | None = None
@@ -1057,11 +1060,23 @@ def _collect_bybit_universe_scope_validation_errors(
             "bybit_universe_max_symbols_per_scope",
             settings_to_validate.bybit_universe_max_symbols_per_scope,
         ),
+        (
+            "bybit_spot_universe_min_quote_volume_24h_usd",
+            settings_to_validate.bybit_spot_universe_min_quote_volume_24h_usd,
+        ),
     ):
         _append_positive_error(validation_errors, field_name, value)
 
     if settings_to_validate.bybit_universe_min_trade_count_24h < 0:
         validation_errors.append("bybit_universe_min_trade_count_24h must be zero or greater")
+    if settings_to_validate.bybit_spot_universe_min_trade_count_24h < 0:
+        validation_errors.append(
+            "bybit_spot_universe_min_trade_count_24h must be zero or greater"
+        )
+    if settings_to_validate.bybit_spot_quote_asset_filter not in {"usdt", "usdc", "usdt_usdc"}:
+        validation_errors.append(
+            "bybit_spot_quote_asset_filter must be one of: usdt, usdc, usdt_usdc"
+        )
 
 
 def _collect_decision_chain_validation_errors(

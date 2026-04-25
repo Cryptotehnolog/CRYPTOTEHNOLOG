@@ -10,10 +10,19 @@ export default defineConfig({
     channel: "msedge",
     headless: true,
   },
-  webServer: {
-    command: "npm run dev -- --host 127.0.0.1 --port 4173 --strictPort",
-    url: "http://127.0.0.1:4173/terminal/settings",
-    reuseExistingServer: false,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command:
+        "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$env:PYTHONPATH='D:\\CRYPTOTEHNOLOG\\src'; & 'D:\\CRYPTOTEHNOLOG\\.venv\\Scripts\\python.exe' -m cryptotechnolog.dashboard\"",
+      url: "http://127.0.0.1:8000/dashboard/settings/bybit-connector-diagnostics",
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+    {
+      command: "npm run dev -- --host 127.0.0.1 --port 4173 --strictPort",
+      url: "http://127.0.0.1:4173/terminal/settings",
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+  ],
 });

@@ -16,6 +16,7 @@ def main() -> None:
         create_dashboard_app(enable_canonical_runtime=True),
         host=settings.dashboard_host,
         port=settings.dashboard_port,
+        access_log=False,
     )
 
 

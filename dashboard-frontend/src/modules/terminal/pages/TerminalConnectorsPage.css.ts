@@ -117,6 +117,15 @@ export const connectorPanelSpot = style({
   },
 });
 
+export const connectorPanelV2 = style({
+  boxShadow: `inset 0 3px 0 ${terminalTheme.dark.success}`,
+  selectors: {
+    [`${shellTone.light} &`]: {
+      boxShadow: `inset 0 3px 0 ${terminalTheme.light.success}`,
+    },
+  },
+});
+
 export const connectorPanelHeader = style({
   display: "flex",
   justifyContent: "space-between",
@@ -130,6 +139,23 @@ export const connectorPanelIntro = style({
   gap: vars.space[2],
 });
 
+export const connectorSemanticNote = style({
+  display: "grid",
+  gap: vars.space[1],
+  padding: vars.space[3],
+  borderRadius: vars.radius.card,
+  border: `1px solid ${terminalTheme.dark.border}`,
+  background: terminalTheme.dark.panelRaised,
+  color: terminalTheme.dark.textMuted,
+  selectors: {
+    [`${shellTone.light} &`]: {
+      borderColor: terminalTheme.light.border,
+      background: terminalTheme.light.panelRaised,
+      color: terminalTheme.light.textMuted,
+    },
+  },
+});
+
 export const connectorStatusCard = style({
   display: "grid",
   gap: vars.space[1],
@@ -141,6 +167,40 @@ export const connectorStatusCard = style({
     [`${shellTone.light} &`]: {
       borderColor: terminalTheme.light.border,
       background: terminalTheme.light.panelRaised,
+    },
+  },
+});
+
+export const connectorStatusHero = style({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "flex-start",
+  textAlign: "left",
+  minHeight: "64px",
+  gap: vars.space[2],
+  padding: `${vars.space[2]} ${vars.space[4]}`,
+  width: "auto",
+  justifySelf: "start",
+});
+
+export const connectorStatusHeroSuccess = style({
+  background: terminalTheme.dark.accentSoft,
+  borderColor: terminalTheme.dark.accent,
+  selectors: {
+    [`${shellTone.light} &`]: {
+      background: terminalTheme.light.accentSoft,
+      borderColor: terminalTheme.light.accent,
+    },
+  },
+});
+
+export const connectorStatusHeroNeutral = style({
+  background: terminalTheme.dark.panelRaised,
+  borderColor: terminalTheme.dark.border,
+  selectors: {
+    [`${shellTone.light} &`]: {
+      background: terminalTheme.light.panelRaised,
+      borderColor: terminalTheme.light.border,
     },
   },
 });

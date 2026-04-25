@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 import json
@@ -147,6 +148,7 @@ class BybitDerivedTradeCountTracker:
     window: timedelta = _ROLLING_WINDOW
     bucket_width: timedelta = _BUCKET_WIDTH
     _trade_count_buckets: dict[str, dict[datetime, int]] = field(init=False)
+    _exact_trade_timestamps: dict[str, deque[datetime]] = field(init=False)
     _observed_trade_count_since_reset: dict[str, int] = field(init=False)
     _state: str = field(default="warming_up", init=False)
     _observation_started_at: datetime | None = field(default=None, init=False)
@@ -164,9 +166,11 @@ class BybitDerivedTradeCountTracker:
     _last_backfill_reason: str | None = field(default=None, init=False)
     _live_tail_required_after: datetime | None = field(default=None, init=False)
     _historical_window_restored: bool = field(default=False, init=False)
+    _exact_window_backed: bool = field(default=False, init=False)
 
     def __post_init__(self) -> None:
         self._trade_count_buckets = {symbol: {} for symbol in self.symbols}
+        self._exact_trade_timestamps = {symbol: deque() for symbol in self.symbols}
         self._observed_trade_count_since_reset = dict.fromkeys(self.symbols, 0)
 
     def mark_observation_started(self, *, observed_at: datetime) -> None:
@@ -193,6 +197,7 @@ class BybitDerivedTradeCountTracker:
         )
         buckets = self._trade_count_buckets[symbol]
         buckets[bucket_start] = buckets.get(bucket_start, 0) + 1
+        self._exact_trade_timestamps[symbol].append(normalized_observed_at)
         self._observed_trade_count_since_reset[symbol] += 1
         self._latest_observed_trade_at = normalized_observed_at
         self._prune_symbol(symbol=symbol, observed_at=normalized_observed_at)
@@ -219,6 +224,7 @@ class BybitDerivedTradeCountTracker:
         )
         for symbol in self.symbols:
             self._trade_count_buckets[symbol].clear()
+            self._exact_trade_timestamps[symbol].clear()
             self._observed_trade_count_since_reset[symbol] = 0
         self._state = "not_reliable_after_gap"
         self._observation_started_at = None
@@ -234,6 +240,7 @@ class BybitDerivedTradeCountTracker:
         self._last_backfill_reason = None
         self._live_tail_required_after = None
         self._historical_window_restored = False
+        self._exact_window_backed = False
 
     def mark_gap_preserving_historical_window(self, *, observed_at: datetime, reason: str) -> None:
         """Сбросить ready-state после gap, но сохранить уже восстановленное historical окно."""
@@ -265,14 +272,8 @@ class BybitDerivedTradeCountTracker:
             self._state = "ready"
         symbol_snapshots: list[BybitDerivedTradeCountSymbolSnapshot] = []
         for symbol in self.symbols:
-            self._prune_symbol(symbol=symbol, observed_at=normalized_observed_at)
-            rolling_trade_count = sum(self._trade_count_buckets[symbol].values())
             symbol_snapshots.append(
-                BybitDerivedTradeCountSymbolSnapshot(
-                    symbol=symbol,
-                    trade_count_24h=rolling_trade_count if self.ready else None,
-                    observed_trade_count_since_reset=self._observed_trade_count_since_reset[symbol],
-                )
+                self.get_symbol_snapshot(symbol=symbol, observed_at=normalized_observed_at)
             )
         return BybitDerivedTradeCountDiagnostics(
             state=self._state,
@@ -293,6 +294,24 @@ class BybitDerivedTradeCountTracker:
             last_backfill_source=self._last_backfill_source,
             last_backfill_reason=self._last_backfill_reason,
             symbol_snapshots=tuple(symbol_snapshots),
+        )
+
+    def get_symbol_snapshot(
+        self,
+        *,
+        symbol: str,
+        observed_at: datetime,
+    ) -> BybitDerivedTradeCountSymbolSnapshot:
+        normalized_observed_at = observed_at.astimezone(UTC)
+        self._prune_symbol(symbol=symbol, observed_at=normalized_observed_at)
+        rolling_trade_count = self._rolling_trade_count_for_symbol(
+            symbol=symbol,
+            observed_at=normalized_observed_at,
+        )
+        return BybitDerivedTradeCountSymbolSnapshot(
+            symbol=symbol,
+            trade_count_24h=rolling_trade_count if self.ready else None,
+            observed_trade_count_since_reset=self._observed_trade_count_since_reset[symbol],
         )
 
     @property
@@ -367,6 +386,7 @@ class BybitDerivedTradeCountTracker:
             return
         for symbol in self.symbols:
             self._trade_count_buckets[symbol] = dict(state.trade_count_buckets.get(symbol, {}))
+            self._exact_trade_timestamps[symbol].clear()
             self._observed_trade_count_since_reset[symbol] = int(
                 state.observed_trade_count_since_reset.get(symbol, 0)
             )
@@ -396,9 +416,11 @@ class BybitDerivedTradeCountTracker:
             else None
         )
         self._historical_window_restored = bool(state.historical_window_restored)
+        self._exact_window_backed = False
         if self._state == "not_reliable_after_gap":
             for symbol in self.symbols:
                 self._trade_count_buckets[symbol].clear()
+                self._exact_trade_timestamps[symbol].clear()
                 self._observed_trade_count_since_reset[symbol] = 0
             self._historical_window_restored = False
         if (
@@ -429,6 +451,7 @@ class BybitDerivedTradeCountTracker:
         normalized_window_started_at = window_started_at.astimezone(UTC)
         normalized_covered_until_at = covered_until_at.astimezone(UTC)
         preexisting_latest_trade_at = self._latest_observed_trade_at
+        self._exact_window_backed = False
         covered_bucket = _floor_to_bucket(
             observed_at=normalized_covered_until_at,
             bucket_width=self.bucket_width,
@@ -444,6 +467,7 @@ class BybitDerivedTradeCountTracker:
         latest_trade_at: datetime | None = None
         for symbol in self.symbols:
             restored_buckets: dict[datetime, int] = {}
+            self._exact_trade_timestamps[symbol].clear()
             compact_buckets = (
                 trade_buckets_by_symbol.get(symbol, {})
                 if trade_buckets_by_symbol is not None
@@ -506,6 +530,59 @@ class BybitDerivedTradeCountTracker:
         self._backfill_needed = True
         self._backfill_processed_archives = processed_archives
         self._backfill_total_archives = total_archives
+        self._last_backfill_at = normalized_observed_at
+        self._last_backfill_source = source
+        self._last_backfill_reason = reason
+
+    def restore_exact_window(
+        self,
+        *,
+        trade_buckets_by_symbol: dict[str, dict[datetime, int]],
+        exact_trade_timestamps_by_symbol: dict[str, tuple[datetime, ...]],
+        latest_trade_at_by_symbol: dict[str, datetime | None],
+        window_started_at: datetime,
+        observed_at: datetime,
+        source: str = "bybit_trade_ledger_local_bootstrap",
+        status: str = "not_needed",
+        reason: str | None = None,
+    ) -> None:
+        normalized_observed_at = observed_at.astimezone(UTC)
+        normalized_window_started_at = window_started_at.astimezone(UTC)
+        latest_trade_at: datetime | None = None
+        for symbol in self.symbols:
+            restored_buckets: dict[datetime, int] = {}
+            self._exact_trade_timestamps[symbol].clear()
+            for bucket_start, count in trade_buckets_by_symbol.get(symbol, {}).items():
+                normalized_bucket_start = bucket_start.astimezone(UTC)
+                restored_buckets[normalized_bucket_start] = restored_buckets.get(
+                    normalized_bucket_start,
+                    0,
+                ) + int(count)
+            for trade_at in exact_trade_timestamps_by_symbol.get(symbol, ()):
+                self._exact_trade_timestamps[symbol].append(trade_at.astimezone(UTC))
+            self._trade_count_buckets[symbol] = restored_buckets
+            self._observed_trade_count_since_reset[symbol] = 0
+            self._prune_symbol(symbol=symbol, observed_at=normalized_observed_at)
+            symbol_latest_trade_at = latest_trade_at_by_symbol.get(symbol)
+            if symbol_latest_trade_at is None:
+                continue
+            normalized_latest_trade_at = symbol_latest_trade_at.astimezone(UTC)
+            if latest_trade_at is None or normalized_latest_trade_at > latest_trade_at:
+                latest_trade_at = normalized_latest_trade_at
+        self._observation_started_at = normalized_window_started_at
+        self._latest_observed_trade_at = latest_trade_at
+        self._live_tail_required_after = None
+        self._exact_window_backed = True
+        self._state = (
+            "ready"
+            if normalized_observed_at - normalized_window_started_at >= self.window
+            else "warming_up"
+        )
+        self._historical_window_restored = True
+        self._backfill_needed = status != "not_needed"
+        self._backfill_status = status
+        self._backfill_processed_archives = None
+        self._backfill_total_archives = None
         self._last_backfill_at = normalized_observed_at
         self._last_backfill_source = source
         self._last_backfill_reason = reason
@@ -574,6 +651,26 @@ class BybitDerivedTradeCountTracker:
         stale_buckets = [bucket_start for bucket_start in buckets if bucket_start < threshold]
         for bucket_start in stale_buckets:
             del buckets[bucket_start]
+        threshold_trade_at = observed_at.astimezone(UTC) - self.window
+        exact_timestamps = self._exact_trade_timestamps[symbol]
+        while exact_timestamps and exact_timestamps[0] < threshold_trade_at:
+            exact_timestamps.popleft()
+
+    def _rolling_trade_count_for_symbol(
+        self,
+        *,
+        symbol: str,
+        observed_at: datetime,
+    ) -> int:
+        if not self._exact_window_backed:
+            return sum(self._trade_count_buckets[symbol].values())
+        normalized_observed_at = observed_at.astimezone(UTC)
+        threshold_trade_at = normalized_observed_at - self.window
+        return sum(
+            1
+            for trade_at in self._exact_trade_timestamps[symbol]
+            if threshold_trade_at <= trade_at <= normalized_observed_at
+        )
 
 
 def _floor_to_bucket(*, observed_at: datetime, bucket_width: timedelta) -> datetime:
