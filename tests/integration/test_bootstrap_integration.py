@@ -149,7 +149,7 @@ def _install_fake_redis(runtime) -> None:
         runtime.redis_manager._connected = False
         runtime.redis_manager._redis = None
 
-    async def redis_health_check() -> dict[str, object]:
+    async def redis_health_check(*, include_stats: bool = False) -> dict[str, object]:
         return {
             "status": "healthy" if runtime.redis_manager.is_connected else "unhealthy",
             "connected": runtime.redis_manager.is_connected,
