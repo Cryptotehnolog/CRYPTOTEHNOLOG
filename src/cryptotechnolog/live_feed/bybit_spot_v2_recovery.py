@@ -7,23 +7,26 @@ import asyncio
 import contextlib
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
-import json
 import inspect
+import json
 import time
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from cryptotechnolog.config import get_logger
 from cryptotechnolog.core.database import DatabaseManager
 from cryptotechnolog.core.enhanced_event_bus import EnhancedEventBus
 from cryptotechnolog.market_data import create_market_data_runtime
 
+from .bybit_spot_v2_archive_ledger import BybitSpotV2ArchiveTradeLedgerRepository
 from .bybit_spot_v2_archive_loader import (
-    BybitSpotV2ArchiveLoadRequest,
     BybitSpotV2ArchiveLoadReport,
+    BybitSpotV2ArchiveLoadRequest,
     run_bybit_spot_v2_archive_loader,
 )
-from .bybit_spot_v2_archive_ledger import BybitSpotV2ArchiveTradeLedgerRepository
-from .bybit_spot_v2_live_trade_ledger import BybitSpotV2LiveTradeLedgerRepository
+from .bybit_spot_v2_live_trade_ledger import (
+    BybitSpotV2LiveTradeLedgerRecord,
+    BybitSpotV2LiveTradeLedgerRepository,
+)
 from .bybit_spot_v2_persisted_query import BybitSpotV2PersistedQueryService
 from .bybit_spot_v2_transport import (
     BybitSpotV2TransportConfig,
@@ -31,9 +34,8 @@ from .bybit_spot_v2_transport import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Sequence
+    from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 
-    from .bybit_spot_v2_archive_loader import BybitSpotV2ArchiveLoadReport
     from .bybit_spot_v2_transport import BybitSpotV2Transport
 
 logger = get_logger(__name__)
@@ -102,9 +104,7 @@ class BybitSpotV2RecoveryCoordinator:
         *,
         symbols: Sequence[str],
         persisted_query_service: BybitSpotV2PersistedQueryService,
-        archive_loader_runner: Callable[
-            ..., Awaitable["BybitSpotV2ArchiveLoadReport"]
-        ],
+        archive_loader_runner: Callable[..., Awaitable[BybitSpotV2ArchiveLoadReport]],
         db_manager: DatabaseManager | None = None,
         archive_trade_repository: BybitSpotV2ArchiveTradeLedgerRepository | None = None,
         live_trade_repository: BybitSpotV2LiveTradeLedgerRepository | None = None,
@@ -468,9 +468,13 @@ class BybitSpotV2RecoveryCoordinator:
                 page_iterator = rows_or_pages
             else:
                 legacy_rows = await rows_or_pages if inspect.isawaitable(rows_or_pages) else rows_or_pages
-                async def _single_page_iterator() -> AsyncIterator[list[dict[str, object]]]:
-                    if legacy_rows:
-                        yield list(legacy_rows)
+
+                async def _single_page_iterator(
+                    rows: tuple[dict[str, object], ...] = tuple(legacy_rows),
+                ) -> AsyncIterator[list[dict[str, object]]]:
+                    if rows:
+                        yield list(rows)
+
                 page_iterator = _single_page_iterator()
             async for page in page_iterator:
                 page_fetch_started = time.perf_counter()
@@ -751,7 +755,7 @@ async def _main() -> None:
                 ),
                 timeout=args.timeout_seconds + 2,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             print(
                 "{"
                 f"\"status\":\"timed_out\",\"reason\":\"probe_timeout_{args.timeout_seconds}s\""
@@ -778,7 +782,7 @@ def _normalize_live_tail_source_metadata(value: object) -> dict[str, str]:
 
 def _build_spot_v2_live_trade_record_from_legacy_row(
     row: dict[str, object],
-):
+) -> BybitSpotV2LiveTradeLedgerRecord | None:
     source_metadata = _normalize_live_tail_source_metadata(row.get("source_metadata"))
     live_trade_id = source_metadata.get("live_trade_id") or source_metadata.get("trade_id")
     if not live_trade_id:
@@ -793,7 +797,6 @@ def _build_spot_v2_live_trade_record_from_legacy_row(
         "yes",
         "on",
     }
-    from .bybit_spot_v2_live_trade_ledger import BybitSpotV2LiveTradeLedgerRecord
 
     return BybitSpotV2LiveTradeLedgerRecord(
         exchange="bybit_spot_v2",
