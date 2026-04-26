@@ -93,6 +93,22 @@ def test_aggregate_readiness_is_blocked_when_any_symbol_is_validation_blocked() 
     )
 
     assert aggregate.state == "blocked"
+    assert aggregate.reason == "blocked_symbols_present"
+
+
+def test_aggregate_readiness_is_ledger_unavailable_when_all_symbols_are_validation_blocked() -> None:
+    aggregate = aggregate_cutover_readiness(
+        (
+            readiness_from_reconciliation_result(
+                make_reconciliation_result("validation_blocked", reason="ledger_path_unavailable"),
+            ),
+            readiness_from_reconciliation_result(
+                make_reconciliation_result("validation_blocked", reason="ledger_path_unavailable"),
+            ),
+        )
+    )
+
+    assert aggregate.state == "blocked"
     assert aggregate.reason == "ledger_unavailable"
 
 
