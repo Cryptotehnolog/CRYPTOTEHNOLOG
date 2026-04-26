@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 import json
 import inspect
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from cryptotechnolog.config import get_logger
 from cryptotechnolog.core.database import DatabaseManager

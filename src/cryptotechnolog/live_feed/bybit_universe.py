@@ -6,17 +6,19 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 import json
 from typing import Literal
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import urlencode, urlsplit
+from urllib.request import ProxyHandler, Request, build_opener, urlopen
 
 from cryptotechnolog.config import get_settings
 
-from .bybit import normalize_bybit_symbol
+from .bybit_symbols import normalize_bybit_symbol
 
 BybitMarketContour = Literal["linear", "spot"]
+BybitSpotQuoteAssetFilter = Literal["usdt", "usdc", "usdt_usdc"]
 
 _BYBIT_MAINNET_REST_URL = "https://api.bybit.com"
 _BYBIT_TESTNET_REST_URL = "https://api-testnet.bybit.com"
+_BYBIT_DISCOVERY_DIRECT_HOSTS = ("api.bybit.com", "api-testnet.bybit.com")
 
 
 @dataclass(slots=True, frozen=True)
@@ -25,6 +27,7 @@ class BybitUniverseInstrument:
 
     symbol: str
     quote_volume_24h_usd: Decimal
+    has_recent_trading_24h: bool
 
 
 @dataclass(slots=True, frozen=True)
@@ -46,7 +49,8 @@ class BybitUniverseDiscoveryConfig:
     rest_base_url: str
     min_quote_volume_24h_usd: float
     min_trade_count_24h: int
-    max_symbols_per_scope: int
+    spot_quote_asset_filter: BybitSpotQuoteAssetFilter | None = None
+    max_symbols_per_scope: int | None = None
 
     @classmethod
     def from_settings(
@@ -62,7 +66,12 @@ class BybitUniverseDiscoveryConfig:
             ),
             min_quote_volume_24h_usd=settings.bybit_universe_min_quote_volume_24h_usd,
             min_trade_count_24h=settings.bybit_universe_min_trade_count_24h,
-            max_symbols_per_scope=settings.bybit_universe_max_symbols_per_scope,
+            spot_quote_asset_filter=(
+                settings.bybit_spot_quote_asset_filter if contour == "spot" else None
+            ),
+            max_symbols_per_scope=(
+                settings.bybit_universe_max_symbols_per_scope if contour == "linear" else None
+            ),
         )
 
 
@@ -78,6 +87,15 @@ def discover_bybit_universe(
         ticker = tickers.get(raw_symbol)
         if ticker is None:
             continue
+        try:
+            normalized_symbol = normalize_bybit_symbol(raw_symbol)
+        except ValueError:
+            continue
+        if config.contour == "spot" and not _spot_symbol_matches_quote_filter(
+            normalized_symbol,
+            config.spot_quote_asset_filter,
+        ):
+            continue
         quote_volume_24h_usd = _decimal_or_zero(
             ticker.get("turnover24h")
             or ticker.get("quoteVolume24h")
@@ -86,10 +104,18 @@ def discover_bybit_universe(
         )
         if quote_volume_24h_usd < Decimal(str(config.min_quote_volume_24h_usd)):
             continue
+        traded_volume_24h = _decimal_or_zero(
+            ticker.get("volume24h")
+            or ticker.get("baseVolume24h")
+            or ticker.get("volume24H")
+            or ticker.get("base_volume_24h"),
+        )
+        has_recent_trading_24h = quote_volume_24h_usd > 0 or traded_volume_24h > 0
         candidates.append(
             BybitUniverseInstrument(
-                symbol=normalize_bybit_symbol(raw_symbol),
+                symbol=normalized_symbol,
                 quote_volume_24h_usd=quote_volume_24h_usd,
+                has_recent_trading_24h=has_recent_trading_24h,
             )
         )
 
@@ -101,10 +127,17 @@ def discover_bybit_universe(
         ),
         reverse=True,
     )
-    selected = tuple(item.symbol for item in ranked[: max(0, config.max_symbols_per_scope)])
+    # Spot product filtering uses a dedicated final trade-count admission stage.
+    # Keep coarse discovery as "volume-filtered universe" and do not cap the
+    # user-facing spot result here.
+    if config.contour == "spot":
+        selected_items = ranked
+    else:
+        selected_items = ranked[: max(0, int(config.max_symbols_per_scope or 0))]
+    selected = tuple(item.symbol for item in selected_items)
     selected_quote_volume_24h_usd_by_symbol = tuple(
         (item.symbol, str(item.quote_volume_24h_usd))
-        for item in ranked[: max(0, config.max_symbols_per_scope)]
+        for item in selected_items
     )
     return BybitUniverseSelectionSummary(
         scope_mode="universe",
@@ -113,6 +146,42 @@ def discover_bybit_universe(
         selected_symbols=selected,
         selected_quote_volume_24h_usd_by_symbol=selected_quote_volume_24h_usd_by_symbol,
     )
+
+
+def fetch_bybit_quote_turnover_24h_by_symbol(
+    *,
+    contour: BybitMarketContour,
+    rest_base_url: str,
+    symbols: tuple[str, ...],
+) -> dict[str, Decimal]:
+    """Fetch current 24h quote turnover from Bybit tickers for the requested symbols."""
+    if not symbols:
+        return {}
+    requested_symbols = {normalize_bybit_symbol(symbol) for symbol in symbols}
+    tickers = _fetch_ticker_stats(
+        BybitUniverseDiscoveryConfig(
+            contour=contour,
+            rest_base_url=rest_base_url,
+            min_quote_volume_24h_usd=0,
+            min_trade_count_24h=0,
+            spot_quote_asset_filter=None,
+        )
+    )
+    quote_turnover_by_symbol: dict[str, Decimal] = {}
+    for raw_symbol, ticker in tickers.items():
+        try:
+            normalized_symbol = normalize_bybit_symbol(raw_symbol)
+        except ValueError:
+            continue
+        if normalized_symbol not in requested_symbols:
+            continue
+        quote_turnover_by_symbol[normalized_symbol] = _decimal_or_zero(
+            ticker.get("turnover24h")
+            or ticker.get("quoteVolume24h")
+            or ticker.get("turnover24H")
+            or ticker.get("quote_volume_24h"),
+        )
+    return quote_turnover_by_symbol
 
 
 def _fetch_active_symbols(config: BybitUniverseDiscoveryConfig) -> tuple[str, ...]:
@@ -197,7 +266,7 @@ def _fetch_json(
             "User-Agent": "cryptotechnolog/bybit-universe-discovery",
         },
     )
-    with urlopen(request, timeout=15) as response:
+    with _open_discovery_request(request, timeout=15) as response:
         payload = json.loads(response.read().decode("utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("Bybit universe discovery вернул не-object JSON payload")
@@ -205,6 +274,14 @@ def _fetch_json(
     if ret_code not in {0, "0", None}:
         raise ValueError(f"Bybit universe discovery failed: retCode={ret_code}")
     return payload
+
+
+def _open_discovery_request(request: Request, *, timeout: int):
+    host = urlsplit(request.full_url).hostname
+    if host in _BYBIT_DISCOVERY_DIRECT_HOSTS:
+        opener = build_opener(ProxyHandler({}))
+        return opener.open(request, timeout=timeout)
+    return urlopen(request, timeout=timeout)
 
 
 def _decimal_or_zero(raw_value: object) -> Decimal:
@@ -216,10 +293,24 @@ def _decimal_or_zero(raw_value: object) -> Decimal:
         return Decimal("0")
 
 
+def _spot_symbol_matches_quote_filter(
+    normalized_symbol: str,
+    quote_asset_filter: BybitSpotQuoteAssetFilter | None,
+) -> bool:
+    if quote_asset_filter in (None, "usdt_usdc"):
+        return normalized_symbol.endswith("/USDT") or normalized_symbol.endswith("/USDC")
+    if quote_asset_filter == "usdt":
+        return normalized_symbol.endswith("/USDT")
+    if quote_asset_filter == "usdc":
+        return normalized_symbol.endswith("/USDC")
+    return False
+
+
 __all__ = [
     "BybitMarketContour",
     "BybitUniverseDiscoveryConfig",
     "BybitUniverseInstrument",
     "BybitUniverseSelectionSummary",
     "discover_bybit_universe",
+    "fetch_bybit_quote_turnover_24h_by_symbol",
 ]
