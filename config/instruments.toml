@@ -1,0 +1,7 @@
+[[probability_basis_candidates]]
+underlying = "ETH"
+target_price_usd = 3000.0
+event_date = "2026-06-01"
+deribit_option_kind = "call"
+polymarket_query = "ETH above 3000 June 1"
+

@@ -1,0 +1,12 @@
+/target/
+/.venv/
+/.ruff_cache/
+/.pytest_cache/
+/.mypy_cache/
+/.env
+/.env.*
+!/env.example
+*.log
+*.db
+*.sqlite
+

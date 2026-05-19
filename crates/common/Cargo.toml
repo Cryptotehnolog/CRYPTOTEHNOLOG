@@ -1,0 +1,11 @@
+[package]
+name = "cryptotehnolog-common"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "cryptotehnolog_common"
+path = "src/lib.rs"
+

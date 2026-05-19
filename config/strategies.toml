@@ -1,0 +1,8 @@
+[probability_basis]
+enabled = true
+min_net_edge_probability = 0.025
+max_market_age_ms = 3000
+min_polymarket_liquidity_usd = 1000.0
+allow_short_deribit_options = false
+allow_short_polymarket_outcomes = false
+

@@ -1,0 +1,8 @@
+[deribit]
+environment = "testnet"
+base_url = "https://test.deribit.com"
+ws_url = "wss://test.deribit.com/ws/api/v2"
+
+[polymarket]
+gamma_base_url = "https://gamma-api.polymarket.com"
+
