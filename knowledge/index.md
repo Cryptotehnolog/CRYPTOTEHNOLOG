@@ -26,6 +26,8 @@ sources:
 
 ## Workflows
 
+- [Codex Wiki Usage](wiki/workflow-codex-wiki-usage.md) - how Codex reads and updates project memory while working.
+- [Obsidian](wiki/workflow-obsidian.md) - how to use Obsidian as a human interface over the Markdown vault.
 - [Source Ingestion](wiki/workflow-source-ingestion.md) - how new sources are converted into durable wiki knowledge.
 - [Wiki Health Check](wiki/workflow-wiki-health-check.md) - recurring maintenance workflow for index, links, contradictions, and stale claims.
 
@@ -36,4 +38,3 @@ sources:
 ## Raw Sources
 
 - [Karpathy LLM Wiki](raw/sources/karpathy-llm-wiki-2026-04-04.md) - source note for the LLM Wiki gist.
-

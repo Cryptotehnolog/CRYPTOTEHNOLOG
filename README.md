@@ -52,6 +52,12 @@ Run the knowledge-base health check:
 .\scripts\kb_health_check.ps1
 ```
 
+Create a raw source note:
+
+```powershell
+.\scripts\new_source_note.ps1 -Title "Source title" -Url "https://example.com"
+```
+
 ## Knowledge Base
 
 The project uses a local Markdown knowledge base inspired by Karpathy's LLM Wiki pattern.
@@ -63,6 +69,18 @@ The project uses a local Markdown knowledge base inspired by Karpathy's LLM Wiki
 - `knowledge/log.md` is the append-only maintenance history.
 
 Codex should update the knowledge base automatically whenever a durable project decision, source analysis, risk critique, or reusable synthesis appears.
+
+Codex usage rule:
+
+- before architecture or strategy code, read `knowledge/index.md` and the relevant wiki pages;
+- after durable decisions or reusable analysis, update the relevant wiki page, `knowledge/index.md`, and `knowledge/log.md`;
+- run `.\scripts\kb_health_check.ps1` before committing knowledge changes.
+
+Obsidian usage:
+
+- open `D:\CRYPTOTEHNOLOG\knowledge` as an Obsidian vault;
+- use it for reading, graph navigation, backlinks, and manual review;
+- do not make Obsidian plugins a runtime dependency of the trading system.
 
 ## Risk Stance
 
