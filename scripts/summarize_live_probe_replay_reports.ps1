@@ -22,6 +22,7 @@ foreach ($file in $files) {
     $errors = @($report.errors)
     $parseErrors = @($errors | Where-Object { $_.stage -eq "parse" })
     $httpErrors = @($errors | Where-Object { $_.stage -eq "http" })
+    $payloadShapes = @($report.payload_shape_versions | ForEach-Object { "$($_.endpoint)=$($_.payload_shape_version)" })
     $accepted = [int]$report.ingestion_report.total_normalized_events_accepted
     $decisions = [int]$report.replay_summary.decisions
     $observations = [int]$report.replay_summary.observations
@@ -37,6 +38,7 @@ foreach ($file in $files) {
         MatcherDecisions = $decisions
         Observations = $observations
         MatcherReady = $matcherReady
+        PayloadShapes = ($payloadShapes -join ";")
     }
 
     foreach ($errorEntry in $errors) {

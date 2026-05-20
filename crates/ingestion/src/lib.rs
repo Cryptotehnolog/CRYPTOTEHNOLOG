@@ -9,6 +9,10 @@ use cryptotehnolog_common::events::{
 use cryptotehnolog_common::journal::{EventJournal, JournalError};
 use serde_json::Value;
 
+pub const DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION: &str = "deribit_get_instruments_v1";
+pub const DERIBIT_TICKER_PAYLOAD_SHAPE_VERSION: &str = "deribit_json_rpc_ticker_v1";
+pub const POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION: &str = "polymarket_gamma_market_v1";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IngestionSource {
     Deribit,
@@ -743,6 +747,38 @@ impl IngestionClient for LiveIngestionClient {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct DeribitOptionDiscoveryCriteria {
+    pub underlying: String,
+    pub target_expiry_ts_ms: i64,
+    pub target_strike: f64,
+    pub option_kind: OptionKind,
+    pub max_expiry_distance_ms: i64,
+    pub max_strike_distance: f64,
+}
+
+impl DeribitOptionDiscoveryCriteria {
+    pub fn phase0_eth_call_3000_june_2026() -> Self {
+        Self {
+            underlying: "ETH".to_string(),
+            target_expiry_ts_ms: 1_780_272_000_000,
+            target_strike: 3000.0,
+            option_kind: OptionKind::Call,
+            max_expiry_distance_ms: 7 * 86_400_000,
+            max_strike_distance: 500.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DeribitDiscoveredOption {
+    pub instrument_name: String,
+    pub underlying: String,
+    pub expiry_ts_ms: i64,
+    pub strike: f64,
+    pub option_kind: OptionKind,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeribitLiveIngestionClient {
     pub base_url: String,
@@ -757,12 +793,34 @@ impl DeribitLiveIngestionClient {
         }
     }
 
+    pub fn from_discovered(
+        base_url: impl Into<String>,
+        discovered: &DeribitDiscoveredOption,
+    ) -> Self {
+        Self::new(base_url, discovered.instrument_name.clone())
+    }
+
+    pub fn instruments_url(base_url: &str) -> String {
+        format!(
+            "{}/api/v2/public/get_instruments?currency=ETH&kind=option&expired=false",
+            base_url.trim_end_matches('/')
+        )
+    }
+
     pub fn ticker_url(&self) -> String {
         format!(
             "{}/api/v2/public/ticker?instrument_name={}",
             self.base_url.trim_end_matches('/'),
             self.instrument_name
         )
+    }
+
+    pub fn discover_option_from_payload(
+        payload_json: &str,
+        criteria: &DeribitOptionDiscoveryCriteria,
+    ) -> Result<DeribitDiscoveredOption, IngestionError> {
+        let instruments = parse_deribit_instruments_payload(payload_json, criteria)?;
+        select_deribit_option_candidate(instruments, criteria)
     }
 
     pub fn parse_ticker_payload(
@@ -1176,11 +1234,30 @@ impl JsonPayloadParser {
         Some(current)
     }
 
+    fn array_at(&self, path: &[&str]) -> Option<&Vec<Value>> {
+        let mut current = &self.root;
+        for key in path {
+            current = current.get(*key)?;
+        }
+        current.as_array()
+    }
+
     fn string_from(&self, object: &Value, key: &str) -> Result<String, IngestionError> {
         let Some(value) = object.get(key) else {
             return Err(self.missing_field(key));
         };
         self.value_to_string(value, key)
+    }
+
+    fn optional_string_from(
+        &self,
+        object: &Value,
+        key: &str,
+    ) -> Result<Option<String>, IngestionError> {
+        object
+            .get(key)
+            .map(|value| self.value_to_string(value, key))
+            .transpose()
     }
 
     fn f64_from(&self, object: &Value, key: &str) -> Result<f64, IngestionError> {
@@ -1190,11 +1267,25 @@ impl JsonPayloadParser {
         self.value_to_f64(value, key)
     }
 
+    fn optional_f64_from(&self, object: &Value, key: &str) -> Result<Option<f64>, IngestionError> {
+        object
+            .get(key)
+            .map(|value| self.value_to_f64(value, key))
+            .transpose()
+    }
+
     fn i64_from(&self, object: &Value, key: &str) -> Result<i64, IngestionError> {
         let Some(value) = object.get(key) else {
             return Err(self.missing_field(key));
         };
         self.value_to_i64(value, key)
+    }
+
+    fn optional_i64_from(&self, object: &Value, key: &str) -> Result<Option<i64>, IngestionError> {
+        object
+            .get(key)
+            .map(|value| self.value_to_i64(value, key))
+            .transpose()
     }
 
     fn optional_string_any(&self, keys: &[&str]) -> Result<Option<String>, IngestionError> {
@@ -1366,6 +1457,97 @@ impl JsonPayloadParser {
     }
 }
 
+fn parse_deribit_instruments_payload(
+    payload_json: &str,
+    criteria: &DeribitOptionDiscoveryCriteria,
+) -> Result<Vec<DeribitDiscoveredOption>, IngestionError> {
+    let parser = JsonPayloadParser::new(payload_json, IngestionSource::Deribit, "Deribit")?;
+    let instruments = parser.array_at(&["result"]).ok_or_else(|| {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Deribit),
+            "missing Deribit instruments result array",
+        )
+    })?;
+
+    let mut discovered = Vec::new();
+    for instrument in instruments {
+        let instrument_name = parser.string_from(instrument, "instrument_name")?;
+        let underlying = parser
+            .optional_string_from(instrument, "base_currency")?
+            .unwrap_or_else(|| {
+                parse_deribit_underlying(&instrument_name)
+                    .unwrap_or_else(|_| criteria.underlying.clone())
+            });
+        let expiry_ts_ms = match parser.optional_i64_from(instrument, "expiration_timestamp")? {
+            Some(value) => value,
+            None => parse_deribit_expiry_ts_ms(&instrument_name)?,
+        };
+        let strike = match parser.optional_f64_from(instrument, "strike")? {
+            Some(value) => value,
+            None => parse_deribit_strike(&instrument_name)?,
+        };
+        let option_kind = match parser.optional_string_from(instrument, "option_type")? {
+            Some(kind) => parse_deribit_option_kind_text(&kind)?,
+            None => parse_deribit_option_kind(&instrument_name)?,
+        };
+
+        discovered.push(DeribitDiscoveredOption {
+            instrument_name,
+            underlying,
+            expiry_ts_ms,
+            strike,
+            option_kind,
+        });
+    }
+
+    Ok(discovered)
+}
+
+fn select_deribit_option_candidate(
+    instruments: Vec<DeribitDiscoveredOption>,
+    criteria: &DeribitOptionDiscoveryCriteria,
+) -> Result<DeribitDiscoveredOption, IngestionError> {
+    let mut candidates: Vec<DeribitDiscoveredOption> = instruments
+        .into_iter()
+        .filter(|instrument| instrument.underlying == criteria.underlying)
+        .filter(|instrument| instrument.option_kind == criteria.option_kind)
+        .filter(|instrument| {
+            (instrument.expiry_ts_ms - criteria.target_expiry_ts_ms).abs()
+                <= criteria.max_expiry_distance_ms
+        })
+        .filter(|instrument| {
+            (instrument.strike - criteria.target_strike).abs() <= criteria.max_strike_distance
+        })
+        .collect();
+
+    candidates.sort_by(|left, right| {
+        let left_expiry_distance = (left.expiry_ts_ms - criteria.target_expiry_ts_ms).abs();
+        let right_expiry_distance = (right.expiry_ts_ms - criteria.target_expiry_ts_ms).abs();
+        let left_strike_distance = (left.strike - criteria.target_strike).abs();
+        let right_strike_distance = (right.strike - criteria.target_strike).abs();
+
+        left_expiry_distance
+            .cmp(&right_expiry_distance)
+            .then_with(|| left_strike_distance.total_cmp(&right_strike_distance))
+            .then_with(|| left.instrument_name.cmp(&right.instrument_name))
+    });
+
+    candidates.into_iter().next().ok_or_else(|| {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Deribit),
+            format!(
+                "no Deribit option candidate for {} {:?} strike {} expiry {}",
+                criteria.underlying,
+                criteria.option_kind,
+                criteria.target_strike,
+                criteria.target_expiry_ts_ms
+            ),
+        )
+    })
+}
+
 fn parse_deribit_underlying(instrument_name: &str) -> Result<String, IngestionError> {
     let parts: Vec<&str> = instrument_name.split('-').collect();
     if parts.len() != 4 || parts[0].is_empty() {
@@ -1417,8 +1599,16 @@ fn parse_deribit_option_kind(instrument_name: &str) -> Result<OptionKind, Ingest
         return Err(malformed_deribit_instrument(instrument_name));
     }
     match parts[3] {
-        "C" => Ok(OptionKind::Call),
-        "P" => Ok(OptionKind::Put),
+        "C" => parse_deribit_option_kind_text("call"),
+        "P" => parse_deribit_option_kind_text("put"),
+        other => parse_deribit_option_kind_text(other),
+    }
+}
+
+fn parse_deribit_option_kind_text(value: &str) -> Result<OptionKind, IngestionError> {
+    match value.to_ascii_lowercase().as_str() {
+        "c" | "call" => Ok(OptionKind::Call),
+        "p" | "put" => Ok(OptionKind::Put),
         other => Err(IngestionError::new(
             IngestionErrorKind::Unsupported,
             Some(IngestionSource::Deribit),
@@ -2406,6 +2596,67 @@ mod tests {
         assert_eq!(quote.expiry_ts_ms, 1_780_272_000_000);
         assert_eq!(quote.strike, 3000.0);
         assert_eq!(quote.option_kind, OptionKind::Call);
+    }
+
+    #[test]
+    fn deribit_discovery_selects_nearest_option_candidate() {
+        let payload = r#"{
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": [
+                {
+                    "instrument_name": "ETH-29MAY26-3000-C",
+                    "base_currency": "ETH",
+                    "expiration_timestamp": 1779993600000,
+                    "strike": 3000.0,
+                    "option_type": "call"
+                },
+                {
+                    "instrument_name": "ETH-1JUN26-3000-C",
+                    "base_currency": "ETH",
+                    "expiration_timestamp": 1780272000000,
+                    "strike": 3000.0,
+                    "option_type": "call"
+                },
+                {
+                    "instrument_name": "ETH-1JUN26-3500-C",
+                    "base_currency": "ETH",
+                    "expiration_timestamp": 1780272000000,
+                    "strike": 3500.0,
+                    "option_type": "call"
+                }
+            ]
+        }"#;
+
+        let discovered = DeribitLiveIngestionClient::discover_option_from_payload(
+            payload,
+            &DeribitOptionDiscoveryCriteria::phase0_eth_call_3000_june_2026(),
+        )
+        .expect("discovery payload should produce a candidate");
+
+        assert_eq!(discovered.instrument_name, "ETH-1JUN26-3000-C");
+        assert_eq!(discovered.expiry_ts_ms, 1_780_272_000_000);
+        assert_eq!(discovered.strike, 3000.0);
+        assert_eq!(discovered.option_kind, OptionKind::Call);
+    }
+
+    #[test]
+    fn deribit_discovery_falls_back_to_instrument_name_metadata() {
+        let payload = r#"{
+            "result": [
+                { "instrument_name": "ETH-1JUN26-3000-C" }
+            ]
+        }"#;
+
+        let discovered = DeribitLiveIngestionClient::discover_option_from_payload(
+            payload,
+            &DeribitOptionDiscoveryCriteria::phase0_eth_call_3000_june_2026(),
+        )
+        .expect("instrument_name should be enough for discovery fallback");
+
+        assert_eq!(discovered.instrument_name, "ETH-1JUN26-3000-C");
+        assert_eq!(discovered.underlying, "ETH");
+        assert_eq!(discovered.expiry_ts_ms, 1_780_272_000_000);
     }
 
     #[test]

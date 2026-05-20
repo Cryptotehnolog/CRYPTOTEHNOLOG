@@ -19,9 +19,11 @@ use cryptotehnolog_common::probability_basis::{
 };
 #[cfg(feature = "network-integration")]
 use cryptotehnolog_ingestion::{
-    DeribitLiveIngestionClient, IngestionBatch, IngestionConfig, IngestionError, IngestionOutcome,
-    IngestionReport, IngestionSource, LiveHttpTransport, LiveIngestionProbeReport,
-    MockIngestionClient, MockIngestionStep, Phase0NormalizedBatchValidator,
+    DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION, DERIBIT_TICKER_PAYLOAD_SHAPE_VERSION,
+    DeribitLiveIngestionClient, DeribitOptionDiscoveryCriteria, IngestionBatch, IngestionConfig,
+    IngestionError, IngestionOutcome, IngestionReport, IngestionSource, LiveHttpTransport,
+    LiveIngestionProbeReport, MockIngestionClient, MockIngestionStep,
+    POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION, Phase0NormalizedBatchValidator,
     PolymarketLiveIngestionClient, ReqwestHttpTransport, ingest_once_with_report,
 };
 
@@ -47,8 +49,6 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
     let transport = ReqwestHttpTransport::new(5_000).map_err(|error| {
         LiveProbeReplayFailure::from_early_error("transport", error, Vec::new())
     })?;
-    let deribit_client =
-        DeribitLiveIngestionClient::new("https://www.deribit.com", "ETH-1JUN26-3000-C");
     let polymarket_client = PolymarketLiveIngestionClient::new(
         "https://gamma-api.polymarket.com",
         "eth-above-3000-june-1",
@@ -58,25 +58,35 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
     let polymarket_config = IngestionConfig::phase0_polymarket("https://gamma-api.polymarket.com");
 
     let mut probe_reports = Vec::new();
+    let mut payload_shape_versions = Vec::new();
     let mut errors = Vec::new();
     let mut batches = Vec::new();
     let mut journal = InMemoryEventJournal::new();
 
-    fetch_deribit_batch(
-        &deribit_client,
+    if let Some(deribit_client) = discover_deribit_option_client(
         &transport,
-        &deribit_config,
-        &mut journal,
         &mut probe_reports,
+        &mut payload_shape_versions,
         &mut errors,
-        &mut batches,
-    );
+    ) {
+        fetch_deribit_batch(
+            &deribit_client,
+            &transport,
+            &deribit_config,
+            &mut journal,
+            &mut probe_reports,
+            &mut payload_shape_versions,
+            &mut errors,
+            &mut batches,
+        );
+    }
     fetch_polymarket_batch(
         &polymarket_client,
         &transport,
         &polymarket_config,
         &mut journal,
         &mut probe_reports,
+        &mut payload_shape_versions,
         &mut errors,
         &mut batches,
     );
@@ -102,6 +112,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
                 "failed to read replay events",
                 render_report(
                     &probe_reports,
+                    &payload_shape_versions,
                     &ingestion_report,
                     &ReplayPipelineSummary::empty(),
                     &errors,
@@ -110,7 +121,13 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
         })?;
 
     let replay_summary = run_matcher(&replay_events);
-    let report = render_report(&probe_reports, &ingestion_report, &replay_summary, &errors);
+    let report = render_report(
+        &probe_reports,
+        &payload_shape_versions,
+        &ingestion_report,
+        &replay_summary,
+        &errors,
+    );
 
     if errors.is_empty()
         && probe_reports.iter().all(LiveIngestionProbeReport::is_ok)
@@ -127,12 +144,71 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
 }
 
 #[cfg(feature = "network-integration")]
+fn discover_deribit_option_client<T>(
+    transport: &T,
+    probe_reports: &mut Vec<LiveIngestionProbeReport>,
+    payload_shape_versions: &mut Vec<PayloadShapeVersion>,
+    errors: &mut Vec<DiagnosticError>,
+) -> Option<DeribitLiveIngestionClient>
+where
+    T: LiveHttpTransport,
+{
+    let base_url = "https://www.deribit.com";
+    let url = DeribitLiveIngestionClient::instruments_url(base_url);
+    let started_at = Instant::now();
+    match transport.get(&url) {
+        Ok(payload) => {
+            probe_reports.push(LiveIngestionProbeReport::ok(
+                "Deribit instruments",
+                url,
+                payload.len(),
+                started_at.elapsed().as_millis(),
+            ));
+            payload_shape_versions.push(PayloadShapeVersion::new(
+                "Deribit instruments",
+                DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION,
+            ));
+            let criteria = DeribitOptionDiscoveryCriteria::phase0_eth_call_3000_june_2026();
+            match DeribitLiveIngestionClient::discover_option_from_payload(&payload, &criteria) {
+                Ok(discovered) => Some(DeribitLiveIngestionClient::from_discovered(
+                    base_url,
+                    &discovered,
+                )),
+                Err(error) => {
+                    errors.push(DiagnosticError::from_ingestion_error(
+                        "discovery",
+                        "Deribit instruments",
+                        error,
+                    ));
+                    None
+                }
+            }
+        }
+        Err(error) => {
+            probe_reports.push(LiveIngestionProbeReport::error(
+                "Deribit instruments",
+                url,
+                started_at.elapsed().as_millis(),
+                error.clone(),
+            ));
+            errors.push(DiagnosticError::from_ingestion_error(
+                "http",
+                "Deribit instruments",
+                error,
+            ));
+            None
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
 fn fetch_deribit_batch<T>(
     client: &DeribitLiveIngestionClient,
     transport: &T,
     config: &IngestionConfig,
     journal: &mut InMemoryEventJournal,
     probe_reports: &mut Vec<LiveIngestionProbeReport>,
+    payload_shape_versions: &mut Vec<PayloadShapeVersion>,
     errors: &mut Vec<DiagnosticError>,
     batches: &mut Vec<IngestionBatch>,
 ) where
@@ -148,6 +224,10 @@ fn fetch_deribit_batch<T>(
                 url,
                 payload.len(),
                 started_at.elapsed().as_millis(),
+            ));
+            payload_shape_versions.push(PayloadShapeVersion::new(
+                "Deribit",
+                DERIBIT_TICKER_PAYLOAD_SHAPE_VERSION,
             ));
             match client.parse_ticker_payload(&payload, config, received_ts_ms) {
                 Ok(batch) => batches.push(batch),
@@ -187,6 +267,7 @@ fn fetch_polymarket_batch<T>(
     config: &IngestionConfig,
     journal: &mut InMemoryEventJournal,
     probe_reports: &mut Vec<LiveIngestionProbeReport>,
+    payload_shape_versions: &mut Vec<PayloadShapeVersion>,
     errors: &mut Vec<DiagnosticError>,
     batches: &mut Vec<IngestionBatch>,
 ) where
@@ -202,6 +283,10 @@ fn fetch_polymarket_batch<T>(
                 url,
                 payload.len(),
                 started_at.elapsed().as_millis(),
+            ));
+            payload_shape_versions.push(PayloadShapeVersion::new(
+                "Polymarket Gamma",
+                POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION,
             ));
             match client.parse_gamma_market_payload(&payload, config, received_ts_ms) {
                 Ok(batch) => batches.push(batch),
@@ -359,6 +444,31 @@ fn preserve_polymarket_raw_payload(
 
 #[cfg(feature = "network-integration")]
 #[derive(Debug, Clone, PartialEq, Eq)]
+struct PayloadShapeVersion {
+    endpoint: String,
+    version: String,
+}
+
+#[cfg(feature = "network-integration")]
+impl PayloadShapeVersion {
+    fn new(endpoint: impl Into<String>, version: impl Into<String>) -> Self {
+        Self {
+            endpoint: endpoint.into(),
+            version: version.into(),
+        }
+    }
+
+    fn to_json(&self) -> String {
+        format!(
+            "{{\"endpoint\":\"{}\",\"payload_shape_version\":\"{}\"}}",
+            json_escape(&self.endpoint),
+            json_escape(&self.version)
+        )
+    }
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct DiagnosticError {
     stage: String,
     endpoint: String,
@@ -470,6 +580,7 @@ impl LiveProbeReplayFailure {
             "live probe replay failed before ingestion",
             render_report(
                 &probe_reports,
+                &[],
                 &IngestionReport::from_outcomes(&[]),
                 &ReplayPipelineSummary::empty(),
                 &errors,
@@ -481,6 +592,7 @@ impl LiveProbeReplayFailure {
 #[cfg(feature = "network-integration")]
 fn render_report(
     probe_reports: &[LiveIngestionProbeReport],
+    payload_shape_versions: &[PayloadShapeVersion],
     ingestion_report: &IngestionReport,
     replay_summary: &ReplayPipelineSummary,
     errors: &[DiagnosticError],
@@ -490,6 +602,11 @@ fn render_report(
         .map(LiveIngestionProbeReport::to_json)
         .collect::<Vec<String>>()
         .join(",");
+    let payload_shapes = payload_shape_versions
+        .iter()
+        .map(PayloadShapeVersion::to_json)
+        .collect::<Vec<String>>()
+        .join(",");
     let errors = errors
         .iter()
         .map(DiagnosticError::to_json)
@@ -497,9 +614,10 @@ fn render_report(
         .join(",");
 
     format!(
-        "{{\"schema_version\":1,\"config_version\":\"{}\",\"pricing_model_version\":\"{}\",\"probe_reports\":[{}],\"ingestion_report\":{},\"replay_summary\":{},\"errors\":[{}]}}",
+        "{{\"schema_version\":1,\"config_version\":\"{}\",\"pricing_model_version\":\"{}\",\"payload_shape_versions\":[{}],\"probe_reports\":[{}],\"ingestion_report\":{},\"replay_summary\":{},\"errors\":[{}]}}",
         CONFIG_VERSION,
         PRICING_MODEL_VERSION,
+        payload_shapes,
         probes,
         ingestion_report.to_json(),
         replay_summary.to_json(),

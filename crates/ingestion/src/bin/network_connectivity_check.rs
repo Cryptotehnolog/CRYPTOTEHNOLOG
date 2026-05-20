@@ -17,8 +17,6 @@ fn main() {
         }
     };
 
-    let deribit_client =
-        DeribitLiveIngestionClient::new("https://www.deribit.com", "ETH-1JUN26-3000-C");
     let polymarket_client = PolymarketLiveIngestionClient::new(
         "https://gamma-api.polymarket.com",
         "eth-above-3000-june-1",
@@ -26,7 +24,11 @@ fn main() {
     );
 
     let reports = vec![
-        probe_live_http_endpoint("Deribit", deribit_client.ticker_url(), &transport),
+        probe_live_http_endpoint(
+            "Deribit instruments",
+            DeribitLiveIngestionClient::instruments_url("https://www.deribit.com"),
+            &transport,
+        ),
         probe_live_http_endpoint(
             "Polymarket Gamma",
             polymarket_client.gamma_market_url(),
