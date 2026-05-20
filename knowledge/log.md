@@ -95,3 +95,7 @@ sources: []
 ## [2026-05-20] research | LightRAG deferred boundary
 
 Добавлены source notes по HKUDS LightRAG, LightRAG arXiv paper и стороннему LightRAG MCP server. Добавлены `tool-lightrag.md` и `workflow-phase1-research.md`. Зафиксировано решение: LightRAG документируется как preferred research-memory candidate, но установка, Docker wiring, MCP wiring, ingestion данных и agent workflows запрещены до прохождения Phase 0 exit gate.
+
+## [2026-05-20] implementation | Probability basis replay runner
+
+`crates/replay` превращен в Phase 0 probability-basis replay runner: fixed mock `MarketEvent` fixture прогоняется через matcher и выдает reproducible matched/rejected report. Добавлен `config/phase_gate.toml` как machine-readable mirror Phase 0 gate для будущей CI-проверки запретов LightRAG/Docker/MCP до Phase 1.

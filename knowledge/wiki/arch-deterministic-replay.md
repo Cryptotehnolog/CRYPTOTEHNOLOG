@@ -54,9 +54,21 @@ read ordered events
 - replaying bad observations,
 - comparing probability models.
 
+## Current Runner
+
+`crates/replay` содержит Phase 0 probability-basis replay runner.
+
+Текущая версия использует fixed mock `MarketEvent` fixture, прогоняет `match_from_market_events` и печатает deterministic matched/rejected report:
+
+```text
+matched|ETH-20260601-3000-C|eth-above-3000-june-1|net_edge=0.081338|survives=true
+rejected|InsufficientLiquidity|ETH-20260601-3000-C|eth-above-3000-low-liquidity
+```
+
+Это еще не historical replay из PostgreSQL, но уже byte-stable smoke test для matcher semantics.
+
 ## Non-Goals
 
 - Live execution.
 - LLM-driven strategy changes.
 - Hidden mutable state.
-

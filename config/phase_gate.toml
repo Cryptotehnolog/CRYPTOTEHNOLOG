@@ -1,0 +1,28 @@
+# Machine-readable Phase 0 gate mirror for future CI checks.
+# Source of truth explanation: knowledge/wiki/roadmap-mvp.md
+
+[phase]
+current = "phase_0_deterministic_core"
+phase_1_research_enabled = false
+live_trading_enabled = false
+
+[phase_0_exit_gate]
+min_normalized_observations = 1000
+min_matched_opportunities = 100
+min_collection_days_without_replay_breaking_gaps = 30
+require_positive_average_net_edge_after_costs = true
+min_positive_net_edge_match_fraction = 0.60
+max_drawdown_fraction = 0.05
+daily_loss_limit_fraction = 0.02
+require_byte_stable_replay_report = true
+require_stable_rejection_taxonomy = true
+require_no_research_runtime_dependency_in_core = true
+
+[forbidden_until_phase_1]
+lightrag_installation = true
+lightrag_docker_wiring = true
+lightrag_mcp_wiring = true
+lightrag_ingestion = true
+agent_workflows_depending_on_lightrag = true
+hermes_or_omniroute_in_execution_path = true
+mcp_dependency_in_deterministic_core = true

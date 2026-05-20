@@ -67,7 +67,33 @@ sources:
 | `deribit_option_kind` | `call` | Option kind for matching. |
 | `polymarket_query` | `ETH above 3000 June 1` | Search/query hint для Polymarket discovery. |
 
+## `config/phase_gate.toml`
+
+Machine-readable mirror для Phase 0 gate. Сейчас это documentation/config contract для будущей CI-проверки; сам CI еще не валидирует эти поля.
+
+### `[phase]`
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `current` | `phase_0_deterministic_core` | Текущая фаза проекта. |
+| `phase_1_research_enabled` | `false` | Запрещает research-layer activation до Phase 0 gate. |
+| `live_trading_enabled` | `false` | Явный запрет live trading. |
+
+### `[phase_0_exit_gate]`
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `min_normalized_observations` | `1000` | Минимум normalized observations. |
+| `min_matched_opportunities` | `100` | Минимум matched opportunities. |
+| `min_collection_days_without_replay_breaking_gaps` | `30` | Минимальный период сбора без gaps, ломающих replay. |
+| `min_positive_net_edge_match_fraction` | `0.60` | Минимальная доля matched opportunities с positive net edge after costs. |
+| `max_drawdown_fraction` | `0.05` | Максимальная допустимая paper drawdown. |
+| `daily_loss_limit_fraction` | `0.02` | Максимальный simulated daily loss. |
+
+### `[forbidden_until_phase_1]`
+
+Эта секция перечисляет запреты, которые будущий CI сможет проверить автоматически: LightRAG installation/Docker/MCP wiring, ingestion в LightRAG, agent workflows на LightRAG, Hermes/OmniRoute в execution path и MCP dependency в deterministic core.
+
 ## Maintenance Note
 
 Эта страница сейчас поддерживается вручную. Если config начнет часто меняться, нужен generator script из `config/*.toml`.
-

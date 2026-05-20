@@ -32,6 +32,8 @@ sources:
 
 LightRAG документируется как future research-memory candidate, но не внедряется до Phase 0 exit gate.
 
+Machine-readable mirror этого gate находится в `config/phase_gate.toml`. Он нужен для будущей CI-проверки, которая сможет автоматически запрещать преждевременное появление LightRAG/Docker/MCP wiring до явного решения о переходе в Phase 1.
+
 ## Phase 0 Milestone 1: Knowledge And Contracts
 
 Готово, когда:

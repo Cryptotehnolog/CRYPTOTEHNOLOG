@@ -200,6 +200,35 @@ pub fn match_from_market_events(
     decisions
 }
 
+pub fn render_match_report(decisions: &[MatchDecision]) -> Vec<String> {
+    decisions
+        .iter()
+        .map(|decision| match decision {
+            MatchDecision::Matched {
+                feature,
+                net_edge_probability,
+                survives_costs,
+            } => format!(
+                "matched|{}|{}|net_edge={:.6}|survives={}",
+                feature.deribit_instrument_id,
+                feature.polymarket_market_slug,
+                net_edge_probability,
+                survives_costs
+            ),
+            MatchDecision::Rejected {
+                reason,
+                deribit_instrument_id,
+                polymarket_market_slug,
+            } => format!(
+                "rejected|{:?}|{}|{}",
+                reason,
+                deribit_instrument_id.as_deref().unwrap_or("none"),
+                polymarket_market_slug.as_deref().unwrap_or("none")
+            ),
+        })
+        .collect()
+}
+
 fn reject_pair(
     reason: RejectionReason,
     deribit_quote: &DeribitOptionQuote,
@@ -518,34 +547,5 @@ mod tests {
         assert!((standard_normal_cdf(1.0) - 0.841344736).abs() < 1e-6);
         assert!((standard_normal_cdf(-1.0) - 0.158655264).abs() < 1e-6);
         assert!((standard_normal_cdf(1.0) + standard_normal_cdf(-1.0) - 1.0).abs() < 1e-6);
-    }
-
-    fn render_match_report(decisions: &[MatchDecision]) -> Vec<String> {
-        decisions
-            .iter()
-            .map(|decision| match decision {
-                MatchDecision::Matched {
-                    feature,
-                    net_edge_probability,
-                    survives_costs,
-                } => format!(
-                    "matched|{}|{}|net_edge={:.6}|survives={}",
-                    feature.deribit_instrument_id,
-                    feature.polymarket_market_slug,
-                    net_edge_probability,
-                    survives_costs
-                ),
-                MatchDecision::Rejected {
-                    reason,
-                    deribit_instrument_id,
-                    polymarket_market_slug,
-                } => format!(
-                    "rejected|{:?}|{}|{}",
-                    reason,
-                    deribit_instrument_id.as_deref().unwrap_or("none"),
-                    polymarket_market_slug.as_deref().unwrap_or("none")
-                ),
-            })
-            .collect()
     }
 }
