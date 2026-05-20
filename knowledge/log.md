@@ -295,3 +295,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] hardening | EventJournalRowWriter failure path
 
 Добавлен negative test с failing `EventJournalRowWriter`: storage-row failure теперь явно возвращается из ingestion как `IngestionErrorKind::JournalWrite`, без panic. Тест фиксирует, что raw event уже сохранен в `EventJournal`, но normalized event не пишется после сбоя row-writer mirror.
+
+## [2026-05-21] hardening | BasisObservationRowWriter failure path
+
+Добавлен helper `write_basis_observation_rows()` и negative test с failing `BasisObservationRowWriter`. Derived `BasisObservation` теперь проходит через row boundary, а storage failure возвращается как `ObservationWriteErrorKind::Storage`, без panic и без silent drop.

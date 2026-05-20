@@ -141,6 +141,20 @@ pub trait BasisObservationRowWriter {
     ) -> Result<(), ObservationWriteError>;
 }
 
+pub fn write_basis_observation_rows<W>(
+    observations: &[BasisObservation],
+    writer: &mut W,
+) -> Result<(), ObservationWriteError>
+where
+    W: BasisObservationRowWriter,
+{
+    for observation in observations {
+        writer.append_basis_observation_row(BasisObservationRow::from_observation(observation))?;
+    }
+
+    Ok(())
+}
+
 pub struct PostgresBasisObservationAdapter;
 
 impl PostgresBasisObservationAdapter {
@@ -341,6 +355,38 @@ mod tests {
         let error = writer.append_basis_observation(observation).unwrap_err();
 
         assert_eq!(error.kind, ObservationWriteErrorKind::DuplicateObservation);
+    }
+
+    #[test]
+    fn basis_observation_row_writer_failure_is_returned_without_panic() {
+        #[derive(Debug, Default)]
+        struct FailingBasisObservationRowWriter {
+            attempts: usize,
+        }
+
+        impl BasisObservationRowWriter for FailingBasisObservationRowWriter {
+            fn append_basis_observation_row(
+                &mut self,
+                _row: BasisObservationRow,
+            ) -> Result<(), ObservationWriteError> {
+                self.attempts += 1;
+                Err(ObservationWriteError::new(
+                    ObservationWriteErrorKind::Storage,
+                    "simulated basis observation row writer failure",
+                ))
+            }
+        }
+
+        let observation = BasisObservation::from_feature(&feature(), 0.025);
+        let observations = vec![observation];
+        let mut writer = FailingBasisObservationRowWriter::default();
+
+        let error = write_basis_observation_rows(&observations, &mut writer)
+            .expect_err("row writer storage failure should be returned");
+
+        assert_eq!(error.kind, ObservationWriteErrorKind::Storage);
+        assert!(error.message.contains("simulated basis observation"));
+        assert_eq!(writer.attempts, 1);
     }
 
     fn assert_numeric_value(value: &BasisObservationRowValue, expected: f64) {
