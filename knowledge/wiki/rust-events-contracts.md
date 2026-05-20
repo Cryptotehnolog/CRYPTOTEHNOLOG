@@ -202,6 +202,7 @@ Raw API payload wrapper before normalization.
 - `MockPolymarketAdapter`,
 - `InMemoryEventJournal`.
 - `InMemoryBasisObservationWriter`.
+- `InMemoryBasisObservationRowWriter`.
 - `PostgresBasisObservationAdapter` skeleton без real DB connection.
 - `PostgresEventJournalAdapter` skeleton без real DB connection.
 - `PostgresEventJournalWriter` feature-gated skeleton за `postgres-writer` без real DB connection.
@@ -448,6 +449,8 @@ VALUES ($1, to_timestamp($2::double precision / 1000.0), ...)
 
 `write_basis_observation_rows()` фиксирует derived storage boundary: рассчитанные `BasisObservation` превращаются в `BasisObservationRow`, а ошибка writer возвращается как `ObservationWriteError`, без panic и без silent drop.
 
+`InMemoryBasisObservationRowWriter` реализует successful storage-row sink для tests: rows сохраняются в памяти, а duplicate `event_id` отклоняется как `ObservationWriteErrorKind::DuplicateObservation`.
+
 ### `EventJournalRowWriter`
 
 Storage-row interface:
@@ -513,6 +516,7 @@ pub struct ReplayEventFilter {
 - BasisObservation mapping and duplicate observation rejection.
 - BasisObservationRow column order and PostgreSQL insert SQL skeleton.
 - BasisObservationRowWriter failure path returns `ObservationWriteErrorKind::Storage` without panic.
+- Offline derived storage flow: ingestion -> matcher -> `BasisObservation` -> `InMemoryBasisObservationRowWriter`.
 - Ingestion skeleton: raw-before-normalized write order, validator-before-normalized-write boundary, validation report counters, API error without writes, live client `NotImplemented`, API error/reconnect fixture parsing, ingestion manifest parsing.
 - Ingestion semantic golden reports: `fixtures/ingestion/*_report.json` сравниваются с `IngestionReport::to_json()`.
 - Deribit live skeleton: ticker URL construction, fixture payload parsing и explicit no-network `poll_once()` behavior.

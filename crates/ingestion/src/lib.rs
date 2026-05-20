@@ -2448,7 +2448,8 @@ mod tests {
         InMemoryEventJournalRowWriter, JournalError, JournalErrorKind,
     };
     use cryptotehnolog_common::observations::{
-        BasisObservationWriter, InMemoryBasisObservationWriter, observations_from_match_decisions,
+        BasisObservationWriter, InMemoryBasisObservationRowWriter, InMemoryBasisObservationWriter,
+        observations_from_match_decisions, write_basis_observation_rows,
     };
     use cryptotehnolog_common::probability_basis::{
         MatchDecision, ProbabilityBasisConfig, match_from_market_events,
@@ -3575,6 +3576,60 @@ mod tests {
 
         assert_eq!(observations.len(), 1);
         assert!(observations[0].survives_costs);
+    }
+
+    #[test]
+    fn ingestion_to_matcher_to_basis_observation_row_writer_flow_is_offline() {
+        let mut deribit_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(deribit_batch())]);
+        let mut polymarket_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(polymarket_batch())]);
+        let mut journal = InMemoryEventJournal::new();
+
+        ingest_once_with_report(
+            &mut deribit_client,
+            &mut journal,
+            &IngestionConfig::phase0_deribit("mock://deribit"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("Deribit batch should ingest");
+        ingest_once_with_report(
+            &mut polymarket_client,
+            &mut journal,
+            &IngestionConfig::phase0_polymarket("mock://polymarket"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("Polymarket batch should ingest");
+
+        let replay_events = journal
+            .read_events_for_replay(ReplayEventFilter {
+                start_ts_ms: 0,
+                end_ts_ms: 1_781_000_000_000,
+                event_types: vec![],
+                instrument_ids: vec![],
+                config_version: Some("phase0-ingestion".to_string()),
+            })
+            .expect("journal should return replay events");
+        let config = probability_basis_config();
+        let decisions = match_from_market_events(&replay_events, &config);
+        let observations = observations_from_match_decisions(&decisions, &config);
+        let mut row_writer = InMemoryBasisObservationRowWriter::new();
+
+        write_basis_observation_rows(&observations, &mut row_writer)
+            .expect("basis observation rows should append");
+
+        assert_eq!(observations.len(), 1);
+        assert_eq!(row_writer.rows().len(), 1);
+        assert_eq!(row_writer.rows()[0].event_id, observations[0].event_id);
+        assert_eq!(
+            row_writer.rows()[0].deribit_instrument_id,
+            "ETH-20260601-3000-C"
+        );
+        assert_eq!(
+            row_writer.rows()[0].polymarket_market_slug,
+            "eth-above-3000-june-1"
+        );
+        assert!(row_writer.rows()[0].survives_costs);
     }
 
     #[test]

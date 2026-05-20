@@ -155,6 +155,39 @@ where
     Ok(())
 }
 
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct InMemoryBasisObservationRowWriter {
+    rows: Vec<BasisObservationRow>,
+}
+
+impl InMemoryBasisObservationRowWriter {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn rows(&self) -> &[BasisObservationRow] {
+        &self.rows
+    }
+
+    fn contains_event_id(&self, event_id: &str) -> bool {
+        self.rows.iter().any(|row| row.event_id == event_id)
+    }
+}
+
+impl BasisObservationRowWriter for InMemoryBasisObservationRowWriter {
+    fn append_basis_observation_row(
+        &mut self,
+        row: BasisObservationRow,
+    ) -> Result<(), ObservationWriteError> {
+        if self.contains_event_id(&row.event_id) {
+            return Err(ObservationWriteError::duplicate_observation(&row.event_id));
+        }
+
+        self.rows.push(row);
+        Ok(())
+    }
+}
+
 pub struct PostgresBasisObservationAdapter;
 
 impl PostgresBasisObservationAdapter {
@@ -387,6 +420,22 @@ mod tests {
         assert_eq!(error.kind, ObservationWriteErrorKind::Storage);
         assert!(error.message.contains("simulated basis observation"));
         assert_eq!(writer.attempts, 1);
+    }
+
+    #[test]
+    fn in_memory_basis_observation_row_writer_preserves_rows_and_rejects_duplicates() {
+        let observation = BasisObservation::from_feature(&feature(), 0.025);
+        let row = BasisObservationRow::from_observation(&observation);
+        let mut writer = InMemoryBasisObservationRowWriter::new();
+
+        write_basis_observation_rows(std::slice::from_ref(&observation), &mut writer)
+            .expect("first row should append");
+        assert_eq!(writer.rows(), std::slice::from_ref(&row));
+
+        let error = write_basis_observation_rows(&[observation], &mut writer)
+            .expect_err("duplicate row should be rejected");
+        assert_eq!(error.kind, ObservationWriteErrorKind::DuplicateObservation);
+        assert_eq!(writer.rows().len(), 1);
     }
 
     fn assert_numeric_value(value: &BasisObservationRowValue, expected: f64) {

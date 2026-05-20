@@ -299,3 +299,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] hardening | BasisObservationRowWriter failure path
 
 Добавлен helper `write_basis_observation_rows()` и negative test с failing `BasisObservationRowWriter`. Derived `BasisObservation` теперь проходит через row boundary, а storage failure возвращается как `ObservationWriteErrorKind::Storage`, без panic и без silent drop.
+
+## [2026-05-21] implementation | BasisObservationRowWriter offline success path
+
+Добавлен `InMemoryBasisObservationRowWriter` и integration test: ingestion -> matcher -> `BasisObservation` -> `BasisObservationRowWriter`. Это закрывает полный offline путь до будущей таблицы `basis_observations` без PostgreSQL connector, сети или trading side effects.
