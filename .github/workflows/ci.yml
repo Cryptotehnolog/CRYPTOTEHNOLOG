@@ -47,6 +47,10 @@ jobs:
         shell: pwsh
         run: .\scripts\check_phase_gate.ps1
 
+      - name: Check replay manifest
+        shell: pwsh
+        run: .\scripts\check_replay_manifest.ps1
+
       - name: Run replay regression
         shell: pwsh
         run: .\scripts\run_replay_regression.ps1

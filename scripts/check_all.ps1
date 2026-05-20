@@ -19,6 +19,9 @@ try {
     Write-Output "== Phase gate check =="
     .\scripts\check_phase_gate.ps1
 
+    Write-Output "== Replay manifest check =="
+    .\scripts\check_replay_manifest.ps1
+
     Write-Output "== Rust formatting check =="
     cargo fmt --check
     if ($LASTEXITCODE -ne 0) { throw "cargo fmt --check failed." }

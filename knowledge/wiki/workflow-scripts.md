@@ -24,6 +24,7 @@ sources:
 - stale warnings,
 - compliance,
 - phase gate,
+- replay manifest,
 - `cargo fmt --check`,
 - `cargo check`,
 - `cargo test`,
@@ -79,6 +80,16 @@ JSON/text output включает `ReplaySummary`: counts matched/rejected, coun
 Это smoke-level CLI regression, а не замена Rust unit tests.
 
 Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, чтобы `run_replay_regression.ps1`, `update_golden_fixture.ps1` и `check_golden_fixture_current.ps1` не дублировали один и тот же TOML subset parser.
+
+### `scripts/check_replay_manifest.ps1`
+
+Проверяет `fixtures/manifest.toml` без запуска `cargo`:
+
+- scenario names должны быть уникальны,
+- `fixture`, `expected_json` и `expected_text` paths не должны дублироваться,
+- referenced fixture/report files должны существовать.
+
+Включен в `check_all` и CI до replay regression, чтобы ошибки manifest ловились быстро.
 
 ### `scripts/update_golden_fixture.ps1`
 

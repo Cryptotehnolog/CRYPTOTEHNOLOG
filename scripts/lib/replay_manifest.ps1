@@ -64,5 +64,31 @@ function Get-ReplayFixtureScenarios {
         $scenario | Add-Member -NotePropertyName ExpectedTextPath -NotePropertyValue (Join-Path $Root $scenario.expected_text)
     }
 
+    Assert-ReplayManifestUniqueValues -Scenarios $scenarios
+
     return $scenarios
+}
+
+function Assert-ReplayManifestUniqueValues {
+    param([object[]]$Scenarios)
+
+    $names = @{}
+    $paths = @{}
+
+    foreach ($scenario in $Scenarios) {
+        $nameKey = $scenario.name.ToLowerInvariant()
+        if ($names.ContainsKey($nameKey)) {
+            throw "Replay fixture manifest has duplicate scenario name: $($scenario.name)"
+        }
+        $names[$nameKey] = $true
+
+        foreach ($field in @("fixture", "expected_json", "expected_text")) {
+            $rawPath = $scenario.$field
+            $pathKey = $rawPath.Replace("/", "\").ToLowerInvariant()
+            if ($paths.ContainsKey($pathKey)) {
+                throw "Replay fixture manifest has duplicate path `$rawPath` in scenario $($scenario.name)."
+            }
+            $paths[$pathKey] = $true
+        }
+    }
 }
