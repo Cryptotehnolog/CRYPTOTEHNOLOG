@@ -604,9 +604,24 @@ impl SelectionReport {
         }
     }
 
+    fn selection_quality(&self) -> &'static str {
+        if self.selected_deribit_instrument.is_none()
+            || self.selected_polymarket_market_slug.is_none()
+        {
+            return "missing";
+        }
+
+        match (self.strike_mismatch(), self.expiry_mismatch()) {
+            (false, false) => "exact",
+            (true, true) => "mismatch",
+            (true, false) | (false, true) => "nearby",
+        }
+    }
+
     fn to_json(&self) -> String {
         format!(
-            "{{\"selected_deribit_instrument\":{},\"target_expiry_ts_ms\":{},\"target_expiry_date\":{},\"selected_expiry_ts_ms\":{},\"selected_expiry_date\":{},\"strike_distance\":{},\"strike_mismatch\":{},\"expiry_mismatch\":{},\"selected_polymarket_market_slug\":{},\"selected_polymarket_event_slug\":{},\"selected_polymarket_liquidity_usd\":{}}}",
+            "{{\"selection_quality\":\"{}\",\"selected_deribit_instrument\":{},\"target_expiry_ts_ms\":{},\"target_expiry_date\":{},\"selected_expiry_ts_ms\":{},\"selected_expiry_date\":{},\"strike_distance\":{},\"strike_mismatch\":{},\"expiry_mismatch\":{},\"selected_polymarket_market_slug\":{},\"selected_polymarket_event_slug\":{},\"selected_polymarket_liquidity_usd\":{}}}",
+            self.selection_quality(),
             optional_string_json(&self.selected_deribit_instrument),
             optional_i64_json(self.target_expiry_ts_ms),
             optional_string_json(&self.target_expiry_date),
@@ -881,8 +896,14 @@ mod tests {
 
         assert!(report.strike_mismatch());
         assert!(report.expiry_mismatch());
+        assert_eq!(report.selection_quality(), "missing");
         assert!(report.to_json().contains("\"strike_mismatch\":true"));
         assert!(report.to_json().contains("\"expiry_mismatch\":true"));
+        assert!(
+            report
+                .to_json()
+                .contains("\"selection_quality\":\"missing\"")
+        );
     }
 
     #[test]
@@ -891,8 +912,40 @@ mod tests {
 
         assert!(!report.strike_mismatch());
         assert!(!report.expiry_mismatch());
+        assert_eq!(report.selection_quality(), "missing");
         assert!(report.to_json().contains("\"strike_mismatch\":false"));
         assert!(report.to_json().contains("\"expiry_mismatch\":false"));
+        assert!(
+            report
+                .to_json()
+                .contains("\"selection_quality\":\"missing\"")
+        );
+    }
+
+    #[test]
+    fn selection_quality_summarizes_complete_candidate_alignment() {
+        let criteria = DeribitOptionDiscoveryCriteria::phase0_eth_call_3000_june_2026();
+        let mut exact = SelectionReport::empty();
+        exact.selected_polymarket_market_slug = Some("eth-above-3000-june-2026".to_string());
+        exact.set_deribit(
+            &criteria,
+            &DeribitDiscoveredOption {
+                instrument_name: "ETH-1JUN26-3000-C".to_string(),
+                underlying: "ETH".to_string(),
+                expiry_ts_ms: criteria.target_expiry_ts_ms,
+                strike: criteria.target_strike,
+                option_kind: OptionKind::Call,
+            },
+        );
+        assert_eq!(exact.selection_quality(), "exact");
+
+        let mut nearby = exact.clone();
+        nearby.strike_distance = Some(100.0);
+        assert_eq!(nearby.selection_quality(), "nearby");
+
+        let mut mismatch = nearby.clone();
+        mismatch.selected_expiry_ts_ms = Some(1_782_432_000_000);
+        assert_eq!(mismatch.selection_quality(), "mismatch");
     }
 }
 

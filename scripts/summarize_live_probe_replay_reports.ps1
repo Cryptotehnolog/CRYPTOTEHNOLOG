@@ -84,6 +84,36 @@ function Select-MismatchFlag {
     return [System.Convert]::ToBoolean($FlagValue)
 }
 
+function Select-SelectionQuality {
+    param(
+        $QualityValue,
+        $DeribitInstrument,
+        $PolymarketMarket,
+        [bool]$StrikeMismatch,
+        [bool]$ExpiryMismatch
+    )
+
+    $qualityText = Format-OptionalValue $QualityValue
+    if (-not [string]::IsNullOrWhiteSpace($qualityText)) {
+        return $qualityText
+    }
+
+    if ([string]::IsNullOrWhiteSpace((Format-OptionalValue $DeribitInstrument)) -or
+        [string]::IsNullOrWhiteSpace((Format-OptionalValue $PolymarketMarket))) {
+        return "missing"
+    }
+
+    if ($StrikeMismatch -and $ExpiryMismatch) {
+        return "mismatch"
+    }
+
+    if ($StrikeMismatch -or $ExpiryMismatch) {
+        return "nearby"
+    }
+
+    return "exact"
+}
+
 if (-not [System.IO.Path]::IsPathRooted($ReportsGlob)) {
     $ReportsGlob = Join-Path $root $ReportsGlob
 }
@@ -117,6 +147,7 @@ foreach ($file in $files) {
     $fallbackExpiryMismatch = ($null -ne $targetExpiryTsMs -and $null -ne $selectedExpiryTsMs -and $selectedExpiryTsMs -ne $targetExpiryTsMs)
     $hasStrikeMismatch = Select-MismatchFlag $selection.strike_mismatch $fallbackStrikeMismatch
     $hasExpiryMismatch = Select-MismatchFlag $selection.expiry_mismatch $fallbackExpiryMismatch
+    $selectionQuality = Select-SelectionQuality $selection.selection_quality $selection.selected_deribit_instrument $selection.selected_polymarket_market_slug $hasStrikeMismatch $hasExpiryMismatch
     $warningReasons = @()
     if ($hasStrikeMismatch) {
         $warningReasons += "strike_distance > 0"
@@ -139,6 +170,7 @@ foreach ($file in $files) {
 
     $selectionRow = [pscustomobject]@{
         Report = $file.Name
+        Quality = $selectionQuality
         DeribitInstrument = Format-OptionalValue $selection.selected_deribit_instrument
         PolymarketMarket = Format-OptionalValue $selection.selected_polymarket_market_slug
         TargetExpiryDate = $targetExpiryDate
