@@ -57,15 +57,17 @@ Golden fixture - это regression guard, а не замена unit tests.
 - key instrument/market ids,
 - numeric edge с tolerance.
 
-CLI regression остается smoke test, который проверяет, что command-line output не разъехался с expected report.
+JSON regression является основным semantic fixture check.
 
-Обновлять `fixtures/probability_basis/golden_report.txt` нужно только через:
+CLI text regression остается smoke test, который проверяет, что command-line output не разъехался с human-readable expected report.
+
+Обновлять `fixtures/probability_basis/golden_report.json` и `fixtures/probability_basis/golden_report.txt` нужно только через:
 
 ```powershell
 .\scripts\update_golden_fixture.ps1
 ```
 
-`scripts/check_golden_fixture_current.ps1` запускает update script и падает, если после перегенерации появляется diff. Этот check включен в `scripts/check_all.ps1` и CI.
+`scripts/check_golden_fixture_current.ps1` запускает update script и падает, если после перегенерации JSON или text fixture меняется. Этот check включен в `scripts/check_all.ps1` и CI.
 
 Если golden report меняется, PR/commit должен объяснять, какое изменение matcher/pricing/replay behavior это вызвало.
 
@@ -89,9 +91,11 @@ matched|ETH-20260601-3000-C|eth-above-3000-june-1|net_edge=0.081338|survives=tru
 rejected|InsufficientLiquidity|ETH-20260601-3000-C|eth-above-3000-low-liquidity
 ```
 
-Expected output хранится в `fixtures/probability_basis/golden_report.txt`.
+Primary expected output хранится в `fixtures/probability_basis/golden_report.json`.
 
-`scripts/run_replay_regression.ps1` запускает runner и сравнивает output с golden report. Скрипт включен в `scripts/check_all.ps1` и CI.
+Human-readable text output хранится в `fixtures/probability_basis/golden_report.txt`.
+
+`scripts/run_replay_regression.ps1` запускает runner и сравнивает JSON/text output с golden reports. Скрипт включен в `scripts/check_all.ps1` и CI.
 
 `crates/replay/src/lib.rs` содержит library-level replay core. `crates/replay/src/main.rs` является тонкой CLI-оберткой.
 
@@ -99,9 +103,16 @@ Runner также создает matched `BasisObservation` records через `
 
 Это еще не historical replay из PostgreSQL, но уже byte-stable smoke test для matcher semantics и observation contract.
 
-## Semantic Output Direction
+## Semantic Output Contract
 
-Следующий более устойчивый формат regression output - semantic JSON report, а не plain text lines. Это снизит хрупкость CLI formatting, но требует отдельного report contract. До этого шага текстовый report остается smoke-level guard.
+`ReplayReport` в `crates/replay/src/lib.rs` является semantic report contract.
+
+Он генерирует:
+
+- JSON report как основной machine-readable эталон,
+- text report как human-readable CLI output.
+
+Текущий JSON пишется вручную без `serde`, чтобы не добавлять dependencies на раннем Phase 0. При появлении более широкого report contract можно перейти на `serde_json`.
 
 ## Network Policy
 

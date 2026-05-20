@@ -10,7 +10,6 @@ use cryptotehnolog_common::observations::{
 };
 use cryptotehnolog_common::probability_basis::{
     MatchDecision, PRICING_MODEL_VERSION, ProbabilityBasisConfig, match_from_market_events,
-    render_match_report,
 };
 
 pub const DEFAULT_FIXTURE_PATH: &str = "fixtures/probability_basis/golden_events.psv";
@@ -22,12 +21,162 @@ pub struct ProbabilityBasisReplayOutput {
 }
 
 impl ProbabilityBasisReplayOutput {
+    pub fn replay_report(&self) -> ReplayReport {
+        ReplayReport::from_decisions(&self.decisions)
+    }
+
     pub fn report_lines(&self) -> Vec<String> {
+        self.replay_report().to_text_lines()
+    }
+
+    pub fn report_json(&self) -> String {
+        self.replay_report().to_json()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReplayReport {
+    pub schema_version: u16,
+    pub pricing_model_version: String,
+    pub entries: Vec<ReplayReportEntry>,
+}
+
+impl ReplayReport {
+    pub fn from_decisions(decisions: &[MatchDecision]) -> Self {
+        Self {
+            schema_version: 1,
+            pricing_model_version: PRICING_MODEL_VERSION.to_string(),
+            entries: decisions.iter().map(ReplayReportEntry::from).collect(),
+        }
+    }
+
+    pub fn to_text_lines(&self) -> Vec<String> {
         let mut lines = vec![format!(
-            "metadata|pricing_model_version={PRICING_MODEL_VERSION}"
+            "metadata|pricing_model_version={}",
+            self.pricing_model_version
         )];
-        lines.extend(render_match_report(&self.decisions));
+        lines.extend(self.entries.iter().map(ReplayReportEntry::to_text_line));
         lines
+    }
+
+    pub fn to_json(&self) -> String {
+        let mut json = String::new();
+        json.push_str("{\n");
+        json.push_str(&format!("  \"schema_version\": {},\n", self.schema_version));
+        json.push_str(&format!(
+            "  \"pricing_model_version\": \"{}\",\n",
+            json_escape(&self.pricing_model_version)
+        ));
+        json.push_str("  \"entries\": [\n");
+
+        for (index, entry) in self.entries.iter().enumerate() {
+            json.push_str(&entry.to_json(4));
+            if index + 1 != self.entries.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+
+        json.push_str("  ]\n");
+        json.push_str("}\n");
+        json
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReplayReportEntry {
+    Matched {
+        deribit_instrument_id: String,
+        polymarket_market_slug: String,
+        net_edge_probability: f64,
+        survives_costs: bool,
+    },
+    Rejected {
+        reason: String,
+        deribit_instrument_id: Option<String>,
+        polymarket_market_slug: Option<String>,
+    },
+}
+
+impl ReplayReportEntry {
+    fn to_text_line(&self) -> String {
+        match self {
+            ReplayReportEntry::Matched {
+                deribit_instrument_id,
+                polymarket_market_slug,
+                net_edge_probability,
+                survives_costs,
+            } => format!(
+                "matched|{}|{}|net_edge={:.6}|survives={}",
+                deribit_instrument_id, polymarket_market_slug, net_edge_probability, survives_costs
+            ),
+            ReplayReportEntry::Rejected {
+                reason,
+                deribit_instrument_id,
+                polymarket_market_slug,
+            } => format!(
+                "rejected|{}|{}|{}",
+                reason,
+                deribit_instrument_id.as_deref().unwrap_or("none"),
+                polymarket_market_slug.as_deref().unwrap_or("none")
+            ),
+        }
+    }
+
+    fn to_json(&self, indent: usize) -> String {
+        let spaces = " ".repeat(indent);
+        let inner_spaces = " ".repeat(indent + 2);
+
+        match self {
+            ReplayReportEntry::Matched {
+                deribit_instrument_id,
+                polymarket_market_slug,
+                net_edge_probability,
+                survives_costs,
+            } => format!(
+                "{spaces}{{\n{inner_spaces}\"type\": \"matched\",\n{inner_spaces}\"deribit_instrument_id\": \"{}\",\n{inner_spaces}\"polymarket_market_slug\": \"{}\",\n{inner_spaces}\"net_edge_probability\": {:.6},\n{inner_spaces}\"survives_costs\": {}\n{spaces}}}",
+                json_escape(deribit_instrument_id),
+                json_escape(polymarket_market_slug),
+                net_edge_probability,
+                survives_costs
+            ),
+            ReplayReportEntry::Rejected {
+                reason,
+                deribit_instrument_id,
+                polymarket_market_slug,
+            } => format!(
+                "{spaces}{{\n{inner_spaces}\"type\": \"rejected\",\n{inner_spaces}\"reason\": \"{}\",\n{inner_spaces}\"deribit_instrument_id\": {},\n{inner_spaces}\"polymarket_market_slug\": {}\n{spaces}}}",
+                json_escape(reason),
+                json_option(deribit_instrument_id.as_deref()),
+                json_option(polymarket_market_slug.as_deref())
+            ),
+        }
+    }
+}
+
+impl From<&MatchDecision> for ReplayReportEntry {
+    fn from(decision: &MatchDecision) -> Self {
+        match decision {
+            MatchDecision::Matched {
+                feature,
+                net_edge_probability,
+                survives_costs,
+            } => ReplayReportEntry::Matched {
+                deribit_instrument_id: feature.deribit_instrument_id.clone(),
+                polymarket_market_slug: feature.polymarket_market_slug.clone(),
+                net_edge_probability: *net_edge_probability,
+                survives_costs: *survives_costs,
+            },
+            MatchDecision::Rejected {
+                reason,
+                deribit_instrument_id,
+                polymarket_market_slug,
+            } => ReplayReportEntry::Rejected {
+                reason: format!("{reason:?}"),
+                deribit_instrument_id: deribit_instrument_id.clone(),
+                polymarket_market_slug: polymarket_market_slug.clone(),
+            },
+        }
     }
 }
 
@@ -47,6 +196,10 @@ pub fn run_probability_basis_replay(
 
 pub fn run_probability_basis_replay_report(fixture_path: &Path) -> Result<Vec<String>, String> {
     Ok(run_probability_basis_replay(fixture_path)?.report_lines())
+}
+
+pub fn run_probability_basis_replay_report_json(fixture_path: &Path) -> Result<String, String> {
+    Ok(run_probability_basis_replay(fixture_path)?.report_json())
 }
 
 pub fn default_probability_basis_config() -> ProbabilityBasisConfig {
@@ -177,6 +330,28 @@ fn parse_option_kind(line_number: usize, raw: &str) -> Result<OptionKind, String
     }
 }
 
+fn json_option(value: Option<&str>) -> String {
+    match value {
+        Some(value) => format!("\"{}\"", json_escape(value)),
+        None => "null".to_string(),
+    }
+}
+
+fn json_escape(value: &str) -> String {
+    let mut escaped = String::new();
+    for character in value.chars() {
+        match character {
+            '"' => escaped.push_str("\\\""),
+            '\\' => escaped.push_str("\\\\"),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\t' => escaped.push_str("\\t"),
+            other => escaped.push(other),
+        }
+    }
+    escaped
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -197,10 +372,10 @@ mod tests {
 
         assert_eq!(output.decisions.len(), 2);
         assert_eq!(output.observations.len(), 1);
-        assert_eq!(
-            output.report_lines()[0],
-            "metadata|pricing_model_version=black_scholes_single_strike_v1"
-        );
+        let report = output.replay_report();
+        assert_eq!(report.schema_version, 1);
+        assert_eq!(report.pricing_model_version, PRICING_MODEL_VERSION);
+        assert_eq!(report.entries.len(), 2);
         assert_eq!(
             output.observations[0].deribit_instrument_id,
             "ETH-20260601-3000-C"
@@ -214,7 +389,7 @@ mod tests {
     }
 
     #[test]
-    fn probability_basis_replay_report_matches_current_golden_file() {
+    fn probability_basis_text_report_matches_current_golden_file() {
         let output = run_probability_basis_replay(&workspace_fixture_path("golden_events.psv"))
             .expect("fixture replay should succeed");
         let expected = fs::read_to_string(workspace_fixture_path("golden_report.txt"))
@@ -222,6 +397,16 @@ mod tests {
         let expected_lines: Vec<String> = expected.lines().map(str::to_string).collect();
 
         assert_eq!(output.report_lines(), expected_lines);
+    }
+
+    #[test]
+    fn probability_basis_json_report_matches_current_golden_file() {
+        let output = run_probability_basis_replay(&workspace_fixture_path("golden_events.psv"))
+            .expect("fixture replay should succeed");
+        let expected = fs::read_to_string(workspace_fixture_path("golden_report.json"))
+            .expect("expected JSON report should be readable");
+
+        assert_eq!(output.report_json(), expected);
     }
 
     #[test]

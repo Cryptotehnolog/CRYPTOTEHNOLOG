@@ -64,19 +64,26 @@ Warning-only проверка `stability` и `review_after`.
 
 ### `scripts/run_replay_regression.ps1`
 
-Запускает `cryptotehnolog-replay` на `fixtures/probability_basis/golden_events.psv` и сравнивает output с `fixtures/probability_basis/golden_report.txt`.
+Запускает `cryptotehnolog-replay` на `fixtures/probability_basis/golden_events.psv`.
+
+Основная проверка сравнивает JSON output с `fixtures/probability_basis/golden_report.json`.
+
+Дополнительная smoke-проверка сравнивает text output с `fixtures/probability_basis/golden_report.txt`.
 
 Это smoke-level CLI regression, а не замена Rust unit tests.
 
 ### `scripts/update_golden_fixture.ps1`
 
-Перегенерирует `fixtures/probability_basis/golden_report.txt` из текущего replay code.
+Перегенерирует:
+
+- `fixtures/probability_basis/golden_report.json`,
+- `fixtures/probability_basis/golden_report.txt`.
 
 Использовать только когда изменение matcher/pricing/replay behavior ожидаемо. Изменение golden report должно быть reviewable в том же commit/PR.
 
 ### `scripts/check_golden_fixture_current.ps1`
 
-Запускает `update_golden_fixture.ps1` и падает, если после перегенерации появляется Git diff в golden report. Включен в `check_all` и CI.
+Запускает `update_golden_fixture.ps1` и падает, если после перегенерации меняется JSON или text golden report. Включен в `check_all` и CI.
 
 ## Phase Gate
 

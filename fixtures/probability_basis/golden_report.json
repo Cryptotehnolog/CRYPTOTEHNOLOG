@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "pricing_model_version": "black_scholes_single_strike_v1",
+  "entries": [
+    {
+      "type": "matched",
+      "deribit_instrument_id": "ETH-20260601-3000-C",
+      "polymarket_market_slug": "eth-above-3000-june-1",
+      "net_edge_probability": 0.081338,
+      "survives_costs": true
+    },
+    {
+      "type": "rejected",
+      "reason": "InsufficientLiquidity",
+      "deribit_instrument_id": "ETH-20260601-3000-C",
+      "polymarket_market_slug": "eth-above-3000-low-liquidity"
+    }
+  ]
+}

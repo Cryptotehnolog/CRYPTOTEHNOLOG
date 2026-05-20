@@ -119,3 +119,7 @@ Replay core вынесен в `crates/replay/src/lib.rs`, а `main.rs` стал 
 ## [2026-05-20] automation | Pricing model version and script docs
 
 Добавлена Rust-константа `PRICING_MODEL_VERSION = "black_scholes_single_strike_v1"` и metadata line в replay report. `update_golden_fixture.ps1` усилен проверками `cargo`, fixture path и output directory. Добавлена `workflow-scripts.md`, где зафиксировано, что network integration tests не входят в default CI.
+
+## [2026-05-20] implementation | Semantic replay report
+
+Добавлен `ReplayReport` semantic contract в `crates/replay/src/lib.rs`. Replay теперь генерирует primary `golden_report.json` для machine-readable regression и secondary `golden_report.txt` для human-readable CLI output. Скрипты `update_golden_fixture.ps1`, `run_replay_regression.ps1` и `check_golden_fixture_current.ps1` обновлены для проверки обоих форматов.

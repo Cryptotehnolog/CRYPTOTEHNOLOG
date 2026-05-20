@@ -1,22 +1,29 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-$goldenPath = Join-Path $root "fixtures\probability_basis\golden_report.txt"
+$goldenTextPath = Join-Path $root "fixtures\probability_basis\golden_report.txt"
+$goldenJsonPath = Join-Path $root "fixtures\probability_basis\golden_report.json"
 
-if (-not (Test-Path $goldenPath)) {
-    throw "Missing golden fixture: $goldenPath"
+if (-not (Test-Path $goldenTextPath)) {
+    throw "Missing golden fixture: $goldenTextPath"
+}
+
+if (-not (Test-Path $goldenJsonPath)) {
+    throw "Missing golden fixture: $goldenJsonPath"
 }
 
 Push-Location $root
 try {
-    $before = Get-Content $goldenPath -Raw
+    $beforeText = Get-Content $goldenTextPath -Raw
+    $beforeJson = Get-Content $goldenJsonPath -Raw
 
     .\scripts\update_golden_fixture.ps1
 
-    $after = Get-Content $goldenPath -Raw
+    $afterText = Get-Content $goldenTextPath -Raw
+    $afterJson = Get-Content $goldenJsonPath -Raw
 
-    if ($before -ne $after) {
-        Write-Output "Golden fixture is stale. Run scripts\update_golden_fixture.ps1 and review the diff."
+    if ($beforeText -ne $afterText -or $beforeJson -ne $afterJson) {
+        Write-Output "Golden fixtures are stale. Run scripts\update_golden_fixture.ps1 and review the diff."
         throw "Golden fixture check failed."
     }
 
