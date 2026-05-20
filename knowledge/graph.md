@@ -26,6 +26,8 @@ flowchart LR
     karpathy["Source: Karpathy LLM Wiki"]
     review["Source: Project Review"]
     deribit["Source: Deribit API"]
+    hermesSource["Source: Hermes Agent"]
+    omniSource["Source: OmniRoute"]
     polymarket["Source: Polymarket API"]
     quantum["Source: Quantum Bot"]
 
@@ -53,6 +55,10 @@ flowchart LR
     healthWorkflow["Workflow: Wiki Health Check"]
     ingestWorkflow["Workflow: Source Ingestion"]
     codingStandards["Workflow: Coding Standards"]
+    agentResearch["Workflow: Agent Research"]
+
+    hermesTool["Tool: Hermes Agent"]
+    omniTool["Tool: OmniRoute"]
 
     kbCheck["Script: kb_health_check.ps1"]
     linkCheck["Script: validate_local_links.ps1"]
@@ -65,6 +71,8 @@ flowchart LR
     karpathy --> codexWorkflow
     karpathy --> ingestWorkflow
     deribit --> probabilityBasis
+    hermesSource --> hermesTool
+    omniSource --> omniTool
     polymarket --> probabilityBasis
     quantum -.-> probabilityBasis
     review --> probabilityBasis
@@ -88,6 +96,9 @@ flowchart LR
     healthWorkflow --> linkCheck
     ingestWorkflow --> sourceNote
     codingStandards --> compliance
+    hermesTool --> agentResearch
+    omniTool --> agentResearch
+    agentResearch --> roadmap
     kbCheck --> hooks
     linkCheck --> checkAll
     compliance --> checkAll

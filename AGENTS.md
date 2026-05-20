@@ -19,6 +19,8 @@
 - Делай небольшие, проверяемые изменения.
 - Держи runtime-поведение торговой системы в коде, тестах, конфигах, миграциях и журналах событий (event logs).
 - Не делай детерминированные торговые сервисы зависимыми от Markdown, Obsidian или LLM-сводок.
+- Не делай Hermes Agent, OmniRoute или другие LLM tools частью execution path.
+- Используй Hermes/OmniRoute только для research-layer задач: reports, hypotheses, post-trade analysis, draft recommendations.
 - Не сохраняй секреты, API-ключи, биржевые credentials или приватные данные счетов в базе знаний.
 
 ## После Работы

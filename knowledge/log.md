@@ -67,3 +67,7 @@ sources: []
 ## [2026-05-20] specs | MVP implementation blockers
 
 Добавлены инженерные specifications для старта API/data coding: `spec-deribit-iv-calculation.md`, `schema-postgres-tables.md`, `example-config-parameters.md`, `rust-events-contracts.md`. Обновлены `knowledge/index.md` и curated `knowledge/graph.md`.
+
+## [2026-05-20] research | Hermes and OmniRoute boundary
+
+Добавлены source notes и wiki pages для Hermes Agent, OmniRoute и future agent research workflow. Зафиксировано, что Hermes/OmniRoute относятся только к research layer и не могут быть частью deterministic execution path.

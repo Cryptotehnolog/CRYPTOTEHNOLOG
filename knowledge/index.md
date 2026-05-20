@@ -48,6 +48,7 @@ sources:
 ## Workflows
 
 - [Coding Standards](wiki/coding-standards.md) - технический engineering contract для dependencies, linting, typing, tests, Docker и Git.
+- [Agent Research](wiki/workflow-agent-research.md) - future workflow для Hermes Agent + OmniRoute research layer.
 - [Использование wiki в Codex](wiki/workflow-codex-wiki-usage.md) - как Codex читает и обновляет project memory во время работы.
 - [Obsidian](wiki/workflow-obsidian.md) - как использовать Obsidian как human interface поверх Markdown vault.
 - [Source Ingestion](wiki/workflow-source-ingestion.md) - как новые sources превращаются в долговременное wiki knowledge.
@@ -62,5 +63,12 @@ sources:
 
 - [Karpathy LLM Wiki](raw/sources/karpathy-llm-wiki-2026-04-04.md) - source note по LLM Wiki gist.
 - [Deribit API](raw/sources/source-deribit-api.md) - official Deribit market-data API source note.
+- [Hermes Agent](raw/sources/source-hermes-agent.md) - source note по будущему research-layer agent runtime.
+- [OmniRoute](raw/sources/source-omniroute.md) - source note по local LLM gateway для research layer.
 - [Polymarket API](raw/sources/source-polymarket-api.md) - official Gamma/CLOB API source note.
 - [Quantum Bot Polymarket](raw/sources/source-quantum-bot-polymarket.md) - low-confidence anecdotal source по probability basis идее.
+
+## Tools
+
+- [Hermes Agent](wiki/tool-hermes-agent.md) - future research-layer agent runtime.
+- [OmniRoute](wiki/tool-omniroute.md) - local LLM gateway для research-layer calls.
