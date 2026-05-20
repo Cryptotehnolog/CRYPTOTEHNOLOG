@@ -291,3 +291,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-20] implementation | EventJournalRowWriter test sink and dev status advisory skill
 
 Добавлен `InMemoryEventJournalRowWriter` как тестовый sink для `EventJournalRowWriter`, чтобы ingestion мог зеркалировать raw и accepted normalized events в future storage-row boundary без PostgreSQL connector. `scripts/dev_status.ps1` теперь показывает наличие optional `rust-skills` advisory review tool.
+
+## [2026-05-21] hardening | EventJournalRowWriter failure path
+
+Добавлен negative test с failing `EventJournalRowWriter`: storage-row failure теперь явно возвращается из ingestion как `IngestionErrorKind::JournalWrite`, без panic. Тест фиксирует, что raw event уже сохранен в `EventJournal`, но normalized event не пишется после сбоя row-writer mirror.

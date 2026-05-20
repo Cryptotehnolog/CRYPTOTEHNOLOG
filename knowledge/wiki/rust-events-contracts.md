@@ -520,6 +520,7 @@ pub struct ReplayEventFilter {
 - Thin orchestration: Deribit mock batch + Polymarket mock batch -> `EventJournal` -> `match_from_market_events()` -> `BasisObservation`.
 - Live/mock vertical slice: `FixtureHttpTransport` -> Deribit/Polymarket live parser boundary -> raw events -> normalized events -> append-order `EventJournalRow` snapshots -> replay matcher -> `BasisObservation`.
 - Row-writer vertical slice: ingestion может зеркалировать raw/accepted normalized events в `EventJournalRowWriter`; тестовый `InMemoryEventJournalRowWriter` проверяет тот же row contract без PostgreSQL.
+- Row-writer failure path: storage-row writer error возвращается как `IngestionErrorKind::JournalWrite`, без panic и без записи normalized events после сбоя raw-row mirror.
 - Negative orchestration: malformed Polymarket quote сохраняет raw event, но не создает `BasisObservation`.
 
 ## Design Rule

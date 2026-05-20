@@ -2443,7 +2443,10 @@ mod tests {
         DeribitOptionQuote, EventMeta, OptionKind, PolymarketApiLayer, PolymarketOutcomeQuote,
         RawDeribitEvent, RawPolymarketEvent, ReplayEventFilter,
     };
-    use cryptotehnolog_common::journal::{InMemoryEventJournal, InMemoryEventJournalRowWriter};
+    use cryptotehnolog_common::journal::{
+        EventJournalRow, EventJournalRowWriter, InMemoryEventJournal,
+        InMemoryEventJournalRowWriter, JournalError, JournalErrorKind,
+    };
     use cryptotehnolog_common::observations::{
         BasisObservationWriter, InMemoryBasisObservationWriter, observations_from_match_decisions,
     };
@@ -2555,6 +2558,21 @@ mod tests {
             risk_free_rate: 0.0,
             dividend_yield: 0.0,
             milliseconds_per_year: 365.25 * 24.0 * 60.0 * 60.0 * 1000.0,
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct FailingEventJournalRowWriter {
+        attempts: usize,
+    }
+
+    impl EventJournalRowWriter for FailingEventJournalRowWriter {
+        fn append_event_journal_row(&mut self, _row: EventJournalRow) -> Result<(), JournalError> {
+            self.attempts += 1;
+            Err(JournalError::new(
+                JournalErrorKind::Storage,
+                "simulated row writer failure",
+            ))
         }
     }
 
@@ -3557,6 +3575,29 @@ mod tests {
 
         assert_eq!(observations.len(), 1);
         assert!(observations[0].survives_costs);
+    }
+
+    #[test]
+    fn row_writer_failure_returns_journal_write_error_without_panic() {
+        let mut client = MockIngestionClient::new(vec![MockIngestionStep::Batch(deribit_batch())]);
+        let mut journal = InMemoryEventJournal::new();
+        let mut row_writer = FailingEventJournalRowWriter::default();
+
+        let error = ingest_once_with_report_and_row_writer(
+            &mut client,
+            &mut journal,
+            &mut row_writer,
+            &IngestionConfig::phase0_deribit("mock://deribit"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect_err("row writer storage failure should be returned as IngestionError");
+
+        assert_eq!(error.kind, IngestionErrorKind::JournalWrite);
+        assert_eq!(error.source, Some(IngestionSource::Deribit));
+        assert!(error.message.contains("simulated row writer failure"));
+        assert_eq!(row_writer.attempts, 1);
+        assert_eq!(journal.raw_deribit_events().len(), 1);
+        assert!(journal.market_events().is_empty());
     }
 
     #[test]
