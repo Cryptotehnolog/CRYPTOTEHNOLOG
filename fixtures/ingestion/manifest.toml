@@ -1,0 +1,9 @@
+[[scenario]]
+name = "happy_path_batches"
+fixture = "fixtures/ingestion/happy_path_batches.psv"
+expected_observations = 1
+
+[[scenario]]
+name = "malformed_polymarket_quote"
+fixture = "fixtures/ingestion/malformed_polymarket_quote.psv"
+expected_observations = 0

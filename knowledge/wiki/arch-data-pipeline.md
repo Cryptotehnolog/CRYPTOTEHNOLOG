@@ -121,6 +121,10 @@ Deribit mock batch
 
 Этот тест связывает ingestion skeleton с уже готовым probability-basis pipeline без реальных API, ключей, сети, PostgreSQL подключения или trading side effects.
 
+Fixture `fixtures/ingestion/malformed_polymarket_quote.psv` документирует negative orchestration path: raw Polymarket payload сохраняется в `EventJournal`, normalized quote с некорректным `bid_probability > ask_probability` проходит до replay layer как data-quality rejection `InvalidQuote`, а `BasisObservation` не создается.
+
+`fixtures/ingestion/manifest.toml` является lightweight registry для ingestion orchestration scenarios. Он пока не является отдельным regression runner, но фиксирует список сценариев и expected observation counts, чтобы новые ingestion fixtures не расползались по unit tests без общей карты.
+
 ## Добавление Нового Источника
 
 1. Создать source note в `knowledge/raw/sources/`.

@@ -212,12 +212,26 @@ pub enum IngestionScenarioOutcome {
     ApiError,
     Reconnect,
     Batch,
+    MalformedBatch,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IngestionManifestScenario {
+    pub name: String,
+    pub fixture: String,
+    pub expected_observations: usize,
 }
 
 pub fn load_ingestion_scenario(path: &Path) -> Result<Vec<IngestionScenarioStep>, String> {
     let content = fs::read_to_string(path)
         .map_err(|error| format!("cannot read ingestion scenario {}: {error}", path.display()))?;
     parse_ingestion_scenario(&content)
+}
+
+pub fn load_ingestion_manifest(path: &Path) -> Result<Vec<IngestionManifestScenario>, String> {
+    let content = fs::read_to_string(path)
+        .map_err(|error| format!("cannot read ingestion manifest {}: {error}", path.display()))?;
+    parse_ingestion_manifest(&content)
 }
 
 pub fn parse_ingestion_scenario(content: &str) -> Result<Vec<IngestionScenarioStep>, String> {
@@ -268,8 +282,124 @@ fn parse_outcome(line_number: usize, raw: &str) -> Result<IngestionScenarioOutco
         "api_error" => Ok(IngestionScenarioOutcome::ApiError),
         "reconnect" => Ok(IngestionScenarioOutcome::Reconnect),
         "batch" => Ok(IngestionScenarioOutcome::Batch),
+        "malformed_batch" => Ok(IngestionScenarioOutcome::MalformedBatch),
         other => Err(format!("line {line_number}: unsupported outcome `{other}`")),
     }
+}
+
+pub fn parse_ingestion_manifest(content: &str) -> Result<Vec<IngestionManifestScenario>, String> {
+    let mut scenarios = Vec::new();
+    let mut current_name: Option<String> = None;
+    let mut current_fixture: Option<String> = None;
+    let mut current_expected_observations: Option<usize> = None;
+
+    for (index, line) in content.lines().enumerate() {
+        let line_number = index + 1;
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+
+        if trimmed == "[[scenario]]" {
+            push_manifest_scenario(
+                &mut scenarios,
+                &mut current_name,
+                &mut current_fixture,
+                &mut current_expected_observations,
+                line_number,
+            )?;
+            continue;
+        }
+
+        let Some((key, value)) = trimmed.split_once('=') else {
+            return Err(format!("line {line_number}: expected key = value"));
+        };
+        let key = key.trim();
+        let value = value.trim().trim_matches('"');
+
+        match key {
+            "name" => current_name = Some(value.to_string()),
+            "fixture" => current_fixture = Some(value.to_string()),
+            "expected_observations" => {
+                current_expected_observations = Some(value.parse::<usize>().map_err(|error| {
+                    format!("line {line_number}: invalid expected_observations: {error}")
+                })?)
+            }
+            other => {
+                return Err(format!(
+                    "line {line_number}: unsupported manifest key `{other}`"
+                ));
+            }
+        }
+    }
+
+    push_manifest_scenario(
+        &mut scenarios,
+        &mut current_name,
+        &mut current_fixture,
+        &mut current_expected_observations,
+        content.lines().count() + 1,
+    )?;
+
+    if scenarios.is_empty() {
+        return Err("ingestion manifest contains no scenarios".to_string());
+    }
+
+    for index in 0..scenarios.len() {
+        let scenario = &scenarios[index];
+        if scenarios[..index]
+            .iter()
+            .any(|candidate| candidate.name == scenario.name)
+        {
+            return Err(format!(
+                "duplicate ingestion scenario name: {}",
+                scenario.name
+            ));
+        }
+        if scenarios[..index]
+            .iter()
+            .any(|candidate| candidate.fixture == scenario.fixture)
+        {
+            return Err(format!(
+                "duplicate ingestion scenario fixture: {}",
+                scenario.fixture
+            ));
+        }
+    }
+
+    Ok(scenarios)
+}
+
+fn push_manifest_scenario(
+    scenarios: &mut Vec<IngestionManifestScenario>,
+    current_name: &mut Option<String>,
+    current_fixture: &mut Option<String>,
+    current_expected_observations: &mut Option<usize>,
+    line_number: usize,
+) -> Result<(), String> {
+    if current_name.is_none()
+        && current_fixture.is_none()
+        && current_expected_observations.is_none()
+    {
+        return Ok(());
+    }
+
+    let name = current_name
+        .take()
+        .ok_or_else(|| format!("line {line_number}: manifest scenario missing name"))?;
+    let fixture = current_fixture
+        .take()
+        .ok_or_else(|| format!("line {line_number}: manifest scenario missing fixture"))?;
+    let expected_observations = current_expected_observations.take().ok_or_else(|| {
+        format!("line {line_number}: manifest scenario missing expected_observations")
+    })?;
+
+    scenarios.push(IngestionManifestScenario {
+        name,
+        fixture,
+        expected_observations,
+    });
+    Ok(())
 }
 
 #[cfg(test)]
@@ -349,6 +479,30 @@ mod tests {
                     outcome: "Yes".to_string(),
                     bid_probability: 0.51,
                     ask_probability: 0.53,
+                    liquidity_usd: 10_000.0,
+                },
+            )],
+        }
+    }
+
+    fn malformed_polymarket_batch() -> IngestionBatch {
+        IngestionBatch {
+            source: IngestionSource::Polymarket,
+            raw_events: vec![RawIngestionEvent::Polymarket(RawPolymarketEvent {
+                meta: polymarket_meta("raw-polymarket-malformed-1"),
+                api_layer: PolymarketApiLayer::Gamma,
+                payload_json:
+                    "{\"market_slug\":\"eth-above-3000-june-1\",\"bid\":0.70,\"ask\":0.60}"
+                        .to_string(),
+            })],
+            market_events: vec![MarketEvent::PolymarketOutcomeQuote(
+                PolymarketOutcomeQuote {
+                    meta: polymarket_meta("market-polymarket-malformed-1"),
+                    event_slug: "eth-above-3000".to_string(),
+                    market_slug: "eth-above-3000-june-1".to_string(),
+                    outcome: "Yes".to_string(),
+                    bid_probability: 0.70,
+                    ask_probability: 0.60,
                     liquidity_usd: 10_000.0,
                 },
             )],
@@ -511,6 +665,130 @@ mod tests {
         );
         assert!(observation.survives_costs);
         assert!((observation.net_edge_probability - 0.081338).abs() < 1e-6);
+    }
+
+    #[test]
+    fn malformed_polymarket_batch_preserves_raw_event_without_basis_observation() {
+        let fixture_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("fixtures")
+            .join("ingestion")
+            .join("malformed_polymarket_quote.psv");
+        let scenario =
+            load_ingestion_scenario(&fixture_path).expect("malformed fixture should parse");
+        assert_eq!(scenario.len(), 2);
+        assert_eq!(scenario[0].source, IngestionSource::Deribit);
+        assert_eq!(scenario[0].outcome, IngestionScenarioOutcome::Batch);
+        assert_eq!(scenario[1].source, IngestionSource::Polymarket);
+        assert_eq!(
+            scenario[1].outcome,
+            IngestionScenarioOutcome::MalformedBatch
+        );
+
+        let mut deribit_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(deribit_batch())]);
+        let mut polymarket_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(malformed_polymarket_batch())]);
+        let mut journal = InMemoryEventJournal::new();
+
+        ingest_once(
+            &mut deribit_client,
+            &mut journal,
+            &IngestionConfig::phase0_deribit("mock://deribit"),
+        )
+        .expect("deribit batch should ingest");
+        ingest_once(
+            &mut polymarket_client,
+            &mut journal,
+            &IngestionConfig::phase0_polymarket("mock://polymarket"),
+        )
+        .expect("malformed normalized quote is still captured for replay rejection");
+
+        assert_eq!(journal.raw_polymarket_events().len(), 1);
+        assert_eq!(
+            journal.raw_polymarket_events()[0].meta.event_id,
+            "raw-polymarket-malformed-1"
+        );
+
+        let replay_events = journal
+            .read_events_for_replay(ReplayEventFilter {
+                start_ts_ms: 0,
+                end_ts_ms: 1_781_000_000_000,
+                event_types: vec![],
+                instrument_ids: vec![],
+                config_version: Some("phase0-ingestion".to_string()),
+            })
+            .expect("journal should return replay events");
+        let config = probability_basis_config();
+        let decisions = match_from_market_events(&replay_events, &config);
+
+        assert_eq!(
+            decisions,
+            vec![MatchDecision::Rejected {
+                reason: cryptotehnolog_common::probability_basis::RejectionReason::InvalidQuote,
+                deribit_instrument_id: Some("ETH-20260601-3000-C".to_string()),
+                polymarket_market_slug: Some("eth-above-3000-june-1".to_string()),
+            }]
+        );
+        let observations = observations_from_match_decisions(&decisions, &config);
+        assert!(observations.is_empty());
+    }
+
+    #[test]
+    fn ingestion_manifest_lists_current_orchestration_scenarios() {
+        let manifest_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("fixtures")
+            .join("ingestion")
+            .join("manifest.toml");
+
+        let scenarios =
+            load_ingestion_manifest(&manifest_path).expect("ingestion manifest should parse");
+
+        assert_eq!(scenarios.len(), 2);
+        assert_eq!(scenarios[0].name, "happy_path_batches");
+        assert_eq!(scenarios[0].expected_observations, 1);
+        assert_eq!(scenarios[1].name, "malformed_polymarket_quote");
+        assert_eq!(scenarios[1].expected_observations, 0);
+    }
+
+    #[test]
+    fn ingestion_manifest_rejects_duplicate_names_and_fixtures() {
+        let duplicate_name = r#"
+[[scenario]]
+name = "same"
+fixture = "fixtures/ingestion/a.psv"
+expected_observations = 1
+
+[[scenario]]
+name = "same"
+fixture = "fixtures/ingestion/b.psv"
+expected_observations = 0
+"#;
+        assert!(
+            parse_ingestion_manifest(duplicate_name)
+                .unwrap_err()
+                .contains("duplicate ingestion scenario name")
+        );
+
+        let duplicate_fixture = r#"
+[[scenario]]
+name = "a"
+fixture = "fixtures/ingestion/same.psv"
+expected_observations = 1
+
+[[scenario]]
+name = "b"
+fixture = "fixtures/ingestion/same.psv"
+expected_observations = 0
+"#;
+        assert!(
+            parse_ingestion_manifest(duplicate_fixture)
+                .unwrap_err()
+                .contains("duplicate ingestion scenario fixture")
+        );
     }
 
     #[test]

@@ -407,8 +407,9 @@ pub struct ReplayEventFilter {
 - Black-Scholes edge cases: zero/negative IV, expired option, deep ITM/OTM behavior, deterministic normal CDF approximation.
 - BasisObservation mapping and duplicate observation rejection.
 - BasisObservationRow column order and PostgreSQL insert SQL skeleton.
-- Ingestion skeleton: raw-before-normalized write order, API error without writes, live client `NotImplemented`, API error/reconnect fixture parsing.
+- Ingestion skeleton: raw-before-normalized write order, API error without writes, live client `NotImplemented`, API error/reconnect fixture parsing, ingestion manifest parsing.
 - Thin orchestration: Deribit mock batch + Polymarket mock batch -> `EventJournal` -> `match_from_market_events()` -> `BasisObservation`.
+- Negative orchestration: malformed Polymarket quote сохраняет raw event, но не создает `BasisObservation`.
 
 ## Design Rule
 
