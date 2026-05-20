@@ -51,6 +51,7 @@ sources:
 - [Agent Research](wiki/workflow-agent-research.md) - future workflow для Hermes Agent + OmniRoute research layer.
 - [Использование wiki в Codex](wiki/workflow-codex-wiki-usage.md) - как Codex читает и обновляет project memory во время работы.
 - [Obsidian](wiki/workflow-obsidian.md) - как использовать Obsidian как human interface поверх Markdown vault.
+- [Onboarding](wiki/workflow-onboarding.md) - стартовая последовательность для нового разработчика или AI-сессии.
 - [Research Vs Deterministic Core](wiki/workflow-research-vs-core.md) - граница между research layer и deterministic core.
 - [Source Ingestion](wiki/workflow-source-ingestion.md) - как новые sources превращаются в долговременное wiki knowledge.
 - [Wiki Health Check](wiki/workflow-wiki-health-check.md) - recurring maintenance workflow для index, links, contradictions и stale claims.

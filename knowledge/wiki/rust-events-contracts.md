@@ -13,7 +13,7 @@ sources:
 
 Эта страница описывает Rust event contracts для MVP.
 
-Важно: часть контрактов уже реализована в `crates/common/src/events.rs`, а часть является proposed next step.
+Важно: часть контрактов уже реализована в `crates/common/src/events.rs`, `crates/common/src/adapters.rs` и `crates/common/src/journal.rs`, а часть является proposed next step.
 
 ## Implemented Now
 
@@ -84,29 +84,37 @@ net_edge_probability()
 survives_costs(threshold_probability)
 ```
 
-## Proposed Next
-
 ### `RawDeribitEvent`
 
 Raw API payload wrapper before normalization.
 
-```text
-RawDeribitEvent
-  meta
-  endpoint_or_channel
-  payload_json
-```
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `meta` | `EventMeta` | Shared metadata. |
+| `endpoint_or_channel` | `String` | Deribit endpoint/channel. |
+| `payload_json` | `String` | Raw JSON payload preserved as text. |
 
 ### `RawPolymarketEvent`
 
 Raw API payload wrapper before normalization.
 
-```text
-RawPolymarketEvent
-  meta
-  api_layer: Gamma|CLOB
-  payload_json
-```
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `meta` | `EventMeta` | Shared metadata. |
+| `api_layer` | `PolymarketApiLayer` | `Gamma` или `Clob`. |
+| `payload_json` | `String` | Raw JSON payload preserved as text. |
+
+### `DeribitDiscoveryAdapter`, `PolymarketDiscoveryAdapter`, `EventJournal`
+
+Реализованы sync traits и mock implementations:
+
+- `MockDeribitAdapter`,
+- `MockPolymarketAdapter`,
+- `InMemoryEventJournal`.
+
+Sync форма выбрана намеренно, чтобы первый contracts layer компилировался без внешних dependencies. Async versions будут добавлены вместе с real HTTP/WebSocket adapters.
+
+## Proposed Next
 
 ### `NormalizedMarketEvent`
 
@@ -114,7 +122,7 @@ Future alias/enum for all normalized events. Current `MarketEvent` already fills
 
 ## Proposed Adapter Traits
 
-Эти traits являются proposed next step. Они еще не реализованы в коде, но задают форму первого read-only adapter layer.
+Эти traits реализованы в sync форме. Примеры ниже показывают intended async shape для будущих real API adapters.
 
 Правило MVP: adapters только читают market data и возвращают raw/normalized events. Они не размещают orders.
 
@@ -237,7 +245,7 @@ pub struct ReplayEventFilter {
 
 ## Error Types
 
-На первом этапе можно использовать simple project error enum, но adapter errors должны различать:
+На первом этапе реализованы simple project error enums. Adapter errors должны различать:
 
 - network/API failure,
 - malformed payload,
@@ -247,6 +255,17 @@ pub struct ReplayEventFilter {
 - rate limit.
 
 Это важно, потому что rejection reports должны отличать плохой market candidate от временной API ошибки.
+
+## Tests
+
+Текущий contracts layer покрыт unit tests:
+
+- mock Deribit discovery/snapshot/raw lookup,
+- mock Polymarket discovery/snapshot/raw lookup,
+- unsupported instrument errors,
+- raw event preservation,
+- duplicate event rejection,
+- deterministic replay ordering/filtering.
 
 ## Design Rule
 

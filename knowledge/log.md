@@ -75,3 +75,11 @@ sources: []
 ## [2026-05-20] contracts | Adapter traits and research boundary
 
 Уточнены proposed Rust adapter traits в `rust-events-contracts.md`: `DeribitDiscoveryAdapter`, `PolymarketDiscoveryAdapter`, `EventJournal`, supporting types и error categories. Добавлена страница `workflow-research-vs-core.md`, фиксирующая границу между research layer и deterministic core.
+
+## [2026-05-20] workflow | Onboarding and research promotion
+
+Добавлена страница `workflow-onboarding.md` для новых разработчиков и AI-сессий. В `workflow-research-vs-core.md` добавлены критерии переноса кода из `research/` в deterministic core.
+
+## [2026-05-20] implementation | Rust contracts and mock adapters
+
+Реализованы Rust contracts в `crates/common`: raw event types, supporting market types, sync discovery traits, mock Deribit/Polymarket adapters и in-memory event journal. Добавлены unit tests для mock adapters, raw preservation, duplicate detection и deterministic replay ordering/filtering.
