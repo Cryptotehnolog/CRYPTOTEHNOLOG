@@ -162,6 +162,39 @@ impl PostgresEventJournalAdapter {
     }
 }
 
+#[cfg(feature = "postgres-writer")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PostgresEventJournalWriter {
+    connection_label: String,
+}
+
+#[cfg(feature = "postgres-writer")]
+impl PostgresEventJournalWriter {
+    pub fn new(connection_label: impl Into<String>) -> Self {
+        Self {
+            connection_label: connection_label.into(),
+        }
+    }
+
+    pub fn connection_label(&self) -> &str {
+        &self.connection_label
+    }
+
+    pub fn insert_sql(&self) -> &'static str {
+        PostgresEventJournalAdapter::insert_sql()
+    }
+}
+
+#[cfg(feature = "postgres-writer")]
+impl EventJournalRowWriter for PostgresEventJournalWriter {
+    fn append_event_journal_row(&mut self, _row: EventJournalRow) -> Result<(), JournalError> {
+        Err(JournalError::new(
+            JournalErrorKind::Storage,
+            "postgres event journal writer is a Phase 0 skeleton without database connector",
+        ))
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct InMemoryEventJournal {
     raw_deribit_events: Vec<RawDeribitEvent>,
@@ -455,5 +488,22 @@ mod tests {
             PostgresEventJournalAdapter::insert_sql(),
             "INSERT INTO event_journal (event_id, event_type, source, exchange_ts, received_ts, instrument_id, schema_version, config_version, payload) VALUES ($1, $2, $3, to_timestamp($4::double precision / 1000.0), to_timestamp($5::double precision / 1000.0), $6, $7, $8, $9::jsonb)"
         );
+    }
+
+    #[cfg(feature = "postgres-writer")]
+    #[test]
+    fn postgres_event_journal_writer_is_feature_gated_skeleton() {
+        let mut writer = PostgresEventJournalWriter::new("phase0-local");
+        assert_eq!(writer.connection_label(), "phase0-local");
+        assert_eq!(
+            writer.insert_sql(),
+            PostgresEventJournalAdapter::insert_sql()
+        );
+
+        let row = EventJournalRow::from_market_event(&polymarket_quote("poly-quote-1", 2000));
+        let error = writer.append_event_journal_row(row).unwrap_err();
+
+        assert_eq!(error.kind, JournalErrorKind::Storage);
+        assert!(error.message.contains("Phase 0 skeleton"));
     }
 }

@@ -9,5 +9,9 @@ rust-version.workspace = true
 name = "cryptotehnolog_common"
 path = "src/lib.rs"
 
+[features]
+default = []
+postgres-writer = []
+
 [dependencies]
 serde_json = "1.0"

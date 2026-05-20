@@ -201,6 +201,7 @@ Raw API payload wrapper before normalization.
 - `InMemoryBasisObservationWriter`.
 - `PostgresBasisObservationAdapter` skeleton без real DB connection.
 - `PostgresEventJournalAdapter` skeleton без real DB connection.
+- `PostgresEventJournalWriter` feature-gated skeleton за `postgres-writer` без real DB connection.
 
 Также реализован probability-basis matcher skeleton:
 
@@ -440,6 +441,28 @@ VALUES ($1, to_timestamp($2::double precision / 1000.0), ...)
 ```
 
 Он не открывает соединение и не зависит от `sqlx`, `tokio-postgres` или других DB crates.
+
+### `EventJournalRowWriter`
+
+Storage-row interface:
+
+```rust
+pub trait EventJournalRowWriter {
+    fn append_event_journal_row(
+        &mut self,
+        row: EventJournalRow,
+    ) -> Result<(), JournalError>;
+}
+```
+
+`PostgresEventJournalAdapter` содержит stable SQL template:
+
+```text
+INSERT INTO event_journal (...)
+VALUES ($1, $2, $3, to_timestamp($4::double precision / 1000.0), ...)
+```
+
+`PostgresEventJournalWriter` существует только за feature flag `postgres-writer`. Сейчас он фиксирует future writer API и возвращает `JournalErrorKind::Storage`, потому что реальный DB connector еще не выбран и не подключен к default Phase 0 path.
 
 Proposed replay filter:
 

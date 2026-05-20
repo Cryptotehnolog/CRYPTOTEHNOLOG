@@ -275,3 +275,11 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-20] workflow | Phase 0 daily report
 
 Добавлен `scripts/run_phase0_daily_report.ps1`, который локально агрегирует replay reports, ingestion reports и последние probe artifacts в `artifacts/phase0_daily_report.json` и `.md` без LLM, сети, PostgreSQL и trading.
+
+## [2026-05-20] hardening | Feature-gated PostgreSQL writer skeleton
+
+Добавлен feature flag `postgres-writer` в `crates/common`. `PostgresEventJournalWriter` фиксирует future writer API для `event_journal`, но без real DB connector: default build не зависит от PostgreSQL crates, а feature-gated writer возвращает `JournalErrorKind::Storage`.
+
+## [2026-05-20] policy | Rust Skills advisory use
+
+В `AGENTS.md` зафиксировано, что локальный `rust-skills` можно использовать как advisory review skill для Rust-кода, но project-specific правила CRYPTOTEHNOLOG из `AGENTS.md` и `knowledge/` имеют приоритет.
