@@ -114,28 +114,140 @@ Future alias/enum for all normalized events. Current `MarketEvent` already fills
 
 ## Proposed Adapter Traits
 
+Эти traits являются proposed next step. Они еще не реализованы в коде, но задают форму первого read-only adapter layer.
+
+Правило MVP: adapters только читают market data и возвращают raw/normalized events. Они не размещают orders.
+
 ### `DeribitDiscoveryAdapter`
 
-```text
-list_eth_options() -> Vec<DeribitInstrument>
-get_option_snapshot(instrument_id) -> DeribitOptionQuote
+```rust
+#[async_trait]
+pub trait DeribitDiscoveryAdapter {
+    async fn list_eth_options(&self) -> Result<Vec<DeribitInstrument>, AdapterError>;
+
+    async fn get_option_snapshot(
+        &self,
+        instrument_id: &str,
+    ) -> Result<DeribitOptionQuote, AdapterError>;
+
+    async fn get_raw_option_snapshot(
+        &self,
+        instrument_id: &str,
+    ) -> Result<RawDeribitEvent, AdapterError>;
+}
 ```
+
+Proposed supporting type:
+
+```rust
+pub struct DeribitInstrument {
+    pub instrument_id: String,
+    pub underlying: String,
+    pub expiry_ts_ms: i64,
+    pub strike: f64,
+    pub option_kind: OptionKind,
+}
+```
+
+Design notes:
+
+- `list_eth_options()` используется для discovery.
+- `get_raw_option_snapshot()` нужен для записи raw payload в `event_journal`.
+- `get_option_snapshot()` возвращает normalized quote для feature calculation.
+- Реализация должна сохранять raw event до normalized event.
 
 ### `PolymarketDiscoveryAdapter`
 
-```text
-list_crypto_markets() -> Vec<PolymarketMarket>
-get_market_snapshot(market_slug) -> PolymarketOutcomeQuote
+```rust
+#[async_trait]
+pub trait PolymarketDiscoveryAdapter {
+    async fn list_crypto_markets(&self) -> Result<Vec<PolymarketMarket>, AdapterError>;
+
+    async fn get_market_snapshot(
+        &self,
+        market_slug: &str,
+        outcome: &str,
+    ) -> Result<PolymarketOutcomeQuote, AdapterError>;
+
+    async fn get_raw_market_snapshot(
+        &self,
+        market_slug: &str,
+    ) -> Result<RawPolymarketEvent, AdapterError>;
+}
 ```
+
+Proposed supporting type:
+
+```rust
+pub struct PolymarketMarket {
+    pub event_slug: String,
+    pub market_slug: String,
+    pub question: String,
+    pub outcomes: Vec<String>,
+    pub close_ts_ms: Option<i64>,
+    pub liquidity_usd: Option<f64>,
+}
+```
+
+Design notes:
+
+- `list_crypto_markets()` используется для candidate discovery.
+- `get_raw_market_snapshot()` сохраняет raw Gamma/CLOB payload.
+- `get_market_snapshot()` возвращает normalized outcome quote.
+- `outcome` должен быть явным, например `Yes`, чтобы не смешивать sides.
 
 ### `EventJournal`
 
-```text
-append_event(event)
-read_events_for_replay(range, filters)
+```rust
+#[async_trait]
+pub trait EventJournal {
+    async fn append_raw_deribit_event(
+        &self,
+        event: &RawDeribitEvent,
+    ) -> Result<(), JournalError>;
+
+    async fn append_raw_polymarket_event(
+        &self,
+        event: &RawPolymarketEvent,
+    ) -> Result<(), JournalError>;
+
+    async fn append_market_event(
+        &self,
+        event: &MarketEvent,
+    ) -> Result<(), JournalError>;
+
+    async fn read_events_for_replay(
+        &self,
+        filter: ReplayEventFilter,
+    ) -> Result<Vec<MarketEvent>, JournalError>;
+}
 ```
+
+Proposed replay filter:
+
+```rust
+pub struct ReplayEventFilter {
+    pub start_ts_ms: i64,
+    pub end_ts_ms: i64,
+    pub event_types: Vec<String>,
+    pub instrument_ids: Vec<String>,
+    pub config_version: Option<String>,
+}
+```
+
+## Error Types
+
+На первом этапе можно использовать simple project error enum, но adapter errors должны различать:
+
+- network/API failure,
+- malformed payload,
+- stale data,
+- missing required field,
+- unsupported instrument/event,
+- rate limit.
+
+Это важно, потому что rejection reports должны отличать плохой market candidate от временной API ошибки.
 
 ## Design Rule
 
 Raw events must be persisted before normalization. Normalized events must be deterministic functions of raw event + schema version + config version.
-

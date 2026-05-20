@@ -71,3 +71,7 @@ sources: []
 ## [2026-05-20] research | Hermes and OmniRoute boundary
 
 Добавлены source notes и wiki pages для Hermes Agent, OmniRoute и future agent research workflow. Зафиксировано, что Hermes/OmniRoute относятся только к research layer и не могут быть частью deterministic execution path.
+
+## [2026-05-20] contracts | Adapter traits and research boundary
+
+Уточнены proposed Rust adapter traits в `rust-events-contracts.md`: `DeribitDiscoveryAdapter`, `PolymarketDiscoveryAdapter`, `EventJournal`, supporting types и error categories. Добавлена страница `workflow-research-vs-core.md`, фиксирующая границу между research layer и deterministic core.

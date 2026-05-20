@@ -56,6 +56,7 @@ flowchart LR
     ingestWorkflow["Workflow: Source Ingestion"]
     codingStandards["Workflow: Coding Standards"]
     agentResearch["Workflow: Agent Research"]
+    researchVsCore["Workflow: Research Vs Core"]
 
     hermesTool["Tool: Hermes Agent"]
     omniTool["Tool: OmniRoute"]
@@ -99,6 +100,8 @@ flowchart LR
     hermesTool --> agentResearch
     omniTool --> agentResearch
     agentResearch --> roadmap
+    agentResearch --> researchVsCore
+    probabilityStrategy --> researchVsCore
     kbCheck --> hooks
     linkCheck --> checkAll
     compliance --> checkAll
