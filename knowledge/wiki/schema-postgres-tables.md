@@ -54,6 +54,8 @@ Metadata deterministic replay runs.
 
 Derived observations по probability basis.
 
+Rust-модель первого уровня реализована как `BasisObservation` в `crates/common/src/observations.rs`. PostgreSQL writer еще не реализован; текущий writer interface имеет in-memory implementation для replay/tests.
+
 | Column | Type | Meaning |
 | --- | --- | --- |
 | `id` | `bigserial primary key` | Внутренний row id. |
@@ -68,7 +70,13 @@ Derived observations по probability basis.
 | `net_edge_probability` | `numeric not null` | Net edge после estimated costs. |
 | `survives_costs` | `boolean not null` | Проходит ли threshold после costs. |
 
+Planned Rust-only metadata before DB migration update:
+
+- `schema_version`,
+- `config_version`.
+
+Если эти поля нужны в PostgreSQL напрямую, migration должна быть расширена отдельным change review.
+
 ## Design Rule
 
 `event_journal` должен заполняться до любых derived calculations. Если derived observation нельзя воспроизвести из journal + config, это bug.
-

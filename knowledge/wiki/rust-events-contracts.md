@@ -85,6 +85,32 @@ net_edge_probability()
 survives_costs(threshold_probability)
 ```
 
+### `BasisObservation`
+
+`BasisObservation` реализован в `crates/common/src/observations.rs` и является Rust-моделью будущей таблицы `basis_observations`.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `event_id` | `String` | Stable observation id. |
+| `observed_at_ts_ms` | `i64` | Observation timestamp в milliseconds. |
+| `deribit_instrument_id` | `String` | Deribit option id. |
+| `polymarket_market_slug` | `String` | Polymarket market slug. |
+| `model_probability` | `f64` | Deribit-derived model probability. |
+| `polymarket_mid_probability` | `f64` | Polymarket midpoint probability. |
+| `gross_edge_probability` | `f64` | Difference before costs. |
+| `estimated_cost_probability` | `f64` | Estimated fees/spread/slippage/mismatch costs. |
+| `net_edge_probability` | `f64` | Net edge после estimated costs. |
+| `survives_costs` | `bool` | Проходит ли threshold после costs. |
+| `schema_version` | `u16` | Schema version from source feature. |
+| `config_version` | `String` | Config version from source feature. |
+
+Implemented helper:
+
+```text
+BasisObservation::from_feature(feature, min_net_edge_probability)
+observations_from_match_decisions(decisions, config)
+```
+
 ### `RawDeribitEvent`
 
 Raw API payload wrapper before normalization.
@@ -112,6 +138,7 @@ Raw API payload wrapper before normalization.
 - `MockDeribitAdapter`,
 - `MockPolymarketAdapter`,
 - `InMemoryEventJournal`.
+- `InMemoryBasisObservationWriter`.
 
 Также реализован probability-basis matcher skeleton:
 
@@ -121,6 +148,7 @@ Raw API payload wrapper before normalization.
 - `match_probability_basis()`,
 - `match_from_market_events()`.
 - Black-Scholes `N(d2)` probability calculation для call-like events.
+- `BasisObservationWriter` interface без PostgreSQL подключения.
 
 Sync форма выбрана намеренно, чтобы первый contracts layer компилировался без внешних dependencies. Async versions будут добавлены вместе с real HTTP/WebSocket adapters.
 
@@ -241,6 +269,27 @@ pub trait EventJournal {
 }
 ```
 
+### `BasisObservationWriter`
+
+Sync writer interface для derived probability-basis observations:
+
+```rust
+pub trait BasisObservationWriter {
+    fn append_basis_observation(
+        &mut self,
+        observation: BasisObservation,
+    ) -> Result<(), ObservationWriteError>;
+}
+```
+
+Текущая реализация:
+
+```text
+InMemoryBasisObservationWriter
+```
+
+PostgreSQL implementation добавляется позже, когда появится database connector layer.
+
 Proposed replay filter:
 
 ```rust
@@ -279,6 +328,7 @@ pub struct ReplayEventFilter {
 - probability-basis matched/rejected decisions,
 - golden replay fixture report.
 - Black-Scholes edge cases: zero/negative IV, expired option, deep ITM/OTM behavior, deterministic normal CDF approximation.
+- BasisObservation mapping and duplicate observation rejection.
 
 ## Design Rule
 

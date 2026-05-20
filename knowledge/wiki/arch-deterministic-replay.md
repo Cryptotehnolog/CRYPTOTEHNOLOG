@@ -69,7 +69,9 @@ Expected output хранится в `fixtures/probability_basis/golden_report.tx
 
 `scripts/run_replay_regression.ps1` запускает runner и сравнивает output с golden report. Скрипт включен в `scripts/check_all.ps1` и CI.
 
-Это еще не historical replay из PostgreSQL, но уже byte-stable smoke test для matcher semantics.
+Runner также создает matched `BasisObservation` records через `InMemoryBasisObservationWriter`, но пока не пишет их в PostgreSQL.
+
+Это еще не historical replay из PostgreSQL, но уже byte-stable smoke test для matcher semantics и observation contract.
 
 ## Backtest Automation Status
 

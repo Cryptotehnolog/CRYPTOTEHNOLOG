@@ -103,3 +103,7 @@ sources: []
 ## [2026-05-20] automation | Fixture replay regression and phase gate check
 
 Probability-basis replay fixture вынесен из hardcoded Rust в `fixtures/probability_basis/golden_events.psv`, а expected output - в `fixtures/probability_basis/golden_report.txt`. Добавлены `scripts/run_replay_regression.ps1` и `scripts/check_phase_gate.ps1`; оба включены в `scripts/check_all.ps1` и GitHub Actions CI.
+
+## [2026-05-20] implementation | Basis observations writer contract
+
+Добавлен `crates/common/src/observations.rs`: Rust-модель `BasisObservation`, conversion из matched `ProbabilityBasisFeature`, `BasisObservationWriter` trait и `InMemoryBasisObservationWriter` без PostgreSQL подключения. Replay runner теперь прогоняет matched decisions через in-memory observation writer. `run_backtest.ps1` остается отложенным до появления PnL/trade model.

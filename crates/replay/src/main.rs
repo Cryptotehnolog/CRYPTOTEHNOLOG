@@ -5,6 +5,9 @@ use std::path::{Path, PathBuf};
 use cryptotehnolog_common::events::{
     DeribitOptionQuote, EventMeta, MarketEvent, OptionKind, PolymarketOutcomeQuote,
 };
+use cryptotehnolog_common::observations::{
+    BasisObservationWriter, InMemoryBasisObservationWriter, observations_from_match_decisions,
+};
 use cryptotehnolog_common::probability_basis::{
     ProbabilityBasisConfig, match_from_market_events, render_match_report,
 };
@@ -32,7 +35,14 @@ fn main() {
 
 fn run_probability_basis_replay_report(fixture_path: &Path) -> Result<Vec<String>, String> {
     let events = load_market_events(fixture_path)?;
-    let decisions = match_from_market_events(&events, &config());
+    let config = config();
+    let decisions = match_from_market_events(&events, &config);
+    let mut observation_writer = InMemoryBasisObservationWriter::new();
+    for observation in observations_from_match_decisions(&decisions, &config) {
+        observation_writer
+            .append_basis_observation(observation)
+            .map_err(|error| error.message)?;
+    }
     Ok(render_match_report(&decisions))
 }
 

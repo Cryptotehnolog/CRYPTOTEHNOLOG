@@ -50,6 +50,19 @@ execution:reports
 
 `event_journal` должен сохранять payload до derived calculations.
 
+## Basis Observations
+
+`basis_observations` - первый derived output probability-basis matcher.
+
+Текущий Rust слой:
+
+- `BasisObservation`,
+- `BasisObservationWriter`,
+- `InMemoryBasisObservationWriter`,
+- `observations_from_match_decisions()`.
+
+PostgreSQL writer намеренно не добавлен в этой итерации. Сначала фиксируется deterministic contract и replay behavior, затем подключается storage implementation.
+
 ## Adapter Traits
 
 Первые Rust traits должны быть read-only:
@@ -66,6 +79,9 @@ PolymarketDiscoveryAdapter
 EventJournal
   - append_event()
   - read_events_for_replay()
+
+BasisObservationWriter
+  - append_basis_observation()
 ```
 
 ## Добавление Нового Источника
@@ -80,4 +96,3 @@ EventJournal
 ## Design Constraint
 
 LLM/wiki/Obsidian не участвуют в runtime path. Они помогают разработке, но не принимают trading decisions.
-
