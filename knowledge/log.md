@@ -307,3 +307,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] implementation | Phase 0 pipeline report
 
 Добавлен `Phase0PipelineReport` в `crates/ingestion`: typed `serde Serialize` report contract с counts по offline vertical slice этапам: raw events, normalized events, journal rows, match decisions, observations и observation rows. Добавлен тест JSON serialization/parsing для этого report.
+
+## [2026-05-21] implementation | Phase 0 pipeline report CLI wrapper
+
+Добавлен Rust binary `render_phase0_pipeline_report` и script wrapper `scripts/run_phase0_pipeline_report.ps1`. Они генерируют `artifacts/phase0_pipeline_report.json` из `fixtures/ingestion/happy_path_batches.psv` через offline vertical slice без сети, PostgreSQL и trading.

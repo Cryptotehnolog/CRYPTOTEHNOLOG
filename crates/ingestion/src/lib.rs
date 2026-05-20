@@ -9,6 +9,11 @@ use cryptotehnolog_common::events::{
 use cryptotehnolog_common::journal::{
     EventJournal, EventJournalRow, EventJournalRowWriter, JournalError,
 };
+use cryptotehnolog_common::observations::{
+    InMemoryBasisObservationRowWriter, observations_from_match_decisions,
+    write_basis_observation_rows,
+};
+use cryptotehnolog_common::probability_basis::{ProbabilityBasisConfig, match_from_market_events};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -633,6 +638,162 @@ impl Phase0PipelineReport {
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
     }
+}
+
+pub fn phase0_pipeline_report_from_scenario_steps(
+    steps: &[IngestionScenarioStep],
+) -> Result<Phase0PipelineReport, String> {
+    ensure_supported_phase0_pipeline_scenario(steps)?;
+    phase0_pipeline_report_from_happy_path()
+}
+
+pub fn phase0_pipeline_report_from_happy_path() -> Result<Phase0PipelineReport, String> {
+    let mut deribit_client =
+        MockIngestionClient::new(vec![MockIngestionStep::Batch(phase0_deribit_batch())]);
+    let mut polymarket_client =
+        MockIngestionClient::new(vec![MockIngestionStep::Batch(phase0_polymarket_batch())]);
+    let mut journal = cryptotehnolog_common::journal::InMemoryEventJournal::new();
+
+    ingest_once_with_report(
+        &mut deribit_client,
+        &mut journal,
+        &IngestionConfig::phase0_deribit("mock://deribit"),
+        &Phase0NormalizedBatchValidator,
+    )
+    .map_err(format_ingestion_error)?;
+    ingest_once_with_report(
+        &mut polymarket_client,
+        &mut journal,
+        &IngestionConfig::phase0_polymarket("mock://polymarket"),
+        &Phase0NormalizedBatchValidator,
+    )
+    .map_err(format_ingestion_error)?;
+
+    let replay_events = journal
+        .read_events_for_replay(phase0_replay_filter())
+        .map_err(|error| format!("{:?}: {}", error.kind, error.message))?;
+    let config = phase0_probability_basis_config();
+    let decisions = match_from_market_events(&replay_events, &config);
+    let observations = observations_from_match_decisions(&decisions, &config);
+    let mut observation_row_writer = InMemoryBasisObservationRowWriter::new();
+    write_basis_observation_rows(&observations, &mut observation_row_writer)
+        .map_err(|error| format!("{:?}: {}", error.kind, error.message))?;
+
+    Ok(Phase0PipelineReport::from_counts(
+        journal.raw_deribit_events().len() + journal.raw_polymarket_events().len(),
+        journal.market_events().len(),
+        journal.event_journal_rows().len(),
+        decisions.len(),
+        observations.len(),
+        observation_row_writer.rows().len(),
+    ))
+}
+
+fn ensure_supported_phase0_pipeline_scenario(
+    steps: &[IngestionScenarioStep],
+) -> Result<(), String> {
+    if steps.len() != 2 {
+        return Err(format!(
+            "phase0 pipeline report currently supports exactly 2 happy-path steps, got {}",
+            steps.len()
+        ));
+    }
+    if steps[0].source != IngestionSource::Deribit
+        || steps[0].outcome != IngestionScenarioOutcome::Batch
+        || steps[1].source != IngestionSource::Polymarket
+        || steps[1].outcome != IngestionScenarioOutcome::Batch
+    {
+        return Err(
+            "phase0 pipeline report currently supports Deribit batch followed by Polymarket batch"
+                .to_string(),
+        );
+    }
+
+    Ok(())
+}
+
+fn phase0_meta(event_id: &str, instrument_id: &str) -> EventMeta {
+    EventMeta {
+        event_id: event_id.to_string(),
+        source: "phase0-pipeline-report".to_string(),
+        exchange_ts_ms: 1_779_200_000_000,
+        received_ts_ms: 1_779_200_000_100,
+        instrument_id: instrument_id.to_string(),
+        schema_version: 1,
+        config_version: "phase0-ingestion".to_string(),
+    }
+}
+
+fn phase0_deribit_batch() -> IngestionBatch {
+    IngestionBatch {
+        source: IngestionSource::Deribit,
+        raw_events: vec![RawIngestionEvent::Deribit(RawDeribitEvent {
+            meta: phase0_meta("raw-deribit-1", "ETH-20260601-3000-C"),
+            endpoint_or_channel: "public/ticker".to_string(),
+            payload_json: "{\"instrument_name\":\"ETH-20260601-3000-C\"}".to_string(),
+        })],
+        market_events: vec![MarketEvent::DeribitOptionQuote(DeribitOptionQuote {
+            meta: phase0_meta("market-deribit-1", "ETH-20260601-3000-C"),
+            underlying: "ETH".to_string(),
+            expiry_ts_ms: 1_780_000_000_000,
+            strike: 3000.0,
+            option_kind: OptionKind::Call,
+            underlying_price: 3100.0,
+            bid: 0.12,
+            ask: 0.13,
+            mark_iv: 0.62,
+        })],
+    }
+}
+
+fn phase0_polymarket_batch() -> IngestionBatch {
+    IngestionBatch {
+        source: IngestionSource::Polymarket,
+        raw_events: vec![RawIngestionEvent::Polymarket(RawPolymarketEvent {
+            meta: phase0_meta("raw-polymarket-1", "eth-above-3000-june-1"),
+            api_layer: PolymarketApiLayer::Gamma,
+            payload_json: "{\"market_slug\":\"eth-above-3000-june-1\"}".to_string(),
+        })],
+        market_events: vec![MarketEvent::PolymarketOutcomeQuote(
+            PolymarketOutcomeQuote {
+                meta: phase0_meta("market-polymarket-1", "eth-above-3000-june-1"),
+                event_slug: "eth-above-3000".to_string(),
+                market_slug: "eth-above-3000-june-1".to_string(),
+                outcome: "Yes".to_string(),
+                target_expiry_ts_ms: 1_780_000_000_000,
+                bid_probability: 0.51,
+                ask_probability: 0.53,
+                liquidity_usd: 10_000.0,
+            },
+        )],
+    }
+}
+
+fn phase0_replay_filter() -> cryptotehnolog_common::events::ReplayEventFilter {
+    cryptotehnolog_common::events::ReplayEventFilter {
+        start_ts_ms: 0,
+        end_ts_ms: 1_781_000_000_000,
+        event_types: vec![],
+        instrument_ids: vec![],
+        config_version: Some("phase0-ingestion".to_string()),
+    }
+}
+
+fn phase0_probability_basis_config() -> ProbabilityBasisConfig {
+    ProbabilityBasisConfig {
+        min_net_edge_probability: 0.025,
+        max_expiry_mismatch_ms: 86_400_000,
+        max_quote_time_skew_ms: 5_000,
+        min_polymarket_liquidity_usd: 1000.0,
+        estimated_cost_probability: 0.010,
+        risk_free_rate: 0.0,
+        dividend_yield: 0.0,
+        milliseconds_per_year: 365.25 * 24.0 * 60.0 * 60.0 * 1000.0,
+    }
+}
+
+fn format_ingestion_error(error: IngestionError) -> String {
+    format!("{:?}: {}", error.kind, error.message)
 }
 
 fn json_escape(value: &str) -> String {

@@ -187,6 +187,18 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 
 Скрипт не вызывает LLM, не делает network requests, не пишет в PostgreSQL и не выполняет trading. Это reporting wrapper поверх уже существующих deterministic artifacts.
 
+### `scripts/run_phase0_pipeline_report.ps1`
+
+Генерирует `artifacts/phase0_pipeline_report.json` из текущего offline fixture-сценария `fixtures/ingestion/happy_path_batches.psv`.
+
+Скрипт вызывает Rust binary `render_phase0_pipeline_report`, который строит `Phase0PipelineReport` через deterministic offline vertical slice:
+
+```text
+fixture scenario -> mock ingestion -> EventJournal -> matcher -> BasisObservation -> BasisObservationRowWriter
+```
+
+Скрипт не делает network requests, не пишет в PostgreSQL и не выполняет trading. Это ручной developer wrapper; future golden/CI-check добавляется отдельным шагом после стабилизации report contract.
+
 ## Phase Gate
 
 ### `scripts/check_phase_gate.ps1`

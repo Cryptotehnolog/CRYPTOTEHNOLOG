@@ -285,6 +285,7 @@ Design boundary:
 - `ValidationReport` содержит counters: `raw_events_received`, `normalized_events_received`, `normalized_events_accepted`, `normalized_events_rejected` и список `rejections`.
 - `IngestionReport` агрегирует несколько `ValidationReport`: totals, counts by source и counts by rejection message.
 - `Phase0PipelineReport` агрегирует offline vertical slice counts: raw events, normalized events, journal rows, match decisions, observations и observation rows.
+- `render_phase0_pipeline_report` binary печатает `Phase0PipelineReport` JSON для поддержанного happy-path fixture-сценария.
 - Ошибки API/reconnect/rate-limit не должны превращаться в trading rejection reasons; они относятся к ingestion health.
 
 Sync форма выбрана намеренно, чтобы первый contracts layer компилировался без внешних dependencies. Async versions будут добавлены вместе с real HTTP/WebSocket adapters.
