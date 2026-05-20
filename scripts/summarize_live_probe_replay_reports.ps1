@@ -46,6 +46,31 @@ function Format-OptionalValue {
     return [string]$Value
 }
 
+function Convert-UnixMsToUtcDate {
+    param($Value)
+
+    $timestampMs = Convert-NullableInt64 $Value
+    if ($null -eq $timestampMs) {
+        return ""
+    }
+
+    return [DateTimeOffset]::FromUnixTimeMilliseconds($timestampMs).UtcDateTime.ToString("yyyy-MM-dd")
+}
+
+function Select-ExpiryDate {
+    param(
+        $DateValue,
+        $TimestampMs
+    )
+
+    $dateText = Format-OptionalValue $DateValue
+    if (-not [string]::IsNullOrWhiteSpace($dateText)) {
+        return $dateText
+    }
+
+    return Convert-UnixMsToUtcDate $TimestampMs
+}
+
 if (-not [System.IO.Path]::IsPathRooted($ReportsGlob)) {
     $ReportsGlob = Join-Path $root $ReportsGlob
 }
@@ -73,6 +98,8 @@ foreach ($file in $files) {
     $targetExpiryTsMs = Convert-NullableInt64 $selection.target_expiry_ts_ms
     $selectedExpiryTsMs = Convert-NullableInt64 $selection.selected_expiry_ts_ms
     $strikeDistance = Convert-NullableDouble $selection.strike_distance
+    $targetExpiryDate = Select-ExpiryDate $selection.target_expiry_date $targetExpiryTsMs
+    $selectedExpiryDate = Select-ExpiryDate $selection.selected_expiry_date $selectedExpiryTsMs
     $hasStrikeMismatch = ($null -ne $strikeDistance -and $strikeDistance -gt 0.0)
     $hasExpiryMismatch = ($null -ne $targetExpiryTsMs -and $null -ne $selectedExpiryTsMs -and $selectedExpiryTsMs -ne $targetExpiryTsMs)
     $warningReasons = @()
@@ -99,8 +126,8 @@ foreach ($file in $files) {
         Report = $file.Name
         DeribitInstrument = Format-OptionalValue $selection.selected_deribit_instrument
         PolymarketMarket = Format-OptionalValue $selection.selected_polymarket_market_slug
-        TargetExpiryTsMs = Format-OptionalValue $targetExpiryTsMs
-        SelectedExpiryTsMs = Format-OptionalValue $selectedExpiryTsMs
+        TargetExpiryDate = $targetExpiryDate
+        SelectedExpiryDate = $selectedExpiryDate
         StrikeDistance = Format-OptionalValue $strikeDistance
         Warning = if ($warningReasons.Count -gt 0) { $warningReasons -join "; " } else { "" }
     }
@@ -152,7 +179,7 @@ if ($mismatchRows.Count -gt 0) {
     Write-Output ""
     Write-Output "WARNING: Basis mismatch risk detected in selected candidates"
     foreach ($row in $mismatchRows) {
-        Write-Output "- $($row.Report): $($row.Warning) (Deribit=$($row.DeribitInstrument), Polymarket=$($row.PolymarketMarket), target_expiry_ts_ms=$($row.TargetExpiryTsMs), selected_expiry_ts_ms=$($row.SelectedExpiryTsMs), strike_distance=$($row.StrikeDistance))"
+        Write-Output "- $($row.Report): $($row.Warning) (Deribit=$($row.DeribitInstrument), Polymarket=$($row.PolymarketMarket), target_expiry_date=$($row.TargetExpiryDate), selected_expiry_date=$($row.SelectedExpiryDate), strike_distance=$($row.StrikeDistance))"
     }
 }
 

@@ -547,7 +547,9 @@ impl PayloadShapeVersion {
 struct SelectionReport {
     selected_deribit_instrument: Option<String>,
     target_expiry_ts_ms: Option<i64>,
+    target_expiry_date: Option<String>,
     selected_expiry_ts_ms: Option<i64>,
+    selected_expiry_date: Option<String>,
     strike_distance: Option<f64>,
     selected_polymarket_market_slug: Option<String>,
     selected_polymarket_event_slug: Option<String>,
@@ -560,7 +562,9 @@ impl SelectionReport {
         Self {
             selected_deribit_instrument: None,
             target_expiry_ts_ms: None,
+            target_expiry_date: None,
             selected_expiry_ts_ms: None,
+            selected_expiry_date: None,
             strike_distance: None,
             selected_polymarket_market_slug: None,
             selected_polymarket_event_slug: None,
@@ -575,7 +579,9 @@ impl SelectionReport {
     ) {
         self.selected_deribit_instrument = Some(discovered.instrument_name.clone());
         self.target_expiry_ts_ms = Some(criteria.target_expiry_ts_ms);
+        self.target_expiry_date = Some(utc_date_from_unix_ms(criteria.target_expiry_ts_ms));
         self.selected_expiry_ts_ms = Some(discovered.expiry_ts_ms);
+        self.selected_expiry_date = Some(utc_date_from_unix_ms(discovered.expiry_ts_ms));
         self.strike_distance = Some((discovered.strike - criteria.target_strike).abs());
     }
 
@@ -587,16 +593,48 @@ impl SelectionReport {
 
     fn to_json(&self) -> String {
         format!(
-            "{{\"selected_deribit_instrument\":{},\"target_expiry_ts_ms\":{},\"selected_expiry_ts_ms\":{},\"strike_distance\":{},\"selected_polymarket_market_slug\":{},\"selected_polymarket_event_slug\":{},\"selected_polymarket_liquidity_usd\":{}}}",
+            "{{\"selected_deribit_instrument\":{},\"target_expiry_ts_ms\":{},\"target_expiry_date\":{},\"selected_expiry_ts_ms\":{},\"selected_expiry_date\":{},\"strike_distance\":{},\"selected_polymarket_market_slug\":{},\"selected_polymarket_event_slug\":{},\"selected_polymarket_liquidity_usd\":{}}}",
             optional_string_json(&self.selected_deribit_instrument),
             optional_i64_json(self.target_expiry_ts_ms),
+            optional_string_json(&self.target_expiry_date),
             optional_i64_json(self.selected_expiry_ts_ms),
+            optional_string_json(&self.selected_expiry_date),
             optional_f64_json(self.strike_distance),
             optional_string_json(&self.selected_polymarket_market_slug),
             optional_string_json(&self.selected_polymarket_event_slug),
             optional_f64_json(self.selected_polymarket_liquidity_usd)
         )
     }
+}
+
+#[cfg(feature = "network-integration")]
+fn utc_date_from_unix_ms(timestamp_ms: i64) -> String {
+    let days_since_unix_epoch = timestamp_ms.div_euclid(86_400_000);
+    let (year, month, day) = civil_date_from_unix_days(days_since_unix_epoch);
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+#[cfg(feature = "network-integration")]
+fn civil_date_from_unix_days(days_since_unix_epoch: i64) -> (i64, i64, i64) {
+    let shifted_days = days_since_unix_epoch + 719_468;
+    let era = if shifted_days >= 0 {
+        shifted_days
+    } else {
+        shifted_days - 146_096
+    } / 146_097;
+    let day_of_era = shifted_days - era * 146_097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let mut year = year_of_era + era * 400;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_param = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * month_param + 2) / 5 + 1;
+    let month = month_param + if month_param < 10 { 3 } else { -9 };
+    if month <= 2 {
+        year += 1;
+    }
+
+    (year, month, day)
 }
 
 #[cfg(feature = "network-integration")]
@@ -797,6 +835,18 @@ fn optional_f64_json(value: Option<f64>) -> String {
     value
         .map(|number| number.to_string())
         .unwrap_or_else(|| "null".to_string())
+}
+
+#[cfg(all(test, feature = "network-integration"))]
+mod tests {
+    use super::utc_date_from_unix_ms;
+
+    #[test]
+    fn unix_ms_dates_are_rendered_as_utc_calendar_dates() {
+        assert_eq!(utc_date_from_unix_ms(0), "1970-01-01");
+        assert_eq!(utc_date_from_unix_ms(1_780_272_000_000), "2026-06-01");
+        assert_eq!(utc_date_from_unix_ms(1_782_432_000_000), "2026-06-26");
+    }
 }
 
 #[cfg(not(feature = "network-integration"))]

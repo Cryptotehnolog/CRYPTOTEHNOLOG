@@ -235,3 +235,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-20] automation | Live probe replay summary selection warnings
 
 `scripts/summarize_live_probe_replay_reports.ps1` теперь выводит выбранную Deribit/Polymarket пару отдельной таблицей `Selected Candidates`, выносит payload shape versions из основной summary-строки и показывает warning, если `strike_distance > 0` или `selected_expiry_ts_ms != target_expiry_ts_ms`. Это делает basis mismatch risk заметным в manual report summary до перехода к более глубокой live ingestion telemetry.
+
+## [2026-05-20] implementation | Live probe replay expiry dates
+
+`live_probe_replay_report.json` расширен человекочитаемыми UTC fields `target_expiry_date` и `selected_expiry_date` рядом с машинными `target_expiry_ts_ms` и `selected_expiry_ts_ms`. `scripts/summarize_live_probe_replay_reports.ps1` теперь показывает expiry mismatch warnings через даты, чтобы manual Phase 0 reports читались без ручного перевода Unix milliseconds.
