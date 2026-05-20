@@ -194,7 +194,11 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 
 Ручной локальный агрегатор Phase 0 состояния.
 
-Скрипт читает replay golden JSON reports, ingestion semantic reports и последние network/live probe artifacts из `artifacts/`, затем пишет:
+Скрипт читает replay golden JSON reports, ingestion semantic reports, Phase 0 pipeline reports из `fixtures/phase0_pipeline/` и последние network/live probe artifacts из `artifacts/`.
+
+Для Phase 0 pipeline reports он показывает status-aware summary: `ok`/`error`, counts по этапам и `error_stage` для controlled failures.
+
+Скрипт пишет:
 
 - `artifacts/phase0_daily_report.json`,
 - `artifacts/phase0_daily_report.md`.

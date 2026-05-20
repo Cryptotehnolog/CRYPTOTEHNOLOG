@@ -331,3 +331,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] implementation | Phase 0 pipeline storage writer failure scenario
 
 `Phase0PipelineReport` расширен полями `status`, `error_stage`, `error_message`, чтобы controlled storage failures не маскировались под нулевые counts. Добавлен сценарий `storage_writer_failure_preserves_reported_failure`, где pipeline доходит до `BasisObservation`, но `BasisObservationRowWriter` возвращает `Storage` error report. В `workflow-scripts.md` добавлена таблица покрытых Phase 0 pipeline paths.
+
+## [2026-05-21] implementation | Phase 0 daily report pipeline status summary
+
+`scripts/run_phase0_daily_report.ps1` теперь агрегирует Phase 0 pipeline reports из `fixtures/phase0_pipeline/` и показывает status-aware summary: количество `ok`/`error` scenarios, counts по этапам pipeline и `error_stage` для controlled failures. Обновлена документация `workflow-scripts.md`.
