@@ -32,6 +32,7 @@ Live monitoring должен быть Rust service/binary. PowerShell может
 - ingestion manifest,
 - fixture paths,
 - pricing model fixture policy,
+- manual JSON writer guard,
 - `cargo fmt --check`,
 - `cargo check`,
 - `cargo test`,
@@ -139,6 +140,12 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 Если в diff изменена строка `PRICING_MODEL_VERSION` в `crates/common/src/probability_basis.rs`, то в том же diff должны быть обновлены replay golden reports в `fixtures/probability_basis/`.
 
 Скрипт включен в `check_all` и CI.
+
+### `scripts/check_manual_json_writers.ps1`
+
+Запрещает новые ручные JSON writers в `crates/replay/src`.
+
+Цель проверки - удержать replay report contract на typed DTO + `serde Serialize`, а не возвращаться к `format!()`/`push_str()` JSON assembly. Diagnostic helpers вне `crates/replay` этой проверкой пока не блокируются.
 
 ### `scripts/update_golden_fixture.ps1`
 

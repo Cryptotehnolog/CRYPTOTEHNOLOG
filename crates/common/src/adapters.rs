@@ -236,6 +236,7 @@ mod tests {
             event_slug: market.event_slug.clone(),
             market_slug: market.market_slug.clone(),
             outcome: "Yes".to_string(),
+            target_expiry_ts_ms: market.close_ts_ms.unwrap(),
             bid_probability: 0.51,
             ask_probability: 0.53,
             liquidity_usd: 10_000.0,

@@ -684,6 +684,12 @@ impl NormalizedBatchValidator for Phase0NormalizedBatchValidator {
                         "invalid Polymarket normalized quote values",
                     ));
                 }
+                if quote.target_expiry_ts_ms <= 0 {
+                    return Err(validation_error(
+                        event,
+                        "invalid Polymarket target expiry timestamp",
+                    ));
+                }
             }
         }
 
@@ -958,12 +964,14 @@ pub struct PolymarketLiveIngestionClient {
     pub base_url: String,
     pub market_slug: String,
     pub outcome: String,
+    pub target_expiry_ts_ms: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PolymarketMarketDiscoveryCriteria {
     pub required_terms: Vec<String>,
     pub outcome: String,
+    pub target_expiry_ts_ms: i64,
     pub min_liquidity_usd: f64,
 }
 
@@ -972,6 +980,7 @@ impl PolymarketMarketDiscoveryCriteria {
         Self {
             required_terms: vec!["eth".to_string(), "3000".to_string()],
             outcome: "Yes".to_string(),
+            target_expiry_ts_ms: 1_780_272_000_000,
             min_liquidity_usd: 1_000.0,
         }
     }
@@ -983,6 +992,7 @@ pub struct PolymarketDiscoveredMarket {
     pub event_slug: String,
     pub question: String,
     pub outcome: String,
+    pub target_expiry_ts_ms: i64,
     pub liquidity_usd: f64,
 }
 
@@ -996,6 +1006,7 @@ impl PolymarketLiveIngestionClient {
             base_url: base_url.into(),
             market_slug: market_slug.into(),
             outcome: outcome.into(),
+            target_expiry_ts_ms: None,
         }
     }
 
@@ -1008,6 +1019,12 @@ impl PolymarketLiveIngestionClient {
             discovered.market_slug.clone(),
             discovered.outcome.clone(),
         )
+        .with_target_expiry(discovered.target_expiry_ts_ms)
+    }
+
+    pub fn with_target_expiry(mut self, target_expiry_ts_ms: i64) -> Self {
+        self.target_expiry_ts_ms = Some(target_expiry_ts_ms);
+        self
     }
 
     pub fn markets_url(base_url: &str) -> String {
@@ -1085,6 +1102,7 @@ impl PolymarketLiveIngestionClient {
         let timestamp_ms = parser
             .optional_i64_any(&["timestamp", "updatedAtMillis"])?
             .unwrap_or(received_ts_ms);
+        let target_expiry_ts_ms = self.target_expiry_ts_ms.unwrap_or(timestamp_ms);
         let explicit_bid_probability = parser.optional_f64_any(&["bid_probability", "bestBid"])?;
         let explicit_ask_probability = parser.optional_f64_any(&["ask_probability", "bestAsk"])?;
         let fallback_outcome_price =
@@ -1138,6 +1156,7 @@ impl PolymarketLiveIngestionClient {
                     event_slug,
                     market_slug,
                     outcome,
+                    target_expiry_ts_ms,
                     bid_probability,
                     ask_probability,
                     liquidity_usd,
@@ -1713,6 +1732,7 @@ fn parse_polymarket_markets_payload(
             event_slug,
             question,
             outcome: criteria.outcome.clone(),
+            target_expiry_ts_ms: criteria.target_expiry_ts_ms,
             liquidity_usd,
         });
     }
@@ -2388,8 +2408,8 @@ mod tests {
         EventMeta {
             event_id: event_id.to_string(),
             source: "mock-ingestion".to_string(),
-            exchange_ts_ms: 1_780_000_000_000,
-            received_ts_ms: 1_780_000_000_100,
+            exchange_ts_ms: 1_779_200_000_000,
+            received_ts_ms: 1_779_200_000_100,
             instrument_id: "eth-above-3000-june-1".to_string(),
             schema_version: 1,
             config_version: "phase0-ingestion".to_string(),
@@ -2410,6 +2430,7 @@ mod tests {
                     event_slug: "eth-above-3000".to_string(),
                     market_slug: "eth-above-3000-june-1".to_string(),
                     outcome: "Yes".to_string(),
+                    target_expiry_ts_ms: 1_780_000_000_000,
                     bid_probability: 0.51,
                     ask_probability: 0.53,
                     liquidity_usd: 10_000.0,
@@ -2434,6 +2455,7 @@ mod tests {
                     event_slug: "eth-above-3000".to_string(),
                     market_slug: "eth-above-3000-june-1".to_string(),
                     outcome: "Yes".to_string(),
+                    target_expiry_ts_ms: 1_780_000_000_000,
                     bid_probability: 0.70,
                     ask_probability: 0.60,
                     liquidity_usd: 10_000.0,
@@ -2446,6 +2468,7 @@ mod tests {
         ProbabilityBasisConfig {
             min_net_edge_probability: 0.025,
             max_expiry_mismatch_ms: 86_400_000,
+            max_quote_time_skew_ms: 5_000,
             min_polymarket_liquidity_usd: 1_000.0,
             estimated_cost_probability: 0.010,
             risk_free_rate: 0.0,

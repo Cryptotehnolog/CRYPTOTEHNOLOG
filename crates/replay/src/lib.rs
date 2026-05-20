@@ -71,10 +71,13 @@ impl ReplayReport {
     pub fn to_json(&self) -> String {
         match serde_json::to_string_pretty(self) {
             Ok(json) => format!("{json}\n"),
-            Err(error) => format!(
-                "{{\"schema_version\":1,\"serialization_error\":\"{}\"}}\n",
-                escape_error_message(&error.to_string())
-            ),
+            Err(error) => {
+                let fallback = serde_json::json!({
+                    "schema_version": 1,
+                    "serialization_error": error.to_string(),
+                });
+                format!("{fallback}\n")
+            }
         }
     }
 }
@@ -285,6 +288,7 @@ pub fn default_probability_basis_config() -> ProbabilityBasisConfig {
     ProbabilityBasisConfig {
         min_net_edge_probability: 0.025,
         max_expiry_mismatch_ms: 86_400_000,
+        max_quote_time_skew_ms: 5_000,
         min_polymarket_liquidity_usd: 1000.0,
         estimated_cost_probability: 0.010,
         risk_free_rate: 0.0,
@@ -310,9 +314,9 @@ pub fn parse_market_events(content: &str) -> Result<Vec<MarketEvent>, String> {
         }
 
         let fields: Vec<&str> = trimmed.split('|').collect();
-        if fields.len() != 20 {
+        if fields.len() != 21 {
             return Err(format!(
-                "line {line_number}: expected 20 pipe-separated fields, got {}",
+                "line {line_number}: expected 21 pipe-separated fields, got {}",
                 fields.len()
             ));
         }
@@ -374,6 +378,7 @@ fn parse_market_event(line_number: usize, fields: &[&str]) -> Result<MarketEvent
                 bid_probability: parse_f64(line_number, fields[17], "bid_probability")?,
                 ask_probability: parse_f64(line_number, fields[18], "ask_probability")?,
                 liquidity_usd: parse_f64(line_number, fields[19], "liquidity_usd")?,
+                target_expiry_ts_ms: parse_i64(line_number, fields[20], "target_expiry_ts_ms")?,
             },
         )),
         other => Err(format!(
@@ -438,10 +443,6 @@ where
 
 fn round_probability(value: f64) -> f64 {
     (value * 1_000_000.0).round() / 1_000_000.0
-}
-
-fn escape_error_message(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 #[cfg(test)]
@@ -628,7 +629,7 @@ mod tests {
 
     #[test]
     fn fixture_parser_rejects_unknown_event_type() {
-        let error = parse_market_events("unknown|id|instrument|1|2|cfg||||||||||||||")
+        let error = parse_market_events("unknown|id|instrument|1|2|cfg|||||||||||||||")
             .expect_err("unknown event type should fail");
 
         assert!(error.contains("unsupported event_type"));

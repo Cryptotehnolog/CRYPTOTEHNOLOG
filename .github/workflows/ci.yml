@@ -65,6 +65,10 @@ jobs:
         shell: pwsh
         run: .\scripts\check_pricing_model_fixture_update.ps1
 
+      - name: Check manual JSON writers
+        shell: pwsh
+        run: .\scripts\check_manual_json_writers.ps1
+
       - name: Run replay regression
         shell: pwsh
         run: .\scripts\run_replay_regression.ps1

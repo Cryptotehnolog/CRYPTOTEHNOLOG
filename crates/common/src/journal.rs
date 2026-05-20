@@ -171,6 +171,7 @@ mod tests {
             event_slug: "eth-above-3000".to_string(),
             market_slug: "eth-above-3000-june-1".to_string(),
             outcome: "Yes".to_string(),
+            target_expiry_ts_ms: 1_780_000_000_000,
             bid_probability: 0.51,
             ask_probability: 0.53,
             liquidity_usd: 10_000.0,

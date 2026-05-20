@@ -62,6 +62,7 @@ MarketEvent::PolymarketOutcomeQuote(PolymarketOutcomeQuote)
 | `event_slug` | `String` | Polymarket event slug. |
 | `market_slug` | `String` | Polymarket market slug. |
 | `outcome` | `String` | Outcome label, e.g. `Yes`. |
+| `target_expiry_ts_ms` | `i64` | Event/settlement target timestamp для expiry matching с Deribit option. |
 | `bid_probability` | `f64` | Bid as probability-like price. |
 | `ask_probability` | `f64` | Ask as probability-like price. |
 | `liquidity_usd` | `f64` | Liquidity estimate. |
@@ -234,6 +235,7 @@ Design boundary:
 - `PolymarketMarketDiscoveryCriteria` и `PolymarketDiscoveredMarket` задают read-only discovery boundary для выбора Polymarket Gamma market candidate перед market-by-slug polling.
 - `PolymarketLiveIngestionClient` строит read-only Gamma markets и market-by-slug URLs, выбирает candidate из markets payload и парсит fixture-shaped и real-shaped Polymarket Gamma market payloads в raw + normalized Polymarket outcome events; malformed/misaligned `outcomes` и `outcomePrices` возвращают `IngestionError`, а не panic; default `poll_once()` остается `NotImplemented`.
 - `JsonPayloadParser` убирает дублирование JSON field extraction между live adapter skeletons. Он поддерживает Deribit `result.*`, Deribit short option expiries вроде `1JUN26`, Polymarket `slug`, JSON-encoded `outcomes`/`outcomePrices`, string/number liquidity и Phase 0 fallback `bid=ask=outcomePrice` для Gamma snapshots без CLOB spread. Fallback используется только если `outcomePrices` согласован с выбранным outcome.
+- Timestamp contract: `meta.exchange_ts_ms` означает quote/snapshot timestamp, `meta.received_ts_ms` означает local receive time, а `PolymarketOutcomeQuote.target_expiry_ts_ms` означает target event/settlement timestamp. Matcher использует `target_expiry_ts_ms` для expiry matching и `exchange_ts_ms` для quote freshness/skew checks.
 - `payload_shape_version` в manual reports фиксирует parser contract, который обработал live payload: `deribit_get_instruments_v1`, `deribit_json_rpc_ticker_v1`, `polymarket_gamma_markets_v1`, `polymarket_gamma_market_v1`.
 - `selection_report` в `live_probe_replay_report.json` фиксирует выбранный Deribit instrument, target/selected expiry timestamps, человекочитаемые UTC dates, `strike_distance`, derived mismatch flags `strike_mismatch`/`expiry_mismatch`, агрегированный `selection_quality` (`missing`/`exact`/`nearby`/`mismatch`) и выбранный Polymarket market slug.
 - `live_probe_replay_report.json` строится через локальные `serde Serialize` DTO в producer binary, чтобы внешний report contract был отделен от внутреннего состояния probe/replay pipeline.

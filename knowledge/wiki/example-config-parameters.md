@@ -22,6 +22,7 @@ sources:
 | `enabled` | `true` | Включает probability basis strategy. |
 | `min_net_edge_probability` | `0.025` | Минимальный net edge после costs. |
 | `max_expiry_mismatch_ms` | `86400000` | Максимальный mismatch между option expiry и target event timestamp. |
+| `max_quote_time_skew_ms` | `5000` | Максимальный skew между Deribit и Polymarket quote timestamps для одной пары. |
 | `max_market_age_ms` | `3000` | Максимальный возраст market data. |
 | `min_polymarket_liquidity_usd` | `1000.0` | Минимальная liquidity для candidate market. |
 | `estimated_cost_probability` | `0.010` | MVP estimate fees/spread/slippage/mismatch costs. |

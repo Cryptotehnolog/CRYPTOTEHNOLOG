@@ -9,6 +9,7 @@ pub const PRICING_MODEL_VERSION: &str = "black_scholes_single_strike_v1";
 pub struct ProbabilityBasisConfig {
     pub min_net_edge_probability: f64,
     pub max_expiry_mismatch_ms: i64,
+    pub max_quote_time_skew_ms: i64,
     pub min_polymarket_liquidity_usd: f64,
     pub estimated_cost_probability: f64,
     pub risk_free_rate: f64,
@@ -38,6 +39,7 @@ pub enum RejectionReason {
     UnsupportedOptionKind,
     ExpiryMismatch,
     InsufficientLiquidity,
+    StalePair,
     InvalidQuote,
     ExpiredOption,
     InvalidModelInput,
@@ -82,7 +84,7 @@ pub fn match_probability_basis(
     }
 
     let expiry_mismatch_ms =
-        (deribit_quote.expiry_ts_ms - polymarket_quote.meta.exchange_ts_ms).abs();
+        (deribit_quote.expiry_ts_ms - polymarket_quote.target_expiry_ts_ms).abs();
     if expiry_mismatch_ms > config.max_expiry_mismatch_ms {
         return reject_pair(
             RejectionReason::ExpiryMismatch,
@@ -97,6 +99,12 @@ pub fn match_probability_basis(
             deribit_quote,
             polymarket_quote,
         );
+    }
+
+    let quote_time_skew_ms =
+        (deribit_quote.meta.exchange_ts_ms - polymarket_quote.meta.exchange_ts_ms).abs();
+    if quote_time_skew_ms > config.max_quote_time_skew_ms {
+        return reject_pair(RejectionReason::StalePair, deribit_quote, polymarket_quote);
     }
 
     if deribit_quote.expiry_ts_ms <= deribit_quote.meta.exchange_ts_ms {
@@ -375,13 +383,18 @@ mod tests {
         bid_probability: f64,
         ask_probability: f64,
         liquidity_usd: f64,
-        event_ts_ms: i64,
+        target_expiry_ts_ms: i64,
     ) -> PolymarketOutcomeQuote {
         PolymarketOutcomeQuote {
-            meta: meta("polymarket-quote-1", "eth-above-3000-june-1", event_ts_ms),
+            meta: meta(
+                "polymarket-quote-1",
+                "eth-above-3000-june-1",
+                1_779_200_000_000,
+            ),
             event_slug: "eth-above-3000".to_string(),
             market_slug: "eth-above-3000-june-1".to_string(),
             outcome: "Yes".to_string(),
+            target_expiry_ts_ms,
             bid_probability,
             ask_probability,
             liquidity_usd,
@@ -392,6 +405,7 @@ mod tests {
         ProbabilityBasisConfig {
             min_net_edge_probability: 0.025,
             max_expiry_mismatch_ms: 86_400_000,
+            max_quote_time_skew_ms: 5_000,
             min_polymarket_liquidity_usd: 1000.0,
             estimated_cost_probability: 0.010,
             risk_free_rate: 0.0,
@@ -443,6 +457,26 @@ mod tests {
     }
 
     #[test]
+    fn rejects_stale_cross_source_pair() {
+        let deribit = deribit_quote(0.62, 3100.0, 1_780_000_000_000);
+        let mut polymarket = polymarket_quote(0.51, 0.53, 10_000.0, 1_780_000_000_000);
+        polymarket.meta.exchange_ts_ms = deribit.meta.exchange_ts_ms + 10_000;
+        let mut config = config();
+        config.max_quote_time_skew_ms = 5_000;
+
+        let decision = match_probability_basis(Some(&deribit), Some(&polymarket), &config);
+
+        assert_eq!(
+            decision,
+            MatchDecision::Rejected {
+                reason: RejectionReason::StalePair,
+                deribit_instrument_id: Some("ETH-20260601-3000-C".to_string()),
+                polymarket_market_slug: Some("eth-above-3000-june-1".to_string()),
+            }
+        );
+    }
+
+    #[test]
     fn rejects_edge_below_threshold() {
         let deribit = deribit_quote(0.62, 3030.0, 1_780_000_000_000);
         let polymarket = polymarket_quote(0.51, 0.53, 10_000.0, 1_780_000_000_000);
@@ -479,6 +513,7 @@ mod tests {
                 event_slug: "eth-above-3000-low-liquidity".to_string(),
                 market_slug: "eth-above-3000-low-liquidity".to_string(),
                 outcome: "Yes".to_string(),
+                target_expiry_ts_ms: 1_780_000_000_000,
                 bid_probability: 0.51,
                 ask_probability: 0.53,
                 liquidity_usd: 500.0,

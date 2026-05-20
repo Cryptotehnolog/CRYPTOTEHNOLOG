@@ -1,3 +1,3 @@
-# event_type|event_id|instrument_id|exchange_ts_ms|received_ts_ms|config_version|underlying|expiry_ts_ms|strike|option_kind|underlying_price|bid|ask|mark_iv|event_slug|market_slug|outcome|bid_probability|ask_probability|liquidity_usd
-deribit_option_quote|deribit-edge-quote-1|ETH-20260601-3000-C|1779200000000|1779200000100|phase0-edge-below-threshold|ETH|1780000000000|3000.0|call|3030.0|0.12|0.13|0.62||||||
-polymarket_outcome_quote|polymarket-edge-quote-1|eth-above-3000-edge-below-threshold|1780000000000|1780000000100|phase0-edge-below-threshold|||||||||eth-above-3000|eth-above-3000-edge-below-threshold|Yes|0.51|0.53|10000.0
+# event_type|event_id|instrument_id|exchange_ts_ms|received_ts_ms|config_version|underlying|expiry_ts_ms|strike|option_kind|underlying_price|bid|ask|mark_iv|event_slug|market_slug|outcome|bid_probability|ask_probability|liquidity_usd|target_expiry_ts_ms
+deribit_option_quote|deribit-edge-quote-1|ETH-20260601-3000-C|1779200000000|1779200000100|phase0-edge-below-threshold|ETH|1780000000000|3000.0|call|3030.0|0.12|0.13|0.62|||||||
+polymarket_outcome_quote|polymarket-edge-quote-1|eth-above-3000-edge-below-threshold|1779200000000|1779200000100|phase0-edge-below-threshold|||||||||eth-above-3000|eth-above-3000-edge-below-threshold|Yes|0.51|0.53|10000.0|1780000000000

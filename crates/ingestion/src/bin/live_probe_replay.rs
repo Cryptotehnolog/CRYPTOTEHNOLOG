@@ -439,6 +439,7 @@ fn run_matcher(events: &[MarketEvent]) -> ReplayPipelineSummary {
     let config = ProbabilityBasisConfig {
         min_net_edge_probability: 0.025,
         max_expiry_mismatch_ms: 86_400_000,
+        max_quote_time_skew_ms: 5_000,
         min_polymarket_liquidity_usd: 1_000.0,
         estimated_cost_probability: 0.010,
         risk_free_rate: 0.0,

@@ -85,6 +85,7 @@ pub struct PolymarketOutcomeQuote {
     pub event_slug: String,
     pub market_slug: String,
     pub outcome: String,
+    pub target_expiry_ts_ms: i64,
     pub bid_probability: f64,
     pub ask_probability: f64,
     pub liquidity_usd: f64,
