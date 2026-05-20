@@ -55,3 +55,7 @@ sources: []
 ## [2026-05-20] lifecycle | Stale knowledge warnings
 
 Добавлены `stability` и `review_after` в schema и текущие managed knowledge pages. Добавлен `scripts/kb_stale_check.ps1`, который выдает warning-only уведомления о страницах, требующих review. Также зафиксировано правило: при добавлении новых `decision` или `risk` pages нужно явно проверить, требуется ли обновление `knowledge/graph.md`.
+
+## [2026-05-20] ingest | MVP development sources
+
+Добавлен первый MVP knowledge package: official source notes по Deribit API и Polymarket Gamma/CLOB API, low-confidence source note по Quantum Bot, strategy/risk pages для probability basis, postponed funding carry page, architecture pages для data pipeline и deterministic replay, а также MVP roadmap. `knowledge/graph.md` обновлен только curated связями.

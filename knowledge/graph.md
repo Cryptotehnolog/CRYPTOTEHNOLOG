@@ -25,14 +25,24 @@ sources:
 flowchart LR
     karpathy["Source: Karpathy LLM Wiki"]
     review["Source: Project Review"]
+    deribit["Source: Deribit API"]
+    polymarket["Source: Polymarket API"]
+    quantum["Source: Quantum Bot"]
 
     llmWiki["Concept: LLM Wiki"]
     probabilityBasis["Concept: Probability Basis"]
 
     firstMvp["Decision: First MVP"]
+    probabilityStrategy["Strategy: Probability Basis"]
+    fundingStrategy["Strategy: Funding Carry"]
 
     automationRisk["Risk: Automation Quality"]
     settlementRisk["Risk: Settlement / Definition Mismatch"]
+    probabilityRisk["Risk: Probability Basis"]
+
+    dataPipeline["Architecture: Data Pipeline"]
+    replay["Architecture: Deterministic Replay"]
+    roadmap["Roadmap: MVP"]
 
     codexWorkflow["Workflow: Codex Wiki Usage"]
     obsidianWorkflow["Workflow: Obsidian"]
@@ -48,10 +58,19 @@ flowchart LR
     karpathy --> llmWiki
     karpathy --> codexWorkflow
     karpathy --> ingestWorkflow
+    deribit --> probabilityBasis
+    polymarket --> probabilityBasis
+    quantum -.-> probabilityBasis
     review --> probabilityBasis
+    review --> fundingStrategy
     probabilityBasis --> firstMvp
+    probabilityBasis --> probabilityStrategy
+    probabilityStrategy --> probabilityRisk
     firstMvp --> automationRisk
     firstMvp --> settlementRisk
+    firstMvp --> roadmap
+    dataPipeline --> replay
+    replay --> roadmap
 
     codexWorkflow --> kbCheck
     obsidianWorkflow --> kbCheck
