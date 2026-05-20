@@ -14,7 +14,7 @@ use cryptotehnolog_common::observations::{
     write_basis_observation_rows,
 };
 use cryptotehnolog_common::probability_basis::{ProbabilityBasisConfig, match_from_market_events};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub const DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION: &str = "deribit_get_instruments_v1";
@@ -604,7 +604,7 @@ impl IngestionReport {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Phase0PipelineReport {
     pub schema_version: u16,
     pub raw_events: usize,
@@ -3895,6 +3895,22 @@ mod tests {
                 .expect("report JSON should parse");
         assert_eq!(json["raw_events"], 2);
         assert_eq!(json["observation_rows"], 1);
+    }
+
+    #[test]
+    fn phase0_pipeline_report_matches_semantic_golden_json() {
+        let report = phase0_pipeline_report_from_happy_path()
+            .expect("phase 0 pipeline happy path should produce report");
+        let golden_path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/phase0_pipeline/golden_report.json"
+        );
+        let golden_json =
+            fs::read_to_string(golden_path).expect("phase 0 pipeline golden JSON should exist");
+        let expected: Phase0PipelineReport =
+            serde_json::from_str(&golden_json).expect("phase 0 pipeline golden JSON should parse");
+
+        assert_eq!(report, expected);
     }
 
     #[test]

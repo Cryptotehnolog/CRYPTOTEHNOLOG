@@ -315,3 +315,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] implementation | Phase 0 pipeline golden freshness
 
 Добавлен golden/freshness слой для `Phase0PipelineReport`: `fixtures/phase0_pipeline/golden_report.json`, `scripts/update_phase0_pipeline_golden.ps1`, `scripts/check_phase0_pipeline_golden_current.ps1`. Проверка включена в `scripts/check_all.ps1` и CI, чтобы offline vertical slice report был таким же проверяемым контрактом, как replay и ingestion reports.
+
+## [2026-05-21] implementation | Phase 0 pipeline semantic regression
+
+Добавлен Rust-level semantic regression test для `Phase0PipelineReport`: тест читает `fixtures/phase0_pipeline/golden_report.json`, десериализует его в typed DTO и сравнивает с текущим deterministic offline vertical slice report. Это дополняет script-level freshness-check и не зависит от форматирования JSON.
