@@ -56,6 +56,12 @@ Derived observations по probability basis.
 
 Rust-модель первого уровня реализована как `BasisObservation` в `crates/common/src/observations.rs`. PostgreSQL writer еще не реализован; текущий writer interface имеет in-memory implementation для replay/tests.
 
+Storage boundary уже определен:
+
+- `BasisObservationRow` - column-order serialization contract;
+- `BasisObservationRowWriter` - future storage-row writer trait;
+- `PostgresBasisObservationAdapter` - skeleton с table name, columns и `INSERT` template без real DB connection.
+
 | Column | Type | Meaning |
 | --- | --- | --- |
 | `id` | `bigserial primary key` | Внутренний row id. |
@@ -70,12 +76,31 @@ Rust-модель первого уровня реализована как `Bas
 | `net_edge_probability` | `numeric not null` | Net edge после estimated costs. |
 | `survives_costs` | `boolean not null` | Проходит ли threshold после costs. |
 
-Planned Rust-only metadata before DB migration update:
+Rust-only metadata before DB migration update:
 
 - `schema_version`,
 - `config_version`.
 
 Если эти поля нужны в PostgreSQL напрямую, migration должна быть расширена отдельным change review.
+
+## `basis_observations` Insert Contract
+
+Current Rust skeleton использует такой logical order:
+
+```text
+event_id
+observed_at
+deribit_instrument_id
+polymarket_market_slug
+model_probability
+polymarket_mid_probability
+gross_edge_probability
+estimated_cost_probability
+net_edge_probability
+survives_costs
+```
+
+`observed_at` пока сериализуется из Rust как Unix milliseconds (`observed_at_ts_ms`) и в future PostgreSQL adapter должен конвертироваться через `to_timestamp(ms / 1000.0)`.
 
 ## Design Rule
 

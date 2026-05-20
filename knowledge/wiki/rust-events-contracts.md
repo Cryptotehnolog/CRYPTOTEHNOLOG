@@ -111,6 +111,35 @@ BasisObservation::from_feature(feature, min_net_edge_probability)
 observations_from_match_decisions(decisions, config)
 ```
 
+### `BasisObservationRow`
+
+`BasisObservationRow` - PostgreSQL-oriented serialization boundary для будущей таблицы `basis_observations`.
+
+Он отделяет domain observation от storage row contract:
+
+```text
+BasisObservation
+  -> BasisObservationRow
+  -> future PostgreSQL adapter
+```
+
+Fixed column order:
+
+```text
+event_id
+observed_at
+deribit_instrument_id
+polymarket_market_slug
+model_probability
+polymarket_mid_probability
+gross_edge_probability
+estimated_cost_probability
+net_edge_probability
+survives_costs
+```
+
+`observed_at` в row boundary передается как `observed_at_ts_ms`, а future PostgreSQL adapter должен конвертировать milliseconds в `timestamptz`.
+
 ### `RawDeribitEvent`
 
 Raw API payload wrapper before normalization.
@@ -139,6 +168,7 @@ Raw API payload wrapper before normalization.
 - `MockPolymarketAdapter`,
 - `InMemoryEventJournal`.
 - `InMemoryBasisObservationWriter`.
+- `PostgresBasisObservationAdapter` skeleton без real DB connection.
 
 Также реализован probability-basis matcher skeleton:
 
@@ -149,6 +179,7 @@ Raw API payload wrapper before normalization.
 - `match_from_market_events()`.
 - Black-Scholes `N(d2)` probability calculation для call-like events.
 - `BasisObservationWriter` interface без PostgreSQL подключения.
+- `BasisObservationRowWriter` interface для storage-row layer.
 
 Sync форма выбрана намеренно, чтобы первый contracts layer компилировался без внешних dependencies. Async versions будут добавлены вместе с real HTTP/WebSocket adapters.
 
@@ -290,6 +321,28 @@ InMemoryBasisObservationWriter
 
 PostgreSQL implementation добавляется позже, когда появится database connector layer.
 
+### `BasisObservationRowWriter`
+
+Storage-row interface:
+
+```rust
+pub trait BasisObservationRowWriter {
+    fn append_basis_observation_row(
+        &mut self,
+        row: BasisObservationRow,
+    ) -> Result<(), ObservationWriteError>;
+}
+```
+
+`PostgresBasisObservationAdapter` пока содержит только stable SQL template:
+
+```text
+INSERT INTO basis_observations (...)
+VALUES ($1, to_timestamp($2::double precision / 1000.0), ...)
+```
+
+Он не открывает соединение и не зависит от `sqlx`, `tokio-postgres` или других DB crates.
+
 Proposed replay filter:
 
 ```rust
@@ -329,6 +382,7 @@ pub struct ReplayEventFilter {
 - golden replay fixture report.
 - Black-Scholes edge cases: zero/negative IV, expired option, deep ITM/OTM behavior, deterministic normal CDF approximation.
 - BasisObservation mapping and duplicate observation rejection.
+- BasisObservationRow column order and PostgreSQL insert SQL skeleton.
 
 ## Design Rule
 

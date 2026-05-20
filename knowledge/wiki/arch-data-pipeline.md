@@ -57,11 +57,14 @@ execution:reports
 Текущий Rust слой:
 
 - `BasisObservation`,
+- `BasisObservationRow`,
 - `BasisObservationWriter`,
+- `BasisObservationRowWriter`,
 - `InMemoryBasisObservationWriter`,
+- `PostgresBasisObservationAdapter` skeleton,
 - `observations_from_match_decisions()`.
 
-PostgreSQL writer намеренно не добавлен в этой итерации. Сначала фиксируется deterministic contract и replay behavior, затем подключается storage implementation.
+Real PostgreSQL writer намеренно не добавлен в этой итерации. Сначала фиксируется deterministic contract, row serialization и replay behavior, затем подключается storage implementation.
 
 ## Adapter Traits
 
@@ -82,6 +85,9 @@ EventJournal
 
 BasisObservationWriter
   - append_basis_observation()
+
+BasisObservationRowWriter
+  - append_basis_observation_row()
 ```
 
 ## Добавление Нового Источника

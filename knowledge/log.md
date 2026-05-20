@@ -107,3 +107,7 @@ Probability-basis replay fixture вынесен из hardcoded Rust в `fixtures
 ## [2026-05-20] implementation | Basis observations writer contract
 
 Добавлен `crates/common/src/observations.rs`: Rust-модель `BasisObservation`, conversion из matched `ProbabilityBasisFeature`, `BasisObservationWriter` trait и `InMemoryBasisObservationWriter` без PostgreSQL подключения. Replay runner теперь прогоняет matched decisions через in-memory observation writer. `run_backtest.ps1` остается отложенным до появления PnL/trade model.
+
+## [2026-05-20] implementation | Basis observations storage boundary
+
+Добавлен PostgreSQL-oriented storage boundary без real DB dependency: `BasisObservationRow`, fixed `basis_observations` column order, `BasisObservationRowWriter` trait и `PostgresBasisObservationAdapter` skeleton с stable `INSERT` SQL template. Реальное `sqlx`/`tokio-postgres` подключение остается отдельным будущим шагом.

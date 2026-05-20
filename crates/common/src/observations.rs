@@ -52,6 +52,102 @@ pub fn observations_from_match_decisions(
         .collect()
 }
 
+pub const BASIS_OBSERVATIONS_TABLE: &str = "basis_observations";
+
+pub const BASIS_OBSERVATIONS_COLUMNS: [&str; 10] = [
+    "event_id",
+    "observed_at",
+    "deribit_instrument_id",
+    "polymarket_market_slug",
+    "model_probability",
+    "polymarket_mid_probability",
+    "gross_edge_probability",
+    "estimated_cost_probability",
+    "net_edge_probability",
+    "survives_costs",
+];
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BasisObservationRow {
+    pub event_id: String,
+    pub observed_at_ts_ms: i64,
+    pub deribit_instrument_id: String,
+    pub polymarket_market_slug: String,
+    pub model_probability: f64,
+    pub polymarket_mid_probability: f64,
+    pub gross_edge_probability: f64,
+    pub estimated_cost_probability: f64,
+    pub net_edge_probability: f64,
+    pub survives_costs: bool,
+}
+
+impl BasisObservationRow {
+    pub fn from_observation(observation: &BasisObservation) -> Self {
+        Self {
+            event_id: observation.event_id.clone(),
+            observed_at_ts_ms: observation.observed_at_ts_ms,
+            deribit_instrument_id: observation.deribit_instrument_id.clone(),
+            polymarket_market_slug: observation.polymarket_market_slug.clone(),
+            model_probability: observation.model_probability,
+            polymarket_mid_probability: observation.polymarket_mid_probability,
+            gross_edge_probability: observation.gross_edge_probability,
+            estimated_cost_probability: observation.estimated_cost_probability,
+            net_edge_probability: observation.net_edge_probability,
+            survives_costs: observation.survives_costs,
+        }
+    }
+
+    pub fn columns() -> &'static [&'static str; 10] {
+        &BASIS_OBSERVATIONS_COLUMNS
+    }
+
+    pub fn values(&self) -> [BasisObservationRowValue; 10] {
+        [
+            BasisObservationRowValue::Text(self.event_id.clone()),
+            BasisObservationRowValue::TimestampMillis(self.observed_at_ts_ms),
+            BasisObservationRowValue::Text(self.deribit_instrument_id.clone()),
+            BasisObservationRowValue::Text(self.polymarket_market_slug.clone()),
+            BasisObservationRowValue::Numeric(self.model_probability),
+            BasisObservationRowValue::Numeric(self.polymarket_mid_probability),
+            BasisObservationRowValue::Numeric(self.gross_edge_probability),
+            BasisObservationRowValue::Numeric(self.estimated_cost_probability),
+            BasisObservationRowValue::Numeric(self.net_edge_probability),
+            BasisObservationRowValue::Bool(self.survives_costs),
+        ]
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BasisObservationRowValue {
+    Text(String),
+    TimestampMillis(i64),
+    Numeric(f64),
+    Bool(bool),
+}
+
+pub trait BasisObservationRowWriter {
+    fn append_basis_observation_row(
+        &mut self,
+        row: BasisObservationRow,
+    ) -> Result<(), ObservationWriteError>;
+}
+
+pub struct PostgresBasisObservationAdapter;
+
+impl PostgresBasisObservationAdapter {
+    pub fn table_name() -> &'static str {
+        BASIS_OBSERVATIONS_TABLE
+    }
+
+    pub fn columns() -> &'static [&'static str; 10] {
+        &BASIS_OBSERVATIONS_COLUMNS
+    }
+
+    pub fn insert_sql() -> &'static str {
+        "INSERT INTO basis_observations (event_id, observed_at, deribit_instrument_id, polymarket_market_slug, model_probability, polymarket_mid_probability, gross_edge_probability, estimated_cost_probability, net_edge_probability, survives_costs) VALUES ($1, to_timestamp($2::double precision / 1000.0), $3, $4, $5, $6, $7, $8, $9, $10)"
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObservationWriteErrorKind {
     DuplicateObservation,
@@ -162,6 +258,63 @@ mod tests {
     }
 
     #[test]
+    fn basis_observation_row_serializes_in_postgres_column_order() {
+        let observation = BasisObservation::from_feature(&feature(), 0.025);
+        let row = BasisObservationRow::from_observation(&observation);
+
+        assert_eq!(
+            BasisObservationRow::columns(),
+            &[
+                "event_id",
+                "observed_at",
+                "deribit_instrument_id",
+                "polymarket_market_slug",
+                "model_probability",
+                "polymarket_mid_probability",
+                "gross_edge_probability",
+                "estimated_cost_probability",
+                "net_edge_probability",
+                "survives_costs",
+            ]
+        );
+        let values = row.values();
+        assert_eq!(
+            values[0],
+            BasisObservationRowValue::Text("probability-basis:d:p".to_string())
+        );
+        assert_eq!(
+            values[1],
+            BasisObservationRowValue::TimestampMillis(1_780_000_000_000)
+        );
+        assert_eq!(
+            values[2],
+            BasisObservationRowValue::Text("ETH-20260601-3000-C".to_string())
+        );
+        assert_eq!(
+            values[3],
+            BasisObservationRowValue::Text("eth-above-3000-june-1".to_string())
+        );
+        assert_numeric_value(&values[4], 0.611338);
+        assert_numeric_value(&values[5], 0.520000);
+        assert_numeric_value(&values[6], 0.091338);
+        assert_numeric_value(&values[7], 0.010000);
+        assert_numeric_value(&values[8], 0.081338);
+        assert_eq!(values[9], BasisObservationRowValue::Bool(true));
+    }
+
+    #[test]
+    fn postgres_adapter_skeleton_exposes_stable_insert_contract() {
+        assert_eq!(
+            PostgresBasisObservationAdapter::columns(),
+            BasisObservationRow::columns()
+        );
+        assert_eq!(
+            PostgresBasisObservationAdapter::insert_sql(),
+            "INSERT INTO basis_observations (event_id, observed_at, deribit_instrument_id, polymarket_market_slug, model_probability, polymarket_mid_probability, gross_edge_probability, estimated_cost_probability, net_edge_probability, survives_costs) VALUES ($1, to_timestamp($2::double precision / 1000.0), $3, $4, $5, $6, $7, $8, $9, $10)"
+        );
+    }
+
+    #[test]
     fn in_memory_writer_rejects_duplicate_observation_ids() {
         let observation = BasisObservation::from_feature(&feature(), 0.025);
         let mut writer = InMemoryBasisObservationWriter::new();
@@ -172,5 +325,12 @@ mod tests {
         let error = writer.append_basis_observation(observation).unwrap_err();
 
         assert_eq!(error.kind, ObservationWriteErrorKind::DuplicateObservation);
+    }
+
+    fn assert_numeric_value(value: &BasisObservationRowValue, expected: f64) {
+        let BasisObservationRowValue::Numeric(actual) = value else {
+            panic!("expected numeric row value, got {value:?}");
+        };
+        assert!((actual - expected).abs() < 1e-12);
     }
 }
