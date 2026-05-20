@@ -83,3 +83,7 @@ sources: []
 ## [2026-05-20] implementation | Rust contracts and mock adapters
 
 Реализованы Rust contracts в `crates/common`: raw event types, supporting market types, sync discovery traits, mock Deribit/Polymarket adapters и in-memory event journal. Добавлены unit tests для mock adapters, raw preservation, duplicate detection и deterministic replay ordering/filtering.
+
+## [2026-05-20] implementation | Probability basis matcher skeleton
+
+Добавлен `crates/common/src/probability_basis.rs`: deterministic matcher skeleton для mock Deribit/Polymarket data, matched/rejected decisions, rejection reasons, net edge calculation и golden replay fixture test. Probability model пока mock-использует `mark_iv`, финальная Black-Scholes implementation остается следующим слоем.

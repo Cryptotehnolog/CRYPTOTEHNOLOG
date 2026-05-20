@@ -112,6 +112,14 @@ Raw API payload wrapper before normalization.
 - `MockPolymarketAdapter`,
 - `InMemoryEventJournal`.
 
+Также реализован probability-basis matcher skeleton:
+
+- `ProbabilityBasisConfig`,
+- `MatchDecision`,
+- `RejectionReason`,
+- `match_probability_basis()`,
+- `match_from_market_events()`.
+
 Sync форма выбрана намеренно, чтобы первый contracts layer компилировался без внешних dependencies. Async versions будут добавлены вместе с real HTTP/WebSocket adapters.
 
 ## Proposed Next
@@ -266,6 +274,8 @@ pub struct ReplayEventFilter {
 - raw event preservation,
 - duplicate event rejection,
 - deterministic replay ordering/filtering.
+- probability-basis matched/rejected decisions,
+- golden replay fixture report.
 
 ## Design Rule
 

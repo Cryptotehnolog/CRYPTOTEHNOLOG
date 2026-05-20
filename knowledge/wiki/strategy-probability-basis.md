@@ -67,6 +67,20 @@ MVP допускает два режима:
 
 Open question: нужна отдельная спецификация `source-deribit-iv-calculation.md`, если Deribit IV fields и Black-Scholes/Merton assumptions окажутся недостаточно прозрачными.
 
+## Implementation Status
+
+Первый matcher skeleton реализован в `crates/common/src/probability_basis.rs`.
+
+Текущий scope:
+
+- deterministic pair matching на mock data,
+- matched/rejected decisions,
+- rejection reasons,
+- net edge calculation,
+- golden replay fixture test.
+
+Ограничение: `model_probability` пока mock-выводится из `mark_iv`. Это временный skeleton для проверки matching/report determinism, не финальная Black-Scholes implementation.
+
 ## Risks
 
 - settlement mismatch,
@@ -97,4 +111,3 @@ MVP считается исследовательски полезным, есл
 - observed net edge исчезает после costs,
 - settlement mismatch нельзя надежно формализовать,
 - liquidity недостаточна даже для paper-realistic simulation.
-
