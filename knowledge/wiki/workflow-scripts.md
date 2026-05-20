@@ -107,7 +107,7 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 - scenario names должны быть уникальны,
 - `fixture` paths не должны дублироваться,
 - referenced fixture files должны существовать,
-- `expected_observations` должен быть числом.
+- `expected_observations`, `expected_raw_events`, `expected_normalized_events` и `expected_validation_errors` должны быть числами.
 
 Включен в `check_all` и CI, чтобы ingestion orchestration fixtures оставались видимым контрактом, а не только Rust unit-test detail.
 

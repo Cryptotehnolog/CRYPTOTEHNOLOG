@@ -2,8 +2,14 @@
 name = "happy_path_batches"
 fixture = "fixtures/ingestion/happy_path_batches.psv"
 expected_observations = 1
+expected_raw_events = 2
+expected_normalized_events = 2
+expected_validation_errors = 0
 
 [[scenario]]
 name = "malformed_polymarket_quote"
 fixture = "fixtures/ingestion/malformed_polymarket_quote.psv"
 expected_observations = 0
+expected_raw_events = 2
+expected_normalized_events = 1
+expected_validation_errors = 1

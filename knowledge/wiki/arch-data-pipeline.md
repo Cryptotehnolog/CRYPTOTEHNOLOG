@@ -105,6 +105,8 @@ BasisObservationRowWriter
 - `ingest_once()` - orchestration helper, который пишет raw events в `EventJournal` до normalized `MarketEvent`.
 - `NormalizedBatchValidator` - validation boundary для normalized events перед записью в journal.
 - `ingest_once_with_validator()` - live-ready orchestration helper: raw events сохраняются первыми, затем normalized events валидируются, и только после этого пишутся в `EventJournal`.
+- `ValidationReport` - structured counters для ingestion soak: raw events received, normalized events received/accepted/rejected и rejection reasons.
+- `ingest_once_with_report()` - telemetry-oriented helper: raw events сохраняются, accepted normalized events пишутся, rejected normalized events остаются только в report.
 
 Это не live API implementation. Real HTTP/WebSocket logic добавляется позже отдельным decision/code review.
 
@@ -125,7 +127,14 @@ Deribit mock batch
 
 Fixture `fixtures/ingestion/malformed_polymarket_quote.psv` документирует negative orchestration path: raw Polymarket payload сохраняется в `EventJournal`, normalized quote с некорректным `bid_probability > ask_probability` отклоняется `Phase0NormalizedBatchValidator`, normalized event не пишется в journal, а `BasisObservation` не создается.
 
-`fixtures/ingestion/manifest.toml` является lightweight registry для ingestion orchestration scenarios. Он пока не является отдельным regression runner, но фиксирует список сценариев и expected observation counts, чтобы новые ingestion fixtures не расползались по unit tests без общей карты.
+`fixtures/ingestion/manifest.toml` является lightweight registry для ingestion orchestration scenarios. Он фиксирует список сценариев и semantic expectations:
+
+- `expected_raw_events`,
+- `expected_normalized_events`,
+- `expected_validation_errors`,
+- `expected_observations`.
+
+Это еще не отдельный ingestion regression runner, но уже делает ingestion fixtures проверяемым контрактом, а не только detail внутри Rust unit tests.
 
 ## Добавление Нового Источника
 

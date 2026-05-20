@@ -164,6 +164,51 @@ pub trait NormalizedBatchValidator {
         }
         Ok(())
     }
+
+    fn validation_report(&self, batch: &IngestionBatch) -> ValidationReport {
+        let mut report = ValidationReport::new(batch.raw_events.len(), batch.market_events.len());
+
+        for event in &batch.market_events {
+            match self.validate_market_event(event) {
+                Ok(()) => report.normalized_events_accepted += 1,
+                Err(error) => report.rejections.push(error),
+            }
+        }
+
+        report.normalized_events_rejected = report.rejections.len();
+        report
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidationReport {
+    pub raw_events_received: usize,
+    pub normalized_events_received: usize,
+    pub normalized_events_accepted: usize,
+    pub normalized_events_rejected: usize,
+    pub rejections: Vec<NormalizedBatchValidationError>,
+}
+
+impl ValidationReport {
+    pub fn new(raw_events_received: usize, normalized_events_received: usize) -> Self {
+        Self {
+            raw_events_received,
+            normalized_events_received,
+            normalized_events_accepted: 0,
+            normalized_events_rejected: 0,
+            rejections: Vec::new(),
+        }
+    }
+
+    pub fn is_clean(&self) -> bool {
+        self.normalized_events_rejected == 0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct IngestionOutcome {
+    pub batch: IngestionBatch,
+    pub validation_report: ValidationReport,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -335,6 +380,57 @@ where
 {
     let batch = client.poll_once(config)?;
 
+    write_raw_events(journal, &batch)?;
+
+    validator
+        .validate_batch(&batch)
+        .map_err(|error| IngestionError::from_validation(batch.source, error))?;
+
+    write_normalized_events(journal, &batch, &batch.market_events)?;
+
+    Ok(batch)
+}
+
+pub fn ingest_once_with_report<C, J, V>(
+    client: &mut C,
+    journal: &mut J,
+    config: &IngestionConfig,
+    validator: &V,
+) -> Result<IngestionOutcome, IngestionError>
+where
+    C: IngestionClient,
+    J: EventJournal,
+    V: NormalizedBatchValidator,
+{
+    let batch = client.poll_once(config)?;
+
+    write_raw_events(journal, &batch)?;
+
+    let validation_report = validator.validation_report(&batch);
+    let accepted_events: Vec<MarketEvent> = batch
+        .market_events
+        .iter()
+        .filter(|event| {
+            !validation_report
+                .rejections
+                .iter()
+                .any(|rejection| rejection.event_id == event.meta().event_id)
+        })
+        .cloned()
+        .collect();
+
+    write_normalized_events(journal, &batch, &accepted_events)?;
+
+    Ok(IngestionOutcome {
+        batch,
+        validation_report,
+    })
+}
+
+fn write_raw_events<J>(journal: &mut J, batch: &IngestionBatch) -> Result<(), IngestionError>
+where
+    J: EventJournal,
+{
     for raw_event in &batch.raw_events {
         match raw_event {
             RawIngestionEvent::Deribit(event) => journal
@@ -346,17 +442,24 @@ where
         }
     }
 
-    validator
-        .validate_batch(&batch)
-        .map_err(|error| IngestionError::from_validation(batch.source, error))?;
+    Ok(())
+}
 
-    for market_event in &batch.market_events {
+fn write_normalized_events<J>(
+    journal: &mut J,
+    batch: &IngestionBatch,
+    market_events: &[MarketEvent],
+) -> Result<(), IngestionError>
+where
+    J: EventJournal,
+{
+    for market_event in market_events {
         journal
             .append_market_event(market_event.clone())
             .map_err(|error| IngestionError::from_journal(batch.source, error))?;
     }
 
-    Ok(batch)
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -380,6 +483,9 @@ pub struct IngestionManifestScenario {
     pub name: String,
     pub fixture: String,
     pub expected_observations: usize,
+    pub expected_raw_events: usize,
+    pub expected_normalized_events: usize,
+    pub expected_validation_errors: usize,
 }
 
 pub fn load_ingestion_scenario(path: &Path) -> Result<Vec<IngestionScenarioStep>, String> {
@@ -452,6 +558,9 @@ pub fn parse_ingestion_manifest(content: &str) -> Result<Vec<IngestionManifestSc
     let mut current_name: Option<String> = None;
     let mut current_fixture: Option<String> = None;
     let mut current_expected_observations: Option<usize> = None;
+    let mut current_expected_raw_events: Option<usize> = None;
+    let mut current_expected_normalized_events: Option<usize> = None;
+    let mut current_expected_validation_errors: Option<usize> = None;
 
     for (index, line) in content.lines().enumerate() {
         let line_number = index + 1;
@@ -466,6 +575,9 @@ pub fn parse_ingestion_manifest(content: &str) -> Result<Vec<IngestionManifestSc
                 &mut current_name,
                 &mut current_fixture,
                 &mut current_expected_observations,
+                &mut current_expected_raw_events,
+                &mut current_expected_normalized_events,
+                &mut current_expected_validation_errors,
                 line_number,
             )?;
             continue;
@@ -485,6 +597,23 @@ pub fn parse_ingestion_manifest(content: &str) -> Result<Vec<IngestionManifestSc
                     format!("line {line_number}: invalid expected_observations: {error}")
                 })?)
             }
+            "expected_raw_events" => {
+                current_expected_raw_events = Some(value.parse::<usize>().map_err(|error| {
+                    format!("line {line_number}: invalid expected_raw_events: {error}")
+                })?)
+            }
+            "expected_normalized_events" => {
+                current_expected_normalized_events =
+                    Some(value.parse::<usize>().map_err(|error| {
+                        format!("line {line_number}: invalid expected_normalized_events: {error}")
+                    })?)
+            }
+            "expected_validation_errors" => {
+                current_expected_validation_errors =
+                    Some(value.parse::<usize>().map_err(|error| {
+                        format!("line {line_number}: invalid expected_validation_errors: {error}")
+                    })?)
+            }
             other => {
                 return Err(format!(
                     "line {line_number}: unsupported manifest key `{other}`"
@@ -498,6 +627,9 @@ pub fn parse_ingestion_manifest(content: &str) -> Result<Vec<IngestionManifestSc
         &mut current_name,
         &mut current_fixture,
         &mut current_expected_observations,
+        &mut current_expected_raw_events,
+        &mut current_expected_normalized_events,
+        &mut current_expected_validation_errors,
         content.lines().count() + 1,
     )?;
 
@@ -535,11 +667,17 @@ fn push_manifest_scenario(
     current_name: &mut Option<String>,
     current_fixture: &mut Option<String>,
     current_expected_observations: &mut Option<usize>,
+    current_expected_raw_events: &mut Option<usize>,
+    current_expected_normalized_events: &mut Option<usize>,
+    current_expected_validation_errors: &mut Option<usize>,
     line_number: usize,
 ) -> Result<(), String> {
     if current_name.is_none()
         && current_fixture.is_none()
         && current_expected_observations.is_none()
+        && current_expected_raw_events.is_none()
+        && current_expected_normalized_events.is_none()
+        && current_expected_validation_errors.is_none()
     {
         return Ok(());
     }
@@ -553,11 +691,25 @@ fn push_manifest_scenario(
     let expected_observations = current_expected_observations.take().ok_or_else(|| {
         format!("line {line_number}: manifest scenario missing expected_observations")
     })?;
+    let expected_raw_events = current_expected_raw_events.take().ok_or_else(|| {
+        format!("line {line_number}: manifest scenario missing expected_raw_events")
+    })?;
+    let expected_normalized_events =
+        current_expected_normalized_events.take().ok_or_else(|| {
+            format!("line {line_number}: manifest scenario missing expected_normalized_events")
+        })?;
+    let expected_validation_errors =
+        current_expected_validation_errors.take().ok_or_else(|| {
+            format!("line {line_number}: manifest scenario missing expected_validation_errors")
+        })?;
 
     scenarios.push(IngestionManifestScenario {
         name,
         fixture,
         expected_observations,
+        expected_raw_events,
+        expected_normalized_events,
+        expected_validation_errors,
     });
     Ok(())
 }
@@ -765,18 +917,35 @@ mod tests {
             MockIngestionClient::new(vec![MockIngestionStep::Batch(polymarket_batch())]);
         let mut journal = InMemoryEventJournal::new();
 
-        ingest_once(
+        let deribit_outcome = ingest_once_with_report(
             &mut deribit_client,
             &mut journal,
             &IngestionConfig::phase0_deribit("mock://deribit"),
+            &Phase0NormalizedBatchValidator,
         )
         .expect("deribit batch should ingest");
-        ingest_once(
+        let polymarket_outcome = ingest_once_with_report(
             &mut polymarket_client,
             &mut journal,
             &IngestionConfig::phase0_polymarket("mock://polymarket"),
+            &Phase0NormalizedBatchValidator,
         )
         .expect("polymarket batch should ingest");
+
+        assert_eq!(deribit_outcome.validation_report.raw_events_received, 1);
+        assert_eq!(
+            deribit_outcome.validation_report.normalized_events_accepted,
+            1
+        );
+        assert!(deribit_outcome.validation_report.is_clean());
+        assert_eq!(polymarket_outcome.validation_report.raw_events_received, 1);
+        assert_eq!(
+            polymarket_outcome
+                .validation_report
+                .normalized_events_accepted,
+            1
+        );
+        assert!(polymarket_outcome.validation_report.is_clean());
 
         assert_eq!(journal.raw_deribit_events().len(), 1);
         assert_eq!(journal.raw_polymarket_events().len(), 1);
@@ -858,16 +1027,23 @@ mod tests {
             &IngestionConfig::phase0_deribit("mock://deribit"),
         )
         .expect("deribit batch should ingest");
-        let error = ingest_once_with_validator(
+        let outcome = ingest_once_with_report(
             &mut polymarket_client,
             &mut journal,
             &IngestionConfig::phase0_polymarket("mock://polymarket"),
             &Phase0NormalizedBatchValidator,
         )
-        .expect_err("malformed normalized quote should be rejected after raw capture");
+        .expect("malformed normalized quote should still return a validation report");
 
-        assert_eq!(error.kind, IngestionErrorKind::MalformedPayload);
-        assert!(error.message.contains("market-polymarket-malformed-1"));
+        assert_eq!(outcome.validation_report.raw_events_received, 1);
+        assert_eq!(outcome.validation_report.normalized_events_received, 1);
+        assert_eq!(outcome.validation_report.normalized_events_accepted, 0);
+        assert_eq!(outcome.validation_report.normalized_events_rejected, 1);
+        assert!(!outcome.validation_report.is_clean());
+        assert_eq!(
+            outcome.validation_report.rejections[0].event_id,
+            "market-polymarket-malformed-1"
+        );
 
         assert_eq!(journal.raw_polymarket_events().len(), 1);
         assert_eq!(
@@ -898,6 +1074,26 @@ mod tests {
         );
         let observations = observations_from_match_decisions(&decisions, &config);
         assert!(observations.is_empty());
+    }
+
+    #[test]
+    fn strict_validator_returns_error_after_preserving_raw_event() {
+        let mut client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(malformed_polymarket_batch())]);
+        let mut journal = InMemoryEventJournal::new();
+
+        let error = ingest_once_with_validator(
+            &mut client,
+            &mut journal,
+            &IngestionConfig::phase0_polymarket("mock://polymarket"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect_err("strict validator should return malformed payload error");
+
+        assert_eq!(error.kind, IngestionErrorKind::MalformedPayload);
+        assert!(error.message.contains("market-polymarket-malformed-1"));
+        assert_eq!(journal.raw_polymarket_events().len(), 1);
+        assert!(journal.market_events().is_empty());
     }
 
     #[test]
@@ -933,8 +1129,14 @@ mod tests {
         assert_eq!(scenarios.len(), 2);
         assert_eq!(scenarios[0].name, "happy_path_batches");
         assert_eq!(scenarios[0].expected_observations, 1);
+        assert_eq!(scenarios[0].expected_raw_events, 2);
+        assert_eq!(scenarios[0].expected_normalized_events, 2);
+        assert_eq!(scenarios[0].expected_validation_errors, 0);
         assert_eq!(scenarios[1].name, "malformed_polymarket_quote");
         assert_eq!(scenarios[1].expected_observations, 0);
+        assert_eq!(scenarios[1].expected_raw_events, 2);
+        assert_eq!(scenarios[1].expected_normalized_events, 1);
+        assert_eq!(scenarios[1].expected_validation_errors, 1);
     }
 
     #[test]
@@ -944,11 +1146,17 @@ mod tests {
 name = "same"
 fixture = "fixtures/ingestion/a.psv"
 expected_observations = 1
+expected_raw_events = 1
+expected_normalized_events = 1
+expected_validation_errors = 0
 
 [[scenario]]
 name = "same"
 fixture = "fixtures/ingestion/b.psv"
 expected_observations = 0
+expected_raw_events = 1
+expected_normalized_events = 0
+expected_validation_errors = 1
 "#;
         assert!(
             parse_ingestion_manifest(duplicate_name)
@@ -961,11 +1169,17 @@ expected_observations = 0
 name = "a"
 fixture = "fixtures/ingestion/same.psv"
 expected_observations = 1
+expected_raw_events = 1
+expected_normalized_events = 1
+expected_validation_errors = 0
 
 [[scenario]]
 name = "b"
 fixture = "fixtures/ingestion/same.psv"
 expected_observations = 0
+expected_raw_events = 1
+expected_normalized_events = 0
+expected_validation_errors = 1
 "#;
         assert!(
             parse_ingestion_manifest(duplicate_fixture)

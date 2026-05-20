@@ -13,8 +13,8 @@ function Get-IngestionFixtureScenarios {
 
     $scenarios = @(Read-SimpleScenarioManifest `
         -ManifestPath $ManifestPath `
-        -RequiredFields @("name", "fixture", "expected_observations") `
-        -IntegerFields @("expected_observations") `
+        -RequiredFields @("name", "fixture", "expected_observations", "expected_raw_events", "expected_normalized_events", "expected_validation_errors") `
+        -IntegerFields @("expected_observations", "expected_raw_events", "expected_normalized_events", "expected_validation_errors") `
         -ManifestLabel "Ingestion fixture")
 
     foreach ($scenario in $scenarios) {
