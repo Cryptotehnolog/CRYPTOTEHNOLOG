@@ -116,6 +116,23 @@ black_scholes_single_strike_v1
 
 Любая замена этой модели на volatility surface, non-zero rates или alternative probability model должна менять model version и golden/replay expectations осознанно.
 
+## Model Version Change Policy
+
+Любое изменение `PRICING_MODEL_VERSION` означает изменение pricing model contract.
+
+В том же commit/PR разработчик обязан:
+
+1. Запустить:
+
+```powershell
+.\scripts\update_golden_fixture.ps1
+```
+
+2. Закоммитить обновленные replay golden reports из `fixtures/probability_basis/`.
+3. Обновить эту страницу, если изменились assumptions модели.
+
+`scripts/check_pricing_model_fixture_update.ps1` включен в `scripts/check_all.ps1` и CI. Он падает, если `PRICING_MODEL_VERSION` изменен без обновления golden report fixtures.
+
 ## Важные Caveats
 
 - Black-Scholes probability является risk-neutral, а не physical probability.

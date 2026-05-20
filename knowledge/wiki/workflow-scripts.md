@@ -13,6 +13,10 @@ sources:
 
 Эта страница кратко описывает project scripts. Скрипты являются developer tooling, а не runtime dependency deterministic core.
 
+PowerShell scripts допустимы как Phase 0 developer tooling и CI glue. Они не должны становиться runtime loop для live monitoring, ingestion или trading services.
+
+Live monitoring должен быть Rust service/binary. PowerShell может быть только тонким wrapper для запуска такого binary.
+
 ## Local Checks
 
 ### `scripts/check_all.ps1`
@@ -25,6 +29,7 @@ sources:
 - compliance,
 - phase gate,
 - replay manifest,
+- pricing model fixture policy,
 - `cargo fmt --check`,
 - `cargo check`,
 - `cargo test`,
@@ -90,6 +95,14 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 - referenced fixture/report files должны существовать.
 
 Включен в `check_all` и CI до replay regression, чтобы ошибки manifest ловились быстро.
+
+### `scripts/check_pricing_model_fixture_update.ps1`
+
+Проверяет governance rule для `PRICING_MODEL_VERSION`.
+
+Если в diff изменена строка `PRICING_MODEL_VERSION` в `crates/common/src/probability_basis.rs`, то в том же diff должны быть обновлены replay golden reports в `fixtures/probability_basis/`.
+
+Скрипт включен в `check_all` и CI.
 
 ### `scripts/update_golden_fixture.ps1`
 
