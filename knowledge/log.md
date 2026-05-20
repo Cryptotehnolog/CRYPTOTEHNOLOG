@@ -115,3 +115,7 @@ Probability-basis replay fixture вынесен из hardcoded Rust в `fixtures
 ## [2026-05-20] automation | Golden fixture governance
 
 Replay core вынесен в `crates/replay/src/lib.rs`, а `main.rs` стал тонкой CLI-оберткой. Добавлены `scripts/update_golden_fixture.ps1` и `scripts/check_golden_fixture_current.ps1`; CI теперь проверяет, что перегенерация golden report не оставляет diff. В `spec-deribit-iv-calculation.md` зафиксирована model version `black_scholes_single_strike_v1`.
+
+## [2026-05-20] automation | Pricing model version and script docs
+
+Добавлена Rust-константа `PRICING_MODEL_VERSION = "black_scholes_single_strike_v1"` и metadata line в replay report. `update_golden_fixture.ps1` усилен проверками `cargo`, fixture path и output directory. Добавлена `workflow-scripts.md`, где зафиксировано, что network integration tests не входят в default CI.

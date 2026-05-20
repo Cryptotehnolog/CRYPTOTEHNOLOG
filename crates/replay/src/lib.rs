@@ -9,7 +9,8 @@ use cryptotehnolog_common::observations::{
     observations_from_match_decisions,
 };
 use cryptotehnolog_common::probability_basis::{
-    MatchDecision, ProbabilityBasisConfig, match_from_market_events, render_match_report,
+    MatchDecision, PRICING_MODEL_VERSION, ProbabilityBasisConfig, match_from_market_events,
+    render_match_report,
 };
 
 pub const DEFAULT_FIXTURE_PATH: &str = "fixtures/probability_basis/golden_events.psv";
@@ -22,7 +23,11 @@ pub struct ProbabilityBasisReplayOutput {
 
 impl ProbabilityBasisReplayOutput {
     pub fn report_lines(&self) -> Vec<String> {
-        render_match_report(&self.decisions)
+        let mut lines = vec![format!(
+            "metadata|pricing_model_version={PRICING_MODEL_VERSION}"
+        )];
+        lines.extend(render_match_report(&self.decisions));
+        lines
     }
 }
 
@@ -192,6 +197,10 @@ mod tests {
 
         assert_eq!(output.decisions.len(), 2);
         assert_eq!(output.observations.len(), 1);
+        assert_eq!(
+            output.report_lines()[0],
+            "metadata|pricing_model_version=black_scholes_single_strike_v1"
+        );
         assert_eq!(
             output.observations[0].deribit_instrument_id,
             "ETH-20260601-3000-C"

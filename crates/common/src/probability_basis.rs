@@ -3,6 +3,8 @@ use crate::events::{
     ProbabilityBasisFeature,
 };
 
+pub const PRICING_MODEL_VERSION: &str = "black_scholes_single_strike_v1";
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProbabilityBasisConfig {
     pub min_net_edge_probability: f64,
@@ -547,5 +549,10 @@ mod tests {
         assert!((standard_normal_cdf(1.0) - 0.841344736).abs() < 1e-6);
         assert!((standard_normal_cdf(-1.0) - 0.158655264).abs() < 1e-6);
         assert!((standard_normal_cdf(1.0) + standard_normal_cdf(-1.0) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn pricing_model_version_is_explicit() {
+        assert_eq!(PRICING_MODEL_VERSION, "black_scholes_single_strike_v1");
     }
 }

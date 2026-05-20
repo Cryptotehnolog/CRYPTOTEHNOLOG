@@ -100,6 +100,8 @@ Black-Scholes `N(d2)` реализован в `crates/common/src/probability_bas
 black_scholes_single_strike_v1
 ```
 
+В коде эта версия зафиксирована константой `PRICING_MODEL_VERSION` в `crates/common/src/probability_basis.rs`.
+
 Текущие assumptions:
 
 - `r = 0`,

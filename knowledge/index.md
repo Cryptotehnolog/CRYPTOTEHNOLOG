@@ -56,6 +56,7 @@ sources:
 - [Phase 1 Research Layer](wiki/workflow-phase1-research.md) - future workflow для research layer после Phase 0 exit gate.
 - [Research Vs Deterministic Core](wiki/workflow-research-vs-core.md) - граница между research layer и deterministic core.
 - [Source Ingestion](wiki/workflow-source-ingestion.md) - как новые sources превращаются в долговременное wiki knowledge.
+- [Scripts](wiki/workflow-scripts.md) - краткое описание developer scripts и правила network integration tests.
 - [Wiki Health Check](wiki/workflow-wiki-health-check.md) - recurring maintenance workflow для index, links, contradictions и stale claims.
 
 ## Risks
