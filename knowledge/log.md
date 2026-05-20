@@ -239,3 +239,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-20] implementation | Live probe replay expiry dates
 
 `live_probe_replay_report.json` расширен человекочитаемыми UTC fields `target_expiry_date` и `selected_expiry_date` рядом с машинными `target_expiry_ts_ms` и `selected_expiry_ts_ms`. `scripts/summarize_live_probe_replay_reports.ps1` теперь показывает expiry mismatch warnings через даты, чтобы manual Phase 0 reports читались без ручного перевода Unix milliseconds.
+
+## [2026-05-20] implementation | Live probe replay mismatch flags
+
+`selection_report` в `live_probe_replay_report.json` расширен derived flags `strike_mismatch` и `expiry_mismatch`. `scripts/summarize_live_probe_replay_reports.ps1` теперь использует эти machine-readable flags для warnings и сохраняет fallback-расчет для старых reports без новых полей.

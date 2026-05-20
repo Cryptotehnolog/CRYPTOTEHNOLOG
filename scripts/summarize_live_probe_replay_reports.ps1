@@ -71,6 +71,19 @@ function Select-ExpiryDate {
     return Convert-UnixMsToUtcDate $TimestampMs
 }
 
+function Select-MismatchFlag {
+    param(
+        $FlagValue,
+        [bool]$Fallback
+    )
+
+    if ($null -eq $FlagValue) {
+        return $Fallback
+    }
+
+    return [System.Convert]::ToBoolean($FlagValue)
+}
+
 if (-not [System.IO.Path]::IsPathRooted($ReportsGlob)) {
     $ReportsGlob = Join-Path $root $ReportsGlob
 }
@@ -100,8 +113,10 @@ foreach ($file in $files) {
     $strikeDistance = Convert-NullableDouble $selection.strike_distance
     $targetExpiryDate = Select-ExpiryDate $selection.target_expiry_date $targetExpiryTsMs
     $selectedExpiryDate = Select-ExpiryDate $selection.selected_expiry_date $selectedExpiryTsMs
-    $hasStrikeMismatch = ($null -ne $strikeDistance -and $strikeDistance -gt 0.0)
-    $hasExpiryMismatch = ($null -ne $targetExpiryTsMs -and $null -ne $selectedExpiryTsMs -and $selectedExpiryTsMs -ne $targetExpiryTsMs)
+    $fallbackStrikeMismatch = ($null -ne $strikeDistance -and $strikeDistance -gt 0.0)
+    $fallbackExpiryMismatch = ($null -ne $targetExpiryTsMs -and $null -ne $selectedExpiryTsMs -and $selectedExpiryTsMs -ne $targetExpiryTsMs)
+    $hasStrikeMismatch = Select-MismatchFlag $selection.strike_mismatch $fallbackStrikeMismatch
+    $hasExpiryMismatch = Select-MismatchFlag $selection.expiry_mismatch $fallbackExpiryMismatch
     $warningReasons = @()
     if ($hasStrikeMismatch) {
         $warningReasons += "strike_distance > 0"

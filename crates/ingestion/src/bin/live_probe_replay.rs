@@ -591,15 +591,30 @@ impl SelectionReport {
         self.selected_polymarket_liquidity_usd = Some(discovered.liquidity_usd);
     }
 
+    fn strike_mismatch(&self) -> bool {
+        self.strike_distance
+            .map(|distance| distance > 0.0)
+            .unwrap_or(false)
+    }
+
+    fn expiry_mismatch(&self) -> bool {
+        match (self.target_expiry_ts_ms, self.selected_expiry_ts_ms) {
+            (Some(target), Some(selected)) => target != selected,
+            _ => false,
+        }
+    }
+
     fn to_json(&self) -> String {
         format!(
-            "{{\"selected_deribit_instrument\":{},\"target_expiry_ts_ms\":{},\"target_expiry_date\":{},\"selected_expiry_ts_ms\":{},\"selected_expiry_date\":{},\"strike_distance\":{},\"selected_polymarket_market_slug\":{},\"selected_polymarket_event_slug\":{},\"selected_polymarket_liquidity_usd\":{}}}",
+            "{{\"selected_deribit_instrument\":{},\"target_expiry_ts_ms\":{},\"target_expiry_date\":{},\"selected_expiry_ts_ms\":{},\"selected_expiry_date\":{},\"strike_distance\":{},\"strike_mismatch\":{},\"expiry_mismatch\":{},\"selected_polymarket_market_slug\":{},\"selected_polymarket_event_slug\":{},\"selected_polymarket_liquidity_usd\":{}}}",
             optional_string_json(&self.selected_deribit_instrument),
             optional_i64_json(self.target_expiry_ts_ms),
             optional_string_json(&self.target_expiry_date),
             optional_i64_json(self.selected_expiry_ts_ms),
             optional_string_json(&self.selected_expiry_date),
             optional_f64_json(self.strike_distance),
+            self.strike_mismatch(),
+            self.expiry_mismatch(),
             optional_string_json(&self.selected_polymarket_market_slug),
             optional_string_json(&self.selected_polymarket_event_slug),
             optional_f64_json(self.selected_polymarket_liquidity_usd)
@@ -839,13 +854,45 @@ fn optional_f64_json(value: Option<f64>) -> String {
 
 #[cfg(all(test, feature = "network-integration"))]
 mod tests {
-    use super::utc_date_from_unix_ms;
+    use super::{SelectionReport, utc_date_from_unix_ms};
+    use cryptotehnolog_common::events::OptionKind;
+    use cryptotehnolog_ingestion::{DeribitDiscoveredOption, DeribitOptionDiscoveryCriteria};
 
     #[test]
     fn unix_ms_dates_are_rendered_as_utc_calendar_dates() {
         assert_eq!(utc_date_from_unix_ms(0), "1970-01-01");
         assert_eq!(utc_date_from_unix_ms(1_780_272_000_000), "2026-06-01");
         assert_eq!(utc_date_from_unix_ms(1_782_432_000_000), "2026-06-26");
+    }
+
+    #[test]
+    fn selection_report_mismatch_flags_are_derived_from_selected_candidate() {
+        let criteria = DeribitOptionDiscoveryCriteria::phase0_eth_call_3000_june_2026();
+        let discovered = DeribitDiscoveredOption {
+            instrument_name: "ETH-26JUN26-3100-C".to_string(),
+            underlying: "ETH".to_string(),
+            expiry_ts_ms: 1_782_432_000_000,
+            strike: 3100.0,
+            option_kind: OptionKind::Call,
+        };
+        let mut report = SelectionReport::empty();
+
+        report.set_deribit(&criteria, &discovered);
+
+        assert!(report.strike_mismatch());
+        assert!(report.expiry_mismatch());
+        assert!(report.to_json().contains("\"strike_mismatch\":true"));
+        assert!(report.to_json().contains("\"expiry_mismatch\":true"));
+    }
+
+    #[test]
+    fn empty_selection_report_has_no_mismatch_flags() {
+        let report = SelectionReport::empty();
+
+        assert!(!report.strike_mismatch());
+        assert!(!report.expiry_mismatch());
+        assert!(report.to_json().contains("\"strike_mismatch\":false"));
+        assert!(report.to_json().contains("\"expiry_mismatch\":false"));
     }
 }
 
