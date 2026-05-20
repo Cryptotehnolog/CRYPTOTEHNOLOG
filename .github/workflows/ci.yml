@@ -57,6 +57,10 @@ jobs:
         shell: pwsh
         run: .\scripts\check_ingestion_manifest.ps1
 
+      - name: Check Phase 0 pipeline manifest
+        shell: pwsh
+        run: .\scripts\check_phase0_pipeline_manifest.ps1
+
       - name: Check fixture paths
         shell: pwsh
         run: .\scripts\check_fixture_paths.ps1
@@ -76,6 +80,10 @@ jobs:
       - name: Run ingestion regression
         shell: pwsh
         run: .\scripts\run_ingestion_regression.ps1
+
+      - name: Run Phase 0 pipeline regression
+        shell: pwsh
+        run: .\scripts\run_phase0_pipeline_regression.ps1
 
       - name: Check golden fixture freshness
         shell: pwsh

@@ -1,0 +1,3 @@
+# step|source|outcome|message
+1|deribit|batch|mock Deribit raw payload and normalized option quote are written to EventJournal
+2|polymarket|malformed_batch|raw Polymarket payload is preserved while invalid normalized quote creates no BasisObservation

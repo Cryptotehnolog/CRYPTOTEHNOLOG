@@ -30,6 +30,7 @@ Live monitoring должен быть Rust service/binary. PowerShell может
 - phase gate,
 - replay manifest,
 - ingestion manifest,
+- Phase 0 pipeline manifest,
 - fixture paths,
 - pricing model fixture policy,
 - manual JSON writer guard,
@@ -38,6 +39,7 @@ Live monitoring должен быть Rust service/binary. PowerShell может
 - `cargo test`,
 - replay regression,
 - ingestion regression,
+- Phase 0 pipeline regression,
 - golden fixture freshness,
 - ingestion golden report freshness,
 - Phase 0 pipeline golden report freshness.
@@ -117,6 +119,16 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 
 Включен в `check_all` и CI, чтобы ingestion orchestration fixtures оставались видимым контрактом, а не только Rust unit-test detail.
 
+### `scripts/check_phase0_pipeline_manifest.ps1`
+
+Проверяет `fixtures/phase0_pipeline/manifest.toml` без запуска `cargo`:
+
+- scenario names должны быть уникальны,
+- `fixture` и `expected_report` paths не должны дублироваться,
+- referenced fixture/report files должны существовать.
+
+Включен в `check_all` и CI до Phase 0 pipeline regression.
+
 ### `scripts/run_ingestion_regression.ps1`
 
 Читает `fixtures/ingestion/manifest.toml` и запускает Rust binary `render_ingestion_report` для каждого ingestion scenario.
@@ -133,6 +145,7 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 
 - replay `fixture`, `expected_json`, `expected_text`,
 - ingestion `fixture`, `expected_report`.
+- Phase 0 pipeline `fixture`, `expected_report`.
 
 Скрипт использует те же manifest wrappers и общий `scripts/lib/manifest_utils.ps1`. Он отделяет проверку путей от проверки структуры manifest, чтобы новые типы fixtures могли подключаться к одному path-existence check.
 
@@ -190,7 +203,7 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 
 ### `scripts/run_phase0_pipeline_report.ps1`
 
-Генерирует `artifacts/phase0_pipeline_report.json` из текущего offline fixture-сценария `fixtures/ingestion/happy_path_batches.psv`.
+Генерирует `artifacts/phase0_pipeline_report.json` из текущего offline fixture-сценария `fixtures/phase0_pipeline/happy_path.psv`.
 
 Скрипт вызывает Rust binary `render_phase0_pipeline_report`, который строит `Phase0PipelineReport` через deterministic offline vertical slice:
 
@@ -200,9 +213,20 @@ fixture scenario -> mock ingestion -> EventJournal -> matcher -> BasisObservatio
 
 Скрипт не делает network requests, не пишет в PostgreSQL и не выполняет trading. Это ручной developer wrapper поверх machine-readable report contract.
 
+### `scripts/run_phase0_pipeline_regression.ps1`
+
+Читает `fixtures/phase0_pipeline/manifest.toml` и запускает Rust binary `render_phase0_pipeline_report` для каждого Phase 0 pipeline scenario.
+
+Основная проверка сравнивает generated JSON report с `expected_report` из manifest. Текущие сценарии покрывают:
+
+- happy path до `BasisObservationRowWriter`,
+- invalid normalized Polymarket event path, где raw event сохраняется, но observation не создается.
+
+Это script/CLI-level semantic regression, а не замена Rust unit tests.
+
 ### `scripts/update_phase0_pipeline_golden.ps1`
 
-Перегенерирует `fixtures/phase0_pipeline/golden_report.json` из текущего offline vertical slice.
+Перегенерирует `expected_report` для всех scenarios из `fixtures/phase0_pipeline/manifest.toml`.
 
 Скрипт вызывает Rust binary `render_phase0_pipeline_report`, чтобы semantic source of truth оставался в `crates/ingestion`, а не в PowerShell.
 
@@ -210,7 +234,7 @@ fixture scenario -> mock ingestion -> EventJournal -> matcher -> BasisObservatio
 
 ### `scripts/check_phase0_pipeline_golden_current.ps1`
 
-Запускает `update_phase0_pipeline_golden.ps1` и падает, если после перегенерации меняется `fixtures/phase0_pipeline/golden_report.json`.
+Запускает `update_phase0_pipeline_golden.ps1` и падает, если после перегенерации меняется любой `expected_report` из `fixtures/phase0_pipeline/manifest.toml`.
 
 Включен в `check_all` и CI. Это freshness-check для `Phase0PipelineReport`, аналогичный replay и ingestion golden freshness.
 

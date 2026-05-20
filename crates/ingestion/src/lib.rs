@@ -644,14 +644,24 @@ pub fn phase0_pipeline_report_from_scenario_steps(
     steps: &[IngestionScenarioStep],
 ) -> Result<Phase0PipelineReport, String> {
     ensure_supported_phase0_pipeline_scenario(steps)?;
-    phase0_pipeline_report_from_happy_path()
+    phase0_pipeline_report_from_batches(
+        phase0_batch_for_step(&steps[0])?,
+        phase0_batch_for_step(&steps[1])?,
+    )
 }
 
 pub fn phase0_pipeline_report_from_happy_path() -> Result<Phase0PipelineReport, String> {
+    phase0_pipeline_report_from_batches(phase0_deribit_batch(), phase0_polymarket_batch())
+}
+
+fn phase0_pipeline_report_from_batches(
+    deribit_batch: IngestionBatch,
+    polymarket_batch: IngestionBatch,
+) -> Result<Phase0PipelineReport, String> {
     let mut deribit_client =
-        MockIngestionClient::new(vec![MockIngestionStep::Batch(phase0_deribit_batch())]);
+        MockIngestionClient::new(vec![MockIngestionStep::Batch(deribit_batch)]);
     let mut polymarket_client =
-        MockIngestionClient::new(vec![MockIngestionStep::Batch(phase0_polymarket_batch())]);
+        MockIngestionClient::new(vec![MockIngestionStep::Batch(polymarket_batch)]);
     let mut journal = cryptotehnolog_common::journal::InMemoryEventJournal::new();
 
     ingest_once_with_report(
@@ -694,22 +704,41 @@ fn ensure_supported_phase0_pipeline_scenario(
 ) -> Result<(), String> {
     if steps.len() != 2 {
         return Err(format!(
-            "phase0 pipeline report currently supports exactly 2 happy-path steps, got {}",
+            "phase0 pipeline report currently supports exactly 2 steps, got {}",
             steps.len()
         ));
     }
     if steps[0].source != IngestionSource::Deribit
         || steps[0].outcome != IngestionScenarioOutcome::Batch
         || steps[1].source != IngestionSource::Polymarket
-        || steps[1].outcome != IngestionScenarioOutcome::Batch
+        || !matches!(
+            steps[1].outcome,
+            IngestionScenarioOutcome::Batch | IngestionScenarioOutcome::MalformedBatch
+        )
     {
         return Err(
-            "phase0 pipeline report currently supports Deribit batch followed by Polymarket batch"
+            "phase0 pipeline report currently supports Deribit batch followed by Polymarket batch or malformed_batch"
                 .to_string(),
         );
     }
 
     Ok(())
+}
+
+fn phase0_batch_for_step(step: &IngestionScenarioStep) -> Result<IngestionBatch, String> {
+    match (step.source, step.outcome) {
+        (IngestionSource::Deribit, IngestionScenarioOutcome::Batch) => Ok(phase0_deribit_batch()),
+        (IngestionSource::Polymarket, IngestionScenarioOutcome::Batch) => {
+            Ok(phase0_polymarket_batch())
+        }
+        (IngestionSource::Polymarket, IngestionScenarioOutcome::MalformedBatch) => {
+            Ok(phase0_malformed_polymarket_batch())
+        }
+        _ => Err(format!(
+            "unsupported phase0 pipeline step {}: {:?}/{:?}",
+            step.step, step.source, step.outcome
+        )),
+    }
 }
 
 fn phase0_meta(event_id: &str, instrument_id: &str) -> EventMeta {
@@ -763,6 +792,30 @@ fn phase0_polymarket_batch() -> IngestionBatch {
                 target_expiry_ts_ms: 1_780_000_000_000,
                 bid_probability: 0.51,
                 ask_probability: 0.53,
+                liquidity_usd: 10_000.0,
+            },
+        )],
+    }
+}
+
+fn phase0_malformed_polymarket_batch() -> IngestionBatch {
+    IngestionBatch {
+        source: IngestionSource::Polymarket,
+        raw_events: vec![RawIngestionEvent::Polymarket(RawPolymarketEvent {
+            meta: phase0_meta("raw-polymarket-invalid-1", "eth-above-3000-june-1"),
+            api_layer: PolymarketApiLayer::Gamma,
+            payload_json: "{\"market_slug\":\"eth-above-3000-june-1\",\"invalid_quote\":true}"
+                .to_string(),
+        })],
+        market_events: vec![MarketEvent::PolymarketOutcomeQuote(
+            PolymarketOutcomeQuote {
+                meta: phase0_meta("market-polymarket-invalid-1", "eth-above-3000-june-1"),
+                event_slug: "eth-above-3000".to_string(),
+                market_slug: "eth-above-3000-june-1".to_string(),
+                outcome: "Yes".to_string(),
+                target_expiry_ts_ms: 1_780_000_000_000,
+                bid_probability: 0.70,
+                ask_probability: 0.60,
                 liquidity_usd: 10_000.0,
             },
         )],
@@ -3911,6 +3964,33 @@ mod tests {
             serde_json::from_str(&golden_json).expect("phase 0 pipeline golden JSON should parse");
 
         assert_eq!(report, expected);
+    }
+
+    #[test]
+    fn phase0_pipeline_invalid_normalized_event_preserves_raw_without_observation() {
+        let fixture_path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/phase0_pipeline/invalid_normalized_event_preserves_raw_but_no_observation.psv"
+        );
+        let golden_path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/phase0_pipeline/invalid_normalized_event_preserves_raw_but_no_observation_report.json"
+        );
+        let steps = load_ingestion_scenario(Path::new(fixture_path))
+            .expect("phase 0 invalid normalized event fixture should parse");
+        let report = phase0_pipeline_report_from_scenario_steps(&steps)
+            .expect("phase 0 invalid normalized event fixture should produce report");
+        let golden_json =
+            fs::read_to_string(golden_path).expect("phase 0 invalid golden JSON should exist");
+        let expected: Phase0PipelineReport =
+            serde_json::from_str(&golden_json).expect("phase 0 invalid golden JSON should parse");
+
+        assert_eq!(report, expected);
+        assert_eq!(report.raw_events, 2);
+        assert_eq!(report.normalized_events, 1);
+        assert_eq!(report.journal_rows, 3);
+        assert_eq!(report.observations, 0);
+        assert_eq!(report.observation_rows, 0);
     }
 
     #[test]

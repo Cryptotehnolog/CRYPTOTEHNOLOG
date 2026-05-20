@@ -1,5 +1,5 @@
 param(
-    [string]$FixturePath = "fixtures\ingestion\happy_path_batches.psv",
+    [string]$FixturePath = "fixtures\phase0_pipeline\happy_path.psv",
     [string]$OutputPath = "artifacts\phase0_pipeline_report.json"
 )
 

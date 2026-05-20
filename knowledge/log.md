@@ -323,3 +323,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] maintenance | dev_status GitHub API diagnostic
 
 Уточнено сообщение `scripts/dev_status.ps1` при недоступности GitHub API: теперь оно явно объясняет, что внутри Codex sandbox API может быть недоступен без отдельного разрешения сети. Обновлена документация `workflow-scripts.md`.
+
+## [2026-05-21] implementation | Phase 0 pipeline manifest scenarios
+
+Добавлен второй Phase 0 pipeline scenario `invalid_normalized_event_preserves_raw_but_no_observation`: raw Polymarket event сохраняется, invalid normalized quote отклоняется, `BasisObservation` не создается. Phase 0 pipeline reports переведены на `fixtures/phase0_pipeline/manifest.toml`, добавлены manifest check, manifest-driven regression runner и freshness-check по всем expected reports.

@@ -25,6 +25,9 @@ try {
     Write-Output "== Ingestion manifest check =="
     .\scripts\check_ingestion_manifest.ps1
 
+    Write-Output "== Phase 0 pipeline manifest check =="
+    .\scripts\check_phase0_pipeline_manifest.ps1
+
     Write-Output "== Fixture path check =="
     .\scripts\check_fixture_paths.ps1
 
@@ -51,6 +54,9 @@ try {
 
     Write-Output "== Ingestion regression =="
     .\scripts\run_ingestion_regression.ps1
+
+    Write-Output "== Phase 0 pipeline regression =="
+    .\scripts\run_phase0_pipeline_regression.ps1
 
     Write-Output "== Golden fixture freshness =="
     .\scripts\check_golden_fixture_current.ps1

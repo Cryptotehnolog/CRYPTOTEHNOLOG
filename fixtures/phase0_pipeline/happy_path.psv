@@ -1,0 +1,3 @@
+# step|source|outcome|message
+1|deribit|batch|mock Deribit raw payload and normalized option quote are written to EventJournal
+2|polymarket|batch|mock Polymarket raw payload and normalized outcome quote complete one probability-basis observation

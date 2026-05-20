@@ -1,0 +1,9 @@
+[[scenario]]
+name = "happy_path"
+fixture = "fixtures/phase0_pipeline/happy_path.psv"
+expected_report = "fixtures/phase0_pipeline/golden_report.json"
+
+[[scenario]]
+name = "invalid_normalized_event_preserves_raw_but_no_observation"
+fixture = "fixtures/phase0_pipeline/invalid_normalized_event_preserves_raw_but_no_observation.psv"
+expected_report = "fixtures/phase0_pipeline/invalid_normalized_event_preserves_raw_but_no_observation_report.json"
