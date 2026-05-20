@@ -27,6 +27,9 @@ flowchart LR
     review["Source: Project Review"]
     deribit["Source: Deribit API"]
     hermesSource["Source: Hermes Agent"]
+    lightragGithub["Source: LightRAG GitHub"]
+    lightragPaper["Source: LightRAG arXiv"]
+    lightragMcp["Source: LightRAG MCP"]
     omniSource["Source: OmniRoute"]
     polymarket["Source: Polymarket API"]
     quantum["Source: Quantum Bot"]
@@ -56,9 +59,11 @@ flowchart LR
     ingestWorkflow["Workflow: Source Ingestion"]
     codingStandards["Workflow: Coding Standards"]
     agentResearch["Workflow: Agent Research"]
+    phase1Research["Workflow: Phase 1 Research"]
     researchVsCore["Workflow: Research Vs Core"]
 
     hermesTool["Tool: Hermes Agent"]
+    lightragTool["Tool: LightRAG"]
     omniTool["Tool: OmniRoute"]
 
     kbCheck["Script: kb_health_check.ps1"]
@@ -73,6 +78,9 @@ flowchart LR
     karpathy --> ingestWorkflow
     deribit --> probabilityBasis
     hermesSource --> hermesTool
+    lightragGithub --> lightragTool
+    lightragPaper --> lightragTool
+    lightragMcp -.-> lightragTool
     omniSource --> omniTool
     polymarket --> probabilityBasis
     quantum -.-> probabilityBasis
@@ -98,9 +106,13 @@ flowchart LR
     ingestWorkflow --> sourceNote
     codingStandards --> compliance
     hermesTool --> agentResearch
+    lightragTool --> phase1Research
+    lightragTool --> agentResearch
     omniTool --> agentResearch
     agentResearch --> roadmap
+    phase1Research --> roadmap
     agentResearch --> researchVsCore
+    phase1Research --> researchVsCore
     probabilityStrategy --> researchVsCore
     kbCheck --> hooks
     linkCheck --> checkAll

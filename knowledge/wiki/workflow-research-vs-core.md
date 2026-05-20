@@ -9,6 +9,7 @@ sources:
   - project-review-2026-05-19
   - hermes-agent-2026-05-20
   - omniroute-2026-05-20
+  - lightrag-github-2026-05-20
 ---
 
 # Workflow: Research Vs Deterministic Core
@@ -47,11 +48,14 @@ Research layer - это инструменты и агенты, которые �
 - notebooks/scripts в `research/`,
 - Hermes Agent,
 - OmniRoute,
+- LightRAG как future research-memory candidate после Phase 0 exit gate,
 - Obsidian/wiki review,
 - reports,
 - hypothesis generation.
 
 Research layer может читать данные и писать recommendations, но не может менять runtime behavior напрямую.
+
+LightRAG документируется заранее, но до Phase 0 exit gate его нельзя устанавливать, подключать через Docker/MCP или наполнять project data.
 
 ## Allowed Direction
 
@@ -110,4 +114,3 @@ Research output становится частью deterministic core тольк�
 - риски описаны или обновлены в risk page.
 
 Sharpe или другие performance metrics могут быть gate для live trading, но не должны быть единственным критерием переноса research code в core.
-

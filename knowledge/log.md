@@ -91,3 +91,7 @@ sources: []
 ## [2026-05-20] implementation | Black-Scholes probability model
 
 `crates/common/src/probability_basis.rs` заменил mock probability на Black-Scholes `N(d2)` для call-like события `S_T > K` с MVP assumptions `r=0`, `q=0`. Добавлены tests для zero/negative IV, expired option, deep ITM/OTM behavior и deterministic normal CDF approximation. Добавлен `knowledge/README.md` как короткий вход в базу знаний.
+
+## [2026-05-20] research | LightRAG deferred boundary
+
+Добавлены source notes по HKUDS LightRAG, LightRAG arXiv paper и стороннему LightRAG MCP server. Добавлены `tool-lightrag.md` и `workflow-phase1-research.md`. Зафиксировано решение: LightRAG документируется как preferred research-memory candidate, но установка, Docker wiring, MCP wiring, ingestion данных и agent workflows запрещены до прохождения Phase 0 exit gate.

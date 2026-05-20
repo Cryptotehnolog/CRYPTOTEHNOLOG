@@ -8,14 +8,15 @@ review_after: 2026-06-19
 sources:
   - hermes-agent-2026-05-20
   - omniroute-2026-05-20
+  - lightrag-github-2026-05-20
   - project-review-2026-05-19
 ---
 
 # Workflow: Agent Research
 
-Agent research workflow описывает, как Hermes Agent и OmniRoute могут использоваться после накопления replay/paper data.
+Agent research workflow описывает, как Hermes Agent, OmniRoute и возможная LightRAG research memory могут использоваться после накопления replay/paper data.
 
-Это future workflow. Он не входит в первый MVP execution path.
+Это future workflow. Он не входит в первый MVP execution path и не запускается до Phase 0 exit gate.
 
 ## Inputs
 
@@ -32,6 +33,7 @@ Agent research workflow описывает, как Hermes Agent и OmniRoute м�
 ```text
 PostgreSQL read-only export
   -> deterministic summary script
+  -> optional LightRAG research memory
   -> Hermes Agent research task
   -> OmniRoute LLM gateway
   -> hypothesis / report / recommendation
@@ -65,6 +67,14 @@ PostgreSQL read-only export
 - Redis messages deterministic core,
 - risk-engine bypass instructions.
 
+LightRAG-specific запрещено до Phase 0 exit gate:
+
+- установка,
+- Docker wiring,
+- MCP wiring,
+- ingestion observations в LightRAG,
+- agent workflows, зависящие от LightRAG.
+
 ## Promotion Rule
 
 Hypothesis становится изменением стратегии только через:
@@ -74,4 +84,3 @@ Hypothesis становится изменением стратегии толь
 3. Git-tracked config/code change,
 4. deterministic replay,
 5. risk review.
-

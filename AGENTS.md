@@ -21,6 +21,7 @@
 - Не делай детерминированные торговые сервисы зависимыми от Markdown, Obsidian или LLM-сводок.
 - Не делай Hermes Agent, OmniRoute или другие LLM tools частью execution path.
 - Используй Hermes/OmniRoute только для research-layer задач: reports, hypotheses, post-trade analysis, draft recommendations.
+- LightRAG документируется как future research-memory candidate, но до прохождения Phase 0 exit gate запрещены установка, Docker wiring, MCP wiring, ingestion данных в LightRAG и любые agent workflows, зависящие от LightRAG.
 - Не сохраняй секреты, API-ключи, биржевые credentials или приватные данные счетов в базе знаний.
 
 ## После Работы
