@@ -58,6 +58,7 @@ Phase 0 replay output должен иметь machine-readable report contract.
 
 Готово, когда:
 
+- `crates/ingestion` skeleton определяет read-only config/error/client boundary,
 - Deribit adapter получает ETH option snapshots,
 - Polymarket adapter получает candidate event snapshots,
 - raw payloads сохраняются в `event_journal`,

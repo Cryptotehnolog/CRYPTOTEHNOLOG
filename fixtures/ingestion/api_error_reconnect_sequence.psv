@@ -1,0 +1,4 @@
+# step|source|outcome|message
+1|deribit|api_error|temporary 502 from market data endpoint
+2|deribit|reconnect|client schedules reconnect without writing partial events
+3|deribit|batch|next poll writes raw event before normalized market event

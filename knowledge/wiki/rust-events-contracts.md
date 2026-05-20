@@ -181,6 +181,30 @@ Raw API payload wrapper before normalization.
 - `BasisObservationWriter` interface без PostgreSQL подключения.
 - `BasisObservationRowWriter` interface для storage-row layer.
 
+### `crates/ingestion`
+
+Реализован read-only ingestion skeleton без network dependencies:
+
+```text
+IngestionConfig
+IngestionSource
+IngestionErrorKind
+IngestionError
+RawIngestionEvent
+IngestionBatch
+IngestionClient
+MockIngestionClient
+LiveIngestionClient
+ingest_once()
+```
+
+Design boundary:
+
+- `MockIngestionClient` используется для deterministic tests.
+- `LiveIngestionClient` пока возвращает `NotImplemented` и не делает network calls.
+- `ingest_once()` сохраняет raw events до normalized market events.
+- Ошибки API/reconnect/rate-limit не должны превращаться в trading rejection reasons; они относятся к ingestion health.
+
 Sync форма выбрана намеренно, чтобы первый contracts layer компилировался без внешних dependencies. Async versions будут добавлены вместе с real HTTP/WebSocket adapters.
 
 ## Proposed Next
@@ -383,6 +407,7 @@ pub struct ReplayEventFilter {
 - Black-Scholes edge cases: zero/negative IV, expired option, deep ITM/OTM behavior, deterministic normal CDF approximation.
 - BasisObservation mapping and duplicate observation rejection.
 - BasisObservationRow column order and PostgreSQL insert SQL skeleton.
+- Ingestion skeleton: raw-before-normalized write order, API error without writes, live client `NotImplemented`, API error/reconnect fixture parsing.
 
 ## Design Rule
 

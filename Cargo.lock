@@ -7,6 +7,13 @@ name = "cryptotehnolog-common"
 version = "0.1.0"
 
 [[package]]
+name = "cryptotehnolog-ingestion"
+version = "0.1.0"
+dependencies = [
+ "cryptotehnolog-common",
+]
+
+[[package]]
 name = "cryptotehnolog-replay"
 version = "0.1.0"
 dependencies = [

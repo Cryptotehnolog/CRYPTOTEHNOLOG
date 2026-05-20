@@ -90,6 +90,24 @@ BasisObservationRowWriter
   - append_basis_observation_row()
 ```
 
+## Ingestion Skeleton
+
+`crates/ingestion` добавлен как Phase 0 read-only ingestion boundary.
+
+Текущий scope:
+
+- `IngestionConfig` - config contract для source, endpoint, timeout, reconnect backoff, batch size и config version;
+- `IngestionSource` - `Deribit` или `Polymarket`;
+- `IngestionErrorKind` - API/reconnect/rate-limit/malformed-payload/journal-write/not-implemented taxonomy;
+- `IngestionClient` - sync skeleton trait с `poll_once(config)`;
+- `MockIngestionClient` - deterministic scripted client для tests;
+- `LiveIngestionClient` - explicit stub, который возвращает `NotImplemented` и не делает network calls;
+- `ingest_once()` - orchestration helper, который пишет raw events в `EventJournal` до normalized `MarketEvent`.
+
+Это не live API implementation. Real HTTP/WebSocket logic добавляется позже отдельным decision/code review.
+
+Fixture `fixtures/ingestion/api_error_reconnect_sequence.psv` документирует сценарий: API error -> reconnect -> recovered batch. Он нужен, чтобы live ingestion проектировался с учетом failure/recovery path, а не только happy path.
+
 ## Добавление Нового Источника
 
 1. Создать source note в `knowledge/raw/sources/`.

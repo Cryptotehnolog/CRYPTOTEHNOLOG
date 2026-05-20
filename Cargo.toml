@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/common",
+    "crates/ingestion",
     "crates/replay",
 ]
 resolver = "3"
@@ -9,4 +10,3 @@ resolver = "3"
 edition = "2024"
 license = "Proprietary"
 rust-version = "1.93"
-
