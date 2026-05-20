@@ -102,6 +102,9 @@ BasisObservationRowWriter
 - `IngestionClient` - sync skeleton trait с `poll_once(config)`;
 - `MockIngestionClient` - deterministic scripted client для tests;
 - `LiveIngestionClient` - explicit stub, который возвращает `NotImplemented` и не делает network calls;
+- `LiveHttpTransport` - boundary `GET url -> payload_json` для future live HTTP clients;
+- `DisabledHttpTransport` - default no-network transport, который всегда возвращает `NotImplemented`;
+- `FixtureHttpTransport` - deterministic transport для tests, возвращающий payloads по URL из fixtures;
 - `ingest_once()` - orchestration helper, который пишет raw events в `EventJournal` до normalized `MarketEvent`.
 - `NormalizedBatchValidator` - validation boundary для normalized events перед записью в journal.
 - `ingest_once_with_validator()` - live-ready orchestration helper: raw events сохраняются первыми, затем normalized events валидируются, и только после этого пишутся в `EventJournal`.
@@ -113,6 +116,8 @@ BasisObservationRowWriter
 - `PolymarketLiveIngestionClient` - first read-only Gamma adapter skeleton: строит market-by-slug URL и парсит Polymarket Gamma market payload из fixture, но `poll_once()` не делает network calls.
 
 Это не live API implementation. Real HTTP/WebSocket logic добавляется позже отдельным decision/code review.
+
+`LiveHttpTransport` намеренно отделяет network IO от parsing и normalization. Default tests используют только `FixtureHttpTransport` или `DisabledHttpTransport`; реальные HTTP clients не входят в default CI.
 
 Fixture `fixtures/ingestion/api_error_reconnect_sequence.psv` документирует сценарий: API error -> reconnect -> recovered batch. Он нужен, чтобы live ingestion проектировался с учетом failure/recovery path, а не только happy path.
 

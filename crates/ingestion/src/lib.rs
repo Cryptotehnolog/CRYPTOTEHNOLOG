@@ -144,6 +144,58 @@ pub trait IngestionClient {
     fn poll_once(&mut self, config: &IngestionConfig) -> Result<IngestionBatch, IngestionError>;
 }
 
+pub trait LiveHttpTransport {
+    fn get(&self, url: &str) -> Result<String, IngestionError>;
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct DisabledHttpTransport;
+
+impl LiveHttpTransport for DisabledHttpTransport {
+    fn get(&self, url: &str) -> Result<String, IngestionError> {
+        Err(IngestionError::new(
+            IngestionErrorKind::NotImplemented,
+            None,
+            format!("live HTTP transport is disabled in default path: {url}"),
+        ))
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FixtureHttpTransport {
+    responses_by_url: BTreeMap<String, String>,
+}
+
+impl FixtureHttpTransport {
+    pub fn new() -> Self {
+        Self {
+            responses_by_url: BTreeMap::new(),
+        }
+    }
+
+    pub fn with_response(
+        mut self,
+        url: impl Into<String>,
+        payload_json: impl Into<String>,
+    ) -> Self {
+        self.responses_by_url
+            .insert(url.into(), payload_json.into());
+        self
+    }
+}
+
+impl LiveHttpTransport for FixtureHttpTransport {
+    fn get(&self, url: &str) -> Result<String, IngestionError> {
+        self.responses_by_url.get(url).cloned().ok_or_else(|| {
+            IngestionError::new(
+                IngestionErrorKind::Api,
+                None,
+                format!("missing fixture HTTP response for URL: {url}"),
+            )
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NormalizedBatchValidationError {
     pub source_name: String,
@@ -607,6 +659,25 @@ impl DeribitLiveIngestionClient {
             })],
         })
     }
+
+    pub fn fetch_ticker_with_transport<T>(
+        &self,
+        transport: &T,
+        config: &IngestionConfig,
+        received_ts_ms: i64,
+    ) -> Result<IngestionBatch, IngestionError>
+    where
+        T: LiveHttpTransport,
+    {
+        let payload_json = transport.get(&self.ticker_url()).map_err(|mut error| {
+            if error.source.is_none() {
+                error.source = Some(IngestionSource::Deribit);
+            }
+            error
+        })?;
+
+        self.parse_ticker_payload(&payload_json, config, received_ts_ms)
+    }
 }
 
 impl IngestionClient for DeribitLiveIngestionClient {
@@ -726,6 +797,27 @@ impl PolymarketLiveIngestionClient {
                 },
             )],
         })
+    }
+
+    pub fn fetch_gamma_market_with_transport<T>(
+        &self,
+        transport: &T,
+        config: &IngestionConfig,
+        received_ts_ms: i64,
+    ) -> Result<IngestionBatch, IngestionError>
+    where
+        T: LiveHttpTransport,
+    {
+        let payload_json = transport
+            .get(&self.gamma_market_url())
+            .map_err(|mut error| {
+                if error.source.is_none() {
+                    error.source = Some(IngestionSource::Polymarket);
+                }
+                error
+            })?;
+
+        self.parse_gamma_market_payload(&payload_json, config, received_ts_ms)
     }
 }
 
@@ -1937,6 +2029,86 @@ mod tests {
             .expect_err("skeleton must not perform network calls");
 
         assert_eq!(error.kind, IngestionErrorKind::NotImplemented);
+    }
+
+    #[test]
+    fn disabled_http_transport_blocks_default_live_fetch() {
+        let client =
+            DeribitLiveIngestionClient::new("https://www.deribit.com", "ETH-20260601-3000-C");
+
+        let error = client
+            .fetch_ticker_with_transport(
+                &DisabledHttpTransport,
+                &IngestionConfig::phase0_deribit("https://www.deribit.com"),
+                1_779_200_000_100,
+            )
+            .expect_err("disabled transport must not perform HTTP calls");
+
+        assert_eq!(error.kind, IngestionErrorKind::NotImplemented);
+        assert_eq!(error.source, Some(IngestionSource::Deribit));
+    }
+
+    #[test]
+    fn fixture_http_transport_feeds_live_skeletons_without_network() {
+        let deribit_client =
+            DeribitLiveIngestionClient::new("https://www.deribit.com", "ETH-20260601-3000-C");
+        let polymarket_client = PolymarketLiveIngestionClient::new(
+            "https://gamma-api.polymarket.com",
+            "eth-above-3000-june-1",
+            "Yes",
+        );
+        let deribit_payload =
+            std::fs::read_to_string(fixture_path("deribit_ticker_eth_3000_call.json")).unwrap();
+        let polymarket_payload =
+            std::fs::read_to_string(fixture_path("polymarket_gamma_eth_above_3000.json")).unwrap();
+        let transport = FixtureHttpTransport::new()
+            .with_response(deribit_client.ticker_url(), deribit_payload)
+            .with_response(polymarket_client.gamma_market_url(), polymarket_payload);
+
+        let deribit_batch = deribit_client
+            .fetch_ticker_with_transport(
+                &transport,
+                &IngestionConfig::phase0_deribit("https://www.deribit.com"),
+                1_779_200_000_100,
+            )
+            .expect("Deribit fixture response should produce a batch");
+        let polymarket_batch = polymarket_client
+            .fetch_gamma_market_with_transport(
+                &transport,
+                &IngestionConfig::phase0_polymarket("https://gamma-api.polymarket.com"),
+                1_779_200_000_200,
+            )
+            .expect("Polymarket fixture response should produce a batch");
+
+        assert_eq!(deribit_batch.raw_events.len(), 1);
+        assert_eq!(deribit_batch.market_events.len(), 1);
+        assert_eq!(polymarket_batch.raw_events.len(), 1);
+        assert_eq!(polymarket_batch.market_events.len(), 1);
+
+        let mut journal = InMemoryEventJournal::new();
+        let mut deribit_ingestion_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(deribit_batch)]);
+        let mut polymarket_ingestion_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(polymarket_batch)]);
+
+        ingest_once_with_report(
+            &mut deribit_ingestion_client,
+            &mut journal,
+            &IngestionConfig::phase0_deribit("https://www.deribit.com"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("Deribit fixture transport batch should ingest");
+        ingest_once_with_report(
+            &mut polymarket_ingestion_client,
+            &mut journal,
+            &IngestionConfig::phase0_polymarket("https://gamma-api.polymarket.com"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("Polymarket fixture transport batch should ingest");
+
+        assert_eq!(journal.raw_deribit_events().len(), 1);
+        assert_eq!(journal.raw_polymarket_events().len(), 1);
+        assert_eq!(journal.market_events().len(), 2);
     }
 
     #[test]
