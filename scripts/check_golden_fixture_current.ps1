@@ -1,30 +1,92 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-$goldenTextPath = Join-Path $root "fixtures\probability_basis\golden_report.txt"
-$goldenJsonPath = Join-Path $root "fixtures\probability_basis\golden_report.json"
+$manifestPath = Join-Path $root "fixtures\manifest.toml"
 
-if (-not (Test-Path $goldenTextPath)) {
-    throw "Missing golden fixture: $goldenTextPath"
-}
+function Get-ReplayFixtureScenarios {
+    param(
+        [string]$Root,
+        [string]$ManifestPath
+    )
 
-if (-not (Test-Path $goldenJsonPath)) {
-    throw "Missing golden fixture: $goldenJsonPath"
+    if (-not (Test-Path $ManifestPath)) {
+        throw "Missing replay fixture manifest: $ManifestPath"
+    }
+
+    $scenarios = @()
+    $current = [ordered]@{}
+
+    foreach ($line in Get-Content $ManifestPath) {
+        $trimmed = $line.Trim()
+        if ($trimmed.Length -eq 0 -or $trimmed.StartsWith("#")) {
+            continue
+        }
+
+        if ($trimmed -eq "[[scenario]]") {
+            if ($current.Count -gt 0) {
+                $scenarios += [pscustomobject]$current
+                $current = [ordered]@{}
+            }
+            continue
+        }
+
+        if ($trimmed -match '^([A-Za-z_]+)\s*=\s*"([^"]*)"\s*$') {
+            $current[$matches[1]] = $matches[2]
+            continue
+        }
+
+        throw "Unsupported replay manifest line: $line"
+    }
+
+    if ($current.Count -gt 0) {
+        $scenarios += [pscustomobject]$current
+    }
+
+    if ($scenarios.Count -eq 0) {
+        throw "Replay fixture manifest contains no scenarios."
+    }
+
+    foreach ($scenario in $scenarios) {
+        foreach ($field in @("name", "fixture", "expected_json", "expected_text")) {
+            if (-not $scenario.PSObject.Properties[$field]) {
+                throw "Replay fixture scenario is missing required field: $field"
+            }
+        }
+
+        $scenario | Add-Member -NotePropertyName ExpectedJsonPath -NotePropertyValue (Join-Path $Root $scenario.expected_json)
+        $scenario | Add-Member -NotePropertyName ExpectedTextPath -NotePropertyValue (Join-Path $Root $scenario.expected_text)
+    }
+
+    return $scenarios
 }
 
 Push-Location $root
 try {
-    $beforeText = Get-Content $goldenTextPath -Raw
-    $beforeJson = Get-Content $goldenJsonPath -Raw
+    $scenarios = @(Get-ReplayFixtureScenarios -Root $root -ManifestPath $manifestPath)
+    $before = @{}
+
+    foreach ($scenario in $scenarios) {
+        if (-not (Test-Path $scenario.ExpectedTextPath)) {
+            throw "Missing golden text fixture for scenario $($scenario.name): $($scenario.ExpectedTextPath)"
+        }
+        if (-not (Test-Path $scenario.ExpectedJsonPath)) {
+            throw "Missing golden JSON fixture for scenario $($scenario.name): $($scenario.ExpectedJsonPath)"
+        }
+
+        $before[$scenario.ExpectedTextPath] = Get-Content $scenario.ExpectedTextPath -Raw
+        $before[$scenario.ExpectedJsonPath] = Get-Content $scenario.ExpectedJsonPath -Raw
+    }
 
     .\scripts\update_golden_fixture.ps1
 
-    $afterText = Get-Content $goldenTextPath -Raw
-    $afterJson = Get-Content $goldenJsonPath -Raw
+    foreach ($scenario in $scenarios) {
+        $afterText = Get-Content $scenario.ExpectedTextPath -Raw
+        $afterJson = Get-Content $scenario.ExpectedJsonPath -Raw
 
-    if ($beforeText -ne $afterText -or $beforeJson -ne $afterJson) {
-        Write-Output "Golden fixtures are stale. Run scripts\update_golden_fixture.ps1 and review the diff."
-        throw "Golden fixture check failed."
+        if ($before[$scenario.ExpectedTextPath] -ne $afterText -or $before[$scenario.ExpectedJsonPath] -ne $afterJson) {
+            Write-Output "Golden fixtures are stale for scenario $($scenario.name). Run scripts\update_golden_fixture.ps1 and review the diff."
+            throw "Golden fixture check failed."
+        }
     }
 
     Write-Output "Golden fixture is current."

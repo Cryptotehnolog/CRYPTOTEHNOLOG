@@ -83,19 +83,28 @@ CLI text regression остается smoke test, который проверяе
 
 `crates/replay` содержит Phase 0 probability-basis replay runner.
 
-Текущая версия читает fixed fixture file `fixtures/probability_basis/golden_events.psv`, преобразует строки в `MarketEvent`, прогоняет `match_from_market_events` и печатает deterministic matched/rejected report:
+Текущая версия читает fixture files, перечисленные в `fixtures/manifest.toml`, преобразует строки в `MarketEvent`, прогоняет `match_from_market_events` и печатает deterministic matched/rejected report.
+
+Пример human-readable output:
 
 ```text
 metadata|pricing_model_version=black_scholes_single_strike_v1
+summary|matched=1|rejected=1|net_edge_count=1|net_edge_avg=0.081338|net_edge_min=0.081338|net_edge_max=0.081338
+summary_rejection|reason=InsufficientLiquidity|count=1
 matched|ETH-20260601-3000-C|eth-above-3000-june-1|net_edge=0.081338|survives=true
 rejected|InsufficientLiquidity|ETH-20260601-3000-C|eth-above-3000-low-liquidity
 ```
 
-Primary expected output хранится в `fixtures/probability_basis/golden_report.json`.
+Manifest scenarios:
 
-Human-readable text output хранится в `fixtures/probability_basis/golden_report.txt`.
+- `probability_basis_golden` - mixed matched/rejected baseline,
+- `probability_basis_edge_below_threshold` - rejected-only сценарий для проверки threshold boundary.
 
-`scripts/run_replay_regression.ps1` запускает runner и сравнивает JSON/text output с golden reports. Скрипт включен в `scripts/check_all.ps1` и CI.
+Primary expected output для каждого scenario хранится в JSON report, указанном в `fixtures/manifest.toml`.
+
+Human-readable text output для каждого scenario хранится в text report, указанном в `fixtures/manifest.toml`.
+
+`scripts/run_replay_regression.ps1` читает `fixtures/manifest.toml`, запускает runner для каждого scenario и сравнивает JSON/text output с golden reports. Скрипт включен в `scripts/check_all.ps1` и CI.
 
 `crates/replay/src/lib.rs` содержит library-level replay core. `crates/replay/src/main.rs` является тонкой CLI-оберткой.
 
@@ -122,7 +131,7 @@ Runner также создает matched `BasisObservation` records через `
 
 Текущий JSON пишется вручную без `serde`, чтобы не добавлять dependencies на раннем Phase 0. При появлении более широкого report contract можно перейти на `serde_json`.
 
-Когда появится несколько replay scenarios, нужно добавить `fixtures/manifest.toml`, чтобы regression runner прогонял все сценарии из manifest, а не только `fixtures/probability_basis/golden_events.psv`. До появления второго fixture manifest не вводится, чтобы не создавать лишний слой конфигурации.
+`fixtures/manifest.toml` является registry для replay scenarios. Новые scenarios должны добавляться туда вместе с input fixture, primary JSON report и secondary text report.
 
 ## Network Policy
 

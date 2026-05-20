@@ -1,0 +1,11 @@
+[[scenario]]
+name = "probability_basis_golden"
+fixture = "fixtures/probability_basis/golden_events.psv"
+expected_json = "fixtures/probability_basis/golden_report.json"
+expected_text = "fixtures/probability_basis/golden_report.txt"
+
+[[scenario]]
+name = "probability_basis_edge_below_threshold"
+fixture = "fixtures/probability_basis/edge_below_threshold_events.psv"
+expected_json = "fixtures/probability_basis/edge_below_threshold_report.json"
+expected_text = "fixtures/probability_basis/edge_below_threshold_report.txt"

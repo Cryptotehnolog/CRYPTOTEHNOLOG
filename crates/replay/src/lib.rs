@@ -602,6 +602,29 @@ mod tests {
     }
 
     #[test]
+    fn edge_below_threshold_fixture_produces_only_rejection() {
+        let output = run_probability_basis_replay(&workspace_fixture_path(
+            "edge_below_threshold_events.psv",
+        ))
+        .expect("edge-below-threshold fixture replay should succeed");
+        let report = output.replay_report();
+
+        assert_eq!(output.decisions.len(), 1);
+        assert!(output.observations.is_empty());
+        assert_eq!(report.summary.matched_count, 0);
+        assert_eq!(report.summary.rejected_count, 1);
+        assert_eq!(
+            report.summary.rejection_counts,
+            vec![RejectionCount {
+                reason: "EdgeBelowThreshold".to_string(),
+                count: 1,
+            }]
+        );
+        assert_eq!(report.summary.net_edge.sample_count, 0);
+        assert_eq!(report.summary.net_edge.average, None);
+    }
+
+    #[test]
     fn replay_summary_uses_null_edge_stats_when_there_are_no_matches() {
         let summary = ReplaySummary::from_entries(&[
             ReplayReportEntry::Rejected {

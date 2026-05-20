@@ -64,24 +64,22 @@ Warning-only проверка `stability` и `review_after`.
 
 ### `scripts/run_replay_regression.ps1`
 
-Запускает `cryptotehnolog-replay` на `fixtures/probability_basis/golden_events.psv`.
+Читает `fixtures/manifest.toml` и запускает `cryptotehnolog-replay` для каждого replay scenario.
 
-Основная проверка сравнивает JSON output с `fixtures/probability_basis/golden_report.json`.
+Основная проверка сравнивает JSON output с `expected_json` из manifest.
 
-Дополнительная smoke-проверка сравнивает text output с `fixtures/probability_basis/golden_report.txt`.
+Дополнительная smoke-проверка сравнивает text output с `expected_text` из manifest.
 
 JSON/text output включает `ReplaySummary`: counts matched/rejected, counts by rejection reason и агрегаты `net_edge_probability` по matched entries.
 
 Это smoke-level CLI regression, а не замена Rust unit tests.
 
-Когда появится больше одного replay fixture, regression script должен читать `fixtures/manifest.toml` и прогонять все listed scenarios. Пока fixture один, manifest намеренно не создается.
-
 ### `scripts/update_golden_fixture.ps1`
 
 Перегенерирует:
 
-- `fixtures/probability_basis/golden_report.json`,
-- `fixtures/probability_basis/golden_report.txt`.
+- все `expected_json` reports из `fixtures/manifest.toml`,
+- все `expected_text` reports из `fixtures/manifest.toml`.
 
 Использовать только когда изменение matcher/pricing/replay behavior ожидаемо. Изменение golden report должно быть reviewable в том же commit/PR.
 

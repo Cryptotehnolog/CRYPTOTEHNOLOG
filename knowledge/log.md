@@ -127,3 +127,7 @@ Replay core вынесен в `crates/replay/src/lib.rs`, а `main.rs` стал 
 ## [2026-05-20] implementation | Replay summary metrics
 
 Добавлен `ReplaySummary` поверх `ReplayReport`: counts matched/rejected, counts by rejection reason и average/min/max `net_edge_probability` по matched entries. Golden JSON/text reports обновлены через `scripts/update_golden_fixture.ps1`. `fixtures/manifest.toml` осознанно отложен до появления нескольких replay fixture scenarios.
+
+## [2026-05-20] automation | Replay fixture manifest
+
+Добавлен второй replay scenario `probability_basis_edge_below_threshold` и registry `fixtures/manifest.toml`. `scripts/run_replay_regression.ps1`, `scripts/update_golden_fixture.ps1` и `scripts/check_golden_fixture_current.ps1` теперь работают по manifest и прогоняют все listed scenarios, сохраняя JSON как основной semantic comparison contract.
