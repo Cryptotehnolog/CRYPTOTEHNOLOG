@@ -84,3 +84,7 @@ jobs:
       - name: Check ingestion golden report freshness
         shell: pwsh
         run: .\scripts\check_ingestion_golden_current.ps1
+
+      - name: Check Phase 0 pipeline golden report freshness
+        shell: pwsh
+        run: .\scripts\check_phase0_pipeline_golden_current.ps1

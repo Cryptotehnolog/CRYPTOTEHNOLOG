@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "raw_events": 2,
+  "normalized_events": 2,
+  "journal_rows": 4,
+  "match_decisions": 1,
+  "observations": 1,
+  "observation_rows": 1
+}

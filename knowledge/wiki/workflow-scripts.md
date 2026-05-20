@@ -3,7 +3,7 @@ type: workflow
 status: active
 confidence: high
 stability: volatile
-updated: 2026-05-20
+updated: 2026-05-21
 review_after: 2026-06-19
 sources:
   - project-review-2026-05-19
@@ -39,7 +39,8 @@ Live monitoring должен быть Rust service/binary. PowerShell может
 - replay regression,
 - ingestion regression,
 - golden fixture freshness,
-- ingestion golden report freshness.
+- ingestion golden report freshness,
+- Phase 0 pipeline golden report freshness.
 
 Использовать перед коммитом.
 
@@ -197,7 +198,21 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 fixture scenario -> mock ingestion -> EventJournal -> matcher -> BasisObservation -> BasisObservationRowWriter
 ```
 
-Скрипт не делает network requests, не пишет в PostgreSQL и не выполняет trading. Это ручной developer wrapper; future golden/CI-check добавляется отдельным шагом после стабилизации report contract.
+Скрипт не делает network requests, не пишет в PostgreSQL и не выполняет trading. Это ручной developer wrapper поверх machine-readable report contract.
+
+### `scripts/update_phase0_pipeline_golden.ps1`
+
+Перегенерирует `fixtures/phase0_pipeline/golden_report.json` из текущего offline vertical slice.
+
+Скрипт вызывает Rust binary `render_phase0_pipeline_report`, чтобы semantic source of truth оставался в `crates/ingestion`, а не в PowerShell.
+
+Использовать только когда изменение Phase 0 vertical slice/report behavior ожидаемо. Изменение golden report должно быть reviewable в том же commit/PR.
+
+### `scripts/check_phase0_pipeline_golden_current.ps1`
+
+Запускает `update_phase0_pipeline_golden.ps1` и падает, если после перегенерации меняется `fixtures/phase0_pipeline/golden_report.json`.
+
+Включен в `check_all` и CI. Это freshness-check для `Phase0PipelineReport`, аналогичный replay и ingestion golden freshness.
 
 ## Phase Gate
 

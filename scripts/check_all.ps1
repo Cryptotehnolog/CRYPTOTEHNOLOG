@@ -58,6 +58,9 @@ try {
     Write-Output "== Ingestion golden report freshness =="
     .\scripts\check_ingestion_golden_current.ps1
 
+    Write-Output "== Phase 0 pipeline golden report freshness =="
+    .\scripts\check_phase0_pipeline_golden_current.ps1
+
     Write-Output "All local checks passed."
 }
 finally {

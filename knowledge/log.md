@@ -311,3 +311,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] implementation | Phase 0 pipeline report CLI wrapper
 
 Добавлен Rust binary `render_phase0_pipeline_report` и script wrapper `scripts/run_phase0_pipeline_report.ps1`. Они генерируют `artifacts/phase0_pipeline_report.json` из `fixtures/ingestion/happy_path_batches.psv` через offline vertical slice без сети, PostgreSQL и trading.
+
+## [2026-05-21] implementation | Phase 0 pipeline golden freshness
+
+Добавлен golden/freshness слой для `Phase0PipelineReport`: `fixtures/phase0_pipeline/golden_report.json`, `scripts/update_phase0_pipeline_golden.ps1`, `scripts/check_phase0_pipeline_golden_current.ps1`. Проверка включена в `scripts/check_all.ps1` и CI, чтобы offline vertical slice report был таким же проверяемым контрактом, как replay и ingestion reports.
