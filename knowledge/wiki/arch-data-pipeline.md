@@ -109,6 +109,7 @@ BasisObservationRowWriter
 - `ingest_once_with_report()` - telemetry-oriented helper: raw events сохраняются, accepted normalized events пишутся, rejected normalized events остаются только в report.
 - `IngestionReport` - aggregate report поверх одного или нескольких `ValidationReport`, сгруппированный по source и rejection message.
 - `DeribitLiveIngestionClient` - first read-only live adapter skeleton: строит public ticker URL и парсит Deribit ticker payload из fixture, но `poll_once()` не делает network calls.
+- `PolymarketLiveIngestionClient` - first read-only Gamma adapter skeleton: строит market-by-slug URL и парсит Polymarket Gamma market payload из fixture, но `poll_once()` не делает network calls.
 
 Это не live API implementation. Real HTTP/WebSocket logic добавляется позже отдельным decision/code review.
 

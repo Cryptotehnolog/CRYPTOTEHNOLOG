@@ -37,6 +37,7 @@ Live monitoring должен быть Rust service/binary. PowerShell может
 - `cargo test`,
 - replay regression,
 - golden fixture freshness.
+- ingestion golden report freshness.
 
 Использовать перед коммитом.
 
@@ -148,6 +149,12 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 Скрипт вызывает Rust binary `render_ingestion_report`, чтобы semantic source of truth оставался в `crates/ingestion`, а не в PowerShell.
 
 Использовать только когда изменение ingestion telemetry/report behavior ожидаемо. Изменение ingestion golden report должно быть reviewable в том же commit/PR.
+
+### `scripts/check_ingestion_golden_current.ps1`
+
+Запускает `update_ingestion_golden.ps1` и падает, если после перегенерации меняется любой `expected_report` из `fixtures/ingestion/manifest.toml`.
+
+Включен в `check_all` и CI. Это freshness-check для ingestion semantic reports, аналогичный replay golden freshness.
 
 ## Phase Gate
 

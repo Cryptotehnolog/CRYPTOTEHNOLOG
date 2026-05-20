@@ -49,6 +49,9 @@ try {
     Write-Output "== Golden fixture freshness =="
     .\scripts\check_golden_fixture_current.ps1
 
+    Write-Output "== Ingestion golden report freshness =="
+    .\scripts\check_ingestion_golden_current.ps1
+
     Write-Output "All local checks passed."
 }
 finally {

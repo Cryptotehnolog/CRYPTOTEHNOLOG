@@ -3,7 +3,8 @@ use std::fs;
 use std::path::Path;
 
 use cryptotehnolog_common::events::{
-    DeribitOptionQuote, EventMeta, MarketEvent, OptionKind, RawDeribitEvent, RawPolymarketEvent,
+    DeribitOptionQuote, EventMeta, MarketEvent, OptionKind, PolymarketApiLayer,
+    PolymarketOutcomeQuote, RawDeribitEvent, RawPolymarketEvent,
 };
 use cryptotehnolog_common::journal::{EventJournal, JournalError};
 
@@ -617,6 +618,124 @@ impl IngestionClient for DeribitLiveIngestionClient {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PolymarketLiveIngestionClient {
+    pub base_url: String,
+    pub market_slug: String,
+    pub outcome: String,
+}
+
+impl PolymarketLiveIngestionClient {
+    pub fn new(
+        base_url: impl Into<String>,
+        market_slug: impl Into<String>,
+        outcome: impl Into<String>,
+    ) -> Self {
+        Self {
+            base_url: base_url.into(),
+            market_slug: market_slug.into(),
+            outcome: outcome.into(),
+        }
+    }
+
+    pub fn gamma_market_url(&self) -> String {
+        format!(
+            "{}/markets/slug/{}",
+            self.base_url.trim_end_matches('/'),
+            self.market_slug
+        )
+    }
+
+    pub fn parse_gamma_market_payload(
+        &self,
+        payload_json: &str,
+        config: &IngestionConfig,
+        received_ts_ms: i64,
+    ) -> Result<IngestionBatch, IngestionError> {
+        if config.source != IngestionSource::Polymarket {
+            return Err(IngestionError::new(
+                IngestionErrorKind::Unsupported,
+                Some(config.source),
+                "PolymarketLiveIngestionClient requires Polymarket ingestion config",
+            ));
+        }
+
+        let market_slug = extract_polymarket_json_string(payload_json, "market_slug")?;
+        if market_slug != self.market_slug {
+            return Err(IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Polymarket),
+                format!(
+                    "Polymarket market mismatch: expected {}, got {}",
+                    self.market_slug, market_slug
+                ),
+            ));
+        }
+
+        let event_slug = extract_polymarket_json_string(payload_json, "event_slug")?;
+        let outcome = extract_polymarket_json_string(payload_json, "outcome")?;
+        if outcome != self.outcome {
+            return Err(IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Polymarket),
+                format!(
+                    "Polymarket outcome mismatch: expected {}, got {}",
+                    self.outcome, outcome
+                ),
+            ));
+        }
+
+        let timestamp_ms = extract_polymarket_json_i64(payload_json, "timestamp")?;
+        let bid_probability = extract_polymarket_json_f64(payload_json, "bid_probability")?;
+        let ask_probability = extract_polymarket_json_f64(payload_json, "ask_probability")?;
+        let liquidity_usd = extract_polymarket_json_f64(payload_json, "liquidity_usd")?;
+
+        let raw_meta = EventMeta {
+            event_id: format!("raw-polymarket-gamma:{market_slug}:{outcome}:{timestamp_ms}"),
+            source: "polymarket_live_skeleton".to_string(),
+            exchange_ts_ms: timestamp_ms,
+            received_ts_ms,
+            instrument_id: market_slug.clone(),
+            schema_version: 1,
+            config_version: config.config_version.clone(),
+        };
+        let market_meta = EventMeta {
+            event_id: format!("market-polymarket-gamma:{market_slug}:{outcome}:{timestamp_ms}"),
+            ..raw_meta.clone()
+        };
+
+        Ok(IngestionBatch {
+            source: IngestionSource::Polymarket,
+            raw_events: vec![RawIngestionEvent::Polymarket(RawPolymarketEvent {
+                meta: raw_meta,
+                api_layer: PolymarketApiLayer::Gamma,
+                payload_json: payload_json.to_string(),
+            })],
+            market_events: vec![MarketEvent::PolymarketOutcomeQuote(
+                PolymarketOutcomeQuote {
+                    meta: market_meta,
+                    event_slug,
+                    market_slug,
+                    outcome,
+                    bid_probability,
+                    ask_probability,
+                    liquidity_usd,
+                },
+            )],
+        })
+    }
+}
+
+impl IngestionClient for PolymarketLiveIngestionClient {
+    fn poll_once(&mut self, config: &IngestionConfig) -> Result<IngestionBatch, IngestionError> {
+        Err(IngestionError::new(
+            IngestionErrorKind::NotImplemented,
+            Some(config.source),
+            "Polymarket live ingestion skeleton has no network calls in default path",
+        ))
+    }
+}
+
 pub fn ingest_once<C, J>(
     client: &mut C,
     journal: &mut J,
@@ -871,6 +990,94 @@ fn malformed_deribit_instrument(instrument_name: &str) -> IngestionError {
         IngestionErrorKind::MalformedPayload,
         Some(IngestionSource::Deribit),
         format!("malformed Deribit instrument name `{instrument_name}`"),
+    )
+}
+
+fn extract_polymarket_json_string(payload_json: &str, key: &str) -> Result<String, IngestionError> {
+    let marker = format!("\"{key}\"");
+    let Some(key_start) = payload_json.find(&marker) else {
+        return Err(missing_polymarket_field(key));
+    };
+    let after_key = &payload_json[key_start + marker.len()..];
+    let Some(colon_index) = after_key.find(':') else {
+        return Err(missing_polymarket_field(key));
+    };
+    let after_colon = after_key[colon_index + 1..].trim_start();
+    if !after_colon.starts_with('"') {
+        return Err(malformed_polymarket_field(key));
+    }
+    let value_start = 1;
+    let Some(value_end) = after_colon[value_start..].find('"') else {
+        return Err(malformed_polymarket_field(key));
+    };
+
+    Ok(after_colon[value_start..value_start + value_end].to_string())
+}
+
+fn extract_polymarket_json_f64(payload_json: &str, key: &str) -> Result<f64, IngestionError> {
+    let raw = extract_polymarket_json_number(payload_json, key)?;
+    raw.parse::<f64>().map_err(|error| {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Polymarket),
+            format!("invalid Polymarket numeric field {key}: {error}"),
+        )
+    })
+}
+
+fn extract_polymarket_json_i64(payload_json: &str, key: &str) -> Result<i64, IngestionError> {
+    let raw = extract_polymarket_json_number(payload_json, key)?;
+    raw.parse::<i64>().map_err(|error| {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Polymarket),
+            format!("invalid Polymarket integer field {key}: {error}"),
+        )
+    })
+}
+
+fn extract_polymarket_json_number(payload_json: &str, key: &str) -> Result<String, IngestionError> {
+    let marker = format!("\"{key}\"");
+    let Some(key_start) = payload_json.find(&marker) else {
+        return Err(missing_polymarket_field(key));
+    };
+    let after_key = &payload_json[key_start + marker.len()..];
+    let Some(colon_index) = after_key.find(':') else {
+        return Err(missing_polymarket_field(key));
+    };
+    let after_colon = after_key[colon_index + 1..].trim_start();
+    let number: String = after_colon
+        .chars()
+        .take_while(|candidate| {
+            candidate.is_ascii_digit()
+                || *candidate == '.'
+                || *candidate == '-'
+                || *candidate == '+'
+                || *candidate == 'e'
+                || *candidate == 'E'
+        })
+        .collect();
+
+    if number.is_empty() {
+        return Err(malformed_polymarket_field(key));
+    }
+
+    Ok(number)
+}
+
+fn missing_polymarket_field(key: &str) -> IngestionError {
+    IngestionError::new(
+        IngestionErrorKind::MalformedPayload,
+        Some(IngestionSource::Polymarket),
+        format!("missing Polymarket field `{key}`"),
+    )
+}
+
+fn malformed_polymarket_field(key: &str) -> IngestionError {
+    IngestionError::new(
+        IngestionErrorKind::MalformedPayload,
+        Some(IngestionSource::Polymarket),
+        format!("malformed Polymarket field `{key}`"),
     )
 }
 
@@ -1730,6 +1937,71 @@ mod tests {
 
         let error = client
             .poll_once(&IngestionConfig::phase0_deribit("https://www.deribit.com"))
+            .expect_err("skeleton must not perform network calls");
+
+        assert_eq!(error.kind, IngestionErrorKind::NotImplemented);
+    }
+
+    #[test]
+    fn polymarket_live_skeleton_builds_gamma_market_url_without_network() {
+        let client = PolymarketLiveIngestionClient::new(
+            "https://gamma-api.polymarket.com/",
+            "eth-above-3000-june-1",
+            "Yes",
+        );
+
+        assert_eq!(
+            client.gamma_market_url(),
+            "https://gamma-api.polymarket.com/markets/slug/eth-above-3000-june-1"
+        );
+    }
+
+    #[test]
+    fn polymarket_live_skeleton_parses_fixture_payload_without_network() {
+        let client = PolymarketLiveIngestionClient::new(
+            "https://gamma-api.polymarket.com",
+            "eth-above-3000-june-1",
+            "Yes",
+        );
+        let payload =
+            std::fs::read_to_string(fixture_path("polymarket_gamma_eth_above_3000.json")).unwrap();
+
+        let batch = client
+            .parse_gamma_market_payload(
+                &payload,
+                &IngestionConfig::phase0_polymarket("https://gamma-api.polymarket.com"),
+                1_779_200_000_200,
+            )
+            .expect("fixture payload should parse");
+
+        assert_eq!(batch.source, IngestionSource::Polymarket);
+        assert_eq!(batch.raw_events.len(), 1);
+        assert_eq!(batch.market_events.len(), 1);
+        assert_eq!(batch.raw_events[0].source(), IngestionSource::Polymarket);
+        let MarketEvent::PolymarketOutcomeQuote(quote) = &batch.market_events[0] else {
+            panic!("expected Polymarket outcome quote");
+        };
+        assert_eq!(quote.meta.instrument_id, "eth-above-3000-june-1");
+        assert_eq!(quote.event_slug, "eth-above-3000");
+        assert_eq!(quote.market_slug, "eth-above-3000-june-1");
+        assert_eq!(quote.outcome, "Yes");
+        assert_eq!(quote.bid_probability, 0.51);
+        assert_eq!(quote.ask_probability, 0.53);
+        assert_eq!(quote.liquidity_usd, 10_000.0);
+    }
+
+    #[test]
+    fn polymarket_live_skeleton_poll_once_does_not_perform_network_calls() {
+        let mut client = PolymarketLiveIngestionClient::new(
+            "https://gamma-api.polymarket.com",
+            "eth-above-3000-june-1",
+            "Yes",
+        );
+
+        let error = client
+            .poll_once(&IngestionConfig::phase0_polymarket(
+                "https://gamma-api.polymarket.com",
+            ))
             .expect_err("skeleton must not perform network calls");
 
         assert_eq!(error.kind, IngestionErrorKind::NotImplemented);
