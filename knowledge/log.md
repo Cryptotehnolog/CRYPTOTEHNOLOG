@@ -227,3 +227,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-20] implementation | Deribit option discovery for live probe
 
 Добавлен read-only discovery boundary для Deribit option instruments: `DeribitOptionDiscoveryCriteria`, `DeribitDiscoveredOption`, `public/get_instruments` URL construction и выбор ближайшего ETH call candidate перед ticker polling. `live_probe_replay` теперь делает `discover candidate option -> ticker -> normalize -> matcher` вместо hardcoded `ETH-1JUN26-3000-C`. Manual report получил `payload_shape_versions`, чтобы видеть parser contract для instruments, ticker и Polymarket Gamma payloads.
+
+## [2026-05-20] implementation | Polymarket market discovery for live probe
+
+Добавлен read-only discovery boundary для Polymarket Gamma markets: `PolymarketMarketDiscoveryCriteria`, `PolymarketDiscoveredMarket`, Gamma markets URL construction и deterministic selection по required terms, outcome, active/closed state и liquidity. `live_probe_replay` теперь делает Polymarket `discover market candidate -> market-by-slug -> normalize -> matcher` вместо hardcoded `eth-above-3000-june-1`. Report расширен `selection_report`: selected Deribit instrument, target/selected expiry, strike distance и selected Polymarket market/event/liquidity.

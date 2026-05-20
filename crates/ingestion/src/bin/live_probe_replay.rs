@@ -20,11 +20,13 @@ use cryptotehnolog_common::probability_basis::{
 #[cfg(feature = "network-integration")]
 use cryptotehnolog_ingestion::{
     DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION, DERIBIT_TICKER_PAYLOAD_SHAPE_VERSION,
-    DeribitLiveIngestionClient, DeribitOptionDiscoveryCriteria, IngestionBatch, IngestionConfig,
-    IngestionError, IngestionOutcome, IngestionReport, IngestionSource, LiveHttpTransport,
-    LiveIngestionProbeReport, MockIngestionClient, MockIngestionStep,
-    POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION, Phase0NormalizedBatchValidator,
-    PolymarketLiveIngestionClient, ReqwestHttpTransport, ingest_once_with_report,
+    DeribitDiscoveredOption, DeribitLiveIngestionClient, DeribitOptionDiscoveryCriteria,
+    IngestionBatch, IngestionConfig, IngestionError, IngestionOutcome, IngestionReport,
+    IngestionSource, LiveHttpTransport, LiveIngestionProbeReport, MockIngestionClient,
+    MockIngestionStep, POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION,
+    POLYMARKET_GAMMA_MARKETS_PAYLOAD_SHAPE_VERSION, Phase0NormalizedBatchValidator,
+    PolymarketDiscoveredMarket, PolymarketLiveIngestionClient, PolymarketMarketDiscoveryCriteria,
+    ReqwestHttpTransport, ingest_once_with_report,
 };
 
 #[cfg(feature = "network-integration")]
@@ -49,16 +51,12 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
     let transport = ReqwestHttpTransport::new(5_000).map_err(|error| {
         LiveProbeReplayFailure::from_early_error("transport", error, Vec::new())
     })?;
-    let polymarket_client = PolymarketLiveIngestionClient::new(
-        "https://gamma-api.polymarket.com",
-        "eth-above-3000-june-1",
-        "Yes",
-    );
     let deribit_config = IngestionConfig::phase0_deribit("https://www.deribit.com");
     let polymarket_config = IngestionConfig::phase0_polymarket("https://gamma-api.polymarket.com");
 
     let mut probe_reports = Vec::new();
     let mut payload_shape_versions = Vec::new();
+    let mut selection_report = SelectionReport::empty();
     let mut errors = Vec::new();
     let mut batches = Vec::new();
     let mut journal = InMemoryEventJournal::new();
@@ -67,6 +65,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
         &transport,
         &mut probe_reports,
         &mut payload_shape_versions,
+        &mut selection_report,
         &mut errors,
     ) {
         fetch_deribit_batch(
@@ -80,16 +79,24 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
             &mut batches,
         );
     }
-    fetch_polymarket_batch(
-        &polymarket_client,
+    if let Some(polymarket_client) = discover_polymarket_market_client(
         &transport,
-        &polymarket_config,
-        &mut journal,
         &mut probe_reports,
         &mut payload_shape_versions,
+        &mut selection_report,
         &mut errors,
-        &mut batches,
-    );
+    ) {
+        fetch_polymarket_batch(
+            &polymarket_client,
+            &transport,
+            &polymarket_config,
+            &mut journal,
+            &mut probe_reports,
+            &mut payload_shape_versions,
+            &mut errors,
+            &mut batches,
+        );
+    }
 
     let outcomes = ingest_batches(&mut journal, batches, &mut errors);
     let ingestion_report = IngestionReport::from_outcomes(&outcomes);
@@ -113,6 +120,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
                 render_report(
                     &probe_reports,
                     &payload_shape_versions,
+                    &selection_report,
                     &ingestion_report,
                     &ReplayPipelineSummary::empty(),
                     &errors,
@@ -124,6 +132,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
     let report = render_report(
         &probe_reports,
         &payload_shape_versions,
+        &selection_report,
         &ingestion_report,
         &replay_summary,
         &errors,
@@ -148,6 +157,7 @@ fn discover_deribit_option_client<T>(
     transport: &T,
     probe_reports: &mut Vec<LiveIngestionProbeReport>,
     payload_shape_versions: &mut Vec<PayloadShapeVersion>,
+    selection_report: &mut SelectionReport,
     errors: &mut Vec<DiagnosticError>,
 ) -> Option<DeribitLiveIngestionClient>
 where
@@ -170,10 +180,13 @@ where
             ));
             let criteria = DeribitOptionDiscoveryCriteria::phase0_eth_call_3000_june_2026();
             match DeribitLiveIngestionClient::discover_option_from_payload(&payload, &criteria) {
-                Ok(discovered) => Some(DeribitLiveIngestionClient::from_discovered(
-                    base_url,
-                    &discovered,
-                )),
+                Ok(discovered) => {
+                    selection_report.set_deribit(&criteria, &discovered);
+                    Some(DeribitLiveIngestionClient::from_discovered(
+                        base_url,
+                        &discovered,
+                    ))
+                }
                 Err(error) => {
                     errors.push(DiagnosticError::from_ingestion_error(
                         "discovery",
@@ -194,6 +207,68 @@ where
             errors.push(DiagnosticError::from_ingestion_error(
                 "http",
                 "Deribit instruments",
+                error,
+            ));
+            None
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+fn discover_polymarket_market_client<T>(
+    transport: &T,
+    probe_reports: &mut Vec<LiveIngestionProbeReport>,
+    payload_shape_versions: &mut Vec<PayloadShapeVersion>,
+    selection_report: &mut SelectionReport,
+    errors: &mut Vec<DiagnosticError>,
+) -> Option<PolymarketLiveIngestionClient>
+where
+    T: LiveHttpTransport,
+{
+    let base_url = "https://gamma-api.polymarket.com";
+    let url = PolymarketLiveIngestionClient::markets_url(base_url);
+    let started_at = Instant::now();
+    match transport.get(&url) {
+        Ok(payload) => {
+            probe_reports.push(LiveIngestionProbeReport::ok(
+                "Polymarket Gamma markets",
+                url,
+                payload.len(),
+                started_at.elapsed().as_millis(),
+            ));
+            payload_shape_versions.push(PayloadShapeVersion::new(
+                "Polymarket Gamma markets",
+                POLYMARKET_GAMMA_MARKETS_PAYLOAD_SHAPE_VERSION,
+            ));
+            let criteria = PolymarketMarketDiscoveryCriteria::phase0_eth_above_3000_yes();
+            match PolymarketLiveIngestionClient::discover_market_from_payload(&payload, &criteria) {
+                Ok(discovered) => {
+                    selection_report.set_polymarket(&discovered);
+                    Some(PolymarketLiveIngestionClient::from_discovered(
+                        base_url,
+                        &discovered,
+                    ))
+                }
+                Err(error) => {
+                    errors.push(DiagnosticError::from_ingestion_error(
+                        "discovery",
+                        "Polymarket Gamma markets",
+                        error,
+                    ));
+                    None
+                }
+            }
+        }
+        Err(error) => {
+            probe_reports.push(LiveIngestionProbeReport::error(
+                "Polymarket Gamma markets",
+                url,
+                started_at.elapsed().as_millis(),
+                error.clone(),
+            ));
+            errors.push(DiagnosticError::from_ingestion_error(
+                "http",
+                "Polymarket Gamma markets",
                 error,
             ));
             None
@@ -468,6 +543,63 @@ impl PayloadShapeVersion {
 }
 
 #[cfg(feature = "network-integration")]
+#[derive(Debug, Clone, PartialEq)]
+struct SelectionReport {
+    selected_deribit_instrument: Option<String>,
+    target_expiry_ts_ms: Option<i64>,
+    selected_expiry_ts_ms: Option<i64>,
+    strike_distance: Option<f64>,
+    selected_polymarket_market_slug: Option<String>,
+    selected_polymarket_event_slug: Option<String>,
+    selected_polymarket_liquidity_usd: Option<f64>,
+}
+
+#[cfg(feature = "network-integration")]
+impl SelectionReport {
+    fn empty() -> Self {
+        Self {
+            selected_deribit_instrument: None,
+            target_expiry_ts_ms: None,
+            selected_expiry_ts_ms: None,
+            strike_distance: None,
+            selected_polymarket_market_slug: None,
+            selected_polymarket_event_slug: None,
+            selected_polymarket_liquidity_usd: None,
+        }
+    }
+
+    fn set_deribit(
+        &mut self,
+        criteria: &DeribitOptionDiscoveryCriteria,
+        discovered: &DeribitDiscoveredOption,
+    ) {
+        self.selected_deribit_instrument = Some(discovered.instrument_name.clone());
+        self.target_expiry_ts_ms = Some(criteria.target_expiry_ts_ms);
+        self.selected_expiry_ts_ms = Some(discovered.expiry_ts_ms);
+        self.strike_distance = Some((discovered.strike - criteria.target_strike).abs());
+    }
+
+    fn set_polymarket(&mut self, discovered: &PolymarketDiscoveredMarket) {
+        self.selected_polymarket_market_slug = Some(discovered.market_slug.clone());
+        self.selected_polymarket_event_slug = Some(discovered.event_slug.clone());
+        self.selected_polymarket_liquidity_usd = Some(discovered.liquidity_usd);
+    }
+
+    fn to_json(&self) -> String {
+        format!(
+            "{{\"selected_deribit_instrument\":{},\"target_expiry_ts_ms\":{},\"selected_expiry_ts_ms\":{},\"strike_distance\":{},\"selected_polymarket_market_slug\":{},\"selected_polymarket_event_slug\":{},\"selected_polymarket_liquidity_usd\":{}}}",
+            optional_string_json(&self.selected_deribit_instrument),
+            optional_i64_json(self.target_expiry_ts_ms),
+            optional_i64_json(self.selected_expiry_ts_ms),
+            optional_f64_json(self.strike_distance),
+            optional_string_json(&self.selected_polymarket_market_slug),
+            optional_string_json(&self.selected_polymarket_event_slug),
+            optional_f64_json(self.selected_polymarket_liquidity_usd)
+        )
+    }
+}
+
+#[cfg(feature = "network-integration")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct DiagnosticError {
     stage: String,
@@ -581,6 +713,7 @@ impl LiveProbeReplayFailure {
             render_report(
                 &probe_reports,
                 &[],
+                &SelectionReport::empty(),
                 &IngestionReport::from_outcomes(&[]),
                 &ReplayPipelineSummary::empty(),
                 &errors,
@@ -593,6 +726,7 @@ impl LiveProbeReplayFailure {
 fn render_report(
     probe_reports: &[LiveIngestionProbeReport],
     payload_shape_versions: &[PayloadShapeVersion],
+    selection_report: &SelectionReport,
     ingestion_report: &IngestionReport,
     replay_summary: &ReplayPipelineSummary,
     errors: &[DiagnosticError],
@@ -614,10 +748,11 @@ fn render_report(
         .join(",");
 
     format!(
-        "{{\"schema_version\":1,\"config_version\":\"{}\",\"pricing_model_version\":\"{}\",\"payload_shape_versions\":[{}],\"probe_reports\":[{}],\"ingestion_report\":{},\"replay_summary\":{},\"errors\":[{}]}}",
+        "{{\"schema_version\":1,\"config_version\":\"{}\",\"pricing_model_version\":\"{}\",\"payload_shape_versions\":[{}],\"selection_report\":{},\"probe_reports\":[{}],\"ingestion_report\":{},\"replay_summary\":{},\"errors\":[{}]}}",
         CONFIG_VERSION,
         PRICING_MODEL_VERSION,
         payload_shapes,
+        selection_report.to_json(),
         probes,
         ingestion_report.to_json(),
         replay_summary.to_json(),
@@ -640,6 +775,28 @@ fn json_escape(value: &str) -> String {
         .replace('"', "\\\"")
         .replace('\n', "\\n")
         .replace('\r', "\\r")
+}
+
+#[cfg(feature = "network-integration")]
+fn optional_string_json(value: &Option<String>) -> String {
+    value
+        .as_ref()
+        .map(|text| format!("\"{}\"", json_escape(text)))
+        .unwrap_or_else(|| "null".to_string())
+}
+
+#[cfg(feature = "network-integration")]
+fn optional_i64_json(value: Option<i64>) -> String {
+    value
+        .map(|number| number.to_string())
+        .unwrap_or_else(|| "null".to_string())
+}
+
+#[cfg(feature = "network-integration")]
+fn optional_f64_json(value: Option<f64>) -> String {
+    value
+        .map(|number| number.to_string())
+        .unwrap_or_else(|| "null".to_string())
 }
 
 #[cfg(not(feature = "network-integration"))]

@@ -108,6 +108,7 @@ BasisObservationRowWriter
 - `ReqwestHttpTransport` - feature-gated HTTP implementation за feature `network-integration`; не входит в default build/test path;
 - `LiveIngestionProbeReport` - diagnostic report для ручной connectivity проверки: endpoint, URL, статус, размер payload, latency и error kind;
 - `DeribitOptionDiscoveryCriteria` / `DeribitDiscoveredOption` - read-only discovery boundary для выбора Deribit option candidate перед ticker polling;
+- `PolymarketMarketDiscoveryCriteria` / `PolymarketDiscoveredMarket` - read-only discovery boundary для выбора Polymarket Gamma market candidate перед market-by-slug polling;
 - `ingest_once()` - orchestration helper, который пишет raw events в `EventJournal` до normalized `MarketEvent`.
 - `NormalizedBatchValidator` - validation boundary для normalized events перед записью в journal.
 - `ingest_once_with_validator()` - live-ready orchestration helper: raw events сохраняются первыми, затем normalized events валидируются, и только после этого пишутся в `EventJournal`.
@@ -116,7 +117,7 @@ BasisObservationRowWriter
 - `IngestionReport` - aggregate report поверх одного или нескольких `ValidationReport`, сгруппированный по source и rejection message.
 - `JsonPayloadParser` - JSON-aware parsing helper для fixture-shaped и real-shaped REST payloads Deribit/Polymarket; использует `serde_json`, но остается внутри parsing boundary и не делает network calls.
 - `DeribitLiveIngestionClient` - first read-only live adapter skeleton: строит `public/get_instruments` и `public/ticker` URLs, выбирает option candidate из instruments payload и парсит Deribit ticker payload, но `poll_once()` не делает network calls.
-- `PolymarketLiveIngestionClient` - first read-only Gamma adapter skeleton: строит market-by-slug URL и парсит Polymarket Gamma market payload из fixture, но `poll_once()` не делает network calls.
+- `PolymarketLiveIngestionClient` - first read-only Gamma adapter skeleton: строит Gamma markets и market-by-slug URLs, выбирает market candidate из markets payload и парсит Polymarket Gamma market payload, но `poll_once()` не делает network calls.
 
 Это не live API implementation. Real HTTP/WebSocket logic добавляется позже отдельным decision/code review.
 

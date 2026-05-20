@@ -17,12 +17,6 @@ fn main() {
         }
     };
 
-    let polymarket_client = PolymarketLiveIngestionClient::new(
-        "https://gamma-api.polymarket.com",
-        "eth-above-3000-june-1",
-        "Yes",
-    );
-
     let reports = vec![
         probe_live_http_endpoint(
             "Deribit instruments",
@@ -30,8 +24,8 @@ fn main() {
             &transport,
         ),
         probe_live_http_endpoint(
-            "Polymarket Gamma",
-            polymarket_client.gamma_market_url(),
+            "Polymarket Gamma markets",
+            PolymarketLiveIngestionClient::markets_url("https://gamma-api.polymarket.com"),
             &transport,
         ),
     ];

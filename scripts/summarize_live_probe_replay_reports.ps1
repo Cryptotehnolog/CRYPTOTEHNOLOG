@@ -23,6 +23,7 @@ foreach ($file in $files) {
     $parseErrors = @($errors | Where-Object { $_.stage -eq "parse" })
     $httpErrors = @($errors | Where-Object { $_.stage -eq "http" })
     $payloadShapes = @($report.payload_shape_versions | ForEach-Object { "$($_.endpoint)=$($_.payload_shape_version)" })
+    $selection = $report.selection_report
     $accepted = [int]$report.ingestion_report.total_normalized_events_accepted
     $decisions = [int]$report.replay_summary.decisions
     $observations = [int]$report.replay_summary.observations
@@ -39,6 +40,9 @@ foreach ($file in $files) {
         Observations = $observations
         MatcherReady = $matcherReady
         PayloadShapes = ($payloadShapes -join ";")
+        SelectedDeribit = [string]$selection.selected_deribit_instrument
+        SelectedPolymarket = [string]$selection.selected_polymarket_market_slug
+        StrikeDistance = if ($null -eq $selection.strike_distance) { "" } else { [string]$selection.strike_distance }
     }
 
     foreach ($errorEntry in $errors) {

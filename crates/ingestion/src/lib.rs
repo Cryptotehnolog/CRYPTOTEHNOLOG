@@ -11,6 +11,7 @@ use serde_json::Value;
 
 pub const DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION: &str = "deribit_get_instruments_v1";
 pub const DERIBIT_TICKER_PAYLOAD_SHAPE_VERSION: &str = "deribit_json_rpc_ticker_v1";
+pub const POLYMARKET_GAMMA_MARKETS_PAYLOAD_SHAPE_VERSION: &str = "polymarket_gamma_markets_v1";
 pub const POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION: &str = "polymarket_gamma_market_v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -935,6 +936,32 @@ pub struct PolymarketLiveIngestionClient {
     pub outcome: String,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct PolymarketMarketDiscoveryCriteria {
+    pub required_terms: Vec<String>,
+    pub outcome: String,
+    pub min_liquidity_usd: f64,
+}
+
+impl PolymarketMarketDiscoveryCriteria {
+    pub fn phase0_eth_above_3000_yes() -> Self {
+        Self {
+            required_terms: vec!["eth".to_string(), "3000".to_string()],
+            outcome: "Yes".to_string(),
+            min_liquidity_usd: 1_000.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PolymarketDiscoveredMarket {
+    pub market_slug: String,
+    pub event_slug: String,
+    pub question: String,
+    pub outcome: String,
+    pub liquidity_usd: f64,
+}
+
 impl PolymarketLiveIngestionClient {
     pub fn new(
         base_url: impl Into<String>,
@@ -948,12 +975,38 @@ impl PolymarketLiveIngestionClient {
         }
     }
 
+    pub fn from_discovered(
+        base_url: impl Into<String>,
+        discovered: &PolymarketDiscoveredMarket,
+    ) -> Self {
+        Self::new(
+            base_url,
+            discovered.market_slug.clone(),
+            discovered.outcome.clone(),
+        )
+    }
+
+    pub fn markets_url(base_url: &str) -> String {
+        format!(
+            "{}/markets?active=true&closed=false&limit=100",
+            base_url.trim_end_matches('/')
+        )
+    }
+
     pub fn gamma_market_url(&self) -> String {
         format!(
             "{}/markets/slug/{}",
             self.base_url.trim_end_matches('/'),
             self.market_slug
         )
+    }
+
+    pub fn discover_market_from_payload(
+        payload_json: &str,
+        criteria: &PolymarketMarketDiscoveryCriteria,
+    ) -> Result<PolymarketDiscoveredMarket, IngestionError> {
+        let markets = parse_polymarket_markets_payload(payload_json, criteria)?;
+        select_polymarket_market_candidate(markets, criteria)
     }
 
     pub fn parse_gamma_market_payload(
@@ -1225,6 +1278,10 @@ impl JsonPayloadParser {
         &self.root
     }
 
+    fn root_array(&self) -> Option<&Vec<Value>> {
+        self.root.as_array()
+    }
+
     fn object_at(&self, path: &[&str]) -> Option<&Value> {
         let mut current = &self.root;
         for key in path {
@@ -1285,6 +1342,17 @@ impl JsonPayloadParser {
         object
             .get(key)
             .map(|value| self.value_to_i64(value, key))
+            .transpose()
+    }
+
+    fn optional_bool_from(
+        &self,
+        object: &Value,
+        key: &str,
+    ) -> Result<Option<bool>, IngestionError> {
+        object
+            .get(key)
+            .map(|value| self.value_to_bool(value, key))
             .transpose()
     }
 
@@ -1399,6 +1467,17 @@ impl JsonPayloadParser {
         Err(self.malformed_field(key))
     }
 
+    fn string_array_from(
+        &self,
+        object: &Value,
+        key: &str,
+    ) -> Result<Option<Vec<String>>, IngestionError> {
+        object
+            .get(key)
+            .map(|value| self.string_array(value, key))
+            .transpose()
+    }
+
     fn value_to_string(&self, value: &Value, key: &str) -> Result<String, IngestionError> {
         value
             .as_str()
@@ -1433,6 +1512,23 @@ impl JsonPayloadParser {
                     IngestionErrorKind::MalformedPayload,
                     Some(self.source),
                     format!("invalid {} integer field {key}: {error}", self.source_name),
+                )
+            });
+        }
+
+        Err(self.malformed_field(key))
+    }
+
+    fn value_to_bool(&self, value: &Value, key: &str) -> Result<bool, IngestionError> {
+        if let Some(flag) = value.as_bool() {
+            return Ok(flag);
+        }
+        if let Some(text) = value.as_str() {
+            return text.parse::<bool>().map_err(|error| {
+                IngestionError::new(
+                    IngestionErrorKind::MalformedPayload,
+                    Some(self.source),
+                    format!("invalid {} boolean field {key}: {error}", self.source_name),
                 )
             });
         }
@@ -1504,6 +1600,87 @@ fn parse_deribit_instruments_payload(
     Ok(discovered)
 }
 
+fn parse_polymarket_markets_payload(
+    payload_json: &str,
+    criteria: &PolymarketMarketDiscoveryCriteria,
+) -> Result<Vec<PolymarketDiscoveredMarket>, IngestionError> {
+    let parser = JsonPayloadParser::new(payload_json, IngestionSource::Polymarket, "Polymarket")?;
+    let markets = parser
+        .root_array()
+        .or_else(|| parser.array_at(&["result"]))
+        .or_else(|| parser.array_at(&["data"]))
+        .ok_or_else(|| {
+            IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Polymarket),
+                "missing Polymarket markets array",
+            )
+        })?;
+
+    let mut discovered = Vec::new();
+    for market in markets {
+        let market_slug = parser
+            .optional_string_from(market, "slug")?
+            .or_else(|| {
+                parser
+                    .optional_string_from(market, "market_slug")
+                    .ok()
+                    .flatten()
+            })
+            .ok_or_else(|| parser.missing_field("slug|market_slug"))?;
+        let question = parser
+            .optional_string_from(market, "question")?
+            .unwrap_or_else(|| market_slug.clone());
+        let event_slug = parser
+            .optional_string_from(market, "event_slug")?
+            .or_else(|| {
+                parser
+                    .optional_string_from(market, "eventSlug")
+                    .ok()
+                    .flatten()
+            })
+            .or_else(|| {
+                first_nested_string_from_value(&parser, market, &["events"], "slug")
+                    .ok()
+                    .flatten()
+            })
+            .unwrap_or_else(|| market_slug.clone());
+        let active = parser.optional_bool_from(market, "active")?.unwrap_or(true);
+        let closed = parser
+            .optional_bool_from(market, "closed")?
+            .unwrap_or(false);
+        if !active || closed {
+            continue;
+        }
+        let liquidity_usd = parser
+            .optional_f64_from(market, "liquidityNum")?
+            .or_else(|| parser.optional_f64_from(market, "liquidity").ok().flatten())
+            .or_else(|| {
+                parser
+                    .optional_f64_from(market, "liquidity_usd")
+                    .ok()
+                    .flatten()
+            })
+            .unwrap_or(0.0);
+        let outcomes = parser
+            .string_array_from(market, "outcomes")?
+            .unwrap_or_default();
+        if !outcomes.iter().any(|outcome| outcome == &criteria.outcome) {
+            continue;
+        }
+
+        discovered.push(PolymarketDiscoveredMarket {
+            market_slug,
+            event_slug,
+            question,
+            outcome: criteria.outcome.clone(),
+            liquidity_usd,
+        });
+    }
+
+    Ok(discovered)
+}
+
 fn select_deribit_option_candidate(
     instruments: Vec<DeribitDiscoveredOption>,
     criteria: &DeribitOptionDiscoveryCriteria,
@@ -1546,6 +1723,71 @@ fn select_deribit_option_candidate(
             ),
         )
     })
+}
+
+fn select_polymarket_market_candidate(
+    markets: Vec<PolymarketDiscoveredMarket>,
+    criteria: &PolymarketMarketDiscoveryCriteria,
+) -> Result<PolymarketDiscoveredMarket, IngestionError> {
+    let required_terms: Vec<String> = criteria
+        .required_terms
+        .iter()
+        .map(|term| term.to_ascii_lowercase())
+        .collect();
+    let mut candidates: Vec<PolymarketDiscoveredMarket> = markets
+        .into_iter()
+        .filter(|market| market.liquidity_usd >= criteria.min_liquidity_usd)
+        .filter(|market| {
+            let haystack =
+                format!("{} {}", market.market_slug, market.question).to_ascii_lowercase();
+            required_terms
+                .iter()
+                .all(|term| haystack.contains(term.as_str()))
+        })
+        .collect();
+
+    candidates.sort_by(|left, right| {
+        right
+            .liquidity_usd
+            .total_cmp(&left.liquidity_usd)
+            .then_with(|| left.market_slug.cmp(&right.market_slug))
+    });
+
+    candidates.into_iter().next().ok_or_else(|| {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Polymarket),
+            format!(
+                "no Polymarket market candidate for terms {:?}, outcome {}, min liquidity {}",
+                criteria.required_terms, criteria.outcome, criteria.min_liquidity_usd
+            ),
+        )
+    })
+}
+
+fn first_nested_string_from_value(
+    parser: &JsonPayloadParser,
+    object: &Value,
+    array_key_path: &[&str],
+    key: &str,
+) -> Result<Option<String>, IngestionError> {
+    let mut current = object;
+    for path_key in array_key_path {
+        let Some(next) = current.get(*path_key) else {
+            return Ok(None);
+        };
+        current = next;
+    }
+    let Some(array) = current.as_array() else {
+        return Ok(None);
+    };
+    let Some(first) = array.first() else {
+        return Ok(None);
+    };
+    let Some(value) = first.get(key) else {
+        return Ok(None);
+    };
+    parser.value_to_string(value, key).map(Some)
 }
 
 fn parse_deribit_underlying(instrument_name: &str) -> Result<String, IngestionError> {
@@ -2754,6 +2996,82 @@ mod tests {
         assert_eq!(quote.bid_probability, 0.51);
         assert_eq!(quote.ask_probability, 0.51);
         assert_eq!(quote.liquidity_usd, 10_000.0);
+    }
+
+    #[test]
+    fn polymarket_discovery_selects_liquid_matching_market() {
+        let payload = r#"[
+            {
+                "slug": "btc-above-3000-june-1",
+                "question": "Will BTC be above $3000 on June 1?",
+                "outcomes": "[\"Yes\", \"No\"]",
+                "outcomePrices": "[\"0.99\", \"0.01\"]",
+                "liquidity": "20000",
+                "active": true,
+                "closed": false
+            },
+            {
+                "slug": "eth-above-3000-june-1-low-liquidity",
+                "question": "Will ETH be above $3000 on June 1?",
+                "outcomes": "[\"Yes\", \"No\"]",
+                "outcomePrices": "[\"0.51\", \"0.49\"]",
+                "liquidity": "100",
+                "active": true,
+                "closed": false
+            },
+            {
+                "slug": "eth-above-3000-june-1",
+                "question": "Will ETH be above $3000 on June 1?",
+                "outcomes": "[\"Yes\", \"No\"]",
+                "outcomePrices": "[\"0.51\", \"0.49\"]",
+                "liquidity": "10000",
+                "active": true,
+                "closed": false,
+                "events": [{ "slug": "eth-above-3000" }]
+            }
+        ]"#;
+
+        let discovered = PolymarketLiveIngestionClient::discover_market_from_payload(
+            payload,
+            &PolymarketMarketDiscoveryCriteria::phase0_eth_above_3000_yes(),
+        )
+        .expect("discovery payload should produce a Polymarket candidate");
+
+        assert_eq!(discovered.market_slug, "eth-above-3000-june-1");
+        assert_eq!(discovered.event_slug, "eth-above-3000");
+        assert_eq!(discovered.outcome, "Yes");
+        assert_eq!(discovered.liquidity_usd, 10_000.0);
+    }
+
+    #[test]
+    fn polymarket_discovery_rejects_closed_or_missing_outcome_markets() {
+        let payload = r#"[
+            {
+                "slug": "eth-above-3000-closed",
+                "question": "Will ETH be above $3000?",
+                "outcomes": "[\"Yes\", \"No\"]",
+                "liquidity": "10000",
+                "active": true,
+                "closed": true
+            },
+            {
+                "slug": "eth-above-3000-no-yes",
+                "question": "Will ETH be above $3000?",
+                "outcomes": "[\"Up\", \"Down\"]",
+                "liquidity": "10000",
+                "active": true,
+                "closed": false
+            }
+        ]"#;
+
+        let error = PolymarketLiveIngestionClient::discover_market_from_payload(
+            payload,
+            &PolymarketMarketDiscoveryCriteria::phase0_eth_above_3000_yes(),
+        )
+        .expect_err("closed or incompatible markets should not produce a candidate");
+
+        assert_eq!(error.kind, IngestionErrorKind::MalformedPayload);
+        assert!(error.message.contains("no Polymarket market candidate"));
     }
 
     #[test]

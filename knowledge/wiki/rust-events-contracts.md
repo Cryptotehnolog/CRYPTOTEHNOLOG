@@ -203,6 +203,8 @@ LiveIngestionClient
 DeribitOptionDiscoveryCriteria
 DeribitDiscoveredOption
 DeribitLiveIngestionClient
+PolymarketMarketDiscoveryCriteria
+PolymarketDiscoveredMarket
 PolymarketLiveIngestionClient
 NormalizedBatchValidator
 AcceptAllNormalizedBatchValidator
@@ -229,9 +231,11 @@ Design boundary:
 - `LiveIngestionProbeReport` фиксирует diagnostic connectivity result: endpoint, url, status, payload bytes, latency_ms, error kind и error message.
 - `DeribitOptionDiscoveryCriteria` и `DeribitDiscoveredOption` задают read-only discovery boundary для выбора ближайшего Deribit option instrument перед ticker polling.
 - `DeribitLiveIngestionClient` строит read-only `public/get_instruments` и `public/ticker` URLs, выбирает option candidate из instruments payload и парсит fixture-shaped и real-shaped Deribit JSON-RPC ticker payloads в raw + normalized Deribit events; default `poll_once()` остается `NotImplemented`.
-- `PolymarketLiveIngestionClient` строит read-only Gamma market URL и парсит fixture-shaped и real-shaped Polymarket Gamma market payloads в raw + normalized Polymarket outcome events; default `poll_once()` остается `NotImplemented`.
+- `PolymarketMarketDiscoveryCriteria` и `PolymarketDiscoveredMarket` задают read-only discovery boundary для выбора Polymarket Gamma market candidate перед market-by-slug polling.
+- `PolymarketLiveIngestionClient` строит read-only Gamma markets и market-by-slug URLs, выбирает candidate из markets payload и парсит fixture-shaped и real-shaped Polymarket Gamma market payloads в raw + normalized Polymarket outcome events; default `poll_once()` остается `NotImplemented`.
 - `JsonPayloadParser` убирает дублирование JSON field extraction между live adapter skeletons. Он поддерживает Deribit `result.*`, Deribit short option expiries вроде `1JUN26`, Polymarket `slug`, JSON-encoded `outcomes`/`outcomePrices`, string/number liquidity и Phase 0 fallback `bid=ask=outcomePrice` для Gamma snapshots без CLOB spread.
-- `payload_shape_version` в manual reports фиксирует parser contract, который обработал live payload: `deribit_get_instruments_v1`, `deribit_json_rpc_ticker_v1`, `polymarket_gamma_market_v1`.
+- `payload_shape_version` в manual reports фиксирует parser contract, который обработал live payload: `deribit_get_instruments_v1`, `deribit_json_rpc_ticker_v1`, `polymarket_gamma_markets_v1`, `polymarket_gamma_market_v1`.
+- `selection_report` в `live_probe_replay_report.json` фиксирует выбранный Deribit instrument, target/selected expiry, strike distance и выбранный Polymarket market slug.
 - `ingest_once()` сохраняет raw events до normalized market events.
 - `ingest_once_with_validator()` сохраняет raw events, затем валидирует normalized events и только после этого пишет их в journal.
 - `ingest_once_with_report()` возвращает `IngestionOutcome` с `ValidationReport`; raw events сохраняются, accepted normalized events пишутся, rejected normalized events не пишутся.
