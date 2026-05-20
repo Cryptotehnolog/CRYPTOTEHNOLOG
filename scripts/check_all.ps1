@@ -22,6 +22,9 @@ try {
     Write-Output "== Replay manifest check =="
     .\scripts\check_replay_manifest.ps1
 
+    Write-Output "== Ingestion manifest check =="
+    .\scripts\check_ingestion_manifest.ps1
+
     Write-Output "== Pricing model fixture policy check =="
     .\scripts\check_pricing_model_fixture_update.ps1
 

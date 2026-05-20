@@ -29,6 +29,7 @@ Live monitoring должен быть Rust service/binary. PowerShell может
 - compliance,
 - phase gate,
 - replay manifest,
+- ingestion manifest,
 - pricing model fixture policy,
 - `cargo fmt --check`,
 - `cargo check`,
@@ -86,6 +87,8 @@ JSON/text output включает `ReplaySummary`: counts matched/rejected, coun
 
 Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, чтобы `run_replay_regression.ps1`, `update_golden_fixture.ps1` и `check_golden_fixture_current.ps1` не дублировали один и тот же TOML subset parser.
 
+Общие lightweight helpers для manifest parsing, path normalization и uniqueness checks находятся в `scripts/lib/manifest_utils.ps1`. Они используются replay и ingestion manifest wrappers, но не являются полноценным TOML parser.
+
 ### `scripts/check_replay_manifest.ps1`
 
 Проверяет `fixtures/manifest.toml` без запуска `cargo`:
@@ -95,6 +98,17 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 - referenced fixture/report files должны существовать.
 
 Включен в `check_all` и CI до replay regression, чтобы ошибки manifest ловились быстро.
+
+### `scripts/check_ingestion_manifest.ps1`
+
+Проверяет `fixtures/ingestion/manifest.toml` без запуска `cargo`:
+
+- scenario names должны быть уникальны,
+- `fixture` paths не должны дублироваться,
+- referenced fixture files должны существовать,
+- `expected_observations` должен быть числом.
+
+Включен в `check_all` и CI, чтобы ingestion orchestration fixtures оставались видимым контрактом, а не только Rust unit-test detail.
 
 ### `scripts/check_pricing_model_fixture_update.ps1`
 

@@ -53,6 +53,10 @@ jobs:
         shell: pwsh
         run: .\scripts\check_replay_manifest.ps1
 
+      - name: Check ingestion manifest
+        shell: pwsh
+        run: .\scripts\check_ingestion_manifest.ps1
+
       - name: Check pricing model fixture policy
         shell: pwsh
         run: .\scripts\check_pricing_model_fixture_update.ps1
