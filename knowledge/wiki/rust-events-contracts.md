@@ -204,6 +204,7 @@ Raw API payload wrapper before normalization.
 - `PostgresBasisObservationAdapter` skeleton без real DB connection.
 - `PostgresEventJournalAdapter` skeleton без real DB connection.
 - `PostgresEventJournalWriter` feature-gated skeleton за `postgres-writer` без real DB connection.
+- `InMemoryEventJournalRowWriter` для тестов storage-row boundary без PostgreSQL подключения.
 
 Также реализован probability-basis matcher skeleton:
 
@@ -466,6 +467,8 @@ VALUES ($1, $2, $3, to_timestamp($4::double precision / 1000.0), ...)
 
 `PostgresEventJournalWriter` существует только за feature flag `postgres-writer`. Сейчас он фиксирует future writer API и возвращает `JournalErrorKind::Storage`, потому что реальный DB connector еще не выбран и не подключен к default Phase 0 path.
 
+`InMemoryEventJournalRowWriter` реализует тот же `EventJournalRowWriter`, но сохраняет rows в памяти и отклоняет duplicate `event_id`. Он используется для vertical-slice тестов, чтобы ingestion path проверял future storage boundary без DB connector.
+
 Proposed replay filter:
 
 ```rust
@@ -516,6 +519,7 @@ pub struct ReplayEventFilter {
 - Live ingestion probe report: success/error reports include endpoint, url, payload bytes, latency and error kind without writing to journal or producing market events.
 - Thin orchestration: Deribit mock batch + Polymarket mock batch -> `EventJournal` -> `match_from_market_events()` -> `BasisObservation`.
 - Live/mock vertical slice: `FixtureHttpTransport` -> Deribit/Polymarket live parser boundary -> raw events -> normalized events -> append-order `EventJournalRow` snapshots -> replay matcher -> `BasisObservation`.
+- Row-writer vertical slice: ingestion может зеркалировать raw/accepted normalized events в `EventJournalRowWriter`; тестовый `InMemoryEventJournalRowWriter` проверяет тот же row contract без PostgreSQL.
 - Negative orchestration: malformed Polymarket quote сохраняет raw event, но не создает `BasisObservation`.
 
 ## Design Rule

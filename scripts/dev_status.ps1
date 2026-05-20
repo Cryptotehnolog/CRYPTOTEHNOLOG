@@ -147,6 +147,16 @@ try {
     Write-Output (Get-CommandVersion -Command "uv" -Arguments @("--version"))
     Write-Output (Get-CommandVersion -Command "git" -Arguments @("--version"))
 
+    Write-Section "Advisory Skills"
+    $rustSkillsPath = Join-Path $env:USERPROFILE ".codex\skills\rust-skills\SKILL.md"
+    if (Test-Path $rustSkillsPath) {
+        Write-Output "rust-skills: present ($rustSkillsPath)"
+    }
+    else {
+        Write-Output "rust-skills: missing (optional advisory review tool)"
+        Write-Output "Install example: git clone https://github.com/leonardomso/rust-skills.git `"$env:USERPROFILE\.codex\skills\rust-skills`""
+    }
+
     Write-Section "Fast Checks"
     Write-Output "Run: .\scripts\check_all.ps1"
 }

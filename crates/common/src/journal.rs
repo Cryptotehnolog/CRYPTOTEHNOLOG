@@ -146,6 +146,36 @@ pub trait EventJournalRowWriter {
     fn append_event_journal_row(&mut self, row: EventJournalRow) -> Result<(), JournalError>;
 }
 
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct InMemoryEventJournalRowWriter {
+    rows: Vec<EventJournalRow>,
+}
+
+impl InMemoryEventJournalRowWriter {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn rows(&self) -> &[EventJournalRow] {
+        &self.rows
+    }
+
+    fn contains_event_id(&self, event_id: &str) -> bool {
+        self.rows.iter().any(|row| row.event_id == event_id)
+    }
+}
+
+impl EventJournalRowWriter for InMemoryEventJournalRowWriter {
+    fn append_event_journal_row(&mut self, row: EventJournalRow) -> Result<(), JournalError> {
+        if self.contains_event_id(&row.event_id) {
+            return Err(JournalError::duplicate_event(&row.event_id));
+        }
+
+        self.rows.push(row);
+        Ok(())
+    }
+}
+
 pub struct PostgresEventJournalAdapter;
 
 impl PostgresEventJournalAdapter {
@@ -518,6 +548,20 @@ mod tests {
             PostgresEventJournalAdapter::insert_sql(),
             "INSERT INTO event_journal (event_id, event_type, source, exchange_ts, received_ts, instrument_id, schema_version, config_version, payload) VALUES ($1, $2, $3, to_timestamp($4::double precision / 1000.0), to_timestamp($5::double precision / 1000.0), $6, $7, $8, $9::jsonb)"
         );
+    }
+
+    #[test]
+    fn in_memory_event_journal_row_writer_preserves_storage_rows_and_rejects_duplicates() {
+        let event = polymarket_quote("poly-quote-1", 2000);
+        let row = EventJournalRow::from_market_event(&event);
+        let mut writer = InMemoryEventJournalRowWriter::new();
+
+        writer.append_event_journal_row(row.clone()).unwrap();
+        assert_eq!(writer.rows(), &[row.clone()]);
+
+        let error = writer.append_event_journal_row(row).unwrap_err();
+        assert_eq!(error.kind, JournalErrorKind::DuplicateEvent);
+        assert_eq!(writer.rows().len(), 1);
     }
 
     #[cfg(feature = "postgres-writer")]

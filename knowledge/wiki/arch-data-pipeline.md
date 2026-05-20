@@ -143,6 +143,8 @@ Deribit mock batch
 
 `InMemoryEventJournal` дополнительно сохраняет append-order `EventJournalRow` snapshots для raw и normalized events. Это не заменяет будущий PostgreSQL writer, но фиксирует вертикальный контракт Phase 0: payload может пройти путь `live/mock payload -> raw event -> normalized event -> journal row -> replay matcher -> BasisObservation` полностью offline.
 
+`InMemoryEventJournalRowWriter` добавлен как тестовый sink для того же storage-row boundary. Он позволяет ingestion orchestration зеркалировать raw и accepted normalized events в `EventJournalRowWriter`, имитируя future PostgreSQL insert path без DB connector, async runtime или network tests.
+
 Fixture `fixtures/ingestion/malformed_polymarket_quote.psv` документирует negative orchestration path: raw Polymarket payload сохраняется в `EventJournal`, normalized quote с некорректным `bid_probability > ask_probability` отклоняется `Phase0NormalizedBatchValidator`, normalized event не пишется в journal, а `BasisObservation` не создается.
 
 `fixtures/ingestion/manifest.toml` является lightweight registry для ingestion orchestration scenarios. Он фиксирует список сценариев и semantic expectations:

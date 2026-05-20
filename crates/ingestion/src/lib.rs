@@ -6,7 +6,9 @@ use cryptotehnolog_common::events::{
     DeribitOptionQuote, EventMeta, MarketEvent, OptionKind, PolymarketApiLayer,
     PolymarketOutcomeQuote, RawDeribitEvent, RawPolymarketEvent,
 };
-use cryptotehnolog_common::journal::{EventJournal, JournalError};
+use cryptotehnolog_common::journal::{
+    EventJournal, EventJournalRow, EventJournalRowWriter, JournalError,
+};
 use serde_json::Value;
 
 pub const DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION: &str = "deribit_get_instruments_v1";
@@ -1272,6 +1274,46 @@ where
     })
 }
 
+pub fn ingest_once_with_report_and_row_writer<C, J, V, W>(
+    client: &mut C,
+    journal: &mut J,
+    row_writer: &mut W,
+    config: &IngestionConfig,
+    validator: &V,
+) -> Result<IngestionOutcome, IngestionError>
+where
+    C: IngestionClient,
+    J: EventJournal,
+    V: NormalizedBatchValidator,
+    W: EventJournalRowWriter,
+{
+    let batch = client.poll_once(config)?;
+
+    write_raw_events(journal, &batch)?;
+    write_raw_event_rows(row_writer, &batch)?;
+
+    let validation_report = validator.validation_report(&batch);
+    let accepted_events: Vec<MarketEvent> = batch
+        .market_events
+        .iter()
+        .filter(|event| {
+            !validation_report
+                .rejections
+                .iter()
+                .any(|rejection| rejection.event_id == event.meta().event_id)
+        })
+        .cloned()
+        .collect();
+
+    write_normalized_events(journal, &batch, &accepted_events)?;
+    write_normalized_event_rows(row_writer, &batch, &accepted_events)?;
+
+    Ok(IngestionOutcome {
+        batch,
+        validation_report,
+    })
+}
+
 fn write_raw_events<J>(journal: &mut J, batch: &IngestionBatch) -> Result<(), IngestionError>
 where
     J: EventJournal,
@@ -1301,6 +1343,42 @@ where
     for market_event in market_events {
         journal
             .append_market_event(market_event.clone())
+            .map_err(|error| IngestionError::from_journal(batch.source, error))?;
+    }
+
+    Ok(())
+}
+
+fn write_raw_event_rows<W>(writer: &mut W, batch: &IngestionBatch) -> Result<(), IngestionError>
+where
+    W: EventJournalRowWriter,
+{
+    for raw_event in &batch.raw_events {
+        let row = match raw_event {
+            RawIngestionEvent::Deribit(event) => EventJournalRow::from_raw_deribit_event(event),
+            RawIngestionEvent::Polymarket(event) => {
+                EventJournalRow::from_raw_polymarket_event(event)
+            }
+        };
+        writer
+            .append_event_journal_row(row)
+            .map_err(|error| IngestionError::from_journal(raw_event.source(), error))?;
+    }
+
+    Ok(())
+}
+
+fn write_normalized_event_rows<W>(
+    writer: &mut W,
+    batch: &IngestionBatch,
+    market_events: &[MarketEvent],
+) -> Result<(), IngestionError>
+where
+    W: EventJournalRowWriter,
+{
+    for market_event in market_events {
+        writer
+            .append_event_journal_row(EventJournalRow::from_market_event(market_event))
             .map_err(|error| IngestionError::from_journal(batch.source, error))?;
     }
 
@@ -2365,7 +2443,7 @@ mod tests {
         DeribitOptionQuote, EventMeta, OptionKind, PolymarketApiLayer, PolymarketOutcomeQuote,
         RawDeribitEvent, RawPolymarketEvent, ReplayEventFilter,
     };
-    use cryptotehnolog_common::journal::InMemoryEventJournal;
+    use cryptotehnolog_common::journal::{InMemoryEventJournal, InMemoryEventJournalRowWriter};
     use cryptotehnolog_common::observations::{
         BasisObservationWriter, InMemoryBasisObservationWriter, observations_from_match_decisions,
     };
@@ -3428,6 +3506,56 @@ mod tests {
             observations[0].event_id,
             "probability-basis:market-deribit-ticker:ETH-20260601-3000-C:1779200000000:market-polymarket-gamma:eth-above-3000-june-1:Yes:1779200000000"
         );
+        assert!(observations[0].survives_costs);
+    }
+
+    #[test]
+    fn ingestion_can_mirror_events_to_event_journal_row_writer() {
+        let mut deribit_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(deribit_batch())]);
+        let mut polymarket_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(polymarket_batch())]);
+        let mut journal = InMemoryEventJournal::new();
+        let mut row_writer = InMemoryEventJournalRowWriter::new();
+
+        ingest_once_with_report_and_row_writer(
+            &mut deribit_client,
+            &mut journal,
+            &mut row_writer,
+            &IngestionConfig::phase0_deribit("mock://deribit"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("Deribit batch should ingest and mirror rows");
+        ingest_once_with_report_and_row_writer(
+            &mut polymarket_client,
+            &mut journal,
+            &mut row_writer,
+            &IngestionConfig::phase0_polymarket("mock://polymarket"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("Polymarket batch should ingest and mirror rows");
+
+        assert_eq!(journal.event_journal_rows(), row_writer.rows());
+        assert_eq!(row_writer.rows().len(), 4);
+        assert_eq!(row_writer.rows()[0].event_type, "raw_deribit_event");
+        assert_eq!(row_writer.rows()[1].event_type, "deribit_option_quote");
+        assert_eq!(row_writer.rows()[2].event_type, "raw_polymarket_event");
+        assert_eq!(row_writer.rows()[3].event_type, "polymarket_outcome_quote");
+
+        let replay_events = journal
+            .read_events_for_replay(ReplayEventFilter {
+                start_ts_ms: 0,
+                end_ts_ms: 1_781_000_000_000,
+                event_types: vec![],
+                instrument_ids: vec![],
+                config_version: Some("phase0-ingestion".to_string()),
+            })
+            .expect("journal should return replay events");
+        let config = probability_basis_config();
+        let decisions = match_from_market_events(&replay_events, &config);
+        let observations = observations_from_match_decisions(&decisions, &config);
+
+        assert_eq!(observations.len(), 1);
         assert!(observations[0].survives_costs);
     }
 

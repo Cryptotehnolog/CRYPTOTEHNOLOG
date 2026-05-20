@@ -287,3 +287,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-20] implementation | Ingestion to journal row vertical slice
 
 `InMemoryEventJournal` теперь сохраняет append-order `EventJournalRow` snapshots для raw и normalized events. Ingestion fixture transport test проверяет полный offline путь: fixture HTTP payload -> raw event -> normalized event -> journal row -> replay matcher -> `BasisObservation`.
+
+## [2026-05-20] implementation | EventJournalRowWriter test sink and dev status advisory skill
+
+Добавлен `InMemoryEventJournalRowWriter` как тестовый sink для `EventJournalRowWriter`, чтобы ingestion мог зеркалировать raw и accepted normalized events в future storage-row boundary без PostgreSQL connector. `scripts/dev_status.ps1` теперь показывает наличие optional `rust-skills` advisory review tool.
