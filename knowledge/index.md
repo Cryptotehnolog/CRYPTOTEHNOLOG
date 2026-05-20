@@ -14,6 +14,7 @@ sources:
 
 - [Схема базы знаний](schema.md) - operating contract для поддержки wiki.
 - [Обзор базы знаний](wiki/system-knowledge-base.md) - зачем проекту нужна постоянная LLM-maintained wiki.
+- [Граф базы знаний](graph.md) - curated Mermaid-граф ключевых смысловых связей.
 
 ## Decisions
 
@@ -38,4 +39,3 @@ sources:
 ## Raw Sources
 
 - [Karpathy LLM Wiki](raw/sources/karpathy-llm-wiki-2026-04-04.md) - source note по LLM Wiki gist.
-

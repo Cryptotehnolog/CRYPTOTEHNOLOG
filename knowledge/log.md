@@ -45,3 +45,7 @@ sources: []
 ## [2026-05-20] workflow | Obsidian local artifacts
 
 После подключения Obsidian уточнено, что `.obsidian/`, `.canvas`, `.base` и daily notes являются user-specific локальными artifacts. Git игнорирует их, а `kb_health_check.ps1` проверяет только managed knowledge files.
+
+## [2026-05-20] system | Curated knowledge graph
+
+Добавлен `knowledge/graph.md` с curated Mermaid-графом ключевых смысловых связей. Health-check должен проверять наличие `graph.md` и YAML frontmatter, но не валидировать семантику графа.

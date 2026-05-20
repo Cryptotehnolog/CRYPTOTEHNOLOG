@@ -26,6 +26,7 @@ if (!(Test-Path $log)) {
 $managedMarkdownFiles = @(
     (Join-Path $knowledge "schema.md"),
     (Join-Path $knowledge "index.md"),
+    (Join-Path $knowledge "graph.md"),
     (Join-Path $knowledge "log.md")
 )
 
