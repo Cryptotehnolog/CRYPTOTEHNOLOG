@@ -196,6 +196,61 @@ impl LiveHttpTransport for FixtureHttpTransport {
     }
 }
 
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Clone)]
+pub struct ReqwestHttpTransport {
+    client: reqwest::blocking::Client,
+}
+
+#[cfg(feature = "network-integration")]
+impl ReqwestHttpTransport {
+    pub fn new(timeout_ms: u64) -> Result<Self, IngestionError> {
+        let timeout = std::time::Duration::from_millis(timeout_ms);
+        let client = reqwest::blocking::Client::builder()
+            .timeout(timeout)
+            .user_agent("CRYPTOTEHNOLOG/phase0-network-integration")
+            .build()
+            .map_err(|error| {
+                IngestionError::new(
+                    IngestionErrorKind::Api,
+                    None,
+                    format!("failed to build reqwest HTTP client: {error}"),
+                )
+            })?;
+
+        Ok(Self { client })
+    }
+}
+
+#[cfg(feature = "network-integration")]
+impl LiveHttpTransport for ReqwestHttpTransport {
+    fn get(&self, url: &str) -> Result<String, IngestionError> {
+        let response = self.client.get(url).send().map_err(|error| {
+            IngestionError::new(
+                IngestionErrorKind::Api,
+                None,
+                format!("HTTP GET failed for {url}: {error}"),
+            )
+        })?;
+        let status = response.status();
+        if !status.is_success() {
+            return Err(IngestionError::new(
+                IngestionErrorKind::Api,
+                None,
+                format!("HTTP GET returned {status} for {url}"),
+            ));
+        }
+
+        response.text().map_err(|error| {
+            IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                None,
+                format!("failed to read HTTP response body for {url}: {error}"),
+            )
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NormalizedBatchValidationError {
     pub source_name: String,
@@ -2109,6 +2164,15 @@ mod tests {
         assert_eq!(journal.raw_deribit_events().len(), 1);
         assert_eq!(journal.raw_polymarket_events().len(), 1);
         assert_eq!(journal.market_events().len(), 2);
+    }
+
+    #[cfg(feature = "network-integration")]
+    #[test]
+    fn reqwest_http_transport_can_be_constructed_when_feature_enabled() {
+        let transport = ReqwestHttpTransport::new(1_000)
+            .expect("feature-gated reqwest transport should construct without network calls");
+
+        let _ = transport;
     }
 
     #[test]

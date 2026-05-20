@@ -1,0 +1,20 @@
+name: Network integration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  connectivity:
+    name: Read-only connectivity check
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check Deribit and Polymarket connectivity
+        shell: pwsh
+        run: .\scripts\run_network_connectivity_check.ps1
