@@ -48,7 +48,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
         LiveProbeReplayFailure::from_early_error("transport", error, Vec::new())
     })?;
     let deribit_client =
-        DeribitLiveIngestionClient::new("https://www.deribit.com", "ETH-20260601-3000-C");
+        DeribitLiveIngestionClient::new("https://www.deribit.com", "ETH-1JUN26-3000-C");
     let polymarket_client = PolymarketLiveIngestionClient::new(
         "https://gamma-api.polymarket.com",
         "eth-above-3000-june-1",

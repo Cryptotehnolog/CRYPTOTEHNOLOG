@@ -7,6 +7,7 @@ use cryptotehnolog_common::events::{
     PolymarketOutcomeQuote, RawDeribitEvent, RawPolymarketEvent,
 };
 use cryptotehnolog_common::journal::{EventJournal, JournalError};
+use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IngestionSource {
@@ -778,8 +779,11 @@ impl DeribitLiveIngestionClient {
             ));
         }
 
-        let parser = JsonFixtureParser::new(payload_json, IngestionSource::Deribit, "Deribit");
-        let instrument_name = parser.string("instrument_name")?;
+        let parser = JsonPayloadParser::new(payload_json, IngestionSource::Deribit, "Deribit")?;
+        let ticker = parser
+            .object_at(&["result"])
+            .unwrap_or_else(|| parser.root());
+        let instrument_name = parser.string_from(ticker, "instrument_name")?;
         if instrument_name != self.instrument_name {
             return Err(IngestionError::new(
                 IngestionErrorKind::MalformedPayload,
@@ -791,15 +795,15 @@ impl DeribitLiveIngestionClient {
             ));
         }
 
-        let timestamp_ms = parser.i64("timestamp")?;
+        let timestamp_ms = parser.i64_from(ticker, "timestamp")?;
         let expiry_ts_ms = parse_deribit_expiry_ts_ms(&instrument_name)?;
         let strike = parse_deribit_strike(&instrument_name)?;
         let option_kind = parse_deribit_option_kind(&instrument_name)?;
         let underlying = parse_deribit_underlying(&instrument_name)?;
-        let underlying_price = parser.f64("underlying_price")?;
-        let bid = parser.f64("best_bid_price")?;
-        let ask = parser.f64("best_ask_price")?;
-        let mark_iv = parser.f64("mark_iv")?;
+        let underlying_price = parser.f64_from(ticker, "underlying_price")?;
+        let bid = parser.f64_from(ticker, "best_bid_price")?;
+        let ask = parser.f64_from(ticker, "best_ask_price")?;
+        let mark_iv = parser.f64_from(ticker, "mark_iv")?;
 
         let raw_meta = EventMeta {
             event_id: format!("raw-deribit-ticker:{instrument_name}:{timestamp_ms}"),
@@ -909,8 +913,10 @@ impl PolymarketLiveIngestionClient {
         }
 
         let parser =
-            JsonFixtureParser::new(payload_json, IngestionSource::Polymarket, "Polymarket");
-        let market_slug = parser.string("market_slug")?;
+            JsonPayloadParser::new(payload_json, IngestionSource::Polymarket, "Polymarket")?;
+        let market_slug = parser
+            .optional_string_any(&["market_slug", "slug"])?
+            .ok_or_else(|| parser.missing_field("market_slug|slug"))?;
         if market_slug != self.market_slug {
             return Err(IngestionError::new(
                 IngestionErrorKind::MalformedPayload,
@@ -922,23 +928,38 @@ impl PolymarketLiveIngestionClient {
             ));
         }
 
-        let event_slug = parser.string("event_slug")?;
-        let outcome = parser.string("outcome")?;
-        if outcome != self.outcome {
+        let event_slug = parser
+            .optional_string_any(&["event_slug", "eventSlug"])?
+            .or_else(|| {
+                parser
+                    .first_nested_string(&["events"], "slug")
+                    .ok()
+                    .flatten()
+            })
+            .unwrap_or_else(|| market_slug.clone());
+        let outcome_index = parser.outcome_index(&self.outcome)?;
+        let outcome = self.outcome.clone();
+        if outcome_index.is_none() {
             return Err(IngestionError::new(
                 IngestionErrorKind::MalformedPayload,
                 Some(IngestionSource::Polymarket),
-                format!(
-                    "Polymarket outcome mismatch: expected {}, got {}",
-                    self.outcome, outcome
-                ),
+                format!("Polymarket outcome `{}` not found in payload", self.outcome),
             ));
         }
+        let outcome_index = outcome_index.expect("checked above");
 
-        let timestamp_ms = parser.i64("timestamp")?;
-        let bid_probability = parser.f64("bid_probability")?;
-        let ask_probability = parser.f64("ask_probability")?;
-        let liquidity_usd = parser.f64("liquidity_usd")?;
+        let timestamp_ms = parser
+            .optional_i64_any(&["timestamp", "updatedAtMillis"])?
+            .unwrap_or(received_ts_ms);
+        let bid_probability = parser
+            .optional_f64_any(&["bid_probability", "bestBid"])?
+            .unwrap_or_else(|| parser.outcome_price(outcome_index).unwrap_or(f64::NAN));
+        let ask_probability = parser
+            .optional_f64_any(&["ask_probability", "bestAsk"])?
+            .unwrap_or_else(|| parser.outcome_price(outcome_index).unwrap_or(f64::NAN));
+        let liquidity_usd = parser
+            .optional_f64_any(&["liquidity_usd", "liquidityNum", "liquidity"])?
+            .unwrap_or(0.0);
 
         let raw_meta = EventMeta {
             event_id: format!("raw-polymarket-gamma:{market_slug}:{outcome}:{timestamp_ms}"),
@@ -1114,92 +1135,218 @@ where
     Ok(())
 }
 
-#[derive(Debug, Clone, Copy)]
-struct JsonFixtureParser<'a> {
-    payload_json: &'a str,
+#[derive(Debug, Clone)]
+struct JsonPayloadParser {
+    root: Value,
     source: IngestionSource,
     source_name: &'static str,
 }
 
-impl<'a> JsonFixtureParser<'a> {
-    fn new(payload_json: &'a str, source: IngestionSource, source_name: &'static str) -> Self {
-        Self {
-            payload_json,
+impl JsonPayloadParser {
+    fn new(
+        payload_json: &str,
+        source: IngestionSource,
+        source_name: &'static str,
+    ) -> Result<Self, IngestionError> {
+        let root = serde_json::from_str(payload_json).map_err(|error| {
+            IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(source),
+                format!("invalid {source_name} JSON payload: {error}"),
+            )
+        })?;
+
+        Ok(Self {
+            root,
             source,
             source_name,
-        }
+        })
     }
 
-    fn string(&self, key: &str) -> Result<String, IngestionError> {
-        let marker = format!("\"{key}\"");
-        let Some(key_start) = self.payload_json.find(&marker) else {
-            return Err(self.missing_field(key));
-        };
-        let after_key = &self.payload_json[key_start + marker.len()..];
-        let Some(colon_index) = after_key.find(':') else {
-            return Err(self.missing_field(key));
-        };
-        let after_colon = after_key[colon_index + 1..].trim_start();
-        if !after_colon.starts_with('"') {
-            return Err(self.malformed_field(key));
-        }
-        let value_start = 1;
-        let Some(value_end) = after_colon[value_start..].find('"') else {
-            return Err(self.malformed_field(key));
-        };
-
-        Ok(after_colon[value_start..value_start + value_end].to_string())
+    fn root(&self) -> &Value {
+        &self.root
     }
 
-    fn f64(&self, key: &str) -> Result<f64, IngestionError> {
-        let raw = self.number(key)?;
-        raw.parse::<f64>().map_err(|error| {
+    fn object_at(&self, path: &[&str]) -> Option<&Value> {
+        let mut current = &self.root;
+        for key in path {
+            current = current.get(*key)?;
+        }
+        current.as_object()?;
+        Some(current)
+    }
+
+    fn string_from(&self, object: &Value, key: &str) -> Result<String, IngestionError> {
+        let Some(value) = object.get(key) else {
+            return Err(self.missing_field(key));
+        };
+        self.value_to_string(value, key)
+    }
+
+    fn f64_from(&self, object: &Value, key: &str) -> Result<f64, IngestionError> {
+        let Some(value) = object.get(key) else {
+            return Err(self.missing_field(key));
+        };
+        self.value_to_f64(value, key)
+    }
+
+    fn i64_from(&self, object: &Value, key: &str) -> Result<i64, IngestionError> {
+        let Some(value) = object.get(key) else {
+            return Err(self.missing_field(key));
+        };
+        self.value_to_i64(value, key)
+    }
+
+    fn optional_string_any(&self, keys: &[&str]) -> Result<Option<String>, IngestionError> {
+        for key in keys {
+            if let Some(value) = self.root.get(*key) {
+                return self.value_to_string(value, key).map(Some);
+            }
+        }
+        Ok(None)
+    }
+
+    fn optional_f64_any(&self, keys: &[&str]) -> Result<Option<f64>, IngestionError> {
+        for key in keys {
+            if let Some(value) = self.root.get(*key) {
+                return self.value_to_f64(value, key).map(Some);
+            }
+        }
+        Ok(None)
+    }
+
+    fn optional_i64_any(&self, keys: &[&str]) -> Result<Option<i64>, IngestionError> {
+        for key in keys {
+            if let Some(value) = self.root.get(*key) {
+                return self.value_to_i64(value, key).map(Some);
+            }
+        }
+        Ok(None)
+    }
+
+    fn first_nested_string(
+        &self,
+        array_key_path: &[&str],
+        key: &str,
+    ) -> Result<Option<String>, IngestionError> {
+        let mut current = &self.root;
+        for path_key in array_key_path {
+            let Some(next) = current.get(*path_key) else {
+                return Ok(None);
+            };
+            current = next;
+        }
+        let Some(array) = current.as_array() else {
+            return Ok(None);
+        };
+        let Some(first) = array.first() else {
+            return Ok(None);
+        };
+        let Some(value) = first.get(key) else {
+            return Ok(None);
+        };
+        self.value_to_string(value, key).map(Some)
+    }
+
+    fn outcome_index(&self, outcome: &str) -> Result<Option<usize>, IngestionError> {
+        if let Some(single_outcome) = self.optional_string_any(&["outcome"])? {
+            return Ok((single_outcome == outcome).then_some(0));
+        }
+
+        let Some(outcomes_value) = self.root.get("outcomes") else {
+            return Ok(None);
+        };
+        let outcomes = self.string_array(outcomes_value, "outcomes")?;
+        Ok(outcomes.iter().position(|candidate| candidate == outcome))
+    }
+
+    fn outcome_price(&self, outcome_index: usize) -> Result<f64, IngestionError> {
+        let Some(prices_value) = self.root.get("outcomePrices") else {
+            return Err(self.missing_field("outcomePrices"));
+        };
+        let prices = self.string_array(prices_value, "outcomePrices")?;
+        let Some(raw_price) = prices.get(outcome_index) else {
+            return Err(self.malformed_field("outcomePrices"));
+        };
+        raw_price.parse::<f64>().map_err(|error| {
             IngestionError::new(
                 IngestionErrorKind::MalformedPayload,
                 Some(self.source),
-                format!("invalid {} numeric field {key}: {error}", self.source_name),
+                format!("invalid {} outcome price: {error}", self.source_name),
             )
         })
     }
 
-    fn i64(&self, key: &str) -> Result<i64, IngestionError> {
-        let raw = self.number(key)?;
-        raw.parse::<i64>().map_err(|error| {
-            IngestionError::new(
-                IngestionErrorKind::MalformedPayload,
-                Some(self.source),
-                format!("invalid {} integer field {key}: {error}", self.source_name),
-            )
-        })
-    }
-
-    fn number(&self, key: &str) -> Result<String, IngestionError> {
-        let marker = format!("\"{key}\"");
-        let Some(key_start) = self.payload_json.find(&marker) else {
-            return Err(self.missing_field(key));
-        };
-        let after_key = &self.payload_json[key_start + marker.len()..];
-        let Some(colon_index) = after_key.find(':') else {
-            return Err(self.missing_field(key));
-        };
-        let after_colon = after_key[colon_index + 1..].trim_start();
-        let number: String = after_colon
-            .chars()
-            .take_while(|candidate| {
-                candidate.is_ascii_digit()
-                    || *candidate == '.'
-                    || *candidate == '-'
-                    || *candidate == '+'
-                    || *candidate == 'e'
-                    || *candidate == 'E'
-            })
-            .collect();
-
-        if number.is_empty() {
-            return Err(self.malformed_field(key));
+    fn string_array(&self, value: &Value, key: &str) -> Result<Vec<String>, IngestionError> {
+        if let Some(array) = value.as_array() {
+            return array
+                .iter()
+                .map(|entry| self.value_to_string(entry, key))
+                .collect();
         }
 
-        Ok(number)
+        if let Some(encoded_array) = value.as_str() {
+            let decoded: Value = serde_json::from_str(encoded_array).map_err(|error| {
+                IngestionError::new(
+                    IngestionErrorKind::MalformedPayload,
+                    Some(self.source),
+                    format!(
+                        "invalid {} encoded array field {key}: {error}",
+                        self.source_name
+                    ),
+                )
+            })?;
+            let Some(array) = decoded.as_array() else {
+                return Err(self.malformed_field(key));
+            };
+            return array
+                .iter()
+                .map(|entry| self.value_to_string(entry, key))
+                .collect();
+        }
+
+        Err(self.malformed_field(key))
+    }
+
+    fn value_to_string(&self, value: &Value, key: &str) -> Result<String, IngestionError> {
+        value
+            .as_str()
+            .map(ToString::to_string)
+            .ok_or_else(|| self.malformed_field(key))
+    }
+
+    fn value_to_f64(&self, value: &Value, key: &str) -> Result<f64, IngestionError> {
+        if let Some(number) = value.as_f64() {
+            return Ok(number);
+        }
+        if let Some(text) = value.as_str() {
+            return text.parse::<f64>().map_err(|error| {
+                IngestionError::new(
+                    IngestionErrorKind::MalformedPayload,
+                    Some(self.source),
+                    format!("invalid {} numeric field {key}: {error}", self.source_name),
+                )
+            });
+        }
+
+        Err(self.malformed_field(key))
+    }
+
+    fn value_to_i64(&self, value: &Value, key: &str) -> Result<i64, IngestionError> {
+        if let Some(number) = value.as_i64() {
+            return Ok(number);
+        }
+        if let Some(text) = value.as_str() {
+            return text.parse::<i64>().map_err(|error| {
+                IngestionError::new(
+                    IngestionErrorKind::MalformedPayload,
+                    Some(self.source),
+                    format!("invalid {} integer field {key}: {error}", self.source_name),
+                )
+            });
+        }
+
+        Err(self.malformed_field(key))
     }
 
     fn missing_field(&self, key: &str) -> IngestionError {
@@ -1233,14 +1380,21 @@ fn parse_deribit_expiry_ts_ms(instrument_name: &str) -> Result<i64, IngestionErr
         return Err(malformed_deribit_instrument(instrument_name));
     }
 
-    match parts[1] {
-        "20260601" => Ok(1_780_000_000_000),
-        other => Err(IngestionError::new(
-            IngestionErrorKind::Unsupported,
-            Some(IngestionSource::Deribit),
-            format!("unsupported Deribit fixture expiry `{other}`"),
-        )),
+    let expiry = parts[1];
+    if expiry.len() == 8 && expiry.chars().all(|candidate| candidate.is_ascii_digit()) {
+        let year = expiry[0..4]
+            .parse::<i32>()
+            .map_err(|_| malformed_deribit_instrument(instrument_name))?;
+        let month = expiry[4..6]
+            .parse::<u32>()
+            .map_err(|_| malformed_deribit_instrument(instrument_name))?;
+        let day = expiry[6..8]
+            .parse::<u32>()
+            .map_err(|_| malformed_deribit_instrument(instrument_name))?;
+        return utc_midnight_ts_ms(year, month, day);
     }
+
+    parse_deribit_short_expiry_ts_ms(expiry)
 }
 
 fn parse_deribit_strike(instrument_name: &str) -> Result<f64, IngestionError> {
@@ -1279,6 +1433,95 @@ fn malformed_deribit_instrument(instrument_name: &str) -> IngestionError {
         Some(IngestionSource::Deribit),
         format!("malformed Deribit instrument name `{instrument_name}`"),
     )
+}
+
+fn parse_deribit_short_expiry_ts_ms(expiry: &str) -> Result<i64, IngestionError> {
+    let day_digits: String = expiry
+        .chars()
+        .take_while(|candidate| candidate.is_ascii_digit())
+        .collect();
+    let rest = &expiry[day_digits.len()..];
+    if day_digits.is_empty() || rest.len() < 5 {
+        return Err(IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Deribit),
+            format!("malformed Deribit expiry `{expiry}`"),
+        ));
+    }
+
+    let month_text = &rest[..3].to_ascii_uppercase();
+    let year_text = &rest[3..];
+    let day = day_digits.parse::<u32>().map_err(|error| {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Deribit),
+            format!("invalid Deribit expiry day `{expiry}`: {error}"),
+        )
+    })?;
+    let month = deribit_month_number(month_text).ok_or_else(|| {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Deribit),
+            format!("invalid Deribit expiry month `{expiry}`"),
+        )
+    })?;
+    let year_suffix = year_text.parse::<i32>().map_err(|error| {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Deribit),
+            format!("invalid Deribit expiry year `{expiry}`: {error}"),
+        )
+    })?;
+    let year = if year_suffix < 100 {
+        2000 + year_suffix
+    } else {
+        year_suffix
+    };
+
+    utc_midnight_ts_ms(year, month, day)
+}
+
+fn deribit_month_number(month_text: &str) -> Option<u32> {
+    match month_text {
+        "JAN" => Some(1),
+        "FEB" => Some(2),
+        "MAR" => Some(3),
+        "APR" => Some(4),
+        "MAY" => Some(5),
+        "JUN" => Some(6),
+        "JUL" => Some(7),
+        "AUG" => Some(8),
+        "SEP" => Some(9),
+        "OCT" => Some(10),
+        "NOV" => Some(11),
+        "DEC" => Some(12),
+        _ => None,
+    }
+}
+
+fn utc_midnight_ts_ms(year: i32, month: u32, day: u32) -> Result<i64, IngestionError> {
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return Err(IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Deribit),
+            format!("invalid UTC date {year:04}-{month:02}-{day:02}"),
+        ));
+    }
+
+    let days = days_from_civil(year, month, day);
+    Ok(days * 86_400_000)
+}
+
+fn days_from_civil(year: i32, month: u32, day: u32) -> i64 {
+    let year = year - i32::from(month <= 2);
+    let era = if year >= 0 { year } else { year - 399 } / 400;
+    let year_of_era = year - era * 400;
+    let month = month as i32;
+    let day = day as i32;
+    let month_prime = month + if month > 2 { -3 } else { 9 };
+    let day_of_year = (153 * month_prime + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    (era * 146_097 + day_of_era - 719_468) as i64
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2121,13 +2364,48 @@ mod tests {
             panic!("expected Deribit option quote");
         };
         assert_eq!(quote.meta.instrument_id, "ETH-20260601-3000-C");
-        assert_eq!(quote.expiry_ts_ms, 1_780_000_000_000);
+        assert_eq!(quote.expiry_ts_ms, 1_780_272_000_000);
         assert_eq!(quote.strike, 3000.0);
         assert_eq!(quote.option_kind, OptionKind::Call);
         assert_eq!(quote.underlying_price, 3100.0);
         assert_eq!(quote.bid, 0.12);
         assert_eq!(quote.ask, 0.13);
         assert_eq!(quote.mark_iv, 0.62);
+    }
+
+    #[test]
+    fn deribit_live_skeleton_parses_json_rpc_result_and_real_option_expiry() {
+        let client =
+            DeribitLiveIngestionClient::new("https://www.deribit.com", "ETH-1JUN26-3000-C");
+        let payload = r#"{
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "instrument_name": "ETH-1JUN26-3000-C",
+                "timestamp": 1779200000000,
+                "underlying_price": 3100.0,
+                "best_bid_price": 0.12,
+                "best_ask_price": 0.13,
+                "mark_iv": 0.62
+            }
+        }"#;
+
+        let batch = client
+            .parse_ticker_payload(
+                payload,
+                &IngestionConfig::phase0_deribit("https://www.deribit.com"),
+                1_779_200_000_100,
+            )
+            .expect("real-shaped Deribit JSON-RPC payload should parse");
+
+        let MarketEvent::DeribitOptionQuote(quote) = &batch.market_events[0] else {
+            panic!("expected Deribit option quote");
+        };
+        assert_eq!(quote.meta.instrument_id, "ETH-1JUN26-3000-C");
+        assert_eq!(quote.underlying, "ETH");
+        assert_eq!(quote.expiry_ts_ms, 1_780_272_000_000);
+        assert_eq!(quote.strike, 3000.0);
+        assert_eq!(quote.option_kind, OptionKind::Call);
     }
 
     #[test]
@@ -2187,6 +2465,43 @@ mod tests {
         assert_eq!(quote.outcome, "Yes");
         assert_eq!(quote.bid_probability, 0.51);
         assert_eq!(quote.ask_probability, 0.53);
+        assert_eq!(quote.liquidity_usd, 10_000.0);
+    }
+
+    #[test]
+    fn polymarket_live_skeleton_parses_real_gamma_market_shape() {
+        let client = PolymarketLiveIngestionClient::new(
+            "https://gamma-api.polymarket.com",
+            "eth-above-3000-june-1",
+            "Yes",
+        );
+        let payload = r#"{
+            "slug": "eth-above-3000-june-1",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0.51\", \"0.49\"]",
+            "liquidity": "10000.0",
+            "events": [
+                { "slug": "eth-above-3000" }
+            ],
+            "updatedAtMillis": "1779200000000"
+        }"#;
+
+        let batch = client
+            .parse_gamma_market_payload(
+                payload,
+                &IngestionConfig::phase0_polymarket("https://gamma-api.polymarket.com"),
+                1_779_200_000_200,
+            )
+            .expect("real-shaped Polymarket Gamma market payload should parse");
+
+        let MarketEvent::PolymarketOutcomeQuote(quote) = &batch.market_events[0] else {
+            panic!("expected Polymarket outcome quote");
+        };
+        assert_eq!(quote.event_slug, "eth-above-3000");
+        assert_eq!(quote.market_slug, "eth-above-3000-june-1");
+        assert_eq!(quote.outcome, "Yes");
+        assert_eq!(quote.bid_probability, 0.51);
+        assert_eq!(quote.ask_probability, 0.51);
         assert_eq!(quote.liquidity_usd, 10_000.0);
     }
 

@@ -210,7 +210,7 @@ IngestionOutcome
 IngestionReport
 IngestionSourceReport
 IngestionRejectionSummary
-JsonFixtureParser
+JsonPayloadParser
 ingest_once()
 ingest_once_with_validator()
 ingest_once_with_report()
@@ -225,9 +225,9 @@ Design boundary:
 - `FixtureHttpTransport` используется в tests для проверки live URL -> payload -> `IngestionBatch` flow без реальной сети.
 - `ReqwestHttpTransport` доступен только при feature `network-integration`; default CI его не компилирует и не запускает.
 - `LiveIngestionProbeReport` фиксирует diagnostic connectivity result: endpoint, url, status, payload bytes, latency_ms, error kind и error message.
-- `DeribitLiveIngestionClient` строит read-only `public/ticker` URL и парсит fixture payload в raw + normalized Deribit events; default `poll_once()` остается `NotImplemented`.
-- `PolymarketLiveIngestionClient` строит read-only Gamma market URL и парсит fixture payload в raw + normalized Polymarket outcome events; default `poll_once()` остается `NotImplemented`.
-- `JsonFixtureParser` убирает дублирование fixture JSON field extraction между live adapter skeletons. Это temporary helper до real `serde_json`/HTTP implementation.
+- `DeribitLiveIngestionClient` строит read-only `public/ticker` URL и парсит fixture-shaped и real-shaped Deribit JSON-RPC ticker payloads в raw + normalized Deribit events; default `poll_once()` остается `NotImplemented`.
+- `PolymarketLiveIngestionClient` строит read-only Gamma market URL и парсит fixture-shaped и real-shaped Polymarket Gamma market payloads в raw + normalized Polymarket outcome events; default `poll_once()` остается `NotImplemented`.
+- `JsonPayloadParser` убирает дублирование JSON field extraction между live adapter skeletons. Он поддерживает Deribit `result.*`, Deribit short option expiries вроде `1JUN26`, Polymarket `slug`, JSON-encoded `outcomes`/`outcomePrices`, string/number liquidity и Phase 0 fallback `bid=ask=outcomePrice` для Gamma snapshots без CLOB spread.
 - `ingest_once()` сохраняет raw events до normalized market events.
 - `ingest_once_with_validator()` сохраняет raw events, затем валидирует normalized events и только после этого пишет их в journal.
 - `ingest_once_with_report()` возвращает `IngestionOutcome` с `ValidationReport`; raw events сохраняются, accepted normalized events пишутся, rejected normalized events не пишутся.

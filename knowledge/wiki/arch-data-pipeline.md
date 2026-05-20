@@ -113,7 +113,7 @@ BasisObservationRowWriter
 - `ValidationReport` - structured counters для ingestion soak: raw events received, normalized events received/accepted/rejected и rejection reasons.
 - `ingest_once_with_report()` - telemetry-oriented helper: raw events сохраняются, accepted normalized events пишутся, rejected normalized events остаются только в report.
 - `IngestionReport` - aggregate report поверх одного или нескольких `ValidationReport`, сгруппированный по source и rejection message.
-- `JsonFixtureParser` - временный lightweight parser для fixture payload parsing boundary в live adapter skeletons; не является заменой real JSON parser для будущего HTTP/WebSocket слоя.
+- `JsonPayloadParser` - JSON-aware parsing helper для fixture-shaped и real-shaped REST payloads Deribit/Polymarket; использует `serde_json`, но остается внутри parsing boundary и не делает network calls.
 - `DeribitLiveIngestionClient` - first read-only live adapter skeleton: строит public ticker URL и парсит Deribit ticker payload из fixture, но `poll_once()` не делает network calls.
 - `PolymarketLiveIngestionClient` - first read-only Gamma adapter skeleton: строит market-by-slug URL и парсит Polymarket Gamma market payload из fixture, но `poll_once()` не делает network calls.
 

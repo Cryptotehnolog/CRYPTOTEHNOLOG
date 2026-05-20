@@ -64,6 +64,7 @@ version = "0.1.0"
 dependencies = [
  "cryptotehnolog-common",
  "reqwest",
+ "serde_json",
 ]
 
 [[package]]

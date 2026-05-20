@@ -260,3 +260,16 @@ Workflow также запускает `scripts/run_live_probe_replay.ps1 -Times
 - delta latency между первым и последним report.
 
 Default pattern: `artifacts\network_connectivity_report*.json`.
+
+### `scripts/summarize_live_probe_replay_reports.ps1`
+
+Читает один или несколько `live_probe_replay_report*.json` reports и показывает:
+
+- сколько reports дошли до matcher-ready состояния;
+- сколько reports имеют HTTP errors;
+- сколько reports имеют parse errors;
+- accepted normalized events;
+- matcher decisions и observations;
+- errors by stage/endpoint/kind.
+
+Default pattern: `artifacts\live_probe_replay_report*.json`.
