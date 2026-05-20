@@ -276,9 +276,16 @@ fn parse_outcome(line_number: usize, raw: &str) -> Result<IngestionScenarioOutco
 mod tests {
     use super::*;
     use cryptotehnolog_common::events::{
-        DeribitOptionQuote, EventMeta, OptionKind, PolymarketApiLayer, RawDeribitEvent,
+        DeribitOptionQuote, EventMeta, OptionKind, PolymarketApiLayer, PolymarketOutcomeQuote,
+        RawDeribitEvent, RawPolymarketEvent, ReplayEventFilter,
     };
     use cryptotehnolog_common::journal::InMemoryEventJournal;
+    use cryptotehnolog_common::observations::{
+        BasisObservationWriter, InMemoryBasisObservationWriter, observations_from_match_decisions,
+    };
+    use cryptotehnolog_common::probability_basis::{
+        MatchDecision, ProbabilityBasisConfig, match_from_market_events,
+    };
 
     fn meta(event_id: &str) -> EventMeta {
         EventMeta {
@@ -311,6 +318,49 @@ mod tests {
                 ask: 0.13,
                 mark_iv: 0.62,
             })],
+        }
+    }
+
+    fn polymarket_meta(event_id: &str) -> EventMeta {
+        EventMeta {
+            event_id: event_id.to_string(),
+            source: "mock-ingestion".to_string(),
+            exchange_ts_ms: 1_780_000_000_000,
+            received_ts_ms: 1_780_000_000_100,
+            instrument_id: "eth-above-3000-june-1".to_string(),
+            schema_version: 1,
+            config_version: "phase0-ingestion".to_string(),
+        }
+    }
+
+    fn polymarket_batch() -> IngestionBatch {
+        IngestionBatch {
+            source: IngestionSource::Polymarket,
+            raw_events: vec![RawIngestionEvent::Polymarket(RawPolymarketEvent {
+                meta: polymarket_meta("raw-polymarket-1"),
+                api_layer: PolymarketApiLayer::Gamma,
+                payload_json: "{\"market_slug\":\"eth-above-3000-june-1\"}".to_string(),
+            })],
+            market_events: vec![MarketEvent::PolymarketOutcomeQuote(
+                PolymarketOutcomeQuote {
+                    meta: polymarket_meta("market-polymarket-1"),
+                    event_slug: "eth-above-3000".to_string(),
+                    market_slug: "eth-above-3000-june-1".to_string(),
+                    outcome: "Yes".to_string(),
+                    bid_probability: 0.51,
+                    ask_probability: 0.53,
+                    liquidity_usd: 10_000.0,
+                },
+            )],
+        }
+    }
+
+    fn probability_basis_config() -> ProbabilityBasisConfig {
+        ProbabilityBasisConfig {
+            min_net_edge_probability: 0.025,
+            max_expiry_mismatch_ms: 86_400_000,
+            min_polymarket_liquidity_usd: 1_000.0,
+            estimated_cost_probability: 0.010,
         }
     }
 
@@ -377,6 +427,90 @@ mod tests {
         assert_eq!(scenario[0].outcome, IngestionScenarioOutcome::ApiError);
         assert_eq!(scenario[1].outcome, IngestionScenarioOutcome::Reconnect);
         assert_eq!(scenario[2].outcome, IngestionScenarioOutcome::Batch);
+    }
+
+    #[test]
+    fn happy_path_batches_flow_from_ingestion_to_basis_observation() {
+        let fixture_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("fixtures")
+            .join("ingestion")
+            .join("happy_path_batches.psv");
+        let scenario =
+            load_ingestion_scenario(&fixture_path).expect("happy path fixture should parse");
+        assert_eq!(scenario.len(), 2);
+        assert_eq!(scenario[0].source, IngestionSource::Deribit);
+        assert_eq!(scenario[0].outcome, IngestionScenarioOutcome::Batch);
+        assert_eq!(scenario[1].source, IngestionSource::Polymarket);
+        assert_eq!(scenario[1].outcome, IngestionScenarioOutcome::Batch);
+
+        let mut deribit_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(deribit_batch())]);
+        let mut polymarket_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(polymarket_batch())]);
+        let mut journal = InMemoryEventJournal::new();
+
+        ingest_once(
+            &mut deribit_client,
+            &mut journal,
+            &IngestionConfig::phase0_deribit("mock://deribit"),
+        )
+        .expect("deribit batch should ingest");
+        ingest_once(
+            &mut polymarket_client,
+            &mut journal,
+            &IngestionConfig::phase0_polymarket("mock://polymarket"),
+        )
+        .expect("polymarket batch should ingest");
+
+        assert_eq!(journal.raw_deribit_events().len(), 1);
+        assert_eq!(journal.raw_polymarket_events().len(), 1);
+
+        let replay_events = journal
+            .read_events_for_replay(ReplayEventFilter {
+                start_ts_ms: 0,
+                end_ts_ms: 1_781_000_000_000,
+                event_types: vec![],
+                instrument_ids: vec![],
+                config_version: Some("phase0-ingestion".to_string()),
+            })
+            .expect("journal should return replay events");
+        assert_eq!(replay_events.len(), 2);
+
+        let config = probability_basis_config();
+        let decisions = match_from_market_events(&replay_events, &config);
+        assert_eq!(decisions.len(), 1);
+        match &decisions[0] {
+            MatchDecision::Matched {
+                feature,
+                net_edge_probability,
+                survives_costs,
+            } => {
+                assert_eq!(feature.deribit_instrument_id, "ETH-20260601-3000-C");
+                assert_eq!(feature.polymarket_market_slug, "eth-above-3000-june-1");
+                assert!((*net_edge_probability - 0.081338).abs() < 1e-6);
+                assert!(*survives_costs);
+            }
+            MatchDecision::Rejected { reason, .. } => {
+                panic!("expected matched decision, got {reason:?}");
+            }
+        }
+
+        let observations = observations_from_match_decisions(&decisions, &config);
+        assert_eq!(observations.len(), 1);
+        let mut writer = InMemoryBasisObservationWriter::new();
+        writer
+            .append_basis_observation(observations[0].clone())
+            .expect("basis observation should append");
+
+        let observation = &writer.observations()[0];
+        assert_eq!(
+            observation.event_id,
+            "probability-basis:market-deribit-1:market-polymarket-1"
+        );
+        assert!(observation.survives_costs);
+        assert!((observation.net_edge_probability - 0.081338).abs() < 1e-6);
     }
 
     #[test]

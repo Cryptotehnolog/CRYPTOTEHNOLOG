@@ -408,6 +408,7 @@ pub struct ReplayEventFilter {
 - BasisObservation mapping and duplicate observation rejection.
 - BasisObservationRow column order and PostgreSQL insert SQL skeleton.
 - Ingestion skeleton: raw-before-normalized write order, API error without writes, live client `NotImplemented`, API error/reconnect fixture parsing.
+- Thin orchestration: Deribit mock batch + Polymarket mock batch -> `EventJournal` -> `match_from_market_events()` -> `BasisObservation`.
 
 ## Design Rule
 

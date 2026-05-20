@@ -108,6 +108,19 @@ BasisObservationRowWriter
 
 Fixture `fixtures/ingestion/api_error_reconnect_sequence.psv` документирует сценарий: API error -> reconnect -> recovered batch. Он нужен, чтобы live ingestion проектировался с учетом failure/recovery path, а не только happy path.
 
+Fixture `fixtures/ingestion/happy_path_batches.psv` документирует минимальный orchestration happy path:
+
+```text
+Deribit mock batch
+  -> Polymarket mock batch
+  -> EventJournal raw/normalized capture
+  -> read_events_for_replay()
+  -> probability-basis matcher
+  -> BasisObservation
+```
+
+Этот тест связывает ingestion skeleton с уже готовым probability-basis pipeline без реальных API, ключей, сети, PostgreSQL подключения или trading side effects.
+
 ## Добавление Нового Источника
 
 1. Создать source note в `knowledge/raw/sources/`.
