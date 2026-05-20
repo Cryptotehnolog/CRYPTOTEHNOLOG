@@ -107,6 +107,7 @@ BasisObservationRowWriter
 - `ingest_once_with_validator()` - live-ready orchestration helper: raw events сохраняются первыми, затем normalized events валидируются, и только после этого пишутся в `EventJournal`.
 - `ValidationReport` - structured counters для ingestion soak: raw events received, normalized events received/accepted/rejected и rejection reasons.
 - `ingest_once_with_report()` - telemetry-oriented helper: raw events сохраняются, accepted normalized events пишутся, rejected normalized events остаются только в report.
+- `IngestionReport` - aggregate report поверх одного или нескольких `ValidationReport`, сгруппированный по source и rejection message.
 
 Это не live API implementation. Real HTTP/WebSocket logic добавляется позже отдельным decision/code review.
 
@@ -129,12 +130,13 @@ Fixture `fixtures/ingestion/malformed_polymarket_quote.psv` документир
 
 `fixtures/ingestion/manifest.toml` является lightweight registry для ingestion orchestration scenarios. Он фиксирует список сценариев и semantic expectations:
 
+- `expected_report`,
 - `expected_raw_events`,
 - `expected_normalized_events`,
 - `expected_validation_errors`,
 - `expected_observations`.
 
-Это еще не отдельный ingestion regression runner, но уже делает ingestion fixtures проверяемым контрактом, а не только detail внутри Rust unit tests.
+`fixtures/ingestion/*_report.json` являются semantic golden reports для ingestion telemetry. Это еще не отдельный ingestion regression runner, но уже делает ingestion fixtures проверяемым машинно-читаемым контрактом, а не только detail внутри Rust unit tests.
 
 ## Добавление Нового Источника
 

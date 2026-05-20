@@ -200,6 +200,9 @@ AcceptAllNormalizedBatchValidator
 Phase0NormalizedBatchValidator
 ValidationReport
 IngestionOutcome
+IngestionReport
+IngestionSourceReport
+IngestionRejectionSummary
 ingest_once()
 ingest_once_with_validator()
 ingest_once_with_report()
@@ -214,6 +217,7 @@ Design boundary:
 - `ingest_once_with_report()` возвращает `IngestionOutcome` с `ValidationReport`; raw events сохраняются, accepted normalized events пишутся, rejected normalized events не пишутся.
 - `Phase0NormalizedBatchValidator` проверяет identity fields, finite values, quote ordering и basic timestamp/value sanity без стратегических thresholds.
 - `ValidationReport` содержит counters: `raw_events_received`, `normalized_events_received`, `normalized_events_accepted`, `normalized_events_rejected` и список `rejections`.
+- `IngestionReport` агрегирует несколько `ValidationReport`: totals, counts by source и counts by rejection message.
 - Ошибки API/reconnect/rate-limit не должны превращаться в trading rejection reasons; они относятся к ingestion health.
 
 Sync форма выбрана намеренно, чтобы первый contracts layer компилировался без внешних dependencies. Async versions будут добавлены вместе с real HTTP/WebSocket adapters.
@@ -419,6 +423,7 @@ pub struct ReplayEventFilter {
 - BasisObservation mapping and duplicate observation rejection.
 - BasisObservationRow column order and PostgreSQL insert SQL skeleton.
 - Ingestion skeleton: raw-before-normalized write order, validator-before-normalized-write boundary, validation report counters, API error without writes, live client `NotImplemented`, API error/reconnect fixture parsing, ingestion manifest parsing.
+- Ingestion semantic golden reports: `fixtures/ingestion/*_report.json` сравниваются с `IngestionReport::to_json()`.
 - Thin orchestration: Deribit mock batch + Polymarket mock batch -> `EventJournal` -> `match_from_market_events()` -> `BasisObservation`.
 - Negative orchestration: malformed Polymarket quote сохраняет raw event, но не создает `BasisObservation`.
 

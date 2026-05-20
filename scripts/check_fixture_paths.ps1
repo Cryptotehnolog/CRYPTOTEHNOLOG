@@ -19,8 +19,8 @@ Assert-ManifestPathsExist `
 
 Assert-ManifestPathsExist `
     -Scenarios $ingestionScenarios `
-    -PathPropertyNames @("FixturePath") `
+    -PathPropertyNames @("FixturePath", "ExpectedReportPath") `
     -ManifestLabel "Ingestion fixture"
 
-$checkedPaths = ($replayScenarios.Count * 3) + $ingestionScenarios.Count
+$checkedPaths = ($replayScenarios.Count * 3) + ($ingestionScenarios.Count * 2)
 Write-Output "Fixture path validation passed. Checked $checkedPaths paths across $($replayScenarios.Count + $ingestionScenarios.Count) scenarios."

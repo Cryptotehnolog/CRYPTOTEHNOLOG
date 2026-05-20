@@ -105,7 +105,7 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 Проверяет `fixtures/ingestion/manifest.toml` без запуска `cargo`:
 
 - scenario names должны быть уникальны,
-- `fixture` paths не должны дублироваться,
+- `fixture` и `expected_report` paths не должны дублироваться,
 - referenced fixture files должны существовать,
 - `expected_observations`, `expected_raw_events`, `expected_normalized_events` и `expected_validation_errors` должны быть числами.
 
@@ -116,7 +116,7 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 Проверяет существование файлов, на которые ссылаются все текущие fixture manifests:
 
 - replay `fixture`, `expected_json`, `expected_text`,
-- ingestion `fixture`.
+- ingestion `fixture`, `expected_report`.
 
 Скрипт использует те же manifest wrappers и общий `scripts/lib/manifest_utils.ps1`. Он отделяет проверку путей от проверки структуры manifest, чтобы новые типы fixtures могли подключаться к одному path-existence check.
 

@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
@@ -8,6 +9,15 @@ use cryptotehnolog_common::journal::{EventJournal, JournalError};
 pub enum IngestionSource {
     Deribit,
     Polymarket,
+}
+
+impl IngestionSource {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IngestionSource::Deribit => "Deribit",
+            IngestionSource::Polymarket => "Polymarket",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -209,6 +219,152 @@ impl ValidationReport {
 pub struct IngestionOutcome {
     pub batch: IngestionBatch,
     pub validation_report: ValidationReport,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IngestionSourceReport {
+    pub source: IngestionSource,
+    pub raw_events_received: usize,
+    pub normalized_events_received: usize,
+    pub normalized_events_accepted: usize,
+    pub normalized_events_rejected: usize,
+}
+
+impl IngestionSourceReport {
+    pub fn new(source: IngestionSource) -> Self {
+        Self {
+            source,
+            raw_events_received: 0,
+            normalized_events_received: 0,
+            normalized_events_accepted: 0,
+            normalized_events_rejected: 0,
+        }
+    }
+
+    fn add_validation_report(&mut self, report: &ValidationReport) {
+        self.raw_events_received += report.raw_events_received;
+        self.normalized_events_received += report.normalized_events_received;
+        self.normalized_events_accepted += report.normalized_events_accepted;
+        self.normalized_events_rejected += report.normalized_events_rejected;
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IngestionRejectionSummary {
+    pub message: String,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IngestionReport {
+    pub total_raw_events_received: usize,
+    pub total_normalized_events_received: usize,
+    pub total_normalized_events_accepted: usize,
+    pub total_normalized_events_rejected: usize,
+    pub by_source: Vec<IngestionSourceReport>,
+    pub rejection_counts: Vec<IngestionRejectionSummary>,
+}
+
+impl IngestionReport {
+    pub fn from_outcomes(outcomes: &[IngestionOutcome]) -> Self {
+        let mut source_reports: Vec<IngestionSourceReport> = Vec::new();
+        let mut rejection_counts: BTreeMap<String, usize> = BTreeMap::new();
+
+        for outcome in outcomes {
+            let source = outcome.batch.source;
+            if let Some(report) = source_reports
+                .iter_mut()
+                .find(|candidate| candidate.source == source)
+            {
+                report.add_validation_report(&outcome.validation_report);
+            } else {
+                let mut report = IngestionSourceReport::new(source);
+                report.add_validation_report(&outcome.validation_report);
+                source_reports.push(report);
+            }
+
+            for rejection in &outcome.validation_report.rejections {
+                *rejection_counts
+                    .entry(rejection.message.clone())
+                    .or_insert(0) += 1;
+            }
+        }
+
+        source_reports.sort_by_key(|report| report.source.as_str());
+        let rejection_counts = rejection_counts
+            .into_iter()
+            .map(|(message, count)| IngestionRejectionSummary { message, count })
+            .collect();
+
+        Self {
+            total_raw_events_received: source_reports
+                .iter()
+                .map(|report| report.raw_events_received)
+                .sum(),
+            total_normalized_events_received: source_reports
+                .iter()
+                .map(|report| report.normalized_events_received)
+                .sum(),
+            total_normalized_events_accepted: source_reports
+                .iter()
+                .map(|report| report.normalized_events_accepted)
+                .sum(),
+            total_normalized_events_rejected: source_reports
+                .iter()
+                .map(|report| report.normalized_events_rejected)
+                .sum(),
+            by_source: source_reports,
+            rejection_counts,
+        }
+    }
+
+    pub fn to_json(&self) -> String {
+        let by_source = self
+            .by_source
+            .iter()
+            .map(|report| {
+                format!(
+                    "{{\"source\":\"{}\",\"raw_events_received\":{},\"normalized_events_received\":{},\"normalized_events_accepted\":{},\"normalized_events_rejected\":{}}}",
+                    report.source.as_str(),
+                    report.raw_events_received,
+                    report.normalized_events_received,
+                    report.normalized_events_accepted,
+                    report.normalized_events_rejected
+                )
+            })
+            .collect::<Vec<String>>()
+            .join(",");
+        let rejection_counts = self
+            .rejection_counts
+            .iter()
+            .map(|summary| {
+                format!(
+                    "{{\"message\":\"{}\",\"count\":{}}}",
+                    json_escape(&summary.message),
+                    summary.count
+                )
+            })
+            .collect::<Vec<String>>()
+            .join(",");
+
+        format!(
+            "{{\"total_raw_events_received\":{},\"total_normalized_events_received\":{},\"total_normalized_events_accepted\":{},\"total_normalized_events_rejected\":{},\"by_source\":[{}],\"rejection_counts\":[{}]}}",
+            self.total_raw_events_received,
+            self.total_normalized_events_received,
+            self.total_normalized_events_accepted,
+            self.total_normalized_events_rejected,
+            by_source,
+            rejection_counts
+        )
+    }
+}
+
+fn json_escape(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
 }
 
 #[derive(Debug, Clone, Default)]
@@ -482,6 +638,7 @@ pub enum IngestionScenarioOutcome {
 pub struct IngestionManifestScenario {
     pub name: String,
     pub fixture: String,
+    pub expected_report: String,
     pub expected_observations: usize,
     pub expected_raw_events: usize,
     pub expected_normalized_events: usize,
@@ -557,6 +714,7 @@ pub fn parse_ingestion_manifest(content: &str) -> Result<Vec<IngestionManifestSc
     let mut scenarios = Vec::new();
     let mut current_name: Option<String> = None;
     let mut current_fixture: Option<String> = None;
+    let mut current_expected_report: Option<String> = None;
     let mut current_expected_observations: Option<usize> = None;
     let mut current_expected_raw_events: Option<usize> = None;
     let mut current_expected_normalized_events: Option<usize> = None;
@@ -574,6 +732,7 @@ pub fn parse_ingestion_manifest(content: &str) -> Result<Vec<IngestionManifestSc
                 &mut scenarios,
                 &mut current_name,
                 &mut current_fixture,
+                &mut current_expected_report,
                 &mut current_expected_observations,
                 &mut current_expected_raw_events,
                 &mut current_expected_normalized_events,
@@ -592,6 +751,7 @@ pub fn parse_ingestion_manifest(content: &str) -> Result<Vec<IngestionManifestSc
         match key {
             "name" => current_name = Some(value.to_string()),
             "fixture" => current_fixture = Some(value.to_string()),
+            "expected_report" => current_expected_report = Some(value.to_string()),
             "expected_observations" => {
                 current_expected_observations = Some(value.parse::<usize>().map_err(|error| {
                     format!("line {line_number}: invalid expected_observations: {error}")
@@ -626,6 +786,7 @@ pub fn parse_ingestion_manifest(content: &str) -> Result<Vec<IngestionManifestSc
         &mut scenarios,
         &mut current_name,
         &mut current_fixture,
+        &mut current_expected_report,
         &mut current_expected_observations,
         &mut current_expected_raw_events,
         &mut current_expected_normalized_events,
@@ -657,6 +818,15 @@ pub fn parse_ingestion_manifest(content: &str) -> Result<Vec<IngestionManifestSc
                 scenario.fixture
             ));
         }
+        if scenarios[..index]
+            .iter()
+            .any(|candidate| candidate.expected_report == scenario.expected_report)
+        {
+            return Err(format!(
+                "duplicate ingestion scenario expected_report: {}",
+                scenario.expected_report
+            ));
+        }
     }
 
     Ok(scenarios)
@@ -666,6 +836,7 @@ fn push_manifest_scenario(
     scenarios: &mut Vec<IngestionManifestScenario>,
     current_name: &mut Option<String>,
     current_fixture: &mut Option<String>,
+    current_expected_report: &mut Option<String>,
     current_expected_observations: &mut Option<usize>,
     current_expected_raw_events: &mut Option<usize>,
     current_expected_normalized_events: &mut Option<usize>,
@@ -674,6 +845,7 @@ fn push_manifest_scenario(
 ) -> Result<(), String> {
     if current_name.is_none()
         && current_fixture.is_none()
+        && current_expected_report.is_none()
         && current_expected_observations.is_none()
         && current_expected_raw_events.is_none()
         && current_expected_normalized_events.is_none()
@@ -688,6 +860,9 @@ fn push_manifest_scenario(
     let fixture = current_fixture
         .take()
         .ok_or_else(|| format!("line {line_number}: manifest scenario missing fixture"))?;
+    let expected_report = current_expected_report
+        .take()
+        .ok_or_else(|| format!("line {line_number}: manifest scenario missing expected_report"))?;
     let expected_observations = current_expected_observations.take().ok_or_else(|| {
         format!("line {line_number}: manifest scenario missing expected_observations")
     })?;
@@ -706,6 +881,7 @@ fn push_manifest_scenario(
     scenarios.push(IngestionManifestScenario {
         name,
         fixture,
+        expected_report,
         expected_observations,
         expected_raw_events,
         expected_normalized_events,
@@ -830,6 +1006,19 @@ mod tests {
         }
     }
 
+    fn fixture_path(file_name: &str) -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("fixtures")
+            .join("ingestion")
+            .join(file_name)
+    }
+
+    fn normalize_json_fixture(value: &str) -> String {
+        value.replace("\r\n", "\n").trim().to_string()
+    }
+
     #[test]
     fn ingest_once_writes_raw_events_before_normalized_events() {
         let mut client = MockIngestionClient::new(vec![MockIngestionStep::Batch(deribit_batch())]);
@@ -897,12 +1086,7 @@ mod tests {
 
     #[test]
     fn happy_path_batches_flow_from_ingestion_to_basis_observation() {
-        let fixture_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("..")
-            .join("fixtures")
-            .join("ingestion")
-            .join("happy_path_batches.psv");
+        let fixture_path = fixture_path("happy_path_batches.psv");
         let scenario =
             load_ingestion_scenario(&fixture_path).expect("happy path fixture should parse");
         assert_eq!(scenario.len(), 2);
@@ -998,12 +1182,7 @@ mod tests {
 
     #[test]
     fn malformed_polymarket_batch_preserves_raw_event_without_basis_observation() {
-        let fixture_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("..")
-            .join("fixtures")
-            .join("ingestion")
-            .join("malformed_polymarket_quote.psv");
+        let fixture_path = fixture_path("malformed_polymarket_quote.psv");
         let scenario =
             load_ingestion_scenario(&fixture_path).expect("malformed fixture should parse");
         assert_eq!(scenario.len(), 2);
@@ -1116,27 +1295,89 @@ mod tests {
 
     #[test]
     fn ingestion_manifest_lists_current_orchestration_scenarios() {
-        let manifest_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("..")
-            .join("fixtures")
-            .join("ingestion")
-            .join("manifest.toml");
+        let manifest_path = fixture_path("manifest.toml");
 
         let scenarios =
             load_ingestion_manifest(&manifest_path).expect("ingestion manifest should parse");
 
         assert_eq!(scenarios.len(), 2);
         assert_eq!(scenarios[0].name, "happy_path_batches");
+        assert_eq!(
+            scenarios[0].expected_report,
+            "fixtures/ingestion/happy_path_report.json"
+        );
         assert_eq!(scenarios[0].expected_observations, 1);
         assert_eq!(scenarios[0].expected_raw_events, 2);
         assert_eq!(scenarios[0].expected_normalized_events, 2);
         assert_eq!(scenarios[0].expected_validation_errors, 0);
         assert_eq!(scenarios[1].name, "malformed_polymarket_quote");
+        assert_eq!(
+            scenarios[1].expected_report,
+            "fixtures/ingestion/malformed_polymarket_quote_report.json"
+        );
         assert_eq!(scenarios[1].expected_observations, 0);
         assert_eq!(scenarios[1].expected_raw_events, 2);
         assert_eq!(scenarios[1].expected_normalized_events, 1);
         assert_eq!(scenarios[1].expected_validation_errors, 1);
+    }
+
+    #[test]
+    fn ingestion_report_matches_semantic_golden_json() {
+        let mut happy_deribit_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(deribit_batch())]);
+        let mut happy_polymarket_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(polymarket_batch())]);
+        let mut happy_journal = InMemoryEventJournal::new();
+        let happy_deribit = ingest_once_with_report(
+            &mut happy_deribit_client,
+            &mut happy_journal,
+            &IngestionConfig::phase0_deribit("mock://deribit"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("happy Deribit batch should ingest");
+        let happy_polymarket = ingest_once_with_report(
+            &mut happy_polymarket_client,
+            &mut happy_journal,
+            &IngestionConfig::phase0_polymarket("mock://polymarket"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("happy Polymarket batch should ingest");
+        let happy_report = IngestionReport::from_outcomes(&[happy_deribit, happy_polymarket]);
+        let expected_happy =
+            std::fs::read_to_string(fixture_path("happy_path_report.json")).unwrap();
+        assert_eq!(
+            happy_report.to_json(),
+            normalize_json_fixture(&expected_happy)
+        );
+
+        let mut malformed_deribit_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(deribit_batch())]);
+        let mut malformed_polymarket_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(malformed_polymarket_batch())]);
+        let mut malformed_journal = InMemoryEventJournal::new();
+        let malformed_deribit = ingest_once_with_report(
+            &mut malformed_deribit_client,
+            &mut malformed_journal,
+            &IngestionConfig::phase0_deribit("mock://deribit"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("malformed scenario Deribit batch should ingest");
+        let malformed_polymarket = ingest_once_with_report(
+            &mut malformed_polymarket_client,
+            &mut malformed_journal,
+            &IngestionConfig::phase0_polymarket("mock://polymarket"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("malformed scenario Polymarket batch should produce report");
+        let malformed_report =
+            IngestionReport::from_outcomes(&[malformed_deribit, malformed_polymarket]);
+        let expected_malformed =
+            std::fs::read_to_string(fixture_path("malformed_polymarket_quote_report.json"))
+                .unwrap();
+        assert_eq!(
+            malformed_report.to_json(),
+            normalize_json_fixture(&expected_malformed)
+        );
     }
 
     #[test]
@@ -1145,6 +1386,7 @@ mod tests {
 [[scenario]]
 name = "same"
 fixture = "fixtures/ingestion/a.psv"
+expected_report = "fixtures/ingestion/a_report.json"
 expected_observations = 1
 expected_raw_events = 1
 expected_normalized_events = 1
@@ -1153,6 +1395,7 @@ expected_validation_errors = 0
 [[scenario]]
 name = "same"
 fixture = "fixtures/ingestion/b.psv"
+expected_report = "fixtures/ingestion/b_report.json"
 expected_observations = 0
 expected_raw_events = 1
 expected_normalized_events = 0
@@ -1168,6 +1411,7 @@ expected_validation_errors = 1
 [[scenario]]
 name = "a"
 fixture = "fixtures/ingestion/same.psv"
+expected_report = "fixtures/ingestion/a_report.json"
 expected_observations = 1
 expected_raw_events = 1
 expected_normalized_events = 1
@@ -1176,6 +1420,7 @@ expected_validation_errors = 0
 [[scenario]]
 name = "b"
 fixture = "fixtures/ingestion/same.psv"
+expected_report = "fixtures/ingestion/b_report.json"
 expected_observations = 0
 expected_raw_events = 1
 expected_normalized_events = 0
@@ -1185,6 +1430,31 @@ expected_validation_errors = 1
             parse_ingestion_manifest(duplicate_fixture)
                 .unwrap_err()
                 .contains("duplicate ingestion scenario fixture")
+        );
+
+        let duplicate_report = r#"
+[[scenario]]
+name = "a"
+fixture = "fixtures/ingestion/a.psv"
+expected_report = "fixtures/ingestion/same_report.json"
+expected_observations = 1
+expected_raw_events = 1
+expected_normalized_events = 1
+expected_validation_errors = 0
+
+[[scenario]]
+name = "b"
+fixture = "fixtures/ingestion/b.psv"
+expected_report = "fixtures/ingestion/same_report.json"
+expected_observations = 0
+expected_raw_events = 1
+expected_normalized_events = 0
+expected_validation_errors = 1
+"#;
+        assert!(
+            parse_ingestion_manifest(duplicate_report)
+                .unwrap_err()
+                .contains("duplicate ingestion scenario expected_report")
         );
     }
 
