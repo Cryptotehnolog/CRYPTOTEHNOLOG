@@ -337,6 +337,8 @@ Workflow запускает script с `-Timestamped` и загружает `arti
 
 Workflow также запускает `scripts/run_live_probe_replay.ps1 -Timestamped` и загружает `artifacts/live_probe_replay_report*.json` как artifact `live-probe-replay-report`. Этот artifact показывает не только доступность API, но и то, дошёл ли payload до parser, validator, in-memory event journal и matcher.
 
+Workflow также запускает `scripts/run_phase0_daily_report.ps1 -Timestamped` и загружает `artifacts/phase0_daily_report*.json` / `artifacts/phase0_daily_report*.md` как artifact `phase0-daily-report`. Это даёт daily summary прямо в GitHub Actions manual run без локального запуска и без LLM/trading side effects.
+
 ### `scripts/summarize_network_reports.ps1`
 
 Читает один или несколько JSON reports по glob pattern и выводит summary по endpoint:

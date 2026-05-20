@@ -3,7 +3,7 @@ type: system
 status: active
 confidence: high
 stability: volatile
-updated: 2026-05-20
+updated: 2026-05-21
 review_after: 2026-06-19
 sources:
   - project-review-2026-05-19
@@ -34,6 +34,29 @@ Indexes:
 
 - `idx_event_journal_type_received` для чтения событий по типу и времени.
 - `idx_event_journal_instrument_received` для чтения истории по инструменту.
+
+## `event_journal` Replay Select Contract
+
+Rust boundary для read-only replay использует `EventJournalRowReader` и `EventJournalReplayQuery`.
+
+Логический порядок параметров future PostgreSQL select:
+
+```text
+start_ts_ms
+end_ts_ms
+event_types
+instrument_ids
+config_version
+```
+
+Если `ReplayEventFilter.event_types` пустой, Rust query по умолчанию выбирает только normalized event types:
+
+```text
+deribit_option_quote
+polymarket_outcome_quote
+```
+
+Raw events остаются source of truth, но matcher читает только normalized rows. Это важно: replay не должен случайно пытаться интерпретировать raw API payload как normalized market event.
 
 ## `replay_runs`
 

@@ -335,3 +335,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] implementation | Phase 0 daily report pipeline status summary
 
 `scripts/run_phase0_daily_report.ps1` теперь агрегирует Phase 0 pipeline reports из `fixtures/phase0_pipeline/` и показывает status-aware summary: количество `ok`/`error` scenarios, counts по этапам pipeline и `error_stage` для controlled failures. Обновлена документация `workflow-scripts.md`.
+
+## [2026-05-21] implementation | Event journal read persistence boundary
+
+Добавлен read-only storage-row boundary для `event_journal`: `EventJournalReplayQuery`, `EventJournalRowReader`, `InMemoryEventJournalRowReader` и helper `read_market_events_for_replay_from_rows()`. `PostgresEventJournalAdapter` теперь фиксирует future replay `SELECT` contract без real DB connector. Manual `Network integration` workflow дополнен artifact `phase0-daily-report`.

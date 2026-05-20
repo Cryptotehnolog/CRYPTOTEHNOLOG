@@ -1,4 +1,7 @@
-use crate::events::{MarketEvent, RawDeribitEvent, RawPolymarketEvent, ReplayEventFilter};
+use crate::events::{
+    DeribitOptionQuote, EventMeta, MarketEvent, OptionKind, PolymarketOutcomeQuote,
+    RawDeribitEvent, RawPolymarketEvent, ReplayEventFilter,
+};
 
 pub const EVENT_JOURNAL_TABLE: &str = "event_journal";
 
@@ -17,6 +20,7 @@ pub const EVENT_JOURNAL_COLUMNS: [&str; 9] = [
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JournalErrorKind {
     DuplicateEvent,
+    MalformedPayload,
     Storage,
 }
 
@@ -38,6 +42,16 @@ impl JournalError {
         Self::new(
             JournalErrorKind::DuplicateEvent,
             format!("duplicate event_id: {event_id}"),
+        )
+    }
+
+    pub fn malformed_payload(event_id: &str, message: impl Into<String>) -> Self {
+        Self::new(
+            JournalErrorKind::MalformedPayload,
+            format!(
+                "malformed event_journal payload for {event_id}: {}",
+                message.into()
+            ),
         )
     }
 }
@@ -132,6 +146,69 @@ impl EventJournalRow {
             EventJournalRowValue::Json(self.payload_json.clone()),
         ]
     }
+
+    pub fn to_market_event(&self) -> Result<Option<MarketEvent>, JournalError> {
+        match self.event_type.as_str() {
+            "deribit_option_quote" => self.deribit_option_quote().map(|event| Some(event)),
+            "polymarket_outcome_quote" => self.polymarket_outcome_quote().map(|event| Some(event)),
+            _ => Ok(None),
+        }
+    }
+
+    fn meta(&self) -> EventMeta {
+        EventMeta {
+            event_id: self.event_id.clone(),
+            source: self.source.clone(),
+            exchange_ts_ms: self.exchange_ts_ms,
+            received_ts_ms: self.received_ts_ms,
+            instrument_id: self.instrument_id.clone(),
+            schema_version: self.schema_version,
+            config_version: self.config_version.clone(),
+        }
+    }
+
+    fn deribit_option_quote(&self) -> Result<MarketEvent, JournalError> {
+        let payload = parse_payload(self)?;
+        let option_kind = match required_str(self, &payload, "option_kind")? {
+            "Call" => OptionKind::Call,
+            "Put" => OptionKind::Put,
+            other => {
+                return Err(JournalError::malformed_payload(
+                    &self.event_id,
+                    format!("unsupported option_kind: {other}"),
+                ));
+            }
+        };
+
+        Ok(MarketEvent::DeribitOptionQuote(DeribitOptionQuote {
+            meta: self.meta(),
+            underlying: required_str(self, &payload, "underlying")?.to_string(),
+            expiry_ts_ms: required_i64(self, &payload, "expiry_ts_ms")?,
+            strike: required_f64(self, &payload, "strike")?,
+            option_kind,
+            underlying_price: required_f64(self, &payload, "underlying_price")?,
+            bid: required_f64(self, &payload, "bid")?,
+            ask: required_f64(self, &payload, "ask")?,
+            mark_iv: required_f64(self, &payload, "mark_iv")?,
+        }))
+    }
+
+    fn polymarket_outcome_quote(&self) -> Result<MarketEvent, JournalError> {
+        let payload = parse_payload(self)?;
+
+        Ok(MarketEvent::PolymarketOutcomeQuote(
+            PolymarketOutcomeQuote {
+                meta: self.meta(),
+                event_slug: required_str(self, &payload, "event_slug")?.to_string(),
+                market_slug: required_str(self, &payload, "market_slug")?.to_string(),
+                outcome: required_str(self, &payload, "outcome")?.to_string(),
+                target_expiry_ts_ms: required_i64(self, &payload, "target_expiry_ts_ms")?,
+                bid_probability: required_f64(self, &payload, "bid_probability")?,
+                ask_probability: required_f64(self, &payload, "ask_probability")?,
+                liquidity_usd: required_f64(self, &payload, "liquidity_usd")?,
+            },
+        ))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -140,6 +217,77 @@ pub enum EventJournalRowValue {
     TimestampMillis(i64),
     Integer(i64),
     Json(String),
+}
+
+pub const NORMALIZED_EVENT_TYPES_FOR_REPLAY: [&str; 2] =
+    ["deribit_option_quote", "polymarket_outcome_quote"];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EventJournalReplayQuery {
+    pub start_ts_ms: i64,
+    pub end_ts_ms: i64,
+    pub event_types: Vec<String>,
+    pub instrument_ids: Vec<String>,
+    pub config_version: Option<String>,
+}
+
+impl EventJournalReplayQuery {
+    pub fn from_filter(filter: ReplayEventFilter) -> Self {
+        let event_types = if filter.event_types.is_empty() {
+            NORMALIZED_EVENT_TYPES_FOR_REPLAY
+                .iter()
+                .map(|event_type| (*event_type).to_string())
+                .collect()
+        } else {
+            filter.event_types
+        };
+
+        Self {
+            start_ts_ms: filter.start_ts_ms,
+            end_ts_ms: filter.end_ts_ms,
+            event_types,
+            instrument_ids: filter.instrument_ids,
+            config_version: filter.config_version,
+        }
+    }
+
+    fn matches_row(&self, row: &EventJournalRow) -> bool {
+        if row.received_ts_ms < self.start_ts_ms || row.received_ts_ms > self.end_ts_ms {
+            return false;
+        }
+
+        if !self
+            .event_types
+            .iter()
+            .any(|candidate| candidate == &row.event_type)
+        {
+            return false;
+        }
+
+        if !self.instrument_ids.is_empty()
+            && !self
+                .instrument_ids
+                .iter()
+                .any(|candidate| candidate == &row.instrument_id)
+        {
+            return false;
+        }
+
+        if let Some(config_version) = &self.config_version {
+            if &row.config_version != config_version {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+
+pub trait EventJournalRowReader {
+    fn read_event_journal_rows(
+        &self,
+        query: &EventJournalReplayQuery,
+    ) -> Result<Vec<EventJournalRow>, JournalError>;
 }
 
 pub trait EventJournalRowWriter {
@@ -176,6 +324,58 @@ impl EventJournalRowWriter for InMemoryEventJournalRowWriter {
     }
 }
 
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct InMemoryEventJournalRowReader {
+    rows: Vec<EventJournalRow>,
+}
+
+impl InMemoryEventJournalRowReader {
+    pub fn new(rows: Vec<EventJournalRow>) -> Self {
+        Self { rows }
+    }
+
+    pub fn rows(&self) -> &[EventJournalRow] {
+        &self.rows
+    }
+}
+
+impl EventJournalRowReader for InMemoryEventJournalRowReader {
+    fn read_event_journal_rows(
+        &self,
+        query: &EventJournalReplayQuery,
+    ) -> Result<Vec<EventJournalRow>, JournalError> {
+        let mut rows: Vec<EventJournalRow> = self
+            .rows
+            .iter()
+            .filter(|row| query.matches_row(row))
+            .cloned()
+            .collect();
+
+        rows.sort_by_key(|row| (row.received_ts_ms, row.event_id.clone()));
+        Ok(rows)
+    }
+}
+
+pub fn read_market_events_for_replay_from_rows<R>(
+    reader: &R,
+    filter: ReplayEventFilter,
+) -> Result<Vec<MarketEvent>, JournalError>
+where
+    R: EventJournalRowReader,
+{
+    let query = EventJournalReplayQuery::from_filter(filter);
+    let rows = reader.read_event_journal_rows(&query)?;
+    let mut events = Vec::with_capacity(rows.len());
+
+    for row in rows {
+        if let Some(event) = row.to_market_event()? {
+            events.push(event);
+        }
+    }
+
+    Ok(events)
+}
+
 pub struct PostgresEventJournalAdapter;
 
 impl PostgresEventJournalAdapter {
@@ -189,6 +389,10 @@ impl PostgresEventJournalAdapter {
 
     pub fn insert_sql() -> &'static str {
         "INSERT INTO event_journal (event_id, event_type, source, exchange_ts, received_ts, instrument_id, schema_version, config_version, payload) VALUES ($1, $2, $3, to_timestamp($4::double precision / 1000.0), to_timestamp($5::double precision / 1000.0), $6, $7, $8, $9::jsonb)"
+    }
+
+    pub fn select_replay_sql() -> &'static str {
+        "SELECT event_id, event_type, source, (extract(epoch from exchange_ts) * 1000)::bigint AS exchange_ts_ms, (extract(epoch from received_ts) * 1000)::bigint AS received_ts_ms, instrument_id, schema_version, config_version, payload::text AS payload FROM event_journal WHERE received_ts >= to_timestamp($1::double precision / 1000.0) AND received_ts <= to_timestamp($2::double precision / 1000.0) AND event_type = ANY($3::text[]) AND ($4::text[] IS NULL OR instrument_id = ANY($4::text[])) AND ($5::text IS NULL OR config_version = $5) ORDER BY received_ts ASC, event_id ASC"
     }
 }
 
@@ -347,6 +551,49 @@ fn normalized_market_event_payload(event: &MarketEvent) -> String {
     };
 
     payload.to_string()
+}
+
+fn parse_payload(row: &EventJournalRow) -> Result<serde_json::Value, JournalError> {
+    serde_json::from_str(&row.payload_json).map_err(|error| {
+        JournalError::malformed_payload(&row.event_id, format!("invalid JSON: {error}"))
+    })
+}
+
+fn required_str<'a>(
+    row: &EventJournalRow,
+    payload: &'a serde_json::Value,
+    field: &str,
+) -> Result<&'a str, JournalError> {
+    payload
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| JournalError::malformed_payload(&row.event_id, missing_field(field)))
+}
+
+fn required_i64(
+    row: &EventJournalRow,
+    payload: &serde_json::Value,
+    field: &str,
+) -> Result<i64, JournalError> {
+    payload
+        .get(field)
+        .and_then(serde_json::Value::as_i64)
+        .ok_or_else(|| JournalError::malformed_payload(&row.event_id, missing_field(field)))
+}
+
+fn required_f64(
+    row: &EventJournalRow,
+    payload: &serde_json::Value,
+    field: &str,
+) -> Result<f64, JournalError> {
+    payload
+        .get(field)
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| JournalError::malformed_payload(&row.event_id, missing_field(field)))
+}
+
+fn missing_field(field: &str) -> String {
+    format!("missing or invalid field: {field}")
 }
 
 #[cfg(test)]
@@ -551,6 +798,33 @@ mod tests {
     }
 
     #[test]
+    fn postgres_event_journal_adapter_exposes_stable_replay_select_contract() {
+        assert_eq!(
+            PostgresEventJournalAdapter::select_replay_sql(),
+            "SELECT event_id, event_type, source, (extract(epoch from exchange_ts) * 1000)::bigint AS exchange_ts_ms, (extract(epoch from received_ts) * 1000)::bigint AS received_ts_ms, instrument_id, schema_version, config_version, payload::text AS payload FROM event_journal WHERE received_ts >= to_timestamp($1::double precision / 1000.0) AND received_ts <= to_timestamp($2::double precision / 1000.0) AND event_type = ANY($3::text[]) AND ($4::text[] IS NULL OR instrument_id = ANY($4::text[])) AND ($5::text IS NULL OR config_version = $5) ORDER BY received_ts ASC, event_id ASC"
+        );
+    }
+
+    #[test]
+    fn replay_query_defaults_to_normalized_event_types() {
+        let query = EventJournalReplayQuery::from_filter(ReplayEventFilter {
+            start_ts_ms: 0,
+            end_ts_ms: 10,
+            event_types: vec![],
+            instrument_ids: vec![],
+            config_version: None,
+        });
+
+        assert_eq!(
+            query.event_types,
+            vec![
+                "deribit_option_quote".to_string(),
+                "polymarket_outcome_quote".to_string()
+            ]
+        );
+    }
+
+    #[test]
     fn in_memory_event_journal_row_writer_preserves_storage_rows_and_rejects_duplicates() {
         let event = polymarket_quote("poly-quote-1", 2000);
         let row = EventJournalRow::from_market_event(&event);
@@ -562,6 +836,53 @@ mod tests {
         let error = writer.append_event_journal_row(row).unwrap_err();
         assert_eq!(error.kind, JournalErrorKind::DuplicateEvent);
         assert_eq!(writer.rows().len(), 1);
+    }
+
+    #[test]
+    fn in_memory_event_journal_row_reader_reconstructs_replay_events_from_rows() {
+        let raw = RawDeribitEvent {
+            meta: meta("raw-deribit-1", "ETH-20260601-3000-C", 1000),
+            endpoint_or_channel: "public/ticker".to_string(),
+            payload_json: "{}".to_string(),
+        };
+        let rows = vec![
+            EventJournalRow::from_raw_deribit_event(&raw),
+            EventJournalRow::from_market_event(&deribit_quote("deribit-quote-2", 2000)),
+            EventJournalRow::from_market_event(&polymarket_quote("poly-quote-1", 1500)),
+        ];
+        let reader = InMemoryEventJournalRowReader::new(rows);
+
+        let events = read_market_events_for_replay_from_rows(
+            &reader,
+            ReplayEventFilter {
+                start_ts_ms: 0,
+                end_ts_ms: 3000,
+                event_types: vec![],
+                instrument_ids: vec![],
+                config_version: Some("test".to_string()),
+            },
+        )
+        .expect("row reader should reconstruct normalized events");
+
+        let event_ids: Vec<&str> = events
+            .iter()
+            .map(|event| event.meta().event_id.as_str())
+            .collect();
+
+        assert_eq!(event_ids, vec!["poly-quote-1", "deribit-quote-2"]);
+    }
+
+    #[test]
+    fn event_journal_row_to_market_event_rejects_malformed_payload() {
+        let mut row = EventJournalRow::from_market_event(&deribit_quote("bad-quote", 2000));
+        row.payload_json = "{\"underlying\":\"ETH\"}".to_string();
+
+        let error = row
+            .to_market_event()
+            .expect_err("missing normalized fields should be rejected");
+
+        assert_eq!(error.kind, JournalErrorKind::MalformedPayload);
+        assert!(error.message.contains("missing or invalid field"));
     }
 
     #[cfg(feature = "postgres-writer")]

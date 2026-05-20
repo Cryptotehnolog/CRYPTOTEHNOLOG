@@ -3,7 +3,7 @@ type: workflow
 status: active
 confidence: high
 stability: volatile
-updated: 2026-05-20
+updated: 2026-05-21
 review_after: 2026-06-19
 sources:
   - deribit-api-2026-05-20
@@ -65,6 +65,17 @@ execution:reports
 - `observations_from_match_decisions()`.
 
 Real PostgreSQL writer намеренно не добавлен в этой итерации. Сначала фиксируется deterministic contract, row serialization и replay behavior, затем подключается storage implementation.
+
+## Event Journal Persistence Boundary
+
+`event_journal` имеет два уровня Rust-контракта:
+
+- `EventJournal` - domain-level interface для записи raw/normalized events и чтения normalized events для replay;
+- `EventJournalRowWriter` / `EventJournalRowReader` - storage-row boundary, близкий к будущему PostgreSQL insert/select path.
+
+`EventJournalRowReader` и `read_market_events_for_replay_from_rows()` позволяют читать persisted rows и восстанавливать normalized `MarketEvent` для matcher без live DB connection. Это intentionally offline boundary: default tests используют `InMemoryEventJournalRowReader`, а `PostgresEventJournalAdapter::select_replay_sql()` фиксирует SQL contract для будущего connector.
+
+Сейчас real PostgreSQL connector не реализован. Это защищает default CI от внешней БД и async runtime, но уже проверяет, что replay можно строить от persisted row shape, а не только от in-memory domain structs.
 
 ## Adapter Traits
 
