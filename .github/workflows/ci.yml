@@ -31,3 +31,6 @@ jobs:
         shell: pwsh
         run: .\scripts\kb_health_check.ps1
 
+      - name: Check local Markdown links
+        shell: pwsh
+        run: .\scripts\validate_local_links.ps1

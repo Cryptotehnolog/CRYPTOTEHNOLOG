@@ -16,6 +16,7 @@ The wiki must be checked periodically so automated maintenance does not accumula
 - Every managed Markdown page has YAML frontmatter.
 - Every wiki page is linked from `knowledge/index.md`.
 - Every knowledge edit appends to `knowledge/log.md`.
+- Local Markdown links resolve to existing files.
 - Low-confidence pages are easy to find.
 - Rejected and superseded pages remain visible.
 - Contradictions are documented instead of erased.
@@ -23,6 +24,8 @@ The wiki must be checked periodically so automated maintenance does not accumula
 ## Pre-Commit Policy
 
 `scripts/kb_health_check.ps1` is allowed to run in a Git pre-commit hook. Therefore it must remain fast, local, deterministic, and network-free.
+
+`scripts/validate_local_links.ps1` validates only local Markdown links. It is included in CI and `scripts/check_all.ps1`, but is not currently installed in the pre-commit hook.
 
 It must not call:
 

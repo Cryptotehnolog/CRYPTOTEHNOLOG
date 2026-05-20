@@ -52,6 +52,18 @@ Run the knowledge-base health check:
 .\scripts\kb_health_check.ps1
 ```
 
+Run the local Markdown link check:
+
+```powershell
+.\scripts\validate_local_links.ps1
+```
+
+Run all fast local checks:
+
+```powershell
+.\scripts\check_all.ps1
+```
+
 Create a raw source note:
 
 ```powershell

@@ -29,3 +29,7 @@ Documented how Codex should read and update the wiki during engineering work, an
 ## [2026-05-20] automation | Agent rules and pre-commit policy
 
 Added root `AGENTS.md` rules for AI agents. Added a Git hook installer and documented that pre-commit knowledge checks must remain fast, local, deterministic, and network-free.
+
+## [2026-05-20] automation | Local checks
+
+Added local Markdown link validation and `scripts/check_all.ps1` for the fast local check set. The link checker validates local Markdown targets only and is included in CI, but not in pre-commit.
