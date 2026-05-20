@@ -41,12 +41,23 @@ $managedMarkdownFiles += Get-ChildItem -Path (Join-Path $knowledge "templates") 
 
 $failures = New-Object System.Collections.Generic.List[string]
 $indexText = Get-Content -LiteralPath $index -Raw
+$requiredFrontmatterFields = @("type", "status", "confidence", "stability", "updated", "review_after")
 
 foreach ($filePath in $managedMarkdownFiles) {
     $file = Get-Item -LiteralPath $filePath
     $text = Get-Content -LiteralPath $file.FullName -Raw
     if (!$text.StartsWith("---`n") -and !$text.StartsWith("---`r`n")) {
         $failures.Add("Missing YAML frontmatter: $($file.FullName)")
+        continue
+    }
+
+    if ($text -match "(?s)^---\r?\n(.*?)\r?\n---") {
+        $frontmatter = $Matches[1]
+        foreach ($field in $requiredFrontmatterFields) {
+            if ($frontmatter -notmatch "(?m)^\s*$field\s*:") {
+                $failures.Add("Missing frontmatter field '$field': $($file.FullName)")
+            }
+        }
     }
 
     if ($file.FullName -like "*\knowledge\wiki\*") {

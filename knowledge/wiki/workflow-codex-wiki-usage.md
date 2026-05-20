@@ -2,7 +2,9 @@
 type: workflow
 status: active
 confidence: high
+stability: stable
 updated: 2026-05-20
+review_after: 2026-08-18
 sources:
   - karpathy-llm-wiki-2026-04-04
 ---
@@ -40,7 +42,8 @@ Codex должен обновлять wiki, когда работа создае
 
 Каждое knowledge update также должно обновлять `knowledge/index.md` и добавлять запись в `knowledge/log.md`.
 
+Если добавлена новая `decision` или `risk` page, Codex также обязан проверить `knowledge/graph.md`. Граф обновляется только для важных смысловых связей, а не для каждой Markdown-ссылки.
+
 ## Граница
 
 Wiki не должна становиться execution dependency. Ни один deterministic trading service не должен читать Obsidian, Markdown pages или LLM-generated summaries при принятии live risk или execution decisions.
-

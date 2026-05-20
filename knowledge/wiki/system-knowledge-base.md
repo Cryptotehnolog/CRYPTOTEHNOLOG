@@ -2,7 +2,9 @@
 type: system
 status: active
 confidence: high
+stability: stable
 updated: 2026-05-20
+review_after: 2026-08-18
 sources:
   - karpathy-llm-wiki-2026-04-04
 ---

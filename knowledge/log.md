@@ -2,7 +2,9 @@
 type: system
 status: active
 confidence: high
+stability: archived
 updated: 2026-05-20
+review_after: null
 sources: []
 ---
 
@@ -49,3 +51,7 @@ sources: []
 ## [2026-05-20] system | Curated knowledge graph
 
 Добавлен `knowledge/graph.md` с curated Mermaid-графом ключевых смысловых связей. Health-check должен проверять наличие `graph.md` и YAML frontmatter, но не валидировать семантику графа.
+
+## [2026-05-20] lifecycle | Stale knowledge warnings
+
+Добавлены `stability` и `review_after` в schema и текущие managed knowledge pages. Добавлен `scripts/kb_stale_check.ps1`, который выдает warning-only уведомления о страницах, требующих review. Также зафиксировано правило: при добавлении новых `decision` или `risk` pages нужно явно проверить, требуется ли обновление `knowledge/graph.md`.

@@ -2,7 +2,9 @@
 type: risk
 status: active
 confidence: high
+stability: volatile
 updated: 2026-05-20
+review_after: 2026-06-19
 sources:
   - karpathy-llm-wiki-2026-04-04
 ---
@@ -27,4 +29,3 @@ sources:
 - Явно сохранять contradictions.
 - Запускать health checks после каждого ingest.
 - Считать wiki project memory, а не runtime truth для trading.
-

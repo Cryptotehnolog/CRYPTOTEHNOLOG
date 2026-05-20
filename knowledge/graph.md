@@ -2,7 +2,9 @@
 type: system
 status: active
 confidence: high
+stability: volatile
 updated: 2026-05-20
+review_after: 2026-06-19
 sources:
   - karpathy-llm-wiki-2026-04-04
   - project-review-2026-05-19
@@ -64,3 +66,4 @@ flowchart LR
 
 Codex обновляет этот граф только при появлении важных новых связей. Не нужно добавлять сюда каждую Markdown-ссылку.
 
+При добавлении новой `decision` или `risk` страницы Codex обязан явно проверить, нужно ли добавить ее в этот граф. Если важной смысловой связи нет, граф можно не менять, но это решение должно быть осознанным.

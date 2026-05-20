@@ -2,7 +2,9 @@
 type: source
 status: active
 confidence: high
+stability: stable
 updated: YYYY-MM-DD
+review_after: null
 source_id: source-id
 title: Source Title
 author: Unknown
@@ -28,4 +30,3 @@ url: https://example.com
 ## Open Questions
 
 - Question 1.
-

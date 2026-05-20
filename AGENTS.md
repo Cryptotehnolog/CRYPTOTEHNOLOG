@@ -26,7 +26,10 @@
 
 1. релевантную страницу в `knowledge/wiki/`,
 2. `knowledge/index.md`, если была добавлена новая страница,
-3. `knowledge/log.md`.
+3. `knowledge/graph.md`, если добавлена новая `decision` или `risk` страница и появилась важная смысловая связь,
+4. `knowledge/log.md`.
+
+`knowledge/graph.md` является curated-картой. Не добавляй туда каждую Markdown-ссылку; добавляй только важные связи `source -> concept`, `concept -> decision`, `decision -> risk`, `workflow -> automation script`.
 
 Перед коммитом запусти:
 
@@ -62,4 +65,3 @@ Pre-commit проверки должны оставаться быстрыми, 
 - запускать тяжелые тесты или длинные аудиты.
 
 Если проверка становится медленной или требует сети, перенеси ее в CI или отдельный ручной audit script.
-

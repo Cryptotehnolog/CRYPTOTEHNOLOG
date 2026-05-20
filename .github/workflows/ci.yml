@@ -34,3 +34,7 @@ jobs:
       - name: Check local Markdown links
         shell: pwsh
         run: .\scripts\validate_local_links.ps1
+
+      - name: Check knowledge freshness warnings
+        shell: pwsh
+        run: .\scripts\kb_stale_check.ps1

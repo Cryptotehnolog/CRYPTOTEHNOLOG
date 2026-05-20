@@ -2,7 +2,9 @@
 type: source
 status: active
 confidence: high
+stability: stable
 updated: 2026-05-20
+review_after: null
 source_id: karpathy-llm-wiki-2026-04-04
 title: LLM Wiki
 author: Andrej Karpathy
@@ -34,4 +36,3 @@ Raw sources остаются immutable. Wiki генерируется и под�
 ## Source Handling
 
 Эта note пересказывает source и ссылается на original gist. Она намеренно не копирует полный source text.
-

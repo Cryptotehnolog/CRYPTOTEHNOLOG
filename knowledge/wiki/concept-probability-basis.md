@@ -2,7 +2,9 @@
 type: concept
 status: active
 confidence: medium
+stability: volatile
 updated: 2026-05-20
+review_after: 2026-06-19
 sources:
   - project-review-2026-05-19
 ---
@@ -29,4 +31,3 @@ Probability basis - текущая research-формулировка для ср
 ## Текущее Ограничение
 
 MVP только наблюдает и воспроизводит данные (observation and replay). Он не размещает live orders.
-

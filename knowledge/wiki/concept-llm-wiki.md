@@ -2,7 +2,9 @@
 type: concept
 status: active
 confidence: high
+stability: stable
 updated: 2026-05-20
+review_after: 2026-08-18
 sources:
   - karpathy-llm-wiki-2026-04-04
 ---
@@ -29,4 +31,3 @@ LLM Wiki - это постоянная связанная Markdown-база зн
 ## Граница
 
 Wiki может помогать разработке и research. Она не должна напрямую кормить live trading decisions.
-

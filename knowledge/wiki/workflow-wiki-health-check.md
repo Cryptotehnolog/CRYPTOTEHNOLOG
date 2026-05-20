@@ -2,7 +2,9 @@
 type: workflow
 status: active
 confidence: high
+stability: stable
 updated: 2026-05-20
+review_after: 2026-08-18
 sources:
   - karpathy-llm-wiki-2026-04-04
 ---
@@ -30,6 +32,8 @@ Health-check проверяет наличие `knowledge/graph.md` и YAML fron
 `scripts/kb_health_check.ps1` разрешен в Git pre-commit hook. Поэтому он должен оставаться fast, local, deterministic и network-free.
 
 `scripts/validate_local_links.ps1` проверяет только local Markdown links. Он включен в CI и `scripts/check_all.ps1`, но сейчас не установлен в pre-commit hook.
+
+`scripts/kb_stale_check.ps1` проверяет `review_after` и `stability` в warning-only режиме. Он может предупреждать, что страницу пора пересмотреть, но не должен блокировать commit или CI.
 
 Он не должен вызывать:
 

@@ -2,7 +2,9 @@
 type: decision
 status: active
 confidence: high
+stability: volatile
 updated: 2026-05-20
+review_after: 2026-06-19
 sources:
   - project-review-2026-05-19
 ---
@@ -35,4 +37,3 @@ Funding carry отложен, потому что начальная unhedged-в
 ## Критерий Успеха
 
 MVP успешен только если может выдавать auditable matched/rejected candidate reports с понятными причинами и воспроизводимыми calculations.
-

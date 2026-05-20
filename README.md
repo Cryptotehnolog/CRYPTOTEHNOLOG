@@ -58,6 +58,12 @@ cargo run -p cryptotehnolog-replay
 .\scripts\validate_local_links.ps1
 ```
 
+Проверить устаревание knowledge pages в warning-only режиме:
+
+```powershell
+.\scripts\kb_stale_check.ps1
+```
+
 Запустить все быстрые локальные проверки:
 
 ```powershell
@@ -126,4 +132,3 @@ Codex должен автоматически обновлять базу зна
 4. Добавить JSON serialization, когда будут разрешены внешние зависимости.
 5. Добавить Deribit и Polymarket discovery adapters за traits.
 6. Добавить отчет, который перечисляет candidate market pairs и отклоняет плохие matches с причинами.
-

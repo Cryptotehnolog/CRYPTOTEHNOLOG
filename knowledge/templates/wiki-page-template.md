@@ -2,7 +2,9 @@
 type: concept
 status: draft
 confidence: low
+stability: volatile
 updated: YYYY-MM-DD
+review_after: null
 sources: []
 ---
 
@@ -21,4 +23,3 @@ sources: []
 ## Open Questions
 
 - Question 1.
-

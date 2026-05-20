@@ -74,7 +74,9 @@ $content = @"
 type: source
 status: active
 confidence: high
+stability: stable
 updated: $today
+review_after: null
 source_id: $sourceId
 title: "$titleYaml"
 author: "$authorYaml"

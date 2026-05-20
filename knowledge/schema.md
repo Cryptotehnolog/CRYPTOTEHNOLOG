@@ -2,7 +2,10 @@
 type: schema
 status: active
 owner: codex
+confidence: high
+stability: stable
 updated: 2026-05-20
+review_after: 2026-08-18
 ---
 
 # Схема Базы Знаний
@@ -29,7 +32,9 @@ updated: 2026-05-20
 type: concept|decision|source|workflow|risk|strategy|venue|metric|system
 status: draft|active|superseded|rejected
 confidence: low|medium|high
+stability: volatile|stable|archived
 updated: YYYY-MM-DD
+review_after: YYYY-MM-DD|null
 sources:
   - source-id
 ---
@@ -60,6 +65,7 @@ Codex обязан:
 - Разделять факты, допущения, мнения и решения.
 - Ссылаться на raw source notes или канонические project files.
 - Помечать неопределенные утверждения через `confidence: low` или явную оговорку.
+- Использовать `stability` и `review_after`, чтобы lifecycle страницы был явным.
 - Обновлять `knowledge/index.md` после каждого knowledge-base edit.
 - Добавлять запись в `knowledge/log.md` после каждого ingest, query synthesis, lint pass или крупной переработки.
 - Предпочитать небольшие сфокусированные страницы большим монолитным заметкам.
@@ -74,6 +80,37 @@ Codex не должен:
 - Прятать rejected ideas. Отклонения являются ценной project memory.
 - Сохранять secrets, API keys, private credentials или exchange account details в wiki.
 
+## Lifecycle Политика
+
+Поле `stability` показывает, насколько часто страницу нужно пересматривать:
+
+- `volatile` - знания быстро меняются; нужен регулярный review.
+- `stable` - знания стабильны, но могут потребовать периодического review.
+- `archived` - историческая страница; stale warnings не нужны.
+
+Поле `review_after` задает дату следующей плановой проверки. Если дата прошла, stale check должен выдать warning, но не fail.
+
+Рекомендации:
+
+- `decision` и `risk` pages обычно получают `review_after`.
+- `source` pages могут быть `stable`, если это immutable source note.
+- `archived` pages могут использовать `review_after: null`.
+
+## Graph Review Policy
+
+`knowledge/graph.md` - curated Mermaid-граф, а не автоматически сгенерированный link graph.
+
+При добавлении новой `decision` или `risk` page Codex обязан проверить, должна ли она появиться в `knowledge/graph.md`.
+
+Добавлять нужно только важные смысловые связи:
+
+- source -> concept,
+- concept -> decision,
+- decision -> risk,
+- workflow -> automation script.
+
+Если новая `decision` или `risk` page не добавляется в граф, это допустимо, но Codex должен осознанно решить, что связь не является ключевой.
+
 ## Workflow Автоматизации
 
 При обработке нового источника:
@@ -84,7 +121,8 @@ Codex не должен:
 4. Добавить ссылки из затронутых страниц на raw source note.
 5. Обновить `knowledge/index.md`.
 6. Добавить dated entry в `knowledge/log.md`.
-7. Запустить `scripts/kb_health_check.ps1`.
+7. Если добавлены новые `decision` или `risk` pages, проверить, нужно ли обновить `knowledge/graph.md`.
+8. Запустить `scripts/kb_health_check.ps1`.
 
 При ответе на архитектурный вопрос:
 
@@ -117,4 +155,3 @@ Codex не должен:
 - `karpathy-llm-wiki-2026-04-04`
 - `project-review-2026-05-19`
 - `user-vision-2026-05-19`
-
