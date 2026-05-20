@@ -46,6 +46,9 @@ try {
     Write-Output "== Replay regression =="
     .\scripts\run_replay_regression.ps1
 
+    Write-Output "== Ingestion regression =="
+    .\scripts\run_ingestion_regression.ps1
+
     Write-Output "== Golden fixture freshness =="
     .\scripts\check_golden_fixture_current.ps1
 

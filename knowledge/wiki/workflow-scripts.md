@@ -36,7 +36,8 @@ Live monitoring должен быть Rust service/binary. PowerShell может
 - `cargo check`,
 - `cargo test`,
 - replay regression,
-- golden fixture freshness.
+- ingestion regression,
+- golden fixture freshness,
 - ingestion golden report freshness.
 
 Использовать перед коммитом.
@@ -111,6 +112,14 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 - `expected_observations`, `expected_raw_events`, `expected_normalized_events` и `expected_validation_errors` должны быть числами.
 
 Включен в `check_all` и CI, чтобы ingestion orchestration fixtures оставались видимым контрактом, а не только Rust unit-test detail.
+
+### `scripts/run_ingestion_regression.ps1`
+
+Читает `fixtures/ingestion/manifest.toml` и запускает Rust binary `render_ingestion_report` для каждого ingestion scenario.
+
+Основная проверка сравнивает generated JSON report с `expected_report` из manifest. Это script/CLI-level semantic regression, а не замена Rust unit tests.
+
+Включен в `check_all` и CI до freshness-check.
 
 ### `scripts/check_fixture_paths.ps1`
 

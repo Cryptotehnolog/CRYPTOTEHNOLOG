@@ -205,6 +205,7 @@ IngestionOutcome
 IngestionReport
 IngestionSourceReport
 IngestionRejectionSummary
+JsonFixtureParser
 ingest_once()
 ingest_once_with_validator()
 ingest_once_with_report()
@@ -216,6 +217,7 @@ Design boundary:
 - `LiveIngestionClient` пока возвращает `NotImplemented` и не делает network calls.
 - `DeribitLiveIngestionClient` строит read-only `public/ticker` URL и парсит fixture payload в raw + normalized Deribit events; default `poll_once()` остается `NotImplemented`.
 - `PolymarketLiveIngestionClient` строит read-only Gamma market URL и парсит fixture payload в raw + normalized Polymarket outcome events; default `poll_once()` остается `NotImplemented`.
+- `JsonFixtureParser` убирает дублирование fixture JSON field extraction между live adapter skeletons. Это temporary helper до real `serde_json`/HTTP implementation.
 - `ingest_once()` сохраняет raw events до normalized market events.
 - `ingest_once_with_validator()` сохраняет raw events, затем валидирует normalized events и только после этого пишет их в journal.
 - `ingest_once_with_report()` возвращает `IngestionOutcome` с `ValidationReport`; raw events сохраняются, accepted normalized events пишутся, rejected normalized events не пишутся.
@@ -430,6 +432,7 @@ pub struct ReplayEventFilter {
 - Ingestion semantic golden reports: `fixtures/ingestion/*_report.json` сравниваются с `IngestionReport::to_json()`.
 - Deribit live skeleton: ticker URL construction, fixture payload parsing и explicit no-network `poll_once()` behavior.
 - Polymarket live skeleton: Gamma market URL construction, fixture payload parsing и explicit no-network `poll_once()` behavior.
+- Live adapter fixture parser: shared string/number extraction для Deribit/Polymarket fixture payloads без network calls и без external dependencies.
 - Thin orchestration: Deribit mock batch + Polymarket mock batch -> `EventJournal` -> `match_from_market_events()` -> `BasisObservation`.
 - Negative orchestration: malformed Polymarket quote сохраняет raw event, но не создает `BasisObservation`.
 

@@ -108,6 +108,7 @@ BasisObservationRowWriter
 - `ValidationReport` - structured counters для ingestion soak: raw events received, normalized events received/accepted/rejected и rejection reasons.
 - `ingest_once_with_report()` - telemetry-oriented helper: raw events сохраняются, accepted normalized events пишутся, rejected normalized events остаются только в report.
 - `IngestionReport` - aggregate report поверх одного или нескольких `ValidationReport`, сгруппированный по source и rejection message.
+- `JsonFixtureParser` - временный lightweight parser для fixture payload parsing boundary в live adapter skeletons; не является заменой real JSON parser для будущего HTTP/WebSocket слоя.
 - `DeribitLiveIngestionClient` - first read-only live adapter skeleton: строит public ticker URL и парсит Deribit ticker payload из fixture, но `poll_once()` не делает network calls.
 - `PolymarketLiveIngestionClient` - first read-only Gamma adapter skeleton: строит market-by-slug URL и парсит Polymarket Gamma market payload из fixture, но `poll_once()` не делает network calls.
 
@@ -138,7 +139,7 @@ Fixture `fixtures/ingestion/malformed_polymarket_quote.psv` документир
 - `expected_validation_errors`,
 - `expected_observations`.
 
-`fixtures/ingestion/*_report.json` являются semantic golden reports для ingestion telemetry. Это еще не отдельный ingestion regression runner, но уже делает ingestion fixtures проверяемым машинно-читаемым контрактом, а не только detail внутри Rust unit tests.
+`fixtures/ingestion/*_report.json` являются semantic golden reports для ingestion telemetry. `scripts/run_ingestion_regression.ps1` сравнивает generated reports с этими JSON reports как script/CLI-level contract, отдельно от Rust unit tests.
 
 ## Добавление Нового Источника
 

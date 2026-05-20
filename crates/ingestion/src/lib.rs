@@ -550,7 +550,8 @@ impl DeribitLiveIngestionClient {
             ));
         }
 
-        let instrument_name = extract_json_string(payload_json, "instrument_name")?;
+        let parser = JsonFixtureParser::new(payload_json, IngestionSource::Deribit, "Deribit");
+        let instrument_name = parser.string("instrument_name")?;
         if instrument_name != self.instrument_name {
             return Err(IngestionError::new(
                 IngestionErrorKind::MalformedPayload,
@@ -562,15 +563,15 @@ impl DeribitLiveIngestionClient {
             ));
         }
 
-        let timestamp_ms = extract_json_i64(payload_json, "timestamp")?;
+        let timestamp_ms = parser.i64("timestamp")?;
         let expiry_ts_ms = parse_deribit_expiry_ts_ms(&instrument_name)?;
         let strike = parse_deribit_strike(&instrument_name)?;
         let option_kind = parse_deribit_option_kind(&instrument_name)?;
         let underlying = parse_deribit_underlying(&instrument_name)?;
-        let underlying_price = extract_json_f64(payload_json, "underlying_price")?;
-        let bid = extract_json_f64(payload_json, "best_bid_price")?;
-        let ask = extract_json_f64(payload_json, "best_ask_price")?;
-        let mark_iv = extract_json_f64(payload_json, "mark_iv")?;
+        let underlying_price = parser.f64("underlying_price")?;
+        let bid = parser.f64("best_bid_price")?;
+        let ask = parser.f64("best_ask_price")?;
+        let mark_iv = parser.f64("mark_iv")?;
 
         let raw_meta = EventMeta {
             event_id: format!("raw-deribit-ticker:{instrument_name}:{timestamp_ms}"),
@@ -660,7 +661,9 @@ impl PolymarketLiveIngestionClient {
             ));
         }
 
-        let market_slug = extract_polymarket_json_string(payload_json, "market_slug")?;
+        let parser =
+            JsonFixtureParser::new(payload_json, IngestionSource::Polymarket, "Polymarket");
+        let market_slug = parser.string("market_slug")?;
         if market_slug != self.market_slug {
             return Err(IngestionError::new(
                 IngestionErrorKind::MalformedPayload,
@@ -672,8 +675,8 @@ impl PolymarketLiveIngestionClient {
             ));
         }
 
-        let event_slug = extract_polymarket_json_string(payload_json, "event_slug")?;
-        let outcome = extract_polymarket_json_string(payload_json, "outcome")?;
+        let event_slug = parser.string("event_slug")?;
+        let outcome = parser.string("outcome")?;
         if outcome != self.outcome {
             return Err(IngestionError::new(
                 IngestionErrorKind::MalformedPayload,
@@ -685,10 +688,10 @@ impl PolymarketLiveIngestionClient {
             ));
         }
 
-        let timestamp_ms = extract_polymarket_json_i64(payload_json, "timestamp")?;
-        let bid_probability = extract_polymarket_json_f64(payload_json, "bid_probability")?;
-        let ask_probability = extract_polymarket_json_f64(payload_json, "ask_probability")?;
-        let liquidity_usd = extract_polymarket_json_f64(payload_json, "liquidity_usd")?;
+        let timestamp_ms = parser.i64("timestamp")?;
+        let bid_probability = parser.f64("bid_probability")?;
+        let ask_probability = parser.f64("ask_probability")?;
+        let liquidity_usd = parser.f64("liquidity_usd")?;
 
         let raw_meta = EventMeta {
             event_id: format!("raw-polymarket-gamma:{market_slug}:{outcome}:{timestamp_ms}"),
@@ -843,76 +846,109 @@ where
     Ok(())
 }
 
-fn extract_json_string(payload_json: &str, key: &str) -> Result<String, IngestionError> {
-    let marker = format!("\"{key}\"");
-    let Some(key_start) = payload_json.find(&marker) else {
-        return Err(missing_deribit_field(key));
-    };
-    let after_key = &payload_json[key_start + marker.len()..];
-    let Some(colon_index) = after_key.find(':') else {
-        return Err(missing_deribit_field(key));
-    };
-    let after_colon = after_key[colon_index + 1..].trim_start();
-    if !after_colon.starts_with('"') {
-        return Err(malformed_deribit_field(key));
+#[derive(Debug, Clone, Copy)]
+struct JsonFixtureParser<'a> {
+    payload_json: &'a str,
+    source: IngestionSource,
+    source_name: &'static str,
+}
+
+impl<'a> JsonFixtureParser<'a> {
+    fn new(payload_json: &'a str, source: IngestionSource, source_name: &'static str) -> Self {
+        Self {
+            payload_json,
+            source,
+            source_name,
+        }
     }
-    let value_start = 1;
-    let Some(value_end) = after_colon[value_start..].find('"') else {
-        return Err(malformed_deribit_field(key));
-    };
 
-    Ok(after_colon[value_start..value_start + value_end].to_string())
-}
+    fn string(&self, key: &str) -> Result<String, IngestionError> {
+        let marker = format!("\"{key}\"");
+        let Some(key_start) = self.payload_json.find(&marker) else {
+            return Err(self.missing_field(key));
+        };
+        let after_key = &self.payload_json[key_start + marker.len()..];
+        let Some(colon_index) = after_key.find(':') else {
+            return Err(self.missing_field(key));
+        };
+        let after_colon = after_key[colon_index + 1..].trim_start();
+        if !after_colon.starts_with('"') {
+            return Err(self.malformed_field(key));
+        }
+        let value_start = 1;
+        let Some(value_end) = after_colon[value_start..].find('"') else {
+            return Err(self.malformed_field(key));
+        };
 
-fn extract_json_f64(payload_json: &str, key: &str) -> Result<f64, IngestionError> {
-    let raw = extract_json_number(payload_json, key)?;
-    raw.parse::<f64>().map_err(|error| {
-        IngestionError::new(
-            IngestionErrorKind::MalformedPayload,
-            Some(IngestionSource::Deribit),
-            format!("invalid Deribit numeric field {key}: {error}"),
-        )
-    })
-}
+        Ok(after_colon[value_start..value_start + value_end].to_string())
+    }
 
-fn extract_json_i64(payload_json: &str, key: &str) -> Result<i64, IngestionError> {
-    let raw = extract_json_number(payload_json, key)?;
-    raw.parse::<i64>().map_err(|error| {
-        IngestionError::new(
-            IngestionErrorKind::MalformedPayload,
-            Some(IngestionSource::Deribit),
-            format!("invalid Deribit integer field {key}: {error}"),
-        )
-    })
-}
-
-fn extract_json_number(payload_json: &str, key: &str) -> Result<String, IngestionError> {
-    let marker = format!("\"{key}\"");
-    let Some(key_start) = payload_json.find(&marker) else {
-        return Err(missing_deribit_field(key));
-    };
-    let after_key = &payload_json[key_start + marker.len()..];
-    let Some(colon_index) = after_key.find(':') else {
-        return Err(missing_deribit_field(key));
-    };
-    let after_colon = after_key[colon_index + 1..].trim_start();
-    let number: String = after_colon
-        .chars()
-        .take_while(|candidate| {
-            candidate.is_ascii_digit()
-                || *candidate == '.'
-                || *candidate == '-'
-                || *candidate == '+'
-                || *candidate == 'e'
-                || *candidate == 'E'
+    fn f64(&self, key: &str) -> Result<f64, IngestionError> {
+        let raw = self.number(key)?;
+        raw.parse::<f64>().map_err(|error| {
+            IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(self.source),
+                format!("invalid {} numeric field {key}: {error}", self.source_name),
+            )
         })
-        .collect();
-
-    if number.is_empty() {
-        return Err(malformed_deribit_field(key));
     }
 
-    Ok(number)
+    fn i64(&self, key: &str) -> Result<i64, IngestionError> {
+        let raw = self.number(key)?;
+        raw.parse::<i64>().map_err(|error| {
+            IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(self.source),
+                format!("invalid {} integer field {key}: {error}", self.source_name),
+            )
+        })
+    }
+
+    fn number(&self, key: &str) -> Result<String, IngestionError> {
+        let marker = format!("\"{key}\"");
+        let Some(key_start) = self.payload_json.find(&marker) else {
+            return Err(self.missing_field(key));
+        };
+        let after_key = &self.payload_json[key_start + marker.len()..];
+        let Some(colon_index) = after_key.find(':') else {
+            return Err(self.missing_field(key));
+        };
+        let after_colon = after_key[colon_index + 1..].trim_start();
+        let number: String = after_colon
+            .chars()
+            .take_while(|candidate| {
+                candidate.is_ascii_digit()
+                    || *candidate == '.'
+                    || *candidate == '-'
+                    || *candidate == '+'
+                    || *candidate == 'e'
+                    || *candidate == 'E'
+            })
+            .collect();
+
+        if number.is_empty() {
+            return Err(self.malformed_field(key));
+        }
+
+        Ok(number)
+    }
+
+    fn missing_field(&self, key: &str) -> IngestionError {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(self.source),
+            format!("missing {} field `{key}`", self.source_name),
+        )
+    }
+
+    fn malformed_field(&self, key: &str) -> IngestionError {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(self.source),
+            format!("malformed {} field `{key}`", self.source_name),
+        )
+    }
 }
 
 fn parse_deribit_underlying(instrument_name: &str) -> Result<String, IngestionError> {
@@ -969,115 +1005,11 @@ fn parse_deribit_option_kind(instrument_name: &str) -> Result<OptionKind, Ingest
     }
 }
 
-fn missing_deribit_field(key: &str) -> IngestionError {
-    IngestionError::new(
-        IngestionErrorKind::MalformedPayload,
-        Some(IngestionSource::Deribit),
-        format!("missing Deribit field `{key}`"),
-    )
-}
-
-fn malformed_deribit_field(key: &str) -> IngestionError {
-    IngestionError::new(
-        IngestionErrorKind::MalformedPayload,
-        Some(IngestionSource::Deribit),
-        format!("malformed Deribit field `{key}`"),
-    )
-}
-
 fn malformed_deribit_instrument(instrument_name: &str) -> IngestionError {
     IngestionError::new(
         IngestionErrorKind::MalformedPayload,
         Some(IngestionSource::Deribit),
         format!("malformed Deribit instrument name `{instrument_name}`"),
-    )
-}
-
-fn extract_polymarket_json_string(payload_json: &str, key: &str) -> Result<String, IngestionError> {
-    let marker = format!("\"{key}\"");
-    let Some(key_start) = payload_json.find(&marker) else {
-        return Err(missing_polymarket_field(key));
-    };
-    let after_key = &payload_json[key_start + marker.len()..];
-    let Some(colon_index) = after_key.find(':') else {
-        return Err(missing_polymarket_field(key));
-    };
-    let after_colon = after_key[colon_index + 1..].trim_start();
-    if !after_colon.starts_with('"') {
-        return Err(malformed_polymarket_field(key));
-    }
-    let value_start = 1;
-    let Some(value_end) = after_colon[value_start..].find('"') else {
-        return Err(malformed_polymarket_field(key));
-    };
-
-    Ok(after_colon[value_start..value_start + value_end].to_string())
-}
-
-fn extract_polymarket_json_f64(payload_json: &str, key: &str) -> Result<f64, IngestionError> {
-    let raw = extract_polymarket_json_number(payload_json, key)?;
-    raw.parse::<f64>().map_err(|error| {
-        IngestionError::new(
-            IngestionErrorKind::MalformedPayload,
-            Some(IngestionSource::Polymarket),
-            format!("invalid Polymarket numeric field {key}: {error}"),
-        )
-    })
-}
-
-fn extract_polymarket_json_i64(payload_json: &str, key: &str) -> Result<i64, IngestionError> {
-    let raw = extract_polymarket_json_number(payload_json, key)?;
-    raw.parse::<i64>().map_err(|error| {
-        IngestionError::new(
-            IngestionErrorKind::MalformedPayload,
-            Some(IngestionSource::Polymarket),
-            format!("invalid Polymarket integer field {key}: {error}"),
-        )
-    })
-}
-
-fn extract_polymarket_json_number(payload_json: &str, key: &str) -> Result<String, IngestionError> {
-    let marker = format!("\"{key}\"");
-    let Some(key_start) = payload_json.find(&marker) else {
-        return Err(missing_polymarket_field(key));
-    };
-    let after_key = &payload_json[key_start + marker.len()..];
-    let Some(colon_index) = after_key.find(':') else {
-        return Err(missing_polymarket_field(key));
-    };
-    let after_colon = after_key[colon_index + 1..].trim_start();
-    let number: String = after_colon
-        .chars()
-        .take_while(|candidate| {
-            candidate.is_ascii_digit()
-                || *candidate == '.'
-                || *candidate == '-'
-                || *candidate == '+'
-                || *candidate == 'e'
-                || *candidate == 'E'
-        })
-        .collect();
-
-    if number.is_empty() {
-        return Err(malformed_polymarket_field(key));
-    }
-
-    Ok(number)
-}
-
-fn missing_polymarket_field(key: &str) -> IngestionError {
-    IngestionError::new(
-        IngestionErrorKind::MalformedPayload,
-        Some(IngestionSource::Polymarket),
-        format!("missing Polymarket field `{key}`"),
-    )
-}
-
-fn malformed_polymarket_field(key: &str) -> IngestionError {
-    IngestionError::new(
-        IngestionErrorKind::MalformedPayload,
-        Some(IngestionSource::Polymarket),
-        format!("malformed Polymarket field `{key}`"),
     )
 }
 

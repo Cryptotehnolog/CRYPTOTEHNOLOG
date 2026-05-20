@@ -69,6 +69,10 @@ jobs:
         shell: pwsh
         run: .\scripts\run_replay_regression.ps1
 
+      - name: Run ingestion regression
+        shell: pwsh
+        run: .\scripts\run_ingestion_regression.ps1
+
       - name: Check golden fixture freshness
         shell: pwsh
         run: .\scripts\check_golden_fixture_current.ps1
