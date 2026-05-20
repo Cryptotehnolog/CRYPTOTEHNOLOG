@@ -240,7 +240,7 @@ Design boundary:
 - `ingest_once()` сохраняет raw events до normalized market events.
 - `ingest_once_with_validator()` сохраняет raw events, затем валидирует normalized events и только после этого пишет их в journal.
 - `ingest_once_with_report()` возвращает `IngestionOutcome` с `ValidationReport`; raw events сохраняются, accepted normalized events пишутся, rejected normalized events не пишутся.
-- `Phase0NormalizedBatchValidator` проверяет identity fields, finite values, quote ordering и basic timestamp/value sanity без стратегических thresholds.
+- `Phase0NormalizedBatchValidator` проверяет `schema_version == 1`, `received_ts_ms >= exchange_ts_ms`, identity fields, finite values, quote ordering и basic timestamp/value sanity без стратегических thresholds.
 - `ValidationReport` содержит counters: `raw_events_received`, `normalized_events_received`, `normalized_events_accepted`, `normalized_events_rejected` и список `rejections`.
 - `IngestionReport` агрегирует несколько `ValidationReport`: totals, counts by source и counts by rejection message.
 - Ошибки API/reconnect/rate-limit не должны превращаться в trading rejection reasons; они относятся к ingestion health.

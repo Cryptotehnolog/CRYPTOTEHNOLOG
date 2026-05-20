@@ -1,0 +1,3 @@
+# step|source|outcome|message
+1|deribit|invalid_schema_batch|raw Deribit payload is preserved while unsupported normalized schema_version is rejected
+2|polymarket|invalid_timestamp_batch|raw Polymarket payload is preserved while received_ts_ms earlier than exchange_ts_ms is rejected

@@ -119,6 +119,8 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 
 Основная проверка сравнивает generated JSON report с `expected_report` из manifest. Это script/CLI-level semantic regression, а не замена Rust unit tests.
 
+Текущие сценарии покрывают happy path, malformed quote path и Phase 0 data-quality path для `schema_version`/timestamp validation.
+
 Включен в `check_all` и CI до freshness-check.
 
 ### `scripts/check_fixture_paths.ps1`

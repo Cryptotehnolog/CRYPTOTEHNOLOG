@@ -624,6 +624,8 @@ impl NormalizedBatchValidator for Phase0NormalizedBatchValidator {
         &self,
         event: &MarketEvent,
     ) -> Result<(), NormalizedBatchValidationError> {
+        validate_phase0_event_meta(event)?;
+
         match event {
             MarketEvent::DeribitOptionQuote(quote) => {
                 if quote.meta.event_id.trim().is_empty()
@@ -687,6 +689,28 @@ impl NormalizedBatchValidator for Phase0NormalizedBatchValidator {
 
         Ok(())
     }
+}
+
+const SUPPORTED_NORMALIZED_EVENT_SCHEMA_VERSION: u16 = 1;
+
+fn validate_phase0_event_meta(event: &MarketEvent) -> Result<(), NormalizedBatchValidationError> {
+    let meta = event.meta();
+
+    if meta.schema_version != SUPPORTED_NORMALIZED_EVENT_SCHEMA_VERSION {
+        return Err(validation_error(
+            event,
+            "unsupported normalized event schema_version",
+        ));
+    }
+
+    if meta.received_ts_ms < meta.exchange_ts_ms {
+        return Err(validation_error(
+            event,
+            "normalized event received_ts_ms is earlier than exchange_ts_ms",
+        ));
+    }
+
+    Ok(())
 }
 
 fn validation_error(
@@ -1970,6 +1994,8 @@ pub enum IngestionScenarioOutcome {
     Reconnect,
     Batch,
     MalformedBatch,
+    InvalidSchemaBatch,
+    InvalidTimestampBatch,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2044,6 +2070,8 @@ fn parse_outcome(line_number: usize, raw: &str) -> Result<IngestionScenarioOutco
         "reconnect" => Ok(IngestionScenarioOutcome::Reconnect),
         "batch" => Ok(IngestionScenarioOutcome::Batch),
         "malformed_batch" => Ok(IngestionScenarioOutcome::MalformedBatch),
+        "invalid_schema_batch" => Ok(IngestionScenarioOutcome::InvalidSchemaBatch),
+        "invalid_timestamp_batch" => Ok(IngestionScenarioOutcome::InvalidTimestampBatch),
         other => Err(format!("line {line_number}: unsupported outcome `{other}`")),
     }
 }
@@ -2189,6 +2217,26 @@ pub fn ingestion_report_from_scenario_steps(
                     step.source.as_str(),
                     format!("scenario-step-{}", step.step),
                     malformed_fixture_rejection_message(step.source)?,
+                ));
+                report
+            }
+            IngestionScenarioOutcome::InvalidSchemaBatch => {
+                let mut report = ValidationReport::new(1, 1);
+                report.normalized_events_rejected = 1;
+                report.rejections.push(NormalizedBatchValidationError::new(
+                    step.source.as_str(),
+                    format!("scenario-step-{}", step.step),
+                    "unsupported normalized event schema_version",
+                ));
+                report
+            }
+            IngestionScenarioOutcome::InvalidTimestampBatch => {
+                let mut report = ValidationReport::new(1, 1);
+                report.normalized_events_rejected = 1;
+                report.rejections.push(NormalizedBatchValidationError::new(
+                    step.source.as_str(),
+                    format!("scenario-step-{}", step.step),
+                    "normalized event received_ts_ms is earlier than exchange_ts_ms",
                 ));
                 report
             }
@@ -2676,13 +2724,73 @@ mod tests {
     }
 
     #[test]
+    fn phase0_validator_rejects_unsupported_schema_after_preserving_raw_event() {
+        let mut batch = deribit_batch();
+        match &mut batch.market_events[0] {
+            MarketEvent::DeribitOptionQuote(quote) => {
+                quote.meta.schema_version = SUPPORTED_NORMALIZED_EVENT_SCHEMA_VERSION + 1;
+            }
+            MarketEvent::PolymarketOutcomeQuote(_) => panic!("expected Deribit quote"),
+        }
+        let mut client = MockIngestionClient::new(vec![MockIngestionStep::Batch(batch)]);
+        let mut journal = InMemoryEventJournal::new();
+
+        let outcome = ingest_once_with_report(
+            &mut client,
+            &mut journal,
+            &IngestionConfig::phase0_deribit("mock://deribit"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("raw event should be preserved and validation report returned");
+
+        assert_eq!(journal.raw_deribit_events().len(), 1);
+        assert!(journal.market_events().is_empty());
+        assert_eq!(outcome.validation_report.normalized_events_accepted, 0);
+        assert_eq!(outcome.validation_report.normalized_events_rejected, 1);
+        assert_eq!(
+            outcome.validation_report.rejections[0].message,
+            "unsupported normalized event schema_version"
+        );
+    }
+
+    #[test]
+    fn phase0_validator_rejects_received_timestamp_before_exchange_timestamp() {
+        let mut batch = polymarket_batch();
+        match &mut batch.market_events[0] {
+            MarketEvent::PolymarketOutcomeQuote(quote) => {
+                quote.meta.received_ts_ms = quote.meta.exchange_ts_ms - 1;
+            }
+            MarketEvent::DeribitOptionQuote(_) => panic!("expected Polymarket quote"),
+        }
+        let mut client = MockIngestionClient::new(vec![MockIngestionStep::Batch(batch)]);
+        let mut journal = InMemoryEventJournal::new();
+
+        let outcome = ingest_once_with_report(
+            &mut client,
+            &mut journal,
+            &IngestionConfig::phase0_polymarket("mock://polymarket"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("raw event should be preserved and validation report returned");
+
+        assert_eq!(journal.raw_polymarket_events().len(), 1);
+        assert!(journal.market_events().is_empty());
+        assert_eq!(outcome.validation_report.normalized_events_accepted, 0);
+        assert_eq!(outcome.validation_report.normalized_events_rejected, 1);
+        assert_eq!(
+            outcome.validation_report.rejections[0].message,
+            "normalized event received_ts_ms is earlier than exchange_ts_ms"
+        );
+    }
+
+    #[test]
     fn ingestion_manifest_lists_current_orchestration_scenarios() {
         let manifest_path = fixture_path("manifest.toml");
 
         let scenarios =
             load_ingestion_manifest(&manifest_path).expect("ingestion manifest should parse");
 
-        assert_eq!(scenarios.len(), 2);
+        assert_eq!(scenarios.len(), 3);
         assert_eq!(scenarios[0].name, "happy_path_batches");
         assert_eq!(
             scenarios[0].expected_report,
@@ -2701,6 +2809,15 @@ mod tests {
         assert_eq!(scenarios[1].expected_raw_events, 2);
         assert_eq!(scenarios[1].expected_normalized_events, 1);
         assert_eq!(scenarios[1].expected_validation_errors, 1);
+        assert_eq!(scenarios[2].name, "schema_timestamp_invalid_batches");
+        assert_eq!(
+            scenarios[2].expected_report,
+            "fixtures/ingestion/schema_timestamp_invalid_report.json"
+        );
+        assert_eq!(scenarios[2].expected_observations, 0);
+        assert_eq!(scenarios[2].expected_raw_events, 2);
+        assert_eq!(scenarios[2].expected_normalized_events, 0);
+        assert_eq!(scenarios[2].expected_validation_errors, 2);
     }
 
     #[test]
