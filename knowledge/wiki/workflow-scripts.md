@@ -272,8 +272,9 @@ Default pattern: `artifacts\network_connectivity_report*.json`.
 - сколько reports имеют parse errors;
 - accepted normalized events;
 - matcher decisions и observations;
-- payload shape versions;
-- selected Deribit instrument and selected Polymarket market;
+- отдельную таблицу `Selected Candidates` с выбранной Deribit/Polymarket парой;
+- warning, если `strike_distance > 0` или `selected_expiry_ts_ms != target_expiry_ts_ms`, потому что это basis mismatch risk;
+- payload shape versions отдельной таблицей, чтобы они не раздували основной summary;
 - errors by stage/endpoint/kind.
 
 Default pattern: `artifacts\live_probe_replay_report*.json`.

@@ -6,6 +6,46 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 
+function Convert-NullableDouble {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $null
+    }
+
+    return [double]::Parse($text, [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Convert-NullableInt64 {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $null
+    }
+
+    return [int64]::Parse($text, [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Format-OptionalValue {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    return [string]$Value
+}
+
 if (-not [System.IO.Path]::IsPathRooted($ReportsGlob)) {
     $ReportsGlob = Join-Path $root $ReportsGlob
 }
@@ -16,18 +56,32 @@ if ($files.Count -eq 0) {
 }
 
 $reportRows = @()
+$selectionRows = @()
+$payloadShapeRows = @()
+$mismatchRows = @()
 $errorRows = @()
 foreach ($file in $files) {
     $report = Get-Content $file.FullName -Raw | ConvertFrom-Json
     $errors = @($report.errors)
     $parseErrors = @($errors | Where-Object { $_.stage -eq "parse" })
     $httpErrors = @($errors | Where-Object { $_.stage -eq "http" })
-    $payloadShapes = @($report.payload_shape_versions | ForEach-Object { "$($_.endpoint)=$($_.payload_shape_version)" })
     $selection = $report.selection_report
     $accepted = [int]$report.ingestion_report.total_normalized_events_accepted
     $decisions = [int]$report.replay_summary.decisions
     $observations = [int]$report.replay_summary.observations
     $matcherReady = ($accepted -ge 2 -and $decisions -gt 0)
+    $targetExpiryTsMs = Convert-NullableInt64 $selection.target_expiry_ts_ms
+    $selectedExpiryTsMs = Convert-NullableInt64 $selection.selected_expiry_ts_ms
+    $strikeDistance = Convert-NullableDouble $selection.strike_distance
+    $hasStrikeMismatch = ($null -ne $strikeDistance -and $strikeDistance -gt 0.0)
+    $hasExpiryMismatch = ($null -ne $targetExpiryTsMs -and $null -ne $selectedExpiryTsMs -and $selectedExpiryTsMs -ne $targetExpiryTsMs)
+    $warningReasons = @()
+    if ($hasStrikeMismatch) {
+        $warningReasons += "strike_distance > 0"
+    }
+    if ($hasExpiryMismatch) {
+        $warningReasons += "selected_expiry_ts_ms != target_expiry_ts_ms"
+    }
 
     $reportRows += [pscustomobject]@{
         Report = $file.Name
@@ -39,10 +93,29 @@ foreach ($file in $files) {
         MatcherDecisions = $decisions
         Observations = $observations
         MatcherReady = $matcherReady
-        PayloadShapes = ($payloadShapes -join ";")
-        SelectedDeribit = [string]$selection.selected_deribit_instrument
-        SelectedPolymarket = [string]$selection.selected_polymarket_market_slug
-        StrikeDistance = if ($null -eq $selection.strike_distance) { "" } else { [string]$selection.strike_distance }
+    }
+
+    $selectionRow = [pscustomobject]@{
+        Report = $file.Name
+        DeribitInstrument = Format-OptionalValue $selection.selected_deribit_instrument
+        PolymarketMarket = Format-OptionalValue $selection.selected_polymarket_market_slug
+        TargetExpiryTsMs = Format-OptionalValue $targetExpiryTsMs
+        SelectedExpiryTsMs = Format-OptionalValue $selectedExpiryTsMs
+        StrikeDistance = Format-OptionalValue $strikeDistance
+        Warning = if ($warningReasons.Count -gt 0) { $warningReasons -join "; " } else { "" }
+    }
+    $selectionRows += $selectionRow
+
+    if ($warningReasons.Count -gt 0) {
+        $mismatchRows += $selectionRow
+    }
+
+    foreach ($payloadShape in @($report.payload_shape_versions)) {
+        $payloadShapeRows += [pscustomobject]@{
+            Report = $file.Name
+            Endpoint = [string]$payloadShape.endpoint
+            PayloadShapeVersion = [string]$payloadShape.payload_shape_version
+        }
     }
 
     foreach ($errorEntry in $errors) {
@@ -68,6 +141,26 @@ Write-Output "Reports with HTTP errors: $reportsWithHttpErrors/$totalReports"
 Write-Output ""
 
 $reportRows | Format-Table -AutoSize
+
+if ($selectionRows.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Selected Candidates"
+    $selectionRows | Format-Table -AutoSize
+}
+
+if ($mismatchRows.Count -gt 0) {
+    Write-Output ""
+    Write-Output "WARNING: Basis mismatch risk detected in selected candidates"
+    foreach ($row in $mismatchRows) {
+        Write-Output "- $($row.Report): $($row.Warning) (Deribit=$($row.DeribitInstrument), Polymarket=$($row.PolymarketMarket), target_expiry_ts_ms=$($row.TargetExpiryTsMs), selected_expiry_ts_ms=$($row.SelectedExpiryTsMs), strike_distance=$($row.StrikeDistance))"
+    }
+}
+
+if ($payloadShapeRows.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Payload Shapes"
+    $payloadShapeRows | Format-Table -AutoSize
+}
 
 if ($errorRows.Count -gt 0) {
     Write-Output ""

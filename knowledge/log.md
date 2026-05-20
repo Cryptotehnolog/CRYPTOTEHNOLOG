@@ -231,3 +231,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-20] implementation | Polymarket market discovery for live probe
 
 Добавлен read-only discovery boundary для Polymarket Gamma markets: `PolymarketMarketDiscoveryCriteria`, `PolymarketDiscoveredMarket`, Gamma markets URL construction и deterministic selection по required terms, outcome, active/closed state и liquidity. `live_probe_replay` теперь делает Polymarket `discover market candidate -> market-by-slug -> normalize -> matcher` вместо hardcoded `eth-above-3000-june-1`. Report расширен `selection_report`: selected Deribit instrument, target/selected expiry, strike distance и selected Polymarket market/event/liquidity.
+
+## [2026-05-20] automation | Live probe replay summary selection warnings
+
+`scripts/summarize_live_probe_replay_reports.ps1` теперь выводит выбранную Deribit/Polymarket пару отдельной таблицей `Selected Candidates`, выносит payload shape versions из основной summary-строки и показывает warning, если `strike_distance > 0` или `selected_expiry_ts_ms != target_expiry_ts_ms`. Это делает basis mismatch risk заметным в manual report summary до перехода к более глубокой live ingestion telemetry.
