@@ -99,6 +99,7 @@ Manifest scenarios:
 
 - `probability_basis_golden` - mixed matched/rejected baseline,
 - `probability_basis_edge_below_threshold` - rejected-only сценарий для проверки threshold boundary.
+- `probability_basis_invalid_quote` - rejected-only сценарий для проверки data-quality rejection path.
 
 Primary expected output для каждого scenario хранится в JSON report, указанном в `fixtures/manifest.toml`.
 

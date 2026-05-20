@@ -38,6 +38,8 @@ sources:
 
 GitHub Actions status читается best-effort через публичный GitHub API. Для public repository токен обычно не нужен. Если API недоступен, rate-limited или repository станет private, можно задать `GITHUB_TOKEN` с минимальными read-only правами на repository metadata/actions. Токен нельзя сохранять в репозитории или wiki.
 
+Если latest GitHub Actions status не `completed/success`, `dev_status` выводит короткий `WARNING`, чтобы красный `main` был заметен в начале рабочей сессии.
+
 ## Knowledge Base
 
 ### `scripts/kb_health_check.ps1`

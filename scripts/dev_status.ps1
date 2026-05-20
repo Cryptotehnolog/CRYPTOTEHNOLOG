@@ -67,7 +67,12 @@ function Get-LatestGitHubActionsStatus {
         $run = $response.workflow_runs[0]
         $shortSha = $run.head_sha.Substring(0, 7)
         $result = if ($null -eq $run.conclusion) { $run.status } else { "$($run.status)/$($run.conclusion)" }
-        return "Latest GitHub Actions: $result on main ($shortSha, $($run.display_title))"
+        $statusLine = "Latest GitHub Actions: $result on main ($shortSha, $($run.display_title))"
+        if ($result -ne "completed/success") {
+            return "$statusLine`nWARNING: latest GitHub Actions status is not completed/success."
+        }
+
+        return $statusLine
     }
     catch {
         return "Latest GitHub Actions: unavailable ($($_.Exception.Message)). Public repos usually work without a token; for rate limits or private repos set GITHUB_TOKEN with read-only repository Actions/Metadata access."
