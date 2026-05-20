@@ -48,7 +48,7 @@ Live monitoring должен быть Rust service/binary. PowerShell может
 
 Показывает состояние рабочей сессии: Git status, последний коммит, remote, наличие GitHub Actions workflow, latest GitHub Actions status для `main` если GitHub API доступен, наличие hook, версии Rust/UV/Git и наличие optional `rust-skills` advisory review tool.
 
-GitHub Actions status читается best-effort через публичный GitHub API. Для public repository токен обычно не нужен. Если API недоступен, rate-limited или repository станет private, можно задать `GITHUB_TOKEN` с минимальными read-only правами на repository metadata/actions. Токен нельзя сохранять в репозитории или wiki.
+GitHub Actions status читается best-effort через публичный GitHub API. Для public repository токен обычно не нужен. Если `dev_status` запускается внутри Codex sandbox, GitHub API может быть недоступен без явного разрешения сети. Если API недоступен, rate-limited или repository станет private, можно задать `GITHUB_TOKEN` с минимальными read-only правами на repository metadata/actions. Токен нельзя сохранять в репозитории или wiki.
 
 Если latest GitHub Actions status не `completed/success`, `dev_status` выводит короткий `WARNING`, чтобы красный `main` был заметен в начале рабочей сессии.
 

@@ -75,7 +75,7 @@ function Get-LatestGitHubActionsStatus {
         return $statusLine
     }
     catch {
-        return "Latest GitHub Actions: unavailable ($($_.Exception.Message)). Public repos usually work without a token; for rate limits or private repos set GITHUB_TOKEN with read-only repository Actions/Metadata access."
+        return "Latest GitHub Actions: unavailable ($($_.Exception.Message)). If running inside Codex sandbox, GitHub API may be unavailable without explicit network approval. Public repos usually work without a token; for rate limits or private repos set GITHUB_TOKEN with read-only repository Actions/Metadata access."
     }
 }
 

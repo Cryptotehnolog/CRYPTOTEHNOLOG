@@ -319,3 +319,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] implementation | Phase 0 pipeline semantic regression
 
 Добавлен Rust-level semantic regression test для `Phase0PipelineReport`: тест читает `fixtures/phase0_pipeline/golden_report.json`, десериализует его в typed DTO и сравнивает с текущим deterministic offline vertical slice report. Это дополняет script-level freshness-check и не зависит от форматирования JSON.
+
+## [2026-05-21] maintenance | dev_status GitHub API diagnostic
+
+Уточнено сообщение `scripts/dev_status.ps1` при недоступности GitHub API: теперь оно явно объясняет, что внутри Codex sandbox API может быть недоступен без отдельного разрешения сети. Обновлена документация `workflow-scripts.md`.
