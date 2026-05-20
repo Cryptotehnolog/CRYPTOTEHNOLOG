@@ -7,3 +7,8 @@ expected_report = "fixtures/phase0_pipeline/golden_report.json"
 name = "invalid_normalized_event_preserves_raw_but_no_observation"
 fixture = "fixtures/phase0_pipeline/invalid_normalized_event_preserves_raw_but_no_observation.psv"
 expected_report = "fixtures/phase0_pipeline/invalid_normalized_event_preserves_raw_but_no_observation_report.json"
+
+[[scenario]]
+name = "storage_writer_failure_preserves_reported_failure"
+fixture = "fixtures/phase0_pipeline/storage_writer_failure_preserves_reported_failure.psv"
+expected_report = "fixtures/phase0_pipeline/storage_writer_failure_preserves_reported_failure_report.json"

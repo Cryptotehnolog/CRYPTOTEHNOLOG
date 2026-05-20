@@ -220,9 +220,16 @@ fixture scenario -> mock ingestion -> EventJournal -> matcher -> BasisObservatio
 Основная проверка сравнивает generated JSON report с `expected_report` из manifest. Текущие сценарии покрывают:
 
 - happy path до `BasisObservationRowWriter`,
-- invalid normalized Polymarket event path, где raw event сохраняется, но observation не создается.
+- invalid normalized Polymarket event path, где raw event сохраняется, но observation не создается,
+- storage writer failure path, где observation создан, но `BasisObservationRowWriter` возвращает controlled error report.
 
 Это script/CLI-level semantic regression, а не замена Rust unit tests.
+
+| Scenario | Pipeline path | Expected status |
+| --- | --- | --- |
+| `happy_path` | raw events -> normalized events -> journal rows -> match decision -> observation -> observation row | `ok` |
+| `invalid_normalized_event_preserves_raw_but_no_observation` | raw events -> partial normalized events -> no observation | `ok` |
+| `storage_writer_failure_preserves_reported_failure` | raw events -> normalized events -> match decision -> observation -> writer failure report | `error` |
 
 ### `scripts/update_phase0_pipeline_golden.ps1`
 

@@ -327,3 +327,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] implementation | Phase 0 pipeline manifest scenarios
 
 Добавлен второй Phase 0 pipeline scenario `invalid_normalized_event_preserves_raw_but_no_observation`: raw Polymarket event сохраняется, invalid normalized quote отклоняется, `BasisObservation` не создается. Phase 0 pipeline reports переведены на `fixtures/phase0_pipeline/manifest.toml`, добавлены manifest check, manifest-driven regression runner и freshness-check по всем expected reports.
+
+## [2026-05-21] implementation | Phase 0 pipeline storage writer failure scenario
+
+`Phase0PipelineReport` расширен полями `status`, `error_stage`, `error_message`, чтобы controlled storage failures не маскировались под нулевые counts. Добавлен сценарий `storage_writer_failure_preserves_reported_failure`, где pipeline доходит до `BasisObservation`, но `BasisObservationRowWriter` возвращает `Storage` error report. В `workflow-scripts.md` добавлена таблица покрытых Phase 0 pipeline paths.

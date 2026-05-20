@@ -10,7 +10,8 @@ use cryptotehnolog_common::journal::{
     EventJournal, EventJournalRow, EventJournalRowWriter, JournalError,
 };
 use cryptotehnolog_common::observations::{
-    InMemoryBasisObservationRowWriter, observations_from_match_decisions,
+    BasisObservationRow, BasisObservationRowWriter, InMemoryBasisObservationRowWriter,
+    ObservationWriteError, ObservationWriteErrorKind, observations_from_match_decisions,
     write_basis_observation_rows,
 };
 use cryptotehnolog_common::probability_basis::{ProbabilityBasisConfig, match_from_market_events};
@@ -607,12 +608,22 @@ impl IngestionReport {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Phase0PipelineReport {
     pub schema_version: u16,
+    pub status: Phase0PipelineReportStatus,
     pub raw_events: usize,
     pub normalized_events: usize,
     pub journal_rows: usize,
     pub match_decisions: usize,
     pub observations: usize,
     pub observation_rows: usize,
+    pub error_stage: Option<String>,
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Phase0PipelineReportStatus {
+    Ok,
+    Error,
 }
 
 impl Phase0PipelineReport {
@@ -626,18 +637,50 @@ impl Phase0PipelineReport {
     ) -> Self {
         Self {
             schema_version: 1,
+            status: Phase0PipelineReportStatus::Ok,
             raw_events,
             normalized_events,
             journal_rows,
             match_decisions,
             observations,
             observation_rows,
+            error_stage: None,
+            error_message: None,
+        }
+    }
+
+    pub fn from_failure(
+        counts: Phase0PipelineCounts,
+        error_stage: impl Into<String>,
+        error_message: impl Into<String>,
+    ) -> Self {
+        Self {
+            schema_version: 1,
+            status: Phase0PipelineReportStatus::Error,
+            raw_events: counts.raw_events,
+            normalized_events: counts.normalized_events,
+            journal_rows: counts.journal_rows,
+            match_decisions: counts.match_decisions,
+            observations: counts.observations,
+            observation_rows: counts.observation_rows,
+            error_stage: Some(error_stage.into()),
+            error_message: Some(error_message.into()),
         }
     }
 
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Phase0PipelineCounts {
+    pub raw_events: usize,
+    pub normalized_events: usize,
+    pub journal_rows: usize,
+    pub match_decisions: usize,
+    pub observations: usize,
+    pub observation_rows: usize,
 }
 
 pub fn phase0_pipeline_report_from_scenario_steps(
@@ -647,16 +690,18 @@ pub fn phase0_pipeline_report_from_scenario_steps(
     phase0_pipeline_report_from_batches(
         phase0_batch_for_step(&steps[0])?,
         phase0_batch_for_step(&steps[1])?,
+        phase0_pipeline_uses_failing_writer(steps),
     )
 }
 
 pub fn phase0_pipeline_report_from_happy_path() -> Result<Phase0PipelineReport, String> {
-    phase0_pipeline_report_from_batches(phase0_deribit_batch(), phase0_polymarket_batch())
+    phase0_pipeline_report_from_batches(phase0_deribit_batch(), phase0_polymarket_batch(), false)
 }
 
 fn phase0_pipeline_report_from_batches(
     deribit_batch: IngestionBatch,
     polymarket_batch: IngestionBatch,
+    fail_observation_row_writer: bool,
 ) -> Result<Phase0PipelineReport, String> {
     let mut deribit_client =
         MockIngestionClient::new(vec![MockIngestionStep::Batch(deribit_batch)]);
@@ -685,26 +730,50 @@ fn phase0_pipeline_report_from_batches(
     let config = phase0_probability_basis_config();
     let decisions = match_from_market_events(&replay_events, &config);
     let observations = observations_from_match_decisions(&decisions, &config);
-    let mut observation_row_writer = InMemoryBasisObservationRowWriter::new();
-    write_basis_observation_rows(&observations, &mut observation_row_writer)
-        .map_err(|error| format!("{:?}: {}", error.kind, error.message))?;
+    let counts_before_observation_rows = Phase0PipelineCounts {
+        raw_events: journal.raw_deribit_events().len() + journal.raw_polymarket_events().len(),
+        normalized_events: journal.market_events().len(),
+        journal_rows: journal.event_journal_rows().len(),
+        match_decisions: decisions.len(),
+        observations: observations.len(),
+        observation_rows: 0,
+    };
+
+    let observation_rows = if fail_observation_row_writer {
+        let mut observation_row_writer = FailingPhase0BasisObservationRowWriter;
+        match write_basis_observation_rows(&observations, &mut observation_row_writer) {
+            Ok(()) => 0,
+            Err(error) => {
+                return Ok(Phase0PipelineReport::from_failure(
+                    counts_before_observation_rows,
+                    "basis_observation_row_writer",
+                    format!("{:?}: {}", error.kind, error.message),
+                ));
+            }
+        }
+    } else {
+        let mut observation_row_writer = InMemoryBasisObservationRowWriter::new();
+        write_basis_observation_rows(&observations, &mut observation_row_writer)
+            .map_err(|error| format!("{:?}: {}", error.kind, error.message))?;
+        observation_row_writer.rows().len()
+    };
 
     Ok(Phase0PipelineReport::from_counts(
-        journal.raw_deribit_events().len() + journal.raw_polymarket_events().len(),
-        journal.market_events().len(),
-        journal.event_journal_rows().len(),
-        decisions.len(),
-        observations.len(),
-        observation_row_writer.rows().len(),
+        counts_before_observation_rows.raw_events,
+        counts_before_observation_rows.normalized_events,
+        counts_before_observation_rows.journal_rows,
+        counts_before_observation_rows.match_decisions,
+        counts_before_observation_rows.observations,
+        observation_rows,
     ))
 }
 
 fn ensure_supported_phase0_pipeline_scenario(
     steps: &[IngestionScenarioStep],
 ) -> Result<(), String> {
-    if steps.len() != 2 {
+    if !(steps.len() == 2 || steps.len() == 3) {
         return Err(format!(
-            "phase0 pipeline report currently supports exactly 2 steps, got {}",
+            "phase0 pipeline report currently supports 2 data steps and optional storage_writer_failure step, got {}",
             steps.len()
         ));
     }
@@ -721,8 +790,23 @@ fn ensure_supported_phase0_pipeline_scenario(
                 .to_string(),
         );
     }
+    if steps.len() == 3
+        && (steps[2].source != IngestionSource::Polymarket
+            || steps[2].outcome != IngestionScenarioOutcome::StorageWriterFailure)
+    {
+        return Err(
+            "phase0 pipeline report optional third step must be Polymarket storage_writer_failure"
+                .to_string(),
+        );
+    }
 
     Ok(())
+}
+
+fn phase0_pipeline_uses_failing_writer(steps: &[IngestionScenarioStep]) -> bool {
+    steps
+        .iter()
+        .any(|step| step.outcome == IngestionScenarioOutcome::StorageWriterFailure)
 }
 
 fn phase0_batch_for_step(step: &IngestionScenarioStep) -> Result<IngestionBatch, String> {
@@ -819,6 +903,23 @@ fn phase0_malformed_polymarket_batch() -> IngestionBatch {
                 liquidity_usd: 10_000.0,
             },
         )],
+    }
+}
+
+struct FailingPhase0BasisObservationRowWriter;
+
+impl BasisObservationRowWriter for FailingPhase0BasisObservationRowWriter {
+    fn append_basis_observation_row(
+        &mut self,
+        row: BasisObservationRow,
+    ) -> Result<(), ObservationWriteError> {
+        Err(ObservationWriteError::new(
+            ObservationWriteErrorKind::Storage,
+            format!(
+                "simulated basis_observation row writer failure for {}",
+                row.event_id
+            ),
+        ))
     }
 }
 
@@ -2363,6 +2464,7 @@ pub enum IngestionScenarioOutcome {
     MalformedBatch,
     InvalidSchemaBatch,
     InvalidTimestampBatch,
+    StorageWriterFailure,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2439,6 +2541,7 @@ fn parse_outcome(line_number: usize, raw: &str) -> Result<IngestionScenarioOutco
         "malformed_batch" => Ok(IngestionScenarioOutcome::MalformedBatch),
         "invalid_schema_batch" => Ok(IngestionScenarioOutcome::InvalidSchemaBatch),
         "invalid_timestamp_batch" => Ok(IngestionScenarioOutcome::InvalidTimestampBatch),
+        "storage_writer_failure" => Ok(IngestionScenarioOutcome::StorageWriterFailure),
         other => Err(format!("line {line_number}: unsupported outcome `{other}`")),
     }
 }
@@ -2607,9 +2710,9 @@ pub fn ingestion_report_from_scenario_steps(
                 ));
                 report
             }
-            IngestionScenarioOutcome::ApiError | IngestionScenarioOutcome::Reconnect => {
-                ValidationReport::new(0, 0)
-            }
+            IngestionScenarioOutcome::ApiError
+            | IngestionScenarioOutcome::Reconnect
+            | IngestionScenarioOutcome::StorageWriterFailure => ValidationReport::new(0, 0),
         };
         validation_report.normalized_events_rejected = validation_report.rejections.len();
 
@@ -3935,12 +4038,15 @@ mod tests {
             report,
             Phase0PipelineReport {
                 schema_version: 1,
+                status: Phase0PipelineReportStatus::Ok,
                 raw_events: 2,
                 normalized_events: 2,
                 journal_rows: 4,
                 match_decisions: 1,
                 observations: 1,
                 observation_rows: 1,
+                error_stage: None,
+                error_message: None,
             }
         );
         let json: serde_json::Value =
@@ -3987,10 +4093,38 @@ mod tests {
 
         assert_eq!(report, expected);
         assert_eq!(report.raw_events, 2);
+        assert_eq!(report.status, Phase0PipelineReportStatus::Ok);
         assert_eq!(report.normalized_events, 1);
         assert_eq!(report.journal_rows, 3);
         assert_eq!(report.observations, 0);
         assert_eq!(report.observation_rows, 0);
+    }
+
+    #[test]
+    fn phase0_pipeline_storage_writer_failure_preserves_reported_failure() {
+        let fixture_path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/phase0_pipeline/storage_writer_failure_preserves_reported_failure.psv"
+        );
+        let steps = load_ingestion_scenario(Path::new(fixture_path))
+            .expect("phase 0 storage writer failure fixture should parse");
+        let report = phase0_pipeline_report_from_scenario_steps(&steps)
+            .expect("phase 0 storage writer failure fixture should produce report");
+
+        assert_eq!(report.status, Phase0PipelineReportStatus::Error);
+        assert_eq!(report.raw_events, 2);
+        assert_eq!(report.normalized_events, 2);
+        assert_eq!(report.journal_rows, 4);
+        assert_eq!(report.match_decisions, 1);
+        assert_eq!(report.observations, 1);
+        assert_eq!(report.observation_rows, 0);
+        assert_eq!(
+            report.error_stage.as_deref(),
+            Some("basis_observation_row_writer")
+        );
+        assert!(report.error_message.as_deref().is_some_and(|message| {
+            message.contains("simulated basis_observation row writer failure")
+        }));
     }
 
     #[test]
