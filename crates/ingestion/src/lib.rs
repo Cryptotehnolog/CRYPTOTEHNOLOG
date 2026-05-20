@@ -196,6 +196,127 @@ impl LiveHttpTransport for FixtureHttpTransport {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LiveIngestionProbeReport {
+    pub endpoint: String,
+    pub url: String,
+    pub status: String,
+    pub payload_bytes: usize,
+    pub latency_ms: u128,
+    pub error_kind: Option<IngestionErrorKind>,
+    pub error_message: Option<String>,
+}
+
+impl LiveIngestionProbeReport {
+    pub fn ok(
+        endpoint: impl Into<String>,
+        url: impl Into<String>,
+        payload_bytes: usize,
+        latency_ms: u128,
+    ) -> Self {
+        Self {
+            endpoint: endpoint.into(),
+            url: url.into(),
+            status: "ok".to_string(),
+            payload_bytes,
+            latency_ms,
+            error_kind: None,
+            error_message: None,
+        }
+    }
+
+    pub fn error(
+        endpoint: impl Into<String>,
+        url: impl Into<String>,
+        latency_ms: u128,
+        error: IngestionError,
+    ) -> Self {
+        Self {
+            endpoint: endpoint.into(),
+            url: url.into(),
+            status: "error".to_string(),
+            payload_bytes: 0,
+            latency_ms,
+            error_kind: Some(error.kind),
+            error_message: Some(error.message),
+        }
+    }
+
+    pub fn is_ok(&self) -> bool {
+        self.status == "ok"
+    }
+
+    pub fn to_json(&self) -> String {
+        let error_kind = self
+            .error_kind
+            .map(|kind| format!("\"{}\"", kind.as_str()))
+            .unwrap_or_else(|| "null".to_string());
+        let error_message = self
+            .error_message
+            .as_ref()
+            .map(|message| format!("\"{}\"", json_escape(message)))
+            .unwrap_or_else(|| "null".to_string());
+
+        format!(
+            "{{\"endpoint\":\"{}\",\"url\":\"{}\",\"status\":\"{}\",\"payload_bytes\":{},\"latency_ms\":{},\"error_kind\":{},\"error_message\":{}}}",
+            json_escape(&self.endpoint),
+            json_escape(&self.url),
+            json_escape(&self.status),
+            self.payload_bytes,
+            self.latency_ms,
+            error_kind,
+            error_message
+        )
+    }
+}
+
+impl IngestionErrorKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IngestionErrorKind::Api => "Api",
+            IngestionErrorKind::ReconnectRequired => "ReconnectRequired",
+            IngestionErrorKind::RateLimit => "RateLimit",
+            IngestionErrorKind::MalformedPayload => "MalformedPayload",
+            IngestionErrorKind::JournalWrite => "JournalWrite",
+            IngestionErrorKind::Unsupported => "Unsupported",
+            IngestionErrorKind::NotImplemented => "NotImplemented",
+        }
+    }
+}
+
+pub fn probe_live_http_endpoint<T>(
+    endpoint: impl Into<String>,
+    url: impl Into<String>,
+    transport: &T,
+) -> LiveIngestionProbeReport
+where
+    T: LiveHttpTransport,
+{
+    let endpoint = endpoint.into();
+    let url = url.into();
+    let started_at = std::time::Instant::now();
+    match transport.get(&url) {
+        Ok(payload) => LiveIngestionProbeReport::ok(
+            endpoint,
+            url,
+            payload.len(),
+            started_at.elapsed().as_millis(),
+        ),
+        Err(error) => {
+            LiveIngestionProbeReport::error(endpoint, url, started_at.elapsed().as_millis(), error)
+        }
+    }
+}
+
+pub fn probe_reports_to_json(reports: &[LiveIngestionProbeReport]) -> String {
+    let reports_json = reports
+        .iter()
+        .map(LiveIngestionProbeReport::to_json)
+        .collect::<Vec<String>>()
+        .join(",");
+    format!("[{reports_json}]")
+}
+
 #[cfg(feature = "network-integration")]
 #[derive(Debug, Clone)]
 pub struct ReqwestHttpTransport {
@@ -2164,6 +2285,39 @@ mod tests {
         assert_eq!(journal.raw_deribit_events().len(), 1);
         assert_eq!(journal.raw_polymarket_events().len(), 1);
         assert_eq!(journal.market_events().len(), 2);
+    }
+
+    #[test]
+    fn live_ingestion_probe_report_captures_success_without_network() {
+        let transport =
+            FixtureHttpTransport::new().with_response("https://example.test/ok", "{\"ok\":true}");
+
+        let report = probe_live_http_endpoint("Example", "https://example.test/ok", &transport);
+
+        assert!(report.is_ok());
+        assert_eq!(report.endpoint, "Example");
+        assert_eq!(report.url, "https://example.test/ok");
+        assert_eq!(report.status, "ok");
+        assert_eq!(report.payload_bytes, 11);
+        assert_eq!(report.error_kind, None);
+        assert_eq!(report.error_message, None);
+        assert!(report.to_json().contains("\"status\":\"ok\""));
+    }
+
+    #[test]
+    fn live_ingestion_probe_report_captures_error_without_network() {
+        let report = probe_live_http_endpoint(
+            "Disabled",
+            "https://example.test/nope",
+            &DisabledHttpTransport,
+        );
+
+        assert!(!report.is_ok());
+        assert_eq!(report.status, "error");
+        assert_eq!(report.payload_bytes, 0);
+        assert_eq!(report.error_kind, Some(IngestionErrorKind::NotImplemented));
+        assert!(report.error_message.as_ref().unwrap().contains("disabled"));
+        assert!(probe_reports_to_json(&[report]).contains("\"error_kind\":\"NotImplemented\""));
     }
 
     #[cfg(feature = "network-integration")]

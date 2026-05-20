@@ -18,3 +18,11 @@ jobs:
       - name: Check Deribit and Polymarket connectivity
         shell: pwsh
         run: .\scripts\run_network_connectivity_check.ps1
+
+      - name: Upload connectivity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: network-connectivity-report
+          path: artifacts/network_connectivity_report.json
+          if-no-files-found: warn

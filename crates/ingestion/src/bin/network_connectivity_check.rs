@@ -3,8 +3,8 @@ use std::process;
 
 #[cfg(feature = "network-integration")]
 use cryptotehnolog_ingestion::{
-    DeribitLiveIngestionClient, LiveHttpTransport, PolymarketLiveIngestionClient,
-    ReqwestHttpTransport,
+    DeribitLiveIngestionClient, PolymarketLiveIngestionClient, ReqwestHttpTransport,
+    probe_live_http_endpoint, probe_reports_to_json,
 };
 
 #[cfg(feature = "network-integration")]
@@ -25,24 +25,18 @@ fn main() {
         "Yes",
     );
 
-    check_url("Deribit", &transport, &deribit_client.ticker_url());
-    check_url(
-        "Polymarket Gamma",
-        &transport,
-        &polymarket_client.gamma_market_url(),
-    );
-}
+    let reports = vec![
+        probe_live_http_endpoint("Deribit", deribit_client.ticker_url(), &transport),
+        probe_live_http_endpoint(
+            "Polymarket Gamma",
+            polymarket_client.gamma_market_url(),
+            &transport,
+        ),
+    ];
+    println!("{}", probe_reports_to_json(&reports));
 
-#[cfg(feature = "network-integration")]
-fn check_url(label: &str, transport: &ReqwestHttpTransport, url: &str) {
-    match transport.get(url) {
-        Ok(payload) => {
-            println!("{label}: ok ({} bytes)", payload.len());
-        }
-        Err(error) => {
-            eprintln!("{label}: {}", error.message);
-            process::exit(1);
-        }
+    if reports.iter().any(|report| !report.is_ok()) {
+        process::exit(1);
     }
 }
 

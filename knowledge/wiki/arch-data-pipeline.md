@@ -106,6 +106,7 @@ BasisObservationRowWriter
 - `DisabledHttpTransport` - default no-network transport, который всегда возвращает `NotImplemented`;
 - `FixtureHttpTransport` - deterministic transport для tests, возвращающий payloads по URL из fixtures;
 - `ReqwestHttpTransport` - feature-gated HTTP implementation за feature `network-integration`; не входит в default build/test path;
+- `LiveIngestionProbeReport` - diagnostic report для ручной connectivity проверки: endpoint, URL, статус, размер payload, latency и error kind;
 - `ingest_once()` - orchestration helper, который пишет raw events в `EventJournal` до normalized `MarketEvent`.
 - `NormalizedBatchValidator` - validation boundary для normalized events перед записью в journal.
 - `ingest_once_with_validator()` - live-ready orchestration helper: raw events сохраняются первыми, затем normalized events валидируются, и только после этого пишутся в `EventJournal`.
@@ -120,7 +121,7 @@ BasisObservationRowWriter
 
 `LiveHttpTransport` намеренно отделяет network IO от parsing и normalization. Default tests используют только `FixtureHttpTransport` или `DisabledHttpTransport`; реальные HTTP clients не входят в default CI.
 
-Read-only network connectivity проверяется только вручную через отдельный workflow `Network integration` или `scripts/run_network_connectivity_check.ps1`. Этот check не использует API keys, не пишет в journal и не размещает orders.
+Read-only network connectivity проверяется только вручную через отдельный workflow `Network integration` или `scripts/run_network_connectivity_check.ps1`. Этот check не использует API keys, не пишет в journal и не размещает orders. Результат сохраняется как `LiveIngestionProbeReport` JSON artifact для последующего сравнения качества внешних API.
 
 Fixture `fixtures/ingestion/api_error_reconnect_sequence.psv` документирует сценарий: API error -> reconnect -> recovered batch. Он нужен, чтобы live ingestion проектировался с учетом failure/recovery path, а не только happy path.
 

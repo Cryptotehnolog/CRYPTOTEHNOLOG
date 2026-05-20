@@ -197,6 +197,7 @@ LiveHttpTransport
 DisabledHttpTransport
 FixtureHttpTransport
 ReqwestHttpTransport
+LiveIngestionProbeReport
 MockIngestionClient
 LiveIngestionClient
 DeribitLiveIngestionClient
@@ -223,6 +224,7 @@ Design boundary:
 - `DisabledHttpTransport` является default no-network transport.
 - `FixtureHttpTransport` используется в tests для проверки live URL -> payload -> `IngestionBatch` flow без реальной сети.
 - `ReqwestHttpTransport` доступен только при feature `network-integration`; default CI его не компилирует и не запускает.
+- `LiveIngestionProbeReport` фиксирует diagnostic connectivity result: endpoint, url, status, payload bytes, latency_ms, error kind и error message.
 - `DeribitLiveIngestionClient` строит read-only `public/ticker` URL и парсит fixture payload в raw + normalized Deribit events; default `poll_once()` остается `NotImplemented`.
 - `PolymarketLiveIngestionClient` строит read-only Gamma market URL и парсит fixture payload в raw + normalized Polymarket outcome events; default `poll_once()` остается `NotImplemented`.
 - `JsonFixtureParser` убирает дублирование fixture JSON field extraction между live adapter skeletons. Это temporary helper до real `serde_json`/HTTP implementation.
@@ -443,6 +445,7 @@ pub struct ReplayEventFilter {
 - Live adapter fixture parser: shared string/number extraction для Deribit/Polymarket fixture payloads без network calls и без external dependencies.
 - Live HTTP transport boundary: `DisabledHttpTransport` blocks default network calls; `FixtureHttpTransport` feeds Deribit/Polymarket live skeletons from fixture payloads.
 - Feature-gated network transport: `ReqwestHttpTransport` construct test runs only with `--features network-integration`; real connectivity check lives outside default CI.
+- Live ingestion probe report: success/error reports include endpoint, url, payload bytes, latency and error kind without writing to journal or producing market events.
 - Thin orchestration: Deribit mock batch + Polymarket mock batch -> `EventJournal` -> `match_from_market_events()` -> `BasisObservation`.
 - Negative orchestration: malformed Polymarket quote сохраняет raw event, но не создает `BasisObservation`.
 
