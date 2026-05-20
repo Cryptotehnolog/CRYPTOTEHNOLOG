@@ -63,3 +63,7 @@ sources: []
 ## [2026-05-20] workflow | Coding standards
 
 Добавлена страница `knowledge/wiki/coding-standards.md` как короткий engineering contract. Добавляется compliance check для запрета устаревших Python dependency managers и `pip install` в Dockerfile/scripts. Проверка включается в CI и `scripts/check_all.ps1`, но не в pre-commit.
+
+## [2026-05-20] specs | MVP implementation blockers
+
+Добавлены инженерные specifications для старта API/data coding: `spec-deribit-iv-calculation.md`, `schema-postgres-tables.md`, `example-config-parameters.md`, `rust-events-contracts.md`. Обновлены `knowledge/index.md` и curated `knowledge/graph.md`.

@@ -35,6 +35,7 @@ flowchart LR
     firstMvp["Decision: First MVP"]
     probabilityStrategy["Strategy: Probability Basis"]
     fundingStrategy["Strategy: Funding Carry"]
+    ivSpec["Spec: Deribit IV Calculation"]
 
     automationRisk["Risk: Automation Quality"]
     settlementRisk["Risk: Settlement / Definition Mismatch"]
@@ -42,6 +43,9 @@ flowchart LR
 
     dataPipeline["Architecture: Data Pipeline"]
     replay["Architecture: Deterministic Replay"]
+    postgresSchema["Schema: PostgreSQL Tables"]
+    rustContracts["Contracts: Rust Events"]
+    configDocs["Docs: Config Parameters"]
     roadmap["Roadmap: MVP"]
 
     codexWorkflow["Workflow: Codex Wiki Usage"]
@@ -67,11 +71,15 @@ flowchart LR
     review --> fundingStrategy
     probabilityBasis --> firstMvp
     probabilityBasis --> probabilityStrategy
+    probabilityStrategy --> ivSpec
     probabilityStrategy --> probabilityRisk
     firstMvp --> automationRisk
     firstMvp --> settlementRisk
     firstMvp --> roadmap
     dataPipeline --> replay
+    dataPipeline --> postgresSchema
+    dataPipeline --> rustContracts
+    dataPipeline --> configDocs
     replay --> roadmap
 
     codexWorkflow --> kbCheck

@@ -36,7 +36,14 @@ sources:
 
 - [Data Pipeline](wiki/arch-data-pipeline.md) - replay-first pipeline, PostgreSQL event journal, Redis Streams и adapter traits.
 - [Deterministic Replay](wiki/arch-deterministic-replay.md) - механизм воспроизводимого replay для backtesting/debugging/regression.
+- [PostgreSQL Tables](wiki/schema-postgres-tables.md) - описание таблиц `event_journal`, `replay_runs`, `basis_observations`.
+- [Rust Events Contracts](wiki/rust-events-contracts.md) - реализованные и proposed Rust event/adapter contracts.
+- [Config Parameters](wiki/example-config-parameters.md) - объяснение текущих `config/*.toml`.
 - [MVP Roadmap](wiki/roadmap-mvp.md) - фазы MVP, gates и failure criteria.
+
+## Specifications
+
+- [Deribit IV Calculation](wiki/spec-deribit-iv-calculation.md) - MVP-формула Black-Scholes для `deribit_model_probability` и open questions по IV.
 
 ## Workflows
 
