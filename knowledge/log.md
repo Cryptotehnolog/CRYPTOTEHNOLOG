@@ -131,3 +131,7 @@ Replay core вынесен в `crates/replay/src/lib.rs`, а `main.rs` стал 
 ## [2026-05-20] automation | Replay fixture manifest
 
 Добавлен второй replay scenario `probability_basis_edge_below_threshold` и registry `fixtures/manifest.toml`. `scripts/run_replay_regression.ps1`, `scripts/update_golden_fixture.ps1` и `scripts/check_golden_fixture_current.ps1` теперь работают по manifest и прогоняют все listed scenarios, сохраняя JSON как основной semantic comparison contract.
+
+## [2026-05-20] automation | CI golden fixture newline compatibility
+
+После проверки GitHub Actions выявлен риск падения Rust golden JSON test на `windows-latest` из-за различий `CRLF/LF` после checkout. Тест semantic JSON report теперь нормализует newlines перед сравнением, сохраняя строгую проверку содержимого fixture.

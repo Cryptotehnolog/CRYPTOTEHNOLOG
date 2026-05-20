@@ -544,6 +544,10 @@ mod tests {
             .join(file_name)
     }
 
+    fn normalize_newlines(value: &str) -> String {
+        value.replace("\r\n", "\n")
+    }
+
     #[test]
     fn replay_semantics_are_stable_on_golden_fixture() {
         let output = run_probability_basis_replay(&workspace_fixture_path("golden_events.psv"))
@@ -598,7 +602,7 @@ mod tests {
         let expected = fs::read_to_string(workspace_fixture_path("golden_report.json"))
             .expect("expected JSON report should be readable");
 
-        assert_eq!(output.report_json(), expected);
+        assert_eq!(output.report_json(), normalize_newlines(&expected));
     }
 
     #[test]
