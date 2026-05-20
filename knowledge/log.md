@@ -135,3 +135,7 @@ Replay core вынесен в `crates/replay/src/lib.rs`, а `main.rs` стал 
 ## [2026-05-20] automation | CI golden fixture newline compatibility
 
 После проверки GitHub Actions выявлен риск падения Rust golden JSON test на `windows-latest` из-за различий `CRLF/LF` после checkout. Тест semantic JSON report теперь нормализует newlines перед сравнением, сохраняя строгую проверку содержимого fixture.
+
+## [2026-05-20] automation | CI golden freshness newline compatibility
+
+GitHub Actions подтвердил, что `cargo test` исправлен, но `check_golden_fixture_current.ps1` падал на raw-сравнении golden files до/после regeneration. Freshness check теперь нормализует `CRLF/LF` перед сравнением, чтобы проверять semantic staleness, а не стиль line endings checkout.

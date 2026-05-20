@@ -3,6 +3,12 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $manifestPath = Join-Path $root "fixtures\manifest.toml"
 
+function Normalize-Newlines {
+    param([string]$Value)
+
+    return $Value.Replace("`r`n", "`n")
+}
+
 function Get-ReplayFixtureScenarios {
     param(
         [string]$Root,
@@ -73,15 +79,15 @@ try {
             throw "Missing golden JSON fixture for scenario $($scenario.name): $($scenario.ExpectedJsonPath)"
         }
 
-        $before[$scenario.ExpectedTextPath] = Get-Content $scenario.ExpectedTextPath -Raw
-        $before[$scenario.ExpectedJsonPath] = Get-Content $scenario.ExpectedJsonPath -Raw
+        $before[$scenario.ExpectedTextPath] = Normalize-Newlines (Get-Content $scenario.ExpectedTextPath -Raw)
+        $before[$scenario.ExpectedJsonPath] = Normalize-Newlines (Get-Content $scenario.ExpectedJsonPath -Raw)
     }
 
     .\scripts\update_golden_fixture.ps1
 
     foreach ($scenario in $scenarios) {
-        $afterText = Get-Content $scenario.ExpectedTextPath -Raw
-        $afterJson = Get-Content $scenario.ExpectedJsonPath -Raw
+        $afterText = Normalize-Newlines (Get-Content $scenario.ExpectedTextPath -Raw)
+        $afterJson = Normalize-Newlines (Get-Content $scenario.ExpectedJsonPath -Raw)
 
         if ($before[$scenario.ExpectedTextPath] -ne $afterText -or $before[$scenario.ExpectedJsonPath] -ne $afterJson) {
             Write-Output "Golden fixtures are stale for scenario $($scenario.name). Run scripts\update_golden_fixture.ps1 and review the diff."
