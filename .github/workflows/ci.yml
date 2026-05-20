@@ -50,3 +50,7 @@ jobs:
       - name: Run replay regression
         shell: pwsh
         run: .\scripts\run_replay_regression.ps1
+
+      - name: Check golden fixture freshness
+        shell: pwsh
+        run: .\scripts\check_golden_fixture_current.ps1

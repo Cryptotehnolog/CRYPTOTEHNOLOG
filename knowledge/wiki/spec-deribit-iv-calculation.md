@@ -94,16 +94,25 @@ T = (expiry_ts - observation_ts) / milliseconds_per_year
 
 Black-Scholes `N(d2)` реализован в `crates/common/src/probability_basis.rs` для MVP matcher.
 
+Текущая model version:
+
+```text
+black_scholes_single_strike_v1
+```
+
 Текущие assumptions:
 
 - `r = 0`,
 - `q = 0`,
 - `sigma = mark_iv`,
+- single-strike IV без volatility surface,
 - `S = underlying_price`,
 - `K = strike`,
 - `T` рассчитывается из `expiry_ts_ms - exchange_ts_ms`.
 
 Реализация покрыта unit tests для expired options, invalid IV, deep ITM/OTM behavior и deterministic normal CDF approximation.
+
+Любая замена этой модели на volatility surface, non-zero rates или alternative probability model должна менять model version и golden/replay expectations осознанно.
 
 ## Важные Caveats
 

@@ -111,3 +111,7 @@ Probability-basis replay fixture вынесен из hardcoded Rust в `fixtures
 ## [2026-05-20] implementation | Basis observations storage boundary
 
 Добавлен PostgreSQL-oriented storage boundary без real DB dependency: `BasisObservationRow`, fixed `basis_observations` column order, `BasisObservationRowWriter` trait и `PostgresBasisObservationAdapter` skeleton с stable `INSERT` SQL template. Реальное `sqlx`/`tokio-postgres` подключение остается отдельным будущим шагом.
+
+## [2026-05-20] automation | Golden fixture governance
+
+Replay core вынесен в `crates/replay/src/lib.rs`, а `main.rs` стал тонкой CLI-оберткой. Добавлены `scripts/update_golden_fixture.ps1` и `scripts/check_golden_fixture_current.ps1`; CI теперь проверяет, что перегенерация golden report не оставляет diff. В `spec-deribit-iv-calculation.md` зафиксирована model version `black_scholes_single_strike_v1`.

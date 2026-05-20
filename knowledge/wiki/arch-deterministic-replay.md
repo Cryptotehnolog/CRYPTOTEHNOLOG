@@ -46,6 +46,29 @@ read ordered events
 
 Если изменение кода меняет output, разработчик должен видеть diff и причину.
 
+## Golden Fixture Policy
+
+Golden fixture - это regression guard, а не замена unit tests.
+
+Основная семантика проверяется Rust tests в `crates/replay/src/lib.rs`:
+
+- количество decisions,
+- количество `BasisObservation`,
+- key instrument/market ids,
+- numeric edge с tolerance.
+
+CLI regression остается smoke test, который проверяет, что command-line output не разъехался с expected report.
+
+Обновлять `fixtures/probability_basis/golden_report.txt` нужно только через:
+
+```powershell
+.\scripts\update_golden_fixture.ps1
+```
+
+`scripts/check_golden_fixture_current.ps1` запускает update script и падает, если после перегенерации появляется diff. Этот check включен в `scripts/check_all.ps1` и CI.
+
+Если golden report меняется, PR/commit должен объяснять, какое изменение matcher/pricing/replay behavior это вызвало.
+
 ## Use Cases
 
 - backtesting,
@@ -69,9 +92,15 @@ Expected output хранится в `fixtures/probability_basis/golden_report.tx
 
 `scripts/run_replay_regression.ps1` запускает runner и сравнивает output с golden report. Скрипт включен в `scripts/check_all.ps1` и CI.
 
+`crates/replay/src/lib.rs` содержит library-level replay core. `crates/replay/src/main.rs` является тонкой CLI-оберткой.
+
 Runner также создает matched `BasisObservation` records через `InMemoryBasisObservationWriter`, но пока не пишет их в PostgreSQL. Storage boundary для будущей записи уже определен через `BasisObservationRow` и `PostgresBasisObservationAdapter` skeleton.
 
 Это еще не historical replay из PostgreSQL, но уже byte-stable smoke test для matcher semantics и observation contract.
+
+## Semantic Output Direction
+
+Следующий более устойчивый формат regression output - semantic JSON report, а не plain text lines. Это снизит хрупкость CLI formatting, но требует отдельного report contract. До этого шага текстовый report остается smoke-level guard.
 
 ## Backtest Automation Status
 

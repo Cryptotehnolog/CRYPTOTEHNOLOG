@@ -34,6 +34,9 @@ try {
     Write-Output "== Replay regression =="
     .\scripts\run_replay_regression.ps1
 
+    Write-Output "== Golden fixture freshness =="
+    .\scripts\check_golden_fixture_current.ps1
+
     Write-Output "All local checks passed."
 }
 finally {
