@@ -97,9 +97,14 @@ rejected|InsufficientLiquidity|ETH-20260601-3000-C|eth-above-3000-low-liquidity
 
 Manifest scenarios:
 
-- `probability_basis_golden` - mixed matched/rejected baseline,
-- `probability_basis_edge_below_threshold` - rejected-only сценарий для проверки threshold boundary.
-- `probability_basis_invalid_quote` - rejected-only сценарий для проверки data-quality rejection path.
+| Scenario | Покрытие | Expected result |
+| --- | --- | --- |
+| `probability_basis_golden` | baseline: один matched signal и один low-liquidity reject | `Matched`, `InsufficientLiquidity` |
+| `probability_basis_edge_below_threshold` | strategy threshold boundary после costs | `EdgeBelowThreshold` |
+| `probability_basis_invalid_quote` | data-quality rejection path для некорректной quote book probability | `InvalidQuote` |
+| `probability_basis_expiry_mismatch` | temporal/event alignment между Deribit expiry и Polymarket event timestamp | `ExpiryMismatch` |
+
+Еще не покрыты отдельными replay scenarios: `MissingDeribitQuote`, `MissingPolymarketQuote`, `UnsupportedUnderlying`, `UnsupportedOptionKind`, `ExpiredOption`, `InvalidModelInput`.
 
 Primary expected output для каждого scenario хранится в JSON report, указанном в `fixtures/manifest.toml`.
 
