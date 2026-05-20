@@ -283,3 +283,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-20] policy | Rust Skills advisory use
 
 В `AGENTS.md` зафиксировано, что локальный `rust-skills` можно использовать как advisory review skill для Rust-кода, но project-specific правила CRYPTOTEHNOLOG из `AGENTS.md` и `knowledge/` имеют приоритет.
+
+## [2026-05-20] implementation | Ingestion to journal row vertical slice
+
+`InMemoryEventJournal` теперь сохраняет append-order `EventJournalRow` snapshots для raw и normalized events. Ingestion fixture transport test проверяет полный offline путь: fixture HTTP payload -> raw event -> normalized event -> journal row -> replay matcher -> `BasisObservation`.

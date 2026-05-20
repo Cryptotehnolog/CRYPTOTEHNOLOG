@@ -1102,7 +1102,10 @@ impl PolymarketLiveIngestionClient {
         let timestamp_ms = parser
             .optional_i64_any(&["timestamp", "updatedAtMillis"])?
             .unwrap_or(received_ts_ms);
-        let target_expiry_ts_ms = self.target_expiry_ts_ms.unwrap_or(timestamp_ms);
+        let target_expiry_ts_ms = self
+            .target_expiry_ts_ms
+            .or(parser.optional_i64_any(&["target_expiry_ts_ms", "targetExpiryTsMs"])?)
+            .unwrap_or(timestamp_ms);
         let explicit_bid_probability = parser.optional_f64_any(&["bid_probability", "bestBid"])?;
         let explicit_ask_probability = parser.optional_f64_any(&["ask_probability", "bestAsk"])?;
         let fallback_outcome_price =
@@ -3382,6 +3385,50 @@ mod tests {
         assert_eq!(journal.raw_deribit_events().len(), 1);
         assert_eq!(journal.raw_polymarket_events().len(), 1);
         assert_eq!(journal.market_events().len(), 2);
+
+        let row_event_types: Vec<&str> = journal
+            .event_journal_rows()
+            .iter()
+            .map(|row| row.event_type.as_str())
+            .collect();
+        assert_eq!(
+            row_event_types,
+            vec![
+                "raw_deribit_event",
+                "deribit_option_quote",
+                "raw_polymarket_event",
+                "polymarket_outcome_quote",
+            ]
+        );
+        assert_eq!(
+            journal.event_journal_rows()[0].instrument_id,
+            "ETH-20260601-3000-C"
+        );
+        assert_eq!(
+            journal.event_journal_rows()[3].instrument_id,
+            "eth-above-3000-june-1"
+        );
+
+        let replay_events = journal
+            .read_events_for_replay(ReplayEventFilter {
+                start_ts_ms: 0,
+                end_ts_ms: 1_781_000_000_000,
+                event_types: vec![],
+                instrument_ids: vec![],
+                config_version: Some("phase0-ingestion".to_string()),
+            })
+            .expect("journal rows should still produce replay events");
+        let config = probability_basis_config();
+        let decisions = match_from_market_events(&replay_events, &config);
+        let observations = observations_from_match_decisions(&decisions, &config);
+
+        assert_eq!(decisions.len(), 1);
+        assert_eq!(observations.len(), 1);
+        assert_eq!(
+            observations[0].event_id,
+            "probability-basis:market-deribit-ticker:ETH-20260601-3000-C:1779200000000:market-polymarket-gamma:eth-above-3000-june-1:Yes:1779200000000"
+        );
+        assert!(observations[0].survives_costs);
     }
 
     #[test]

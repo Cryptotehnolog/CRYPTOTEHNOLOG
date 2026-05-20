@@ -3,6 +3,7 @@
   "market_slug": "eth-above-3000-june-1",
   "outcome": "Yes",
   "timestamp": 1779200000000,
+  "target_expiry_ts_ms": 1780272000000,
   "bid_probability": 0.51,
   "ask_probability": 0.53,
   "liquidity_usd": 10000.0

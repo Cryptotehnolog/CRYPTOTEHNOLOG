@@ -171,6 +171,8 @@ payload
 
 `exchange_ts` и `received_ts` в row boundary передаются как Unix milliseconds, а future PostgreSQL adapter должен конвертировать их через `to_timestamp(ms / 1000.0)`. `payload` хранится как JSON text для future `jsonb` insert.
 
+`InMemoryEventJournal` сохраняет append-order `EventJournalRow` snapshots рядом с raw и normalized in-memory collections. Это нужно для Phase 0 vertical-slice тестов: мы проверяем не только replay из normalized events, но и то, что каждое принятое событие имеет будущую PostgreSQL-oriented row representation.
+
 ### `RawDeribitEvent`
 
 Raw API payload wrapper before normalization.
@@ -513,6 +515,7 @@ pub struct ReplayEventFilter {
 - Feature-gated network transport: `ReqwestHttpTransport` construct test runs only with `--features network-integration`; real connectivity check lives outside default CI.
 - Live ingestion probe report: success/error reports include endpoint, url, payload bytes, latency and error kind without writing to journal or producing market events.
 - Thin orchestration: Deribit mock batch + Polymarket mock batch -> `EventJournal` -> `match_from_market_events()` -> `BasisObservation`.
+- Live/mock vertical slice: `FixtureHttpTransport` -> Deribit/Polymarket live parser boundary -> raw events -> normalized events -> append-order `EventJournalRow` snapshots -> replay matcher -> `BasisObservation`.
 - Negative orchestration: malformed Polymarket quote сохраняет raw event, но не создает `BasisObservation`.
 
 ## Design Rule

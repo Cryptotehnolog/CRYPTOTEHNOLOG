@@ -200,6 +200,7 @@ pub struct InMemoryEventJournal {
     raw_deribit_events: Vec<RawDeribitEvent>,
     raw_polymarket_events: Vec<RawPolymarketEvent>,
     market_events: Vec<MarketEvent>,
+    event_journal_rows: Vec<EventJournalRow>,
 }
 
 impl InMemoryEventJournal {
@@ -217,6 +218,10 @@ impl InMemoryEventJournal {
 
     pub fn market_events(&self) -> &[MarketEvent] {
         &self.market_events
+    }
+
+    pub fn event_journal_rows(&self) -> &[EventJournalRow] {
+        &self.event_journal_rows
     }
 
     fn contains_event_id(&self, event_id: &str) -> bool {
@@ -239,6 +244,8 @@ impl EventJournal for InMemoryEventJournal {
         if self.contains_event_id(&event.meta.event_id) {
             return Err(JournalError::duplicate_event(&event.meta.event_id));
         }
+        self.event_journal_rows
+            .push(EventJournalRow::from_raw_deribit_event(&event));
         self.raw_deribit_events.push(event);
         Ok(())
     }
@@ -250,6 +257,8 @@ impl EventJournal for InMemoryEventJournal {
         if self.contains_event_id(&event.meta.event_id) {
             return Err(JournalError::duplicate_event(&event.meta.event_id));
         }
+        self.event_journal_rows
+            .push(EventJournalRow::from_raw_polymarket_event(&event));
         self.raw_polymarket_events.push(event);
         Ok(())
     }
@@ -258,6 +267,8 @@ impl EventJournal for InMemoryEventJournal {
         if self.contains_event_id(&event.meta().event_id) {
             return Err(JournalError::duplicate_event(&event.meta().event_id));
         }
+        self.event_journal_rows
+            .push(EventJournalRow::from_market_event(&event));
         self.market_events.push(event);
         Ok(())
     }
@@ -378,9 +389,19 @@ mod tests {
 
         assert_eq!(journal.raw_deribit_events(), &[raw_deribit.clone()]);
         assert_eq!(journal.raw_polymarket_events(), &[raw_polymarket]);
+        assert_eq!(journal.event_journal_rows().len(), 2);
+        assert_eq!(
+            journal.event_journal_rows()[0].event_type,
+            "raw_deribit_event"
+        );
+        assert_eq!(
+            journal.event_journal_rows()[1].event_type,
+            "raw_polymarket_event"
+        );
 
         let error = journal.append_raw_deribit_event(raw_deribit).unwrap_err();
         assert_eq!(error.kind, JournalErrorKind::DuplicateEvent);
+        assert_eq!(journal.event_journal_rows().len(), 2);
     }
 
     #[test]
@@ -423,6 +444,15 @@ mod tests {
         journal
             .append_market_event(polymarket_quote("p", 2001))
             .unwrap();
+        let row_event_types: Vec<&str> = journal
+            .event_journal_rows()
+            .iter()
+            .map(|row| row.event_type.as_str())
+            .collect();
+        assert_eq!(
+            row_event_types,
+            vec!["deribit_option_quote", "polymarket_outcome_quote"]
+        );
 
         let events = journal
             .read_events_for_replay(ReplayEventFilter {
