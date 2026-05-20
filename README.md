@@ -64,6 +64,12 @@ Run all fast local checks:
 .\scripts\check_all.ps1
 ```
 
+Show development status before a work session:
+
+```powershell
+.\scripts\dev_status.ps1
+```
+
 Create a raw source note:
 
 ```powershell

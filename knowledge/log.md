@@ -33,3 +33,7 @@ Added root `AGENTS.md` rules for AI agents. Added a Git hook installer and docum
 ## [2026-05-20] automation | Local checks
 
 Added local Markdown link validation and `scripts/check_all.ps1` for the fast local check set. The link checker validates local Markdown targets only and is included in CI, but not in pre-commit.
+
+## [2026-05-20] automation | Development status
+
+Added `scripts/dev_status.ps1` as a read-only session-start diagnostic for Git status, last commit, remotes, CI workflow presence, pre-commit hook presence, and core tool versions.
