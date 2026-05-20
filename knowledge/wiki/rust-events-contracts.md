@@ -236,6 +236,7 @@ Design boundary:
 - `JsonPayloadParser` убирает дублирование JSON field extraction между live adapter skeletons. Он поддерживает Deribit `result.*`, Deribit short option expiries вроде `1JUN26`, Polymarket `slug`, JSON-encoded `outcomes`/`outcomePrices`, string/number liquidity и Phase 0 fallback `bid=ask=outcomePrice` для Gamma snapshots без CLOB spread.
 - `payload_shape_version` в manual reports фиксирует parser contract, который обработал live payload: `deribit_get_instruments_v1`, `deribit_json_rpc_ticker_v1`, `polymarket_gamma_markets_v1`, `polymarket_gamma_market_v1`.
 - `selection_report` в `live_probe_replay_report.json` фиксирует выбранный Deribit instrument, target/selected expiry timestamps, человекочитаемые UTC dates, `strike_distance`, derived mismatch flags `strike_mismatch`/`expiry_mismatch`, агрегированный `selection_quality` (`missing`/`exact`/`nearby`/`mismatch`) и выбранный Polymarket market slug.
+- `live_probe_replay_report.json` строится через локальные `serde Serialize` DTO в producer binary, чтобы внешний report contract был отделен от внутреннего состояния probe/replay pipeline.
 - `ingest_once()` сохраняет raw events до normalized market events.
 - `ingest_once_with_validator()` сохраняет raw events, затем валидирует normalized events и только после этого пишет их в journal.
 - `ingest_once_with_report()` возвращает `IngestionOutcome` с `ValidationReport`; raw events сохраняются, accepted normalized events пишутся, rejected normalized events не пишутся.

@@ -28,6 +28,8 @@ use cryptotehnolog_ingestion::{
     PolymarketDiscoveredMarket, PolymarketLiveIngestionClient, PolymarketMarketDiscoveryCriteria,
     ReqwestHttpTransport, ingest_once_with_report,
 };
+#[cfg(feature = "network-integration")]
+use serde::Serialize;
 
 #[cfg(feature = "network-integration")]
 const CONFIG_VERSION: &str = "phase0-ingestion";
@@ -532,14 +534,6 @@ impl PayloadShapeVersion {
             version: version.into(),
         }
     }
-
-    fn to_json(&self) -> String {
-        format!(
-            "{{\"endpoint\":\"{}\",\"payload_shape_version\":\"{}\"}}",
-            json_escape(&self.endpoint),
-            json_escape(&self.version)
-        )
-    }
 }
 
 #[cfg(feature = "network-integration")]
@@ -617,24 +611,6 @@ impl SelectionReport {
             (true, false) | (false, true) => "nearby",
         }
     }
-
-    fn to_json(&self) -> String {
-        format!(
-            "{{\"selection_quality\":\"{}\",\"selected_deribit_instrument\":{},\"target_expiry_ts_ms\":{},\"target_expiry_date\":{},\"selected_expiry_ts_ms\":{},\"selected_expiry_date\":{},\"strike_distance\":{},\"strike_mismatch\":{},\"expiry_mismatch\":{},\"selected_polymarket_market_slug\":{},\"selected_polymarket_event_slug\":{},\"selected_polymarket_liquidity_usd\":{}}}",
-            self.selection_quality(),
-            optional_string_json(&self.selected_deribit_instrument),
-            optional_i64_json(self.target_expiry_ts_ms),
-            optional_string_json(&self.target_expiry_date),
-            optional_i64_json(self.selected_expiry_ts_ms),
-            optional_string_json(&self.selected_expiry_date),
-            optional_f64_json(self.strike_distance),
-            self.strike_mismatch(),
-            self.expiry_mismatch(),
-            optional_string_json(&self.selected_polymarket_market_slug),
-            optional_string_json(&self.selected_polymarket_event_slug),
-            optional_f64_json(self.selected_polymarket_liquidity_usd)
-        )
-    }
 }
 
 #[cfg(feature = "network-integration")]
@@ -699,16 +675,6 @@ impl DiagnosticError {
     ) -> Self {
         Self::new(stage, endpoint, error.kind.as_str(), error.message)
     }
-
-    fn to_json(&self) -> String {
-        format!(
-            "{{\"stage\":\"{}\",\"endpoint\":\"{}\",\"kind\":\"{}\",\"message\":\"{}\"}}",
-            json_escape(&self.stage),
-            json_escape(&self.endpoint),
-            json_escape(&self.kind),
-            json_escape(&self.message)
-        )
-    }
 }
 
 #[cfg(feature = "network-integration")]
@@ -742,13 +708,6 @@ impl ReplayPipelineSummary {
             rejected: decisions.len() - matched,
             observations,
         }
-    }
-
-    fn to_json(&self) -> String {
-        format!(
-            "{{\"decisions\":{},\"matched\":{},\"rejected\":{},\"observations\":{}}}",
-            self.decisions, self.matched, self.rejected, self.observations
-        )
     }
 }
 
@@ -791,6 +750,208 @@ impl LiveProbeReplayFailure {
 }
 
 #[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct LiveProbeReplayReportDto {
+    schema_version: u16,
+    config_version: &'static str,
+    pricing_model_version: &'static str,
+    payload_shape_versions: Vec<PayloadShapeVersionDto>,
+    selection_report: SelectionReportDto,
+    probe_reports: Vec<LiveIngestionProbeReportDto>,
+    ingestion_report: IngestionReportDto,
+    replay_summary: ReplayPipelineSummaryDto,
+    errors: Vec<DiagnosticErrorDto>,
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct PayloadShapeVersionDto {
+    endpoint: String,
+    payload_shape_version: String,
+}
+
+#[cfg(feature = "network-integration")]
+impl From<&PayloadShapeVersion> for PayloadShapeVersionDto {
+    fn from(value: &PayloadShapeVersion) -> Self {
+        Self {
+            endpoint: value.endpoint.clone(),
+            payload_shape_version: value.version.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct SelectionReportDto {
+    selection_quality: &'static str,
+    selected_deribit_instrument: Option<String>,
+    target_expiry_ts_ms: Option<i64>,
+    target_expiry_date: Option<String>,
+    selected_expiry_ts_ms: Option<i64>,
+    selected_expiry_date: Option<String>,
+    strike_distance: Option<f64>,
+    strike_mismatch: bool,
+    expiry_mismatch: bool,
+    selected_polymarket_market_slug: Option<String>,
+    selected_polymarket_event_slug: Option<String>,
+    selected_polymarket_liquidity_usd: Option<f64>,
+}
+
+#[cfg(feature = "network-integration")]
+impl From<&SelectionReport> for SelectionReportDto {
+    fn from(value: &SelectionReport) -> Self {
+        Self {
+            selection_quality: value.selection_quality(),
+            selected_deribit_instrument: value.selected_deribit_instrument.clone(),
+            target_expiry_ts_ms: value.target_expiry_ts_ms,
+            target_expiry_date: value.target_expiry_date.clone(),
+            selected_expiry_ts_ms: value.selected_expiry_ts_ms,
+            selected_expiry_date: value.selected_expiry_date.clone(),
+            strike_distance: value.strike_distance,
+            strike_mismatch: value.strike_mismatch(),
+            expiry_mismatch: value.expiry_mismatch(),
+            selected_polymarket_market_slug: value.selected_polymarket_market_slug.clone(),
+            selected_polymarket_event_slug: value.selected_polymarket_event_slug.clone(),
+            selected_polymarket_liquidity_usd: value.selected_polymarket_liquidity_usd,
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct LiveIngestionProbeReportDto {
+    endpoint: String,
+    url: String,
+    status: String,
+    payload_bytes: usize,
+    latency_ms: u128,
+    error_kind: Option<&'static str>,
+    error_message: Option<String>,
+}
+
+#[cfg(feature = "network-integration")]
+impl From<&LiveIngestionProbeReport> for LiveIngestionProbeReportDto {
+    fn from(value: &LiveIngestionProbeReport) -> Self {
+        Self {
+            endpoint: value.endpoint.clone(),
+            url: value.url.clone(),
+            status: value.status.clone(),
+            payload_bytes: value.payload_bytes,
+            latency_ms: value.latency_ms,
+            error_kind: value.error_kind.map(|kind| kind.as_str()),
+            error_message: value.error_message.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct IngestionReportDto {
+    total_raw_events_received: usize,
+    total_normalized_events_received: usize,
+    total_normalized_events_accepted: usize,
+    total_normalized_events_rejected: usize,
+    by_source: Vec<IngestionSourceReportDto>,
+    rejection_counts: Vec<IngestionRejectionSummaryDto>,
+}
+
+#[cfg(feature = "network-integration")]
+impl From<&IngestionReport> for IngestionReportDto {
+    fn from(value: &IngestionReport) -> Self {
+        Self {
+            total_raw_events_received: value.total_raw_events_received,
+            total_normalized_events_received: value.total_normalized_events_received,
+            total_normalized_events_accepted: value.total_normalized_events_accepted,
+            total_normalized_events_rejected: value.total_normalized_events_rejected,
+            by_source: value.by_source.iter().map(Into::into).collect(),
+            rejection_counts: value.rejection_counts.iter().map(Into::into).collect(),
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct IngestionSourceReportDto {
+    source: &'static str,
+    raw_events_received: usize,
+    normalized_events_received: usize,
+    normalized_events_accepted: usize,
+    normalized_events_rejected: usize,
+}
+
+#[cfg(feature = "network-integration")]
+impl From<&cryptotehnolog_ingestion::IngestionSourceReport> for IngestionSourceReportDto {
+    fn from(value: &cryptotehnolog_ingestion::IngestionSourceReport) -> Self {
+        Self {
+            source: value.source.as_str(),
+            raw_events_received: value.raw_events_received,
+            normalized_events_received: value.normalized_events_received,
+            normalized_events_accepted: value.normalized_events_accepted,
+            normalized_events_rejected: value.normalized_events_rejected,
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct IngestionRejectionSummaryDto {
+    message: String,
+    count: usize,
+}
+
+#[cfg(feature = "network-integration")]
+impl From<&cryptotehnolog_ingestion::IngestionRejectionSummary> for IngestionRejectionSummaryDto {
+    fn from(value: &cryptotehnolog_ingestion::IngestionRejectionSummary) -> Self {
+        Self {
+            message: value.message.clone(),
+            count: value.count,
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct ReplayPipelineSummaryDto {
+    decisions: usize,
+    matched: usize,
+    rejected: usize,
+    observations: usize,
+}
+
+#[cfg(feature = "network-integration")]
+impl From<&ReplayPipelineSummary> for ReplayPipelineSummaryDto {
+    fn from(value: &ReplayPipelineSummary) -> Self {
+        Self {
+            decisions: value.decisions,
+            matched: value.matched,
+            rejected: value.rejected,
+            observations: value.observations,
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct DiagnosticErrorDto {
+    stage: String,
+    endpoint: String,
+    kind: String,
+    message: String,
+}
+
+#[cfg(feature = "network-integration")]
+impl From<&DiagnosticError> for DiagnosticErrorDto {
+    fn from(value: &DiagnosticError) -> Self {
+        Self {
+            stage: value.stage.clone(),
+            endpoint: value.endpoint.clone(),
+            kind: value.kind.clone(),
+            message: value.message.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
 fn render_report(
     probe_reports: &[LiveIngestionProbeReport],
     payload_shape_versions: &[PayloadShapeVersion],
@@ -799,33 +960,39 @@ fn render_report(
     replay_summary: &ReplayPipelineSummary,
     errors: &[DiagnosticError],
 ) -> String {
-    let probes = probe_reports
-        .iter()
-        .map(LiveIngestionProbeReport::to_json)
-        .collect::<Vec<String>>()
-        .join(",");
-    let payload_shapes = payload_shape_versions
-        .iter()
-        .map(PayloadShapeVersion::to_json)
-        .collect::<Vec<String>>()
-        .join(",");
-    let errors = errors
-        .iter()
-        .map(DiagnosticError::to_json)
-        .collect::<Vec<String>>()
-        .join(",");
+    let report = LiveProbeReplayReportDto {
+        schema_version: 1,
+        config_version: CONFIG_VERSION,
+        pricing_model_version: PRICING_MODEL_VERSION,
+        payload_shape_versions: payload_shape_versions.iter().map(Into::into).collect(),
+        selection_report: selection_report.into(),
+        probe_reports: probe_reports.iter().map(Into::into).collect(),
+        ingestion_report: ingestion_report.into(),
+        replay_summary: replay_summary.into(),
+        errors: errors.iter().map(Into::into).collect(),
+    };
 
-    format!(
-        "{{\"schema_version\":1,\"config_version\":\"{}\",\"pricing_model_version\":\"{}\",\"payload_shape_versions\":[{}],\"selection_report\":{},\"probe_reports\":[{}],\"ingestion_report\":{},\"replay_summary\":{},\"errors\":[{}]}}",
-        CONFIG_VERSION,
-        PRICING_MODEL_VERSION,
-        payload_shapes,
-        selection_report.to_json(),
-        probes,
-        ingestion_report.to_json(),
-        replay_summary.to_json(),
-        errors
-    )
+    serde_json::to_string(&report).unwrap_or_else(|error| {
+        serde_json::json!({
+            "schema_version": 1,
+            "config_version": CONFIG_VERSION,
+            "pricing_model_version": PRICING_MODEL_VERSION,
+            "payload_shape_versions": [],
+            "selection_report": {
+                "selection_quality": "missing"
+            },
+            "probe_reports": [],
+            "ingestion_report": {},
+            "replay_summary": {},
+            "errors": [{
+                "stage": "serialize",
+                "endpoint": "live_probe_replay",
+                "kind": "SerdeJson",
+                "message": error.to_string()
+            }]
+        })
+        .to_string()
+    })
 }
 
 #[cfg(feature = "network-integration")]
@@ -836,42 +1003,17 @@ fn now_ms() -> i64 {
         .as_millis() as i64
 }
 
-#[cfg(feature = "network-integration")]
-fn json_escape(value: &str) -> String {
-    value
-        .replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('\n', "\\n")
-        .replace('\r', "\\r")
-}
-
-#[cfg(feature = "network-integration")]
-fn optional_string_json(value: &Option<String>) -> String {
-    value
-        .as_ref()
-        .map(|text| format!("\"{}\"", json_escape(text)))
-        .unwrap_or_else(|| "null".to_string())
-}
-
-#[cfg(feature = "network-integration")]
-fn optional_i64_json(value: Option<i64>) -> String {
-    value
-        .map(|number| number.to_string())
-        .unwrap_or_else(|| "null".to_string())
-}
-
-#[cfg(feature = "network-integration")]
-fn optional_f64_json(value: Option<f64>) -> String {
-    value
-        .map(|number| number.to_string())
-        .unwrap_or_else(|| "null".to_string())
-}
-
 #[cfg(all(test, feature = "network-integration"))]
 mod tests {
-    use super::{SelectionReport, utc_date_from_unix_ms};
+    use super::{SelectionReport, SelectionReportDto, utc_date_from_unix_ms};
     use cryptotehnolog_common::events::OptionKind;
     use cryptotehnolog_ingestion::{DeribitDiscoveredOption, DeribitOptionDiscoveryCriteria};
+    use serde_json::Value;
+
+    fn selection_report_value(report: &SelectionReport) -> Value {
+        serde_json::to_value(SelectionReportDto::from(report))
+            .expect("selection report DTO should serialize")
+    }
 
     #[test]
     fn unix_ms_dates_are_rendered_as_utc_calendar_dates() {
@@ -897,13 +1039,10 @@ mod tests {
         assert!(report.strike_mismatch());
         assert!(report.expiry_mismatch());
         assert_eq!(report.selection_quality(), "missing");
-        assert!(report.to_json().contains("\"strike_mismatch\":true"));
-        assert!(report.to_json().contains("\"expiry_mismatch\":true"));
-        assert!(
-            report
-                .to_json()
-                .contains("\"selection_quality\":\"missing\"")
-        );
+        let json = selection_report_value(&report);
+        assert_eq!(json["strike_mismatch"], true);
+        assert_eq!(json["expiry_mismatch"], true);
+        assert_eq!(json["selection_quality"], "missing");
     }
 
     #[test]
@@ -913,13 +1052,10 @@ mod tests {
         assert!(!report.strike_mismatch());
         assert!(!report.expiry_mismatch());
         assert_eq!(report.selection_quality(), "missing");
-        assert!(report.to_json().contains("\"strike_mismatch\":false"));
-        assert!(report.to_json().contains("\"expiry_mismatch\":false"));
-        assert!(
-            report
-                .to_json()
-                .contains("\"selection_quality\":\"missing\"")
-        );
+        let json = selection_report_value(&report);
+        assert_eq!(json["strike_mismatch"], false);
+        assert_eq!(json["expiry_mismatch"], false);
+        assert_eq!(json["selection_quality"], "missing");
     }
 
     #[test]
@@ -946,6 +1082,36 @@ mod tests {
         let mut mismatch = nearby.clone();
         mismatch.selected_expiry_ts_ms = Some(1_782_432_000_000);
         assert_eq!(mismatch.selection_quality(), "mismatch");
+    }
+
+    #[test]
+    fn live_probe_replay_report_is_serialized_by_serde_contract() {
+        let report_json = super::render_report(
+            &[],
+            &[super::PayloadShapeVersion::new(
+                "Deribit instruments",
+                "deribit_get_instruments_v1",
+            )],
+            &SelectionReport::empty(),
+            &cryptotehnolog_ingestion::IngestionReport::from_outcomes(&[]),
+            &super::ReplayPipelineSummary::empty(),
+            &[super::DiagnosticError::new(
+                "parse",
+                "Deribit",
+                "MalformedPayload",
+                "quoted \"message\" with newline\nis escaped",
+            )],
+        );
+
+        let value: Value = serde_json::from_str(&report_json).expect("report should be valid JSON");
+
+        assert_eq!(value["schema_version"], 1);
+        assert_eq!(value["selection_report"]["selection_quality"], "missing");
+        assert_eq!(
+            value["payload_shape_versions"][0]["payload_shape_version"],
+            "deribit_get_instruments_v1"
+        );
+        assert_eq!(value["errors"][0]["kind"], "MalformedPayload");
     }
 }
 

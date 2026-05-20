@@ -247,3 +247,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-20] implementation | Live probe replay selection quality
 
 `selection_report` получил derived field `selection_quality` со значениями `missing`, `exact`, `nearby` и `mismatch`. `scripts/summarize_live_probe_replay_reports.ps1` показывает этот статус в таблице `Selected Candidates` и fallback-считает его для старых reports без нового поля.
+
+## [2026-05-20] hardening | Serde live probe replay report
+
+`live_probe_replay_report.json` переведен с ручной строковой сборки на локальные `serde Serialize` DTO в `crates/ingestion/src/bin/live_probe_replay.rs`. Добавлен feature-gated тест, который сериализует report и парсит его обратно через `serde_json`, включая diagnostic message с кавычками и newline. В `coding-standards.md` добавлено правило: machine-readable JSON contracts должны формироваться через typed DTO и `serde Serialize`.
