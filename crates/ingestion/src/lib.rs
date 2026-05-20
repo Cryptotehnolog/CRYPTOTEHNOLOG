@@ -9,6 +9,7 @@ use cryptotehnolog_common::events::{
 use cryptotehnolog_common::journal::{
     EventJournal, EventJournalRow, EventJournalRowWriter, JournalError,
 };
+use serde::Serialize;
 use serde_json::Value;
 
 pub const DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION: &str = "deribit_get_instruments_v1";
@@ -595,6 +596,42 @@ impl IngestionReport {
             by_source,
             rejection_counts
         )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Phase0PipelineReport {
+    pub schema_version: u16,
+    pub raw_events: usize,
+    pub normalized_events: usize,
+    pub journal_rows: usize,
+    pub match_decisions: usize,
+    pub observations: usize,
+    pub observation_rows: usize,
+}
+
+impl Phase0PipelineReport {
+    pub fn from_counts(
+        raw_events: usize,
+        normalized_events: usize,
+        journal_rows: usize,
+        match_decisions: usize,
+        observations: usize,
+        observation_rows: usize,
+    ) -> Self {
+        Self {
+            schema_version: 1,
+            raw_events,
+            normalized_events,
+            journal_rows,
+            match_decisions,
+            observations,
+            observation_rows,
+        }
+    }
+
+    pub fn to_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(self)
     }
 }
 
@@ -3630,6 +3667,73 @@ mod tests {
             "eth-above-3000-june-1"
         );
         assert!(row_writer.rows()[0].survives_costs);
+    }
+
+    #[test]
+    fn phase0_pipeline_report_counts_offline_vertical_slice() {
+        let mut deribit_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(deribit_batch())]);
+        let mut polymarket_client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(polymarket_batch())]);
+        let mut journal = InMemoryEventJournal::new();
+
+        ingest_once_with_report(
+            &mut deribit_client,
+            &mut journal,
+            &IngestionConfig::phase0_deribit("mock://deribit"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("Deribit batch should ingest");
+        ingest_once_with_report(
+            &mut polymarket_client,
+            &mut journal,
+            &IngestionConfig::phase0_polymarket("mock://polymarket"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("Polymarket batch should ingest");
+
+        let replay_events = journal
+            .read_events_for_replay(ReplayEventFilter {
+                start_ts_ms: 0,
+                end_ts_ms: 1_781_000_000_000,
+                event_types: vec![],
+                instrument_ids: vec![],
+                config_version: Some("phase0-ingestion".to_string()),
+            })
+            .expect("journal should return replay events");
+        let config = probability_basis_config();
+        let decisions = match_from_market_events(&replay_events, &config);
+        let observations = observations_from_match_decisions(&decisions, &config);
+        let mut observation_row_writer = InMemoryBasisObservationRowWriter::new();
+        write_basis_observation_rows(&observations, &mut observation_row_writer)
+            .expect("basis observation rows should append");
+
+        let report = Phase0PipelineReport::from_counts(
+            journal.raw_deribit_events().len() + journal.raw_polymarket_events().len(),
+            journal.market_events().len(),
+            journal.event_journal_rows().len(),
+            decisions.len(),
+            observations.len(),
+            observation_row_writer.rows().len(),
+        );
+
+        assert_eq!(
+            report,
+            Phase0PipelineReport {
+                schema_version: 1,
+                raw_events: 2,
+                normalized_events: 2,
+                journal_rows: 4,
+                match_decisions: 1,
+                observations: 1,
+                observation_rows: 1,
+            }
+        );
+        let json: serde_json::Value =
+            serde_json::from_str(&report.to_json().expect("report should serialize"))
+                .expect("report JSON should parse");
+        assert_eq!(json["raw_events"], 2);
+        assert_eq!(json["observation_rows"], 1);
     }
 
     #[test]

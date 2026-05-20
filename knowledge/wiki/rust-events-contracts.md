@@ -253,6 +253,7 @@ IngestionOutcome
 IngestionReport
 IngestionSourceReport
 IngestionRejectionSummary
+Phase0PipelineReport
 JsonPayloadParser
 ingest_once()
 ingest_once_with_validator()
@@ -283,6 +284,7 @@ Design boundary:
 - `Phase0NormalizedBatchValidator` проверяет `schema_version == 1`, `received_ts_ms >= exchange_ts_ms`, identity fields, finite values, quote ordering и basic timestamp/value sanity без стратегических thresholds.
 - `ValidationReport` содержит counters: `raw_events_received`, `normalized_events_received`, `normalized_events_accepted`, `normalized_events_rejected` и список `rejections`.
 - `IngestionReport` агрегирует несколько `ValidationReport`: totals, counts by source и counts by rejection message.
+- `Phase0PipelineReport` агрегирует offline vertical slice counts: raw events, normalized events, journal rows, match decisions, observations и observation rows.
 - Ошибки API/reconnect/rate-limit не должны превращаться в trading rejection reasons; они относятся к ingestion health.
 
 Sync форма выбрана намеренно, чтобы первый contracts layer компилировался без внешних dependencies. Async versions будут добавлены вместе с real HTTP/WebSocket adapters.
@@ -517,6 +519,7 @@ pub struct ReplayEventFilter {
 - BasisObservationRow column order and PostgreSQL insert SQL skeleton.
 - BasisObservationRowWriter failure path returns `ObservationWriteErrorKind::Storage` without panic.
 - Offline derived storage flow: ingestion -> matcher -> `BasisObservation` -> `InMemoryBasisObservationRowWriter`.
+- Phase 0 pipeline report serializes offline vertical-slice counters through `serde Serialize`.
 - Ingestion skeleton: raw-before-normalized write order, validator-before-normalized-write boundary, validation report counters, API error without writes, live client `NotImplemented`, API error/reconnect fixture parsing, ingestion manifest parsing.
 - Ingestion semantic golden reports: `fixtures/ingestion/*_report.json` сравниваются с `IngestionReport::to_json()`.
 - Deribit live skeleton: ticker URL construction, fixture payload parsing и explicit no-network `poll_once()` behavior.

@@ -303,3 +303,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] implementation | BasisObservationRowWriter offline success path
 
 Добавлен `InMemoryBasisObservationRowWriter` и integration test: ingestion -> matcher -> `BasisObservation` -> `BasisObservationRowWriter`. Это закрывает полный offline путь до будущей таблицы `basis_observations` без PostgreSQL connector, сети или trading side effects.
+
+## [2026-05-21] implementation | Phase 0 pipeline report
+
+Добавлен `Phase0PipelineReport` в `crates/ingestion`: typed `serde Serialize` report contract с counts по offline vertical slice этапам: raw events, normalized events, journal rows, match decisions, observations и observation rows. Добавлен тест JSON serialization/parsing для этого report.
