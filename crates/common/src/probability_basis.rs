@@ -34,6 +34,8 @@ pub enum RejectionReason {
     ExpiryMismatch,
     InsufficientLiquidity,
     InvalidQuote,
+    ExpiredOption,
+    InvalidModelInput,
     EdgeBelowThreshold,
 }
 
@@ -92,6 +94,14 @@ pub fn match_probability_basis(
         );
     }
 
+    if deribit_quote.expiry_ts_ms <= deribit_quote.meta.exchange_ts_ms {
+        return reject_pair(
+            RejectionReason::ExpiredOption,
+            deribit_quote,
+            polymarket_quote,
+        );
+    }
+
     if !is_valid_probability_quote(
         polymarket_quote.bid_probability,
         polymarket_quote.ask_probability,
@@ -104,7 +114,13 @@ pub fn match_probability_basis(
         );
     }
 
-    let model_probability = mock_model_probability_from_mark_iv(deribit_quote.mark_iv);
+    let Some(model_probability) = black_scholes_call_probability(deribit_quote) else {
+        return reject_pair(
+            RejectionReason::InvalidModelInput,
+            deribit_quote,
+            polymarket_quote,
+        );
+    };
     let polymarket_mid_probability =
         (polymarket_quote.bid_probability + polymarket_quote.ask_probability) / 2.0;
     let gross_edge_probability = model_probability - polymarket_mid_probability;
@@ -204,13 +220,56 @@ fn is_valid_deribit_quote(quote: &DeribitOptionQuote) -> bool {
     quote.bid.is_finite()
         && quote.ask.is_finite()
         && quote.mark_iv.is_finite()
+        && quote.underlying_price.is_finite()
         && quote.bid >= 0.0
         && quote.bid <= quote.ask
+        && quote.strike > 0.0
         && quote.mark_iv > 0.0
+        && quote.underlying_price > 0.0
 }
 
-fn mock_model_probability_from_mark_iv(mark_iv: f64) -> f64 {
-    mark_iv.clamp(0.0, 1.0)
+fn black_scholes_call_probability(quote: &DeribitOptionQuote) -> Option<f64> {
+    const RISK_FREE_RATE: f64 = 0.0;
+    const DIVIDEND_YIELD: f64 = 0.0;
+    const MS_PER_YEAR: f64 = 365.25 * 24.0 * 60.0 * 60.0 * 1000.0;
+
+    if quote.expiry_ts_ms <= quote.meta.exchange_ts_ms {
+        return None;
+    }
+
+    let time_to_expiry_years =
+        (quote.expiry_ts_ms - quote.meta.exchange_ts_ms) as f64 / MS_PER_YEAR;
+    if !time_to_expiry_years.is_finite() || time_to_expiry_years <= 0.0 {
+        return None;
+    }
+
+    let sigma_sqrt_t = quote.mark_iv * time_to_expiry_years.sqrt();
+    if !sigma_sqrt_t.is_finite() || sigma_sqrt_t <= 0.0 {
+        return None;
+    }
+
+    let drift = (RISK_FREE_RATE - DIVIDEND_YIELD - 0.5 * quote.mark_iv * quote.mark_iv)
+        * time_to_expiry_years;
+    let d2 = ((quote.underlying_price / quote.strike).ln() + drift) / sigma_sqrt_t;
+
+    Some(standard_normal_cdf(d2))
+}
+
+fn standard_normal_cdf(x: f64) -> f64 {
+    0.5 * (1.0 + erf_approx(x / std::f64::consts::SQRT_2))
+}
+
+fn erf_approx(x: f64) -> f64 {
+    let sign = if x < 0.0 { -1.0 } else { 1.0 };
+    let x = x.abs();
+    let t = 1.0 / (1.0 + 0.3275911 * x);
+    let y = 1.0
+        - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t
+            + 0.254829592)
+            * t
+            * (-x * x).exp();
+
+    sign * y
 }
 
 fn feature_meta(
@@ -260,13 +319,14 @@ mod tests {
         }
     }
 
-    fn deribit_quote(mark_iv: f64, expiry_ts_ms: i64) -> DeribitOptionQuote {
+    fn deribit_quote(mark_iv: f64, underlying_price: f64, expiry_ts_ms: i64) -> DeribitOptionQuote {
         DeribitOptionQuote {
             meta: meta("deribit-quote-1", "ETH-20260601-3000-C", 1_779_200_000_000),
             underlying: "ETH".to_string(),
             expiry_ts_ms,
             strike: 3000.0,
             option_kind: OptionKind::Call,
+            underlying_price,
             bid: 0.12,
             ask: 0.13,
             mark_iv,
@@ -301,7 +361,7 @@ mod tests {
 
     #[test]
     fn matches_pair_when_net_edge_survives_costs() {
-        let deribit = deribit_quote(0.62, 1_780_000_000_000);
+        let deribit = deribit_quote(0.62, 3100.0, 1_780_000_000_000);
         let polymarket = polymarket_quote(0.51, 0.53, 10_000.0, 1_780_000_000_000);
 
         let decision = match_probability_basis(Some(&deribit), Some(&polymarket), &config());
@@ -314,8 +374,8 @@ mod tests {
             } => {
                 assert_eq!(feature.deribit_instrument_id, "ETH-20260601-3000-C");
                 assert_eq!(feature.polymarket_market_slug, "eth-above-3000-june-1");
-                assert!((feature.gross_edge_probability - 0.10).abs() < 1e-12);
-                assert!((net_edge_probability - 0.09).abs() < 1e-12);
+                assert!((feature.gross_edge_probability - 0.091338).abs() < 1e-6);
+                assert!((net_edge_probability - 0.081338).abs() < 1e-6);
                 assert!(survives_costs);
             }
             MatchDecision::Rejected { reason, .. } => {
@@ -326,7 +386,7 @@ mod tests {
 
     #[test]
     fn rejects_low_liquidity_pair() {
-        let deribit = deribit_quote(0.62, 1_780_000_000_000);
+        let deribit = deribit_quote(0.62, 3100.0, 1_780_000_000_000);
         let polymarket = polymarket_quote(0.51, 0.53, 999.0, 1_780_000_000_000);
 
         let decision = match_probability_basis(Some(&deribit), Some(&polymarket), &config());
@@ -343,7 +403,7 @@ mod tests {
 
     #[test]
     fn rejects_edge_below_threshold() {
-        let deribit = deribit_quote(0.54, 1_780_000_000_000);
+        let deribit = deribit_quote(0.62, 3030.0, 1_780_000_000_000);
         let polymarket = polymarket_quote(0.51, 0.53, 10_000.0, 1_780_000_000_000);
 
         let decision = match_probability_basis(Some(&deribit), Some(&polymarket), &config());
@@ -360,7 +420,8 @@ mod tests {
 
     #[test]
     fn golden_replay_fixture_produces_stable_report() {
-        let deribit = MarketEvent::DeribitOptionQuote(deribit_quote(0.62, 1_780_000_000_000));
+        let deribit =
+            MarketEvent::DeribitOptionQuote(deribit_quote(0.62, 3100.0, 1_780_000_000_000));
         let matched_polymarket = MarketEvent::PolymarketOutcomeQuote(polymarket_quote(
             0.51,
             0.53,
@@ -392,10 +453,71 @@ mod tests {
         assert_eq!(
             report,
             [
-                "matched|ETH-20260601-3000-C|eth-above-3000-june-1|net_edge=0.090000|survives=true",
+                "matched|ETH-20260601-3000-C|eth-above-3000-june-1|net_edge=0.081338|survives=true",
                 "rejected|InsufficientLiquidity|ETH-20260601-3000-C|eth-above-3000-low-liquidity",
             ]
         );
+    }
+
+    #[test]
+    fn rejects_zero_and_negative_iv() {
+        for mark_iv in [0.0, -0.1] {
+            let deribit = deribit_quote(mark_iv, 3600.0, 1_780_000_000_000);
+            let polymarket = polymarket_quote(0.51, 0.53, 10_000.0, 1_780_000_000_000);
+
+            let decision = match_probability_basis(Some(&deribit), Some(&polymarket), &config());
+
+            assert_eq!(
+                decision,
+                MatchDecision::Rejected {
+                    reason: RejectionReason::InvalidQuote,
+                    deribit_instrument_id: Some("ETH-20260601-3000-C".to_string()),
+                    polymarket_market_slug: Some("eth-above-3000-june-1".to_string()),
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_expired_option() {
+        let deribit = deribit_quote(0.62, 3600.0, 1_779_199_999_999);
+        let polymarket = polymarket_quote(0.51, 0.53, 10_000.0, 1_779_199_999_999);
+
+        let decision = match_probability_basis(Some(&deribit), Some(&polymarket), &config());
+
+        assert_eq!(
+            decision,
+            MatchDecision::Rejected {
+                reason: RejectionReason::ExpiredOption,
+                deribit_instrument_id: Some("ETH-20260601-3000-C".to_string()),
+                polymarket_market_slug: Some("eth-above-3000-june-1".to_string()),
+            }
+        );
+    }
+
+    #[test]
+    fn black_scholes_deep_itm_and_otm_behaviour_is_ordered() {
+        let expiry = 1_780_000_000_000;
+        let deep_otm = deribit_quote(0.50, 1500.0, expiry);
+        let at_the_money = deribit_quote(0.50, 3000.0, expiry);
+        let deep_itm = deribit_quote(0.50, 6000.0, expiry);
+
+        let otm_probability = black_scholes_call_probability(&deep_otm).unwrap();
+        let atm_probability = black_scholes_call_probability(&at_the_money).unwrap();
+        let itm_probability = black_scholes_call_probability(&deep_itm).unwrap();
+
+        assert!(otm_probability < atm_probability);
+        assert!(atm_probability < itm_probability);
+        assert!(otm_probability < 0.05);
+        assert!(itm_probability > 0.90);
+    }
+
+    #[test]
+    fn standard_normal_cdf_is_deterministic_and_symmetric() {
+        assert!((standard_normal_cdf(0.0) - 0.5).abs() < 1e-7);
+        assert!((standard_normal_cdf(1.0) - 0.841344736).abs() < 1e-6);
+        assert!((standard_normal_cdf(-1.0) - 0.158655264).abs() < 1e-6);
+        assert!((standard_normal_cdf(1.0) + standard_normal_cdf(-1.0) - 1.0).abs() < 1e-6);
     }
 
     fn render_match_report(decisions: &[MatchDecision]) -> Vec<String> {

@@ -18,12 +18,15 @@ try {
 
     Write-Output "== Rust formatting check =="
     cargo fmt --check
+    if ($LASTEXITCODE -ne 0) { throw "cargo fmt --check failed." }
 
     Write-Output "== Rust workspace check =="
     cargo check
+    if ($LASTEXITCODE -ne 0) { throw "cargo check failed." }
 
     Write-Output "== Rust tests =="
     cargo test
+    if ($LASTEXITCODE -ne 0) { throw "cargo test failed." }
 
     Write-Output "All local checks passed."
 }

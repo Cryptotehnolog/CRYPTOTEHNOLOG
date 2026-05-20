@@ -23,7 +23,7 @@ Wiki нужно периодически проверять, чтобы automate
 - Rejected и superseded pages остаются видимыми.
 - Contradictions документируются, а не стираются.
 
-Managed pages - это `knowledge/schema.md`, `knowledge/index.md`, `knowledge/graph.md`, `knowledge/log.md`, а также Markdown-файлы в `knowledge/raw/`, `knowledge/wiki/` и `knowledge/templates/`. Личные Obsidian notes вне этих путей не валидируются этим скриптом.
+Managed pages - это `knowledge/README.md`, `knowledge/schema.md`, `knowledge/index.md`, `knowledge/graph.md`, `knowledge/log.md`, а также Markdown-файлы в `knowledge/raw/`, `knowledge/wiki/` и `knowledge/templates/`. Личные Obsidian notes вне этих путей не валидируются этим скриптом.
 
 Health-check проверяет наличие `knowledge/graph.md` и YAML frontmatter, но не валидирует Mermaid-семантику графа.
 

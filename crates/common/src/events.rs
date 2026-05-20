@@ -58,6 +58,7 @@ pub struct DeribitOptionQuote {
     pub expiry_ts_ms: i64,
     pub strike: f64,
     pub option_kind: OptionKind,
+    pub underlying_price: f64,
     pub bid: f64,
     pub ask: f64,
     pub mark_iv: f64,

@@ -28,6 +28,7 @@ function Get-Frontmatter {
 }
 
 $managedMarkdownFiles = @(
+    (Join-Path $knowledge "README.md"),
     (Join-Path $knowledge "schema.md"),
     (Join-Path $knowledge "index.md"),
     (Join-Path $knowledge "graph.md"),
@@ -90,4 +91,3 @@ else {
 }
 
 Write-Output "Knowledge stale check completed. Checked $($managedMarkdownFiles.Count) managed Markdown files."
-

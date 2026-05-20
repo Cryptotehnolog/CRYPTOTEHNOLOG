@@ -87,3 +87,7 @@ sources: []
 ## [2026-05-20] implementation | Probability basis matcher skeleton
 
 Добавлен `crates/common/src/probability_basis.rs`: deterministic matcher skeleton для mock Deribit/Polymarket data, matched/rejected decisions, rejection reasons, net edge calculation и golden replay fixture test. Probability model пока mock-использует `mark_iv`, финальная Black-Scholes implementation остается следующим слоем.
+
+## [2026-05-20] implementation | Black-Scholes probability model
+
+`crates/common/src/probability_basis.rs` заменил mock probability на Black-Scholes `N(d2)` для call-like события `S_T > K` с MVP assumptions `r=0`, `q=0`. Добавлены tests для zero/negative IV, expired option, deep ITM/OTM behavior и deterministic normal CDF approximation. Добавлен `knowledge/README.md` как короткий вход в базу знаний.

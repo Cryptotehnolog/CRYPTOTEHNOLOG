@@ -90,6 +90,21 @@ T = (expiry_ts - observation_ts) / milliseconds_per_year
 8. Сохранить `model_probability`.
 9. Сохранить все assumptions в observation metadata.
 
+## Implementation Status
+
+Black-Scholes `N(d2)` реализован в `crates/common/src/probability_basis.rs` для MVP matcher.
+
+Текущие assumptions:
+
+- `r = 0`,
+- `q = 0`,
+- `sigma = mark_iv`,
+- `S = underlying_price`,
+- `K = strike`,
+- `T` рассчитывается из `expiry_ts_ms - exchange_ts_ms`.
+
+Реализация покрыта unit tests для expired options, invalid IV, deep ITM/OTM behavior и deterministic normal CDF approximation.
+
 ## Важные Caveats
 
 - Black-Scholes probability является risk-neutral, а не physical probability.
@@ -104,4 +119,3 @@ T = (expiry_ts - observation_ts) / milliseconds_per_year
 - Как штрафовать expiry mismatch в `estimated_cost_probability`?
 - Как использовать put/call parity для проверки consistency?
 - Нужно ли учитывать non-zero `r` после появления live-size капитала?
-

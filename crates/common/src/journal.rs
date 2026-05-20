@@ -158,6 +158,7 @@ mod tests {
             expiry_ts_ms: 1_780_000_000_000,
             strike: 3000.0,
             option_kind: OptionKind::Call,
+            underlying_price: 3100.0,
             bid: 0.12,
             ask: 0.13,
             mark_iv: 0.62,

@@ -49,6 +49,7 @@ MarketEvent::PolymarketOutcomeQuote(PolymarketOutcomeQuote)
 | `expiry_ts_ms` | `i64` | Option expiry timestamp. |
 | `strike` | `f64` | Option strike. |
 | `option_kind` | `OptionKind` | `Call` or `Put`. |
+| `underlying_price` | `f64` | Current underlying/index price used by Black-Scholes MVP model. |
 | `bid` | `f64` | Best bid/normalized bid. |
 | `ask` | `f64` | Best ask/normalized ask. |
 | `mark_iv` | `f64` | Deribit IV input for MVP model. |
@@ -119,6 +120,7 @@ Raw API payload wrapper before normalization.
 - `RejectionReason`,
 - `match_probability_basis()`,
 - `match_from_market_events()`.
+- Black-Scholes `N(d2)` probability calculation для call-like events.
 
 Sync форма выбрана намеренно, чтобы первый contracts layer компилировался без внешних dependencies. Async versions будут добавлены вместе с real HTTP/WebSocket adapters.
 
@@ -276,6 +278,7 @@ pub struct ReplayEventFilter {
 - deterministic replay ordering/filtering.
 - probability-basis matched/rejected decisions,
 - golden replay fixture report.
+- Black-Scholes edge cases: zero/negative IV, expired option, deep ITM/OTM behavior, deterministic normal CDF approximation.
 
 ## Design Rule
 

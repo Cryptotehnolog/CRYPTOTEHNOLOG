@@ -14,6 +14,7 @@ sources:
 
 ## System
 
+- [README базы знаний](README.md) - короткий вход в `knowledge/`.
 - [Схема базы знаний](schema.md) - operating contract для поддержки wiki.
 - [Обзор базы знаний](wiki/system-knowledge-base.md) - зачем проекту нужна постоянная LLM-maintained wiki.
 - [Граф базы знаний](graph.md) - curated Mermaid-граф ключевых смысловых связей.

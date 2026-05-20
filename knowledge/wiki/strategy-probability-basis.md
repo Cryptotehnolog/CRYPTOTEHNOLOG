@@ -79,7 +79,9 @@ Open question: нужна отдельная спецификация `source-de
 - net edge calculation,
 - golden replay fixture test.
 
-Ограничение: `model_probability` пока mock-выводится из `mark_iv`. Это временный skeleton для проверки matching/report determinism, не финальная Black-Scholes implementation.
+`model_probability` теперь рассчитывается через Black-Scholes `N(d2)` для call-like события `S_T > K` с MVP assumptions `r=0`, `q=0`.
+
+Ограничение: модель все еще использует single-strike `mark_iv` и не строит volatility surface. Это достаточно для deterministic MVP tests, но не является финальной pricing model.
 
 ## Risks
 
