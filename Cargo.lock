@@ -73,6 +73,8 @@ name = "cryptotehnolog-replay"
 version = "0.1.0"
 dependencies = [
  "cryptotehnolog-common",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

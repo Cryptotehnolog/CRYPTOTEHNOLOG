@@ -1,8 +1,12 @@
 [probability_basis]
 enabled = true
 min_net_edge_probability = 0.025
+max_expiry_mismatch_ms = 86400000
 max_market_age_ms = 3000
 min_polymarket_liquidity_usd = 1000.0
+estimated_cost_probability = 0.010
+risk_free_rate = 0.0
+dividend_yield = 0.0
+milliseconds_per_year = 31557600000.0
 allow_short_deribit_options = false
 allow_short_polymarket_outcomes = false
-

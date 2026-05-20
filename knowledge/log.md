@@ -259,3 +259,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-20] hardening | Polymarket parser error propagation
 
 В `PolymarketLiveIngestionClient::parse_gamma_market_payload()` удален production-style `expect("checked above")`; missing outcome и несогласованные `outcomes`/`outcomePrices` теперь возвращают явный `IngestionError`. Добавлены targeted tests на Gamma payload без `outcomes` и с коротким `outcomePrices`, чтобы external payload shape не мог вызвать panic в parser boundary.
+
+## [2026-05-20] hardening | Replay serde, pricing assumptions, observation metadata
+
+`ReplayReport` JSON переведен на typed `serde Serialize` contract вместо ручной сборки строк. Добавлен `rust-toolchain.toml` для фиксации stable Rust channel при `rust-version = 1.93`. Black-Scholes assumptions (`risk_free_rate`, `dividend_yield`, `milliseconds_per_year`) вынесены в `ProbabilityBasisConfig`. `basis_observations` row/SQL contract расширен полями `schema_version` и `config_version`.

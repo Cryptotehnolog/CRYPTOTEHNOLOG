@@ -5,7 +5,10 @@
     "matched_count": 0,
     "rejected_count": 1,
     "rejection_counts": [
-      { "reason": "ExpiryMismatch", "count": 1 }
+      {
+        "reason": "ExpiryMismatch",
+        "count": 1
+      }
     ],
     "net_edge": {
       "sample_count": 0,

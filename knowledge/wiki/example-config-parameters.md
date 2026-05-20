@@ -21,8 +21,13 @@ sources:
 | --- | --- | --- |
 | `enabled` | `true` | Включает probability basis strategy. |
 | `min_net_edge_probability` | `0.025` | Минимальный net edge после costs. |
+| `max_expiry_mismatch_ms` | `86400000` | Максимальный mismatch между option expiry и target event timestamp. |
 | `max_market_age_ms` | `3000` | Максимальный возраст market data. |
 | `min_polymarket_liquidity_usd` | `1000.0` | Минимальная liquidity для candidate market. |
+| `estimated_cost_probability` | `0.010` | MVP estimate fees/spread/slippage/mismatch costs. |
+| `risk_free_rate` | `0.0` | Black-Scholes `r` assumption для MVP. |
+| `dividend_yield` | `0.0` | Black-Scholes `q` assumption для MVP. |
+| `milliseconds_per_year` | `31557600000.0` | Calendar basis для расчета `T`. |
 | `allow_short_deribit_options` | `false` | Запрещает short Deribit options в MVP. |
 | `allow_short_polymarket_outcomes` | `false` | Запрещает short Polymarket outcomes в MVP. |
 

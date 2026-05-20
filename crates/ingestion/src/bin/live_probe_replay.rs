@@ -441,6 +441,9 @@ fn run_matcher(events: &[MarketEvent]) -> ReplayPipelineSummary {
         max_expiry_mismatch_ms: 86_400_000,
         min_polymarket_liquidity_usd: 1_000.0,
         estimated_cost_probability: 0.010,
+        risk_free_rate: 0.0,
+        dividend_yield: 0.0,
+        milliseconds_per_year: 365.25 * 24.0 * 60.0 * 60.0 * 1000.0,
     };
     let decisions = match_from_market_events(events, &config);
     let observations = observations_from_match_decisions(&decisions, &config);

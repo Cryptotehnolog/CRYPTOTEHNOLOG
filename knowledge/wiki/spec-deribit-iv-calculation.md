@@ -102,15 +102,18 @@ black_scholes_single_strike_v1
 
 В коде эта версия зафиксирована константой `PRICING_MODEL_VERSION` в `crates/common/src/probability_basis.rs`.
 
-Текущие assumptions:
+Текущие assumptions берутся из `ProbabilityBasisConfig`:
 
-- `r = 0`,
-- `q = 0`,
+- `risk_free_rate = 0.0`,
+- `dividend_yield = 0.0`,
+- `milliseconds_per_year = 365.25 * 24 * 60 * 60 * 1000`,
 - `sigma = mark_iv`,
 - single-strike IV без volatility surface,
 - `S = underlying_price`,
 - `K = strike`,
 - `T` рассчитывается из `expiry_ts_ms - exchange_ts_ms`.
+
+Эти значения пока являются MVP defaults, а не утверждением о реальной crypto funding curve. Изменение `risk_free_rate`, `dividend_yield` или calendar basis должно проходить как изменение pricing assumptions и сопровождаться replay/golden review.
 
 Реализация покрыта unit tests для expired options, invalid IV, deep ITM/OTM behavior и deterministic normal CDF approximation.
 

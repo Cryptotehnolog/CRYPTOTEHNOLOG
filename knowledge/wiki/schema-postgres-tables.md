@@ -75,13 +75,8 @@ Storage boundary уже определен:
 | `estimated_cost_probability` | `numeric not null` | Estimated fees/spread/slippage/mismatch costs. |
 | `net_edge_probability` | `numeric not null` | Net edge после estimated costs. |
 | `survives_costs` | `boolean not null` | Проходит ли threshold после costs. |
-
-Rust-only metadata before DB migration update:
-
-- `schema_version`,
-- `config_version`.
-
-Если эти поля нужны в PostgreSQL напрямую, migration должна быть расширена отдельным change review.
+| `schema_version` | `integer not null` | Версия observation schema. |
+| `config_version` | `text not null` | Версия config, применимая к observation. |
 
 ## `basis_observations` Insert Contract
 
@@ -98,6 +93,8 @@ gross_edge_probability
 estimated_cost_probability
 net_edge_probability
 survives_costs
+schema_version
+config_version
 ```
 
 `observed_at` пока сериализуется из Rust как Unix milliseconds (`observed_at_ts_ms`) и в future PostgreSQL adapter должен конвертироваться через `to_timestamp(ms / 1000.0)`.

@@ -54,7 +54,7 @@ pub fn observations_from_match_decisions(
 
 pub const BASIS_OBSERVATIONS_TABLE: &str = "basis_observations";
 
-pub const BASIS_OBSERVATIONS_COLUMNS: [&str; 10] = [
+pub const BASIS_OBSERVATIONS_COLUMNS: [&str; 12] = [
     "event_id",
     "observed_at",
     "deribit_instrument_id",
@@ -65,6 +65,8 @@ pub const BASIS_OBSERVATIONS_COLUMNS: [&str; 10] = [
     "estimated_cost_probability",
     "net_edge_probability",
     "survives_costs",
+    "schema_version",
+    "config_version",
 ];
 
 #[derive(Debug, Clone, PartialEq)]
@@ -79,6 +81,8 @@ pub struct BasisObservationRow {
     pub estimated_cost_probability: f64,
     pub net_edge_probability: f64,
     pub survives_costs: bool,
+    pub schema_version: u16,
+    pub config_version: String,
 }
 
 impl BasisObservationRow {
@@ -94,14 +98,16 @@ impl BasisObservationRow {
             estimated_cost_probability: observation.estimated_cost_probability,
             net_edge_probability: observation.net_edge_probability,
             survives_costs: observation.survives_costs,
+            schema_version: observation.schema_version,
+            config_version: observation.config_version.clone(),
         }
     }
 
-    pub fn columns() -> &'static [&'static str; 10] {
+    pub fn columns() -> &'static [&'static str; 12] {
         &BASIS_OBSERVATIONS_COLUMNS
     }
 
-    pub fn values(&self) -> [BasisObservationRowValue; 10] {
+    pub fn values(&self) -> [BasisObservationRowValue; 12] {
         [
             BasisObservationRowValue::Text(self.event_id.clone()),
             BasisObservationRowValue::TimestampMillis(self.observed_at_ts_ms),
@@ -113,6 +119,8 @@ impl BasisObservationRow {
             BasisObservationRowValue::Numeric(self.estimated_cost_probability),
             BasisObservationRowValue::Numeric(self.net_edge_probability),
             BasisObservationRowValue::Bool(self.survives_costs),
+            BasisObservationRowValue::Integer(self.schema_version as i64),
+            BasisObservationRowValue::Text(self.config_version.clone()),
         ]
     }
 }
@@ -121,6 +129,7 @@ impl BasisObservationRow {
 pub enum BasisObservationRowValue {
     Text(String),
     TimestampMillis(i64),
+    Integer(i64),
     Numeric(f64),
     Bool(bool),
 }
@@ -139,12 +148,12 @@ impl PostgresBasisObservationAdapter {
         BASIS_OBSERVATIONS_TABLE
     }
 
-    pub fn columns() -> &'static [&'static str; 10] {
+    pub fn columns() -> &'static [&'static str; 12] {
         &BASIS_OBSERVATIONS_COLUMNS
     }
 
     pub fn insert_sql() -> &'static str {
-        "INSERT INTO basis_observations (event_id, observed_at, deribit_instrument_id, polymarket_market_slug, model_probability, polymarket_mid_probability, gross_edge_probability, estimated_cost_probability, net_edge_probability, survives_costs) VALUES ($1, to_timestamp($2::double precision / 1000.0), $3, $4, $5, $6, $7, $8, $9, $10)"
+        "INSERT INTO basis_observations (event_id, observed_at, deribit_instrument_id, polymarket_market_slug, model_probability, polymarket_mid_probability, gross_edge_probability, estimated_cost_probability, net_edge_probability, survives_costs, schema_version, config_version) VALUES ($1, to_timestamp($2::double precision / 1000.0), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"
     }
 }
 
@@ -275,6 +284,8 @@ mod tests {
                 "estimated_cost_probability",
                 "net_edge_probability",
                 "survives_costs",
+                "schema_version",
+                "config_version",
             ]
         );
         let values = row.values();
@@ -300,6 +311,11 @@ mod tests {
         assert_numeric_value(&values[7], 0.010000);
         assert_numeric_value(&values[8], 0.081338);
         assert_eq!(values[9], BasisObservationRowValue::Bool(true));
+        assert_eq!(values[10], BasisObservationRowValue::Integer(1));
+        assert_eq!(
+            values[11],
+            BasisObservationRowValue::Text("test".to_string())
+        );
     }
 
     #[test]
@@ -310,7 +326,7 @@ mod tests {
         );
         assert_eq!(
             PostgresBasisObservationAdapter::insert_sql(),
-            "INSERT INTO basis_observations (event_id, observed_at, deribit_instrument_id, polymarket_market_slug, model_probability, polymarket_mid_probability, gross_edge_probability, estimated_cost_probability, net_edge_probability, survives_costs) VALUES ($1, to_timestamp($2::double precision / 1000.0), $3, $4, $5, $6, $7, $8, $9, $10)"
+            "INSERT INTO basis_observations (event_id, observed_at, deribit_instrument_id, polymarket_market_slug, model_probability, polymarket_mid_probability, gross_edge_probability, estimated_cost_probability, net_edge_probability, survives_costs, schema_version, config_version) VALUES ($1, to_timestamp($2::double precision / 1000.0), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"
         );
     }
 

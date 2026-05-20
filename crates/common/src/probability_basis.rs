@@ -11,6 +11,9 @@ pub struct ProbabilityBasisConfig {
     pub max_expiry_mismatch_ms: i64,
     pub min_polymarket_liquidity_usd: f64,
     pub estimated_cost_probability: f64,
+    pub risk_free_rate: f64,
+    pub dividend_yield: f64,
+    pub milliseconds_per_year: f64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -116,7 +119,7 @@ pub fn match_probability_basis(
         );
     }
 
-    let Some(model_probability) = black_scholes_call_probability(deribit_quote) else {
+    let Some(model_probability) = black_scholes_call_probability(deribit_quote, config) else {
         return reject_pair(
             RejectionReason::InvalidModelInput,
             deribit_quote,
@@ -259,17 +262,20 @@ fn is_valid_deribit_quote(quote: &DeribitOptionQuote) -> bool {
         && quote.underlying_price > 0.0
 }
 
-fn black_scholes_call_probability(quote: &DeribitOptionQuote) -> Option<f64> {
-    const RISK_FREE_RATE: f64 = 0.0;
-    const DIVIDEND_YIELD: f64 = 0.0;
-    const MS_PER_YEAR: f64 = 365.25 * 24.0 * 60.0 * 60.0 * 1000.0;
-
+fn black_scholes_call_probability(
+    quote: &DeribitOptionQuote,
+    config: &ProbabilityBasisConfig,
+) -> Option<f64> {
     if quote.expiry_ts_ms <= quote.meta.exchange_ts_ms {
         return None;
     }
 
+    if !config.milliseconds_per_year.is_finite() || config.milliseconds_per_year <= 0.0 {
+        return None;
+    }
+
     let time_to_expiry_years =
-        (quote.expiry_ts_ms - quote.meta.exchange_ts_ms) as f64 / MS_PER_YEAR;
+        (quote.expiry_ts_ms - quote.meta.exchange_ts_ms) as f64 / config.milliseconds_per_year;
     if !time_to_expiry_years.is_finite() || time_to_expiry_years <= 0.0 {
         return None;
     }
@@ -279,8 +285,9 @@ fn black_scholes_call_probability(quote: &DeribitOptionQuote) -> Option<f64> {
         return None;
     }
 
-    let drift = (RISK_FREE_RATE - DIVIDEND_YIELD - 0.5 * quote.mark_iv * quote.mark_iv)
-        * time_to_expiry_years;
+    let drift =
+        (config.risk_free_rate - config.dividend_yield - 0.5 * quote.mark_iv * quote.mark_iv)
+            * time_to_expiry_years;
     let d2 = ((quote.underlying_price / quote.strike).ln() + drift) / sigma_sqrt_t;
 
     Some(standard_normal_cdf(d2))
@@ -387,6 +394,9 @@ mod tests {
             max_expiry_mismatch_ms: 86_400_000,
             min_polymarket_liquidity_usd: 1000.0,
             estimated_cost_probability: 0.010,
+            risk_free_rate: 0.0,
+            dividend_yield: 0.0,
+            milliseconds_per_year: 365.25 * 24.0 * 60.0 * 60.0 * 1000.0,
         }
     }
 
@@ -533,9 +543,10 @@ mod tests {
         let at_the_money = deribit_quote(0.50, 3000.0, expiry);
         let deep_itm = deribit_quote(0.50, 6000.0, expiry);
 
-        let otm_probability = black_scholes_call_probability(&deep_otm).unwrap();
-        let atm_probability = black_scholes_call_probability(&at_the_money).unwrap();
-        let itm_probability = black_scholes_call_probability(&deep_itm).unwrap();
+        let config = config();
+        let otm_probability = black_scholes_call_probability(&deep_otm, &config).unwrap();
+        let atm_probability = black_scholes_call_probability(&at_the_money, &config).unwrap();
+        let itm_probability = black_scholes_call_probability(&deep_itm, &config).unwrap();
 
         assert!(otm_probability < atm_probability);
         assert!(atm_probability < itm_probability);
@@ -549,6 +560,19 @@ mod tests {
         assert!((standard_normal_cdf(1.0) - 0.841344736).abs() < 1e-6);
         assert!((standard_normal_cdf(-1.0) - 0.158655264).abs() < 1e-6);
         assert!((standard_normal_cdf(1.0) + standard_normal_cdf(-1.0) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn black_scholes_uses_configured_rate_assumptions() {
+        let quote = deribit_quote(0.62, 3100.0, 1_780_000_000_000);
+        let base = config();
+        let mut higher_rate = base.clone();
+        higher_rate.risk_free_rate = 0.05;
+
+        let base_probability = black_scholes_call_probability(&quote, &base).unwrap();
+        let higher_rate_probability = black_scholes_call_probability(&quote, &higher_rate).unwrap();
+
+        assert!(higher_rate_probability > base_probability);
     }
 
     #[test]

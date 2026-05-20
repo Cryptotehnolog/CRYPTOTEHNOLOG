@@ -5,7 +5,10 @@
     "matched_count": 1,
     "rejected_count": 1,
     "rejection_counts": [
-      { "reason": "InsufficientLiquidity", "count": 1 }
+      {
+        "reason": "InsufficientLiquidity",
+        "count": 1
+      }
     ],
     "net_edge": {
       "sample_count": 1,

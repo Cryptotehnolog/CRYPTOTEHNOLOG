@@ -39,6 +39,7 @@ create table if not exists basis_observations (
     gross_edge_probability numeric not null,
     estimated_cost_probability numeric not null,
     net_edge_probability numeric not null,
-    survives_costs boolean not null
+    survives_costs boolean not null,
+    schema_version integer not null,
+    config_version text not null
 );
-
