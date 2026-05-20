@@ -1,0 +1,2 @@
+matched|ETH-20260601-3000-C|eth-above-3000-june-1|net_edge=0.081338|survives=true
+rejected|InsufficientLiquidity|ETH-20260601-3000-C|eth-above-3000-low-liquidity

@@ -42,3 +42,11 @@ jobs:
       - name: Check repository compliance
         shell: pwsh
         run: .\scripts\check_compliance.ps1
+
+      - name: Check Phase gate
+        shell: pwsh
+        run: .\scripts\check_phase_gate.ps1
+
+      - name: Run replay regression
+        shell: pwsh
+        run: .\scripts\run_replay_regression.ps1

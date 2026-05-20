@@ -71,6 +71,8 @@ sources:
 
 Machine-readable mirror для Phase 0 gate. Сейчас это documentation/config contract для будущей CI-проверки; сам CI еще не валидирует эти поля.
 
+`scripts/check_phase_gate.ps1` читает этот файл и блокирует преждевременное появление LightRAG/MCP wiring, пока `phase_1_research_enabled = false`.
+
 ### `[phase]`
 
 | Parameter | Default | Meaning |

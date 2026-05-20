@@ -99,3 +99,7 @@ sources: []
 ## [2026-05-20] implementation | Probability basis replay runner
 
 `crates/replay` превращен в Phase 0 probability-basis replay runner: fixed mock `MarketEvent` fixture прогоняется через matcher и выдает reproducible matched/rejected report. Добавлен `config/phase_gate.toml` как machine-readable mirror Phase 0 gate для будущей CI-проверки запретов LightRAG/Docker/MCP до Phase 1.
+
+## [2026-05-20] automation | Fixture replay regression and phase gate check
+
+Probability-basis replay fixture вынесен из hardcoded Rust в `fixtures/probability_basis/golden_events.psv`, а expected output - в `fixtures/probability_basis/golden_report.txt`. Добавлены `scripts/run_replay_regression.ps1` и `scripts/check_phase_gate.ps1`; оба включены в `scripts/check_all.ps1` и GitHub Actions CI.
