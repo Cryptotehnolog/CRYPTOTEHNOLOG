@@ -34,7 +34,9 @@ sources:
 
 ### `scripts/dev_status.ps1`
 
-Показывает состояние рабочей сессии: Git status, последний коммит, remote, CI hint, наличие hook и версии Rust/UV/Git.
+Показывает состояние рабочей сессии: Git status, последний коммит, remote, наличие GitHub Actions workflow, latest GitHub Actions status для `main` если GitHub API доступен, наличие hook и версии Rust/UV/Git.
+
+GitHub Actions status читается best-effort через публичный GitHub API. Для public repository токен обычно не нужен. Если API недоступен, rate-limited или repository станет private, можно задать `GITHUB_TOKEN` с минимальными read-only правами на repository metadata/actions. Токен нельзя сохранять в репозитории или wiki.
 
 ## Knowledge Base
 
@@ -73,6 +75,8 @@ Warning-only проверка `stability` и `review_after`.
 JSON/text output включает `ReplaySummary`: counts matched/rejected, counts by rejection reason и агрегаты `net_edge_probability` по matched entries.
 
 Это smoke-level CLI regression, а не замена Rust unit tests.
+
+Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, чтобы `run_replay_regression.ps1`, `update_golden_fixture.ps1` и `check_golden_fixture_current.ps1` не дублировали один и тот же TOML subset parser.
 
 ### `scripts/update_golden_fixture.ps1`
 

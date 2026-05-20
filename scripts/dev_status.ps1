@@ -28,6 +28,52 @@ function Get-CommandVersion {
     }
 }
 
+function Get-GitHubRepoSlug {
+    $remoteUrl = git remote get-url origin 2>$null
+    if ([string]::IsNullOrWhiteSpace($remoteUrl)) {
+        return $null
+    }
+
+    if ($remoteUrl -match "github\.com[:/](?<owner>[^/]+)/(?<repo>[^/.]+)(\.git)?$") {
+        return "$($matches.owner)/$($matches.repo)"
+    }
+
+    return $null
+}
+
+function Get-LatestGitHubActionsStatus {
+    param([string]$RepoSlug)
+
+    if ([string]::IsNullOrWhiteSpace($RepoSlug)) {
+        return "Latest GitHub Actions: unavailable (origin is not a GitHub repository)."
+    }
+
+    $headers = @{
+        "User-Agent" = "CRYPTOTEHNOLOG-dev-status"
+        "Accept" = "application/vnd.github+json"
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) {
+        $headers["Authorization"] = "Bearer $env:GITHUB_TOKEN"
+    }
+
+    try {
+        $uri = "https://api.github.com/repos/$RepoSlug/actions/runs?branch=main&per_page=1"
+        $response = Invoke-RestMethod -Uri $uri -Headers $headers -TimeoutSec 5
+        if ($response.total_count -lt 1 -or $response.workflow_runs.Count -lt 1) {
+            return "Latest GitHub Actions: unavailable (no workflow runs found for main)."
+        }
+
+        $run = $response.workflow_runs[0]
+        $shortSha = $run.head_sha.Substring(0, 7)
+        $result = if ($null -eq $run.conclusion) { $run.status } else { "$($run.status)/$($run.conclusion)" }
+        return "Latest GitHub Actions: $result on main ($shortSha, $($run.display_title))"
+    }
+    catch {
+        return "Latest GitHub Actions: unavailable ($($_.Exception.Message)). Public repos usually work without a token; for rate limits or private repos set GITHUB_TOKEN with read-only repository Actions/Metadata access."
+    }
+}
+
 Push-Location $root
 try {
     Write-Output "CRYPTOTEHNOLOG development status"
@@ -68,7 +114,13 @@ try {
     $ciPath = Join-Path $root ".github\workflows\ci.yml"
     if (Test-Path $ciPath) {
         Write-Output "GitHub Actions workflow: present (.github/workflows/ci.yml)"
-        Write-Output "Hint: check the Actions tab after each push."
+        if (Test-Path ".git") {
+            $repoSlug = Get-GitHubRepoSlug
+            Write-Output (Get-LatestGitHubActionsStatus -RepoSlug $repoSlug)
+        }
+        else {
+            Write-Output "Latest GitHub Actions: unavailable (not a Git working tree)."
+        }
     }
     else {
         Write-Output "GitHub Actions workflow: missing"

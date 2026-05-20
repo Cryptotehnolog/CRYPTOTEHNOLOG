@@ -139,3 +139,7 @@ Replay core вынесен в `crates/replay/src/lib.rs`, а `main.rs` стал 
 ## [2026-05-20] automation | CI golden freshness newline compatibility
 
 GitHub Actions подтвердил, что `cargo test` исправлен, но `check_golden_fixture_current.ps1` падал на raw-сравнении golden files до/после regeneration. Freshness check теперь нормализует `CRLF/LF` перед сравнением, чтобы проверять semantic staleness, а не стиль line endings checkout.
+
+## [2026-05-20] automation | Replay manifest helper and CI status
+
+Общий replay manifest parser вынесен в `scripts/lib/replay_manifest.ps1` и подключен из replay regression/update/freshness scripts. `scripts/dev_status.ps1` теперь best-effort показывает latest GitHub Actions status для `main` через GitHub API, не падая при отсутствии сети, rate limit или недоступном API.
