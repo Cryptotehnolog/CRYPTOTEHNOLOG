@@ -7,5 +7,6 @@
 *.sql text eol=lf
 *.md text eol=lf
 *.ps1 text eol=lf
+AGENTS.md text eol=lf
 *.gitignore text eol=lf
 *.example text eol=lf

@@ -25,3 +25,7 @@ Added GitHub Actions CI for Rust checks and knowledge-base health checks. Added 
 ## [2026-05-20] workflow | Codex and Obsidian usage
 
 Documented how Codex should read and update the wiki during engineering work, and how Obsidian should be used as a Markdown vault interface without becoming a runtime dependency.
+
+## [2026-05-20] automation | Agent rules and pre-commit policy
+
+Added root `AGENTS.md` rules for AI agents. Added a Git hook installer and documented that pre-commit knowledge checks must remain fast, local, deterministic, and network-free.

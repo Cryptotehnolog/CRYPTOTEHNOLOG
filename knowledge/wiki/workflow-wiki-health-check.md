@@ -20,7 +20,22 @@ The wiki must be checked periodically so automated maintenance does not accumula
 - Rejected and superseded pages remain visible.
 - Contradictions are documented instead of erased.
 
+## Pre-Commit Policy
+
+`scripts/kb_health_check.ps1` is allowed to run in a Git pre-commit hook. Therefore it must remain fast, local, deterministic, and network-free.
+
+It must not call:
+
+- LLMs,
+- external APIs,
+- external URL validators,
+- Docker,
+- databases,
+- long-running audits,
+- heavy test suites.
+
+If a knowledge-base check needs network access, LLM judgment, external URL validation, or heavy computation, it must be implemented as a separate CI/manual audit script instead of being added to `kb_health_check.ps1`.
+
 ## Frequency
 
 Run after every source ingest and before major architecture changes.
-

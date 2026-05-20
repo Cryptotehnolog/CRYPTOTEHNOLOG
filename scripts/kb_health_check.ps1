@@ -1,5 +1,11 @@
 $ErrorActionPreference = "Stop"
 
+# Policy:
+# This script is allowed in pre-commit hooks, so it must remain fast, local,
+# deterministic, and network-free. Do not call LLMs, external APIs, external
+# URL validators, long-running audits, Docker, databases, or heavy test suites
+# from this script. Put those checks in CI or a separate manual audit script.
+
 $root = Split-Path -Parent $PSScriptRoot
 $knowledge = Join-Path $root "knowledge"
 $index = Join-Path $knowledge "index.md"
@@ -42,4 +48,3 @@ if ($failures.Count -gt 0) {
 }
 
 Write-Output "Knowledge base health check passed. Checked $($markdownFiles.Count) Markdown files."
-
