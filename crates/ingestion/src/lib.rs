@@ -82,6 +82,17 @@ impl IngestionError {
             format!("{:?}: {}", error.kind, error.message),
         )
     }
+
+    pub fn from_validation(source: IngestionSource, error: NormalizedBatchValidationError) -> Self {
+        Self::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(source),
+            format!(
+                "{} validation failed for event {}: {}",
+                error.source_name, error.event_id, error.message
+            ),
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -118,6 +129,137 @@ impl IngestionBatch {
 
 pub trait IngestionClient {
     fn poll_once(&mut self, config: &IngestionConfig) -> Result<IngestionBatch, IngestionError>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NormalizedBatchValidationError {
+    pub source_name: String,
+    pub event_id: String,
+    pub message: String,
+}
+
+impl NormalizedBatchValidationError {
+    pub fn new(
+        source_name: impl Into<String>,
+        event_id: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            source_name: source_name.into(),
+            event_id: event_id.into(),
+            message: message.into(),
+        }
+    }
+}
+
+pub trait NormalizedBatchValidator {
+    fn validate_market_event(
+        &self,
+        event: &MarketEvent,
+    ) -> Result<(), NormalizedBatchValidationError>;
+
+    fn validate_batch(&self, batch: &IngestionBatch) -> Result<(), NormalizedBatchValidationError> {
+        for event in &batch.market_events {
+            self.validate_market_event(event)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AcceptAllNormalizedBatchValidator;
+
+impl NormalizedBatchValidator for AcceptAllNormalizedBatchValidator {
+    fn validate_market_event(
+        &self,
+        _event: &MarketEvent,
+    ) -> Result<(), NormalizedBatchValidationError> {
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Phase0NormalizedBatchValidator;
+
+impl NormalizedBatchValidator for Phase0NormalizedBatchValidator {
+    fn validate_market_event(
+        &self,
+        event: &MarketEvent,
+    ) -> Result<(), NormalizedBatchValidationError> {
+        match event {
+            MarketEvent::DeribitOptionQuote(quote) => {
+                if quote.meta.event_id.trim().is_empty()
+                    || quote.meta.instrument_id.trim().is_empty()
+                    || quote.underlying.trim().is_empty()
+                {
+                    return Err(validation_error(
+                        event,
+                        "missing required Deribit identity field",
+                    ));
+                }
+                if !quote.bid.is_finite()
+                    || !quote.ask.is_finite()
+                    || !quote.mark_iv.is_finite()
+                    || !quote.underlying_price.is_finite()
+                    || quote.bid < 0.0
+                    || quote.bid > quote.ask
+                    || quote.strike <= 0.0
+                    || quote.mark_iv <= 0.0
+                    || quote.underlying_price <= 0.0
+                {
+                    return Err(validation_error(
+                        event,
+                        "invalid Deribit normalized quote values",
+                    ));
+                }
+                if quote.expiry_ts_ms <= quote.meta.exchange_ts_ms {
+                    return Err(validation_error(
+                        event,
+                        "Deribit option is expired at event timestamp",
+                    ));
+                }
+            }
+            MarketEvent::PolymarketOutcomeQuote(quote) => {
+                if quote.meta.event_id.trim().is_empty()
+                    || quote.meta.instrument_id.trim().is_empty()
+                    || quote.event_slug.trim().is_empty()
+                    || quote.market_slug.trim().is_empty()
+                    || quote.outcome.trim().is_empty()
+                {
+                    return Err(validation_error(
+                        event,
+                        "missing required Polymarket identity field",
+                    ));
+                }
+                if !quote.bid_probability.is_finite()
+                    || !quote.ask_probability.is_finite()
+                    || !quote.liquidity_usd.is_finite()
+                    || quote.bid_probability < 0.0
+                    || quote.ask_probability > 1.0
+                    || quote.bid_probability > quote.ask_probability
+                    || quote.liquidity_usd < 0.0
+                {
+                    return Err(validation_error(
+                        event,
+                        "invalid Polymarket normalized quote values",
+                    ));
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+fn validation_error(
+    event: &MarketEvent,
+    message: impl Into<String>,
+) -> NormalizedBatchValidationError {
+    NormalizedBatchValidationError::new(
+        event.meta().source.clone(),
+        event.meta().event_id.clone(),
+        message,
+    )
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -177,6 +319,20 @@ where
     C: IngestionClient,
     J: EventJournal,
 {
+    ingest_once_with_validator(client, journal, config, &AcceptAllNormalizedBatchValidator)
+}
+
+pub fn ingest_once_with_validator<C, J, V>(
+    client: &mut C,
+    journal: &mut J,
+    config: &IngestionConfig,
+    validator: &V,
+) -> Result<IngestionBatch, IngestionError>
+where
+    C: IngestionClient,
+    J: EventJournal,
+    V: NormalizedBatchValidator,
+{
     let batch = client.poll_once(config)?;
 
     for raw_event in &batch.raw_events {
@@ -189,6 +345,10 @@ where
                 .map_err(|error| IngestionError::from_journal(raw_event.source(), error))?,
         }
     }
+
+    validator
+        .validate_batch(&batch)
+        .map_err(|error| IngestionError::from_validation(batch.source, error))?;
 
     for market_event in &batch.market_events {
         journal
@@ -698,18 +858,23 @@ mod tests {
             &IngestionConfig::phase0_deribit("mock://deribit"),
         )
         .expect("deribit batch should ingest");
-        ingest_once(
+        let error = ingest_once_with_validator(
             &mut polymarket_client,
             &mut journal,
             &IngestionConfig::phase0_polymarket("mock://polymarket"),
+            &Phase0NormalizedBatchValidator,
         )
-        .expect("malformed normalized quote is still captured for replay rejection");
+        .expect_err("malformed normalized quote should be rejected after raw capture");
+
+        assert_eq!(error.kind, IngestionErrorKind::MalformedPayload);
+        assert!(error.message.contains("market-polymarket-malformed-1"));
 
         assert_eq!(journal.raw_polymarket_events().len(), 1);
         assert_eq!(
             journal.raw_polymarket_events()[0].meta.event_id,
             "raw-polymarket-malformed-1"
         );
+        assert_eq!(journal.market_events().len(), 1);
 
         let replay_events = journal
             .read_events_for_replay(ReplayEventFilter {
@@ -726,13 +891,31 @@ mod tests {
         assert_eq!(
             decisions,
             vec![MatchDecision::Rejected {
-                reason: cryptotehnolog_common::probability_basis::RejectionReason::InvalidQuote,
+                reason: cryptotehnolog_common::probability_basis::RejectionReason::MissingPolymarketQuote,
                 deribit_instrument_id: Some("ETH-20260601-3000-C".to_string()),
-                polymarket_market_slug: Some("eth-above-3000-june-1".to_string()),
+                polymarket_market_slug: None,
             }]
         );
         let observations = observations_from_match_decisions(&decisions, &config);
         assert!(observations.is_empty());
+    }
+
+    #[test]
+    fn phase0_validator_accepts_valid_batch_before_normalized_write() {
+        let mut client =
+            MockIngestionClient::new(vec![MockIngestionStep::Batch(polymarket_batch())]);
+        let mut journal = InMemoryEventJournal::new();
+
+        ingest_once_with_validator(
+            &mut client,
+            &mut journal,
+            &IngestionConfig::phase0_polymarket("mock://polymarket"),
+            &Phase0NormalizedBatchValidator,
+        )
+        .expect("valid Polymarket batch should pass validator");
+
+        assert_eq!(journal.raw_polymarket_events().len(), 1);
+        assert_eq!(journal.market_events().len(), 1);
     }
 
     #[test]

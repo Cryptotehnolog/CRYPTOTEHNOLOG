@@ -195,7 +195,11 @@ IngestionBatch
 IngestionClient
 MockIngestionClient
 LiveIngestionClient
+NormalizedBatchValidator
+AcceptAllNormalizedBatchValidator
+Phase0NormalizedBatchValidator
 ingest_once()
+ingest_once_with_validator()
 ```
 
 Design boundary:
@@ -203,6 +207,8 @@ Design boundary:
 - `MockIngestionClient` используется для deterministic tests.
 - `LiveIngestionClient` пока возвращает `NotImplemented` и не делает network calls.
 - `ingest_once()` сохраняет raw events до normalized market events.
+- `ingest_once_with_validator()` сохраняет raw events, затем валидирует normalized events и только после этого пишет их в journal.
+- `Phase0NormalizedBatchValidator` проверяет identity fields, finite values, quote ordering и basic timestamp/value sanity без стратегических thresholds.
 - Ошибки API/reconnect/rate-limit не должны превращаться в trading rejection reasons; они относятся к ingestion health.
 
 Sync форма выбрана намеренно, чтобы первый contracts layer компилировался без внешних dependencies. Async versions будут добавлены вместе с real HTTP/WebSocket adapters.
@@ -407,7 +413,7 @@ pub struct ReplayEventFilter {
 - Black-Scholes edge cases: zero/negative IV, expired option, deep ITM/OTM behavior, deterministic normal CDF approximation.
 - BasisObservation mapping and duplicate observation rejection.
 - BasisObservationRow column order and PostgreSQL insert SQL skeleton.
-- Ingestion skeleton: raw-before-normalized write order, API error without writes, live client `NotImplemented`, API error/reconnect fixture parsing, ingestion manifest parsing.
+- Ingestion skeleton: raw-before-normalized write order, validator-before-normalized-write boundary, API error without writes, live client `NotImplemented`, API error/reconnect fixture parsing, ingestion manifest parsing.
 - Thin orchestration: Deribit mock batch + Polymarket mock batch -> `EventJournal` -> `match_from_market_events()` -> `BasisObservation`.
 - Negative orchestration: malformed Polymarket quote сохраняет raw event, но не создает `BasisObservation`.
 

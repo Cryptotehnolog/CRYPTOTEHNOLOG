@@ -109,3 +109,29 @@ function Assert-ManifestUniqueValues {
         }
     }
 }
+
+function Assert-ManifestPathsExist {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object[]]$Scenarios,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$PathPropertyNames,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ManifestLabel
+    )
+
+    foreach ($scenario in $Scenarios) {
+        foreach ($propertyName in $PathPropertyNames) {
+            if (-not $scenario.PSObject.Properties[$propertyName]) {
+                throw "$ManifestLabel scenario $($scenario.name) is missing path property: $propertyName"
+            }
+
+            $path = $scenario.$propertyName
+            if (-not (Test-Path $path)) {
+                throw "$ManifestLabel manifest references missing path for scenario $($scenario.name): $path"
+            }
+        }
+    }
+}

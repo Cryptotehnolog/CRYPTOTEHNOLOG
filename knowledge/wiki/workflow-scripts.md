@@ -30,6 +30,7 @@ Live monitoring должен быть Rust service/binary. PowerShell может
 - phase gate,
 - replay manifest,
 - ingestion manifest,
+- fixture paths,
 - pricing model fixture policy,
 - `cargo fmt --check`,
 - `cargo check`,
@@ -109,6 +110,15 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 - `expected_observations` должен быть числом.
 
 Включен в `check_all` и CI, чтобы ingestion orchestration fixtures оставались видимым контрактом, а не только Rust unit-test detail.
+
+### `scripts/check_fixture_paths.ps1`
+
+Проверяет существование файлов, на которые ссылаются все текущие fixture manifests:
+
+- replay `fixture`, `expected_json`, `expected_text`,
+- ingestion `fixture`.
+
+Скрипт использует те же manifest wrappers и общий `scripts/lib/manifest_utils.ps1`. Он отделяет проверку путей от проверки структуры manifest, чтобы новые типы fixtures могли подключаться к одному path-existence check.
 
 ### `scripts/check_pricing_model_fixture_update.ps1`
 

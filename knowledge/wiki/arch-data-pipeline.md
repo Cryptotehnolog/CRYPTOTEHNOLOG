@@ -103,6 +103,8 @@ BasisObservationRowWriter
 - `MockIngestionClient` - deterministic scripted client для tests;
 - `LiveIngestionClient` - explicit stub, который возвращает `NotImplemented` и не делает network calls;
 - `ingest_once()` - orchestration helper, который пишет raw events в `EventJournal` до normalized `MarketEvent`.
+- `NormalizedBatchValidator` - validation boundary для normalized events перед записью в journal.
+- `ingest_once_with_validator()` - live-ready orchestration helper: raw events сохраняются первыми, затем normalized events валидируются, и только после этого пишутся в `EventJournal`.
 
 Это не live API implementation. Real HTTP/WebSocket logic добавляется позже отдельным decision/code review.
 
@@ -121,7 +123,7 @@ Deribit mock batch
 
 Этот тест связывает ingestion skeleton с уже готовым probability-basis pipeline без реальных API, ключей, сети, PostgreSQL подключения или trading side effects.
 
-Fixture `fixtures/ingestion/malformed_polymarket_quote.psv` документирует negative orchestration path: raw Polymarket payload сохраняется в `EventJournal`, normalized quote с некорректным `bid_probability > ask_probability` проходит до replay layer как data-quality rejection `InvalidQuote`, а `BasisObservation` не создается.
+Fixture `fixtures/ingestion/malformed_polymarket_quote.psv` документирует negative orchestration path: raw Polymarket payload сохраняется в `EventJournal`, normalized quote с некорректным `bid_probability > ask_probability` отклоняется `Phase0NormalizedBatchValidator`, normalized event не пишется в journal, а `BasisObservation` не создается.
 
 `fixtures/ingestion/manifest.toml` является lightweight registry для ingestion orchestration scenarios. Он пока не является отдельным regression runner, но фиксирует список сценариев и expected observation counts, чтобы новые ingestion fixtures не расползались по unit tests без общей карты.
 
