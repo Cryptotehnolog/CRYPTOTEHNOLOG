@@ -59,3 +59,7 @@ sources: []
 ## [2026-05-20] ingest | MVP development sources
 
 Добавлен первый MVP knowledge package: official source notes по Deribit API и Polymarket Gamma/CLOB API, low-confidence source note по Quantum Bot, strategy/risk pages для probability basis, postponed funding carry page, architecture pages для data pipeline и deterministic replay, а также MVP roadmap. `knowledge/graph.md` обновлен только curated связями.
+
+## [2026-05-20] workflow | Coding standards
+
+Добавлена страница `knowledge/wiki/coding-standards.md` как короткий engineering contract. Добавляется compliance check для запрета устаревших Python dependency managers и `pip install` в Dockerfile/scripts. Проверка включается в CI и `scripts/check_all.ps1`, но не в pre-commit.

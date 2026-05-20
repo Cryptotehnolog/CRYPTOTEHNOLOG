@@ -48,12 +48,14 @@ flowchart LR
     obsidianWorkflow["Workflow: Obsidian"]
     healthWorkflow["Workflow: Wiki Health Check"]
     ingestWorkflow["Workflow: Source Ingestion"]
+    codingStandards["Workflow: Coding Standards"]
 
     kbCheck["Script: kb_health_check.ps1"]
     linkCheck["Script: validate_local_links.ps1"]
     checkAll["Script: check_all.ps1"]
     sourceNote["Script: new_source_note.ps1"]
     hooks["Script: install_hooks.ps1"]
+    compliance["Script: check_compliance.ps1"]
 
     karpathy --> llmWiki
     karpathy --> codexWorkflow
@@ -77,8 +79,10 @@ flowchart LR
     healthWorkflow --> kbCheck
     healthWorkflow --> linkCheck
     ingestWorkflow --> sourceNote
+    codingStandards --> compliance
     kbCheck --> hooks
     linkCheck --> checkAll
+    compliance --> checkAll
 ```
 
 ## Правило Поддержки

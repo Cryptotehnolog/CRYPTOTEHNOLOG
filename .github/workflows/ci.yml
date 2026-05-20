@@ -38,3 +38,7 @@ jobs:
       - name: Check knowledge freshness warnings
         shell: pwsh
         run: .\scripts\kb_stale_check.ps1
+
+      - name: Check repository compliance
+        shell: pwsh
+        run: .\scripts\check_compliance.ps1

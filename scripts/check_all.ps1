@@ -13,6 +13,9 @@ try {
     Write-Output "== Knowledge stale check (warning-only) =="
     .\scripts\kb_stale_check.ps1
 
+    Write-Output "== Compliance check =="
+    .\scripts\check_compliance.ps1
+
     Write-Output "== Rust formatting check =="
     cargo fmt --check
 

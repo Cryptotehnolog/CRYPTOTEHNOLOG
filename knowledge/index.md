@@ -40,6 +40,7 @@ sources:
 
 ## Workflows
 
+- [Coding Standards](wiki/coding-standards.md) - технический engineering contract для dependencies, linting, typing, tests, Docker и Git.
 - [Использование wiki в Codex](wiki/workflow-codex-wiki-usage.md) - как Codex читает и обновляет project memory во время работы.
 - [Obsidian](wiki/workflow-obsidian.md) - как использовать Obsidian как human interface поверх Markdown vault.
 - [Source Ingestion](wiki/workflow-source-ingestion.md) - как новые sources превращаются в долговременное wiki knowledge.
