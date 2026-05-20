@@ -70,7 +70,11 @@ Warning-only проверка `stability` и `review_after`.
 
 Дополнительная smoke-проверка сравнивает text output с `fixtures/probability_basis/golden_report.txt`.
 
+JSON/text output включает `ReplaySummary`: counts matched/rejected, counts by rejection reason и агрегаты `net_edge_probability` по matched entries.
+
 Это smoke-level CLI regression, а не замена Rust unit tests.
+
+Когда появится больше одного replay fixture, regression script должен читать `fixtures/manifest.toml` и прогонять все listed scenarios. Пока fixture один, manifest намеренно не создается.
 
 ### `scripts/update_golden_fixture.ps1`
 

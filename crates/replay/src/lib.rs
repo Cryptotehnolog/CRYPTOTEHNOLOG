@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
@@ -38,15 +39,21 @@ impl ProbabilityBasisReplayOutput {
 pub struct ReplayReport {
     pub schema_version: u16,
     pub pricing_model_version: String,
+    pub summary: ReplaySummary,
     pub entries: Vec<ReplayReportEntry>,
 }
 
 impl ReplayReport {
     pub fn from_decisions(decisions: &[MatchDecision]) -> Self {
+        let entries: Vec<ReplayReportEntry> =
+            decisions.iter().map(ReplayReportEntry::from).collect();
+        let summary = ReplaySummary::from_entries(&entries);
+
         Self {
             schema_version: 1,
             pricing_model_version: PRICING_MODEL_VERSION.to_string(),
-            entries: decisions.iter().map(ReplayReportEntry::from).collect(),
+            summary,
+            entries,
         }
     }
 
@@ -55,6 +62,7 @@ impl ReplayReport {
             "metadata|pricing_model_version={}",
             self.pricing_model_version
         )];
+        lines.extend(self.summary.to_text_lines());
         lines.extend(self.entries.iter().map(ReplayReportEntry::to_text_line));
         lines
     }
@@ -67,6 +75,9 @@ impl ReplayReport {
             "  \"pricing_model_version\": \"{}\",\n",
             json_escape(&self.pricing_model_version)
         ));
+        json.push_str("  \"summary\": ");
+        json.push_str(&self.summary.to_json(2));
+        json.push_str(",\n");
         json.push_str("  \"entries\": [\n");
 
         for (index, entry) in self.entries.iter().enumerate() {
@@ -80,6 +91,160 @@ impl ReplayReport {
         json.push_str("  ]\n");
         json.push_str("}\n");
         json
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReplaySummary {
+    pub matched_count: usize,
+    pub rejected_count: usize,
+    pub rejection_counts: Vec<RejectionCount>,
+    pub net_edge: NetEdgeSummary,
+}
+
+impl ReplaySummary {
+    pub fn from_entries(entries: &[ReplayReportEntry]) -> Self {
+        let mut matched_count = 0;
+        let mut rejected_count = 0;
+        let mut rejection_counts = BTreeMap::new();
+        let mut net_edges = Vec::new();
+
+        for entry in entries {
+            match entry {
+                ReplayReportEntry::Matched {
+                    net_edge_probability,
+                    ..
+                } => {
+                    matched_count += 1;
+                    net_edges.push(*net_edge_probability);
+                }
+                ReplayReportEntry::Rejected { reason, .. } => {
+                    rejected_count += 1;
+                    *rejection_counts.entry(reason.clone()).or_insert(0) += 1;
+                }
+            }
+        }
+
+        Self {
+            matched_count,
+            rejected_count,
+            rejection_counts: rejection_counts
+                .into_iter()
+                .map(|(reason, count)| RejectionCount { reason, count })
+                .collect(),
+            net_edge: NetEdgeSummary::from_values(&net_edges),
+        }
+    }
+
+    fn to_text_lines(&self) -> Vec<String> {
+        let mut lines = vec![format!(
+            "summary|matched={}|rejected={}|net_edge_count={}|net_edge_avg={}|net_edge_min={}|net_edge_max={}",
+            self.matched_count,
+            self.rejected_count,
+            self.net_edge.sample_count,
+            format_optional_f64(self.net_edge.average),
+            format_optional_f64(self.net_edge.min),
+            format_optional_f64(self.net_edge.max)
+        )];
+
+        for rejection_count in &self.rejection_counts {
+            lines.push(format!(
+                "summary_rejection|reason={}|count={}",
+                rejection_count.reason, rejection_count.count
+            ));
+        }
+
+        lines
+    }
+
+    fn to_json(&self, indent: usize) -> String {
+        let spaces = " ".repeat(indent);
+        let inner_spaces = " ".repeat(indent + 2);
+        let nested_spaces = " ".repeat(indent + 4);
+        let mut json = String::new();
+
+        json.push_str("{\n");
+        json.push_str(&format!(
+            "{inner_spaces}\"matched_count\": {},\n",
+            self.matched_count
+        ));
+        json.push_str(&format!(
+            "{inner_spaces}\"rejected_count\": {},\n",
+            self.rejected_count
+        ));
+        json.push_str(&format!("{inner_spaces}\"rejection_counts\": [\n"));
+        for (index, rejection_count) in self.rejection_counts.iter().enumerate() {
+            json.push_str(&format!(
+                "{nested_spaces}{{ \"reason\": \"{}\", \"count\": {} }}",
+                json_escape(&rejection_count.reason),
+                rejection_count.count
+            ));
+            if index + 1 != self.rejection_counts.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str(&format!("{inner_spaces}],\n"));
+        json.push_str(&format!("{inner_spaces}\"net_edge\": "));
+        json.push_str(&self.net_edge.to_json(indent + 2));
+        json.push('\n');
+        json.push_str(&format!("{spaces}}}"));
+        json
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RejectionCount {
+    pub reason: String,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NetEdgeSummary {
+    pub sample_count: usize,
+    pub average: Option<f64>,
+    pub min: Option<f64>,
+    pub max: Option<f64>,
+}
+
+impl NetEdgeSummary {
+    fn from_values(values: &[f64]) -> Self {
+        if values.is_empty() {
+            return Self {
+                sample_count: 0,
+                average: None,
+                min: None,
+                max: None,
+            };
+        }
+
+        let sum: f64 = values.iter().sum();
+        let min = values
+            .iter()
+            .fold(f64::INFINITY, |acc, value| acc.min(*value));
+        let max = values
+            .iter()
+            .fold(f64::NEG_INFINITY, |acc, value| acc.max(*value));
+
+        Self {
+            sample_count: values.len(),
+            average: Some(sum / values.len() as f64),
+            min: Some(min),
+            max: Some(max),
+        }
+    }
+
+    fn to_json(&self, indent: usize) -> String {
+        let spaces = " ".repeat(indent);
+        let inner_spaces = " ".repeat(indent + 2);
+
+        format!(
+            "{{\n{inner_spaces}\"sample_count\": {},\n{inner_spaces}\"average\": {},\n{inner_spaces}\"min\": {},\n{inner_spaces}\"max\": {}\n{spaces}}}",
+            self.sample_count,
+            json_optional_f64(self.average),
+            json_optional_f64(self.min),
+            json_optional_f64(self.max)
+        )
     }
 }
 
@@ -337,6 +502,20 @@ fn json_option(value: Option<&str>) -> String {
     }
 }
 
+fn json_optional_f64(value: Option<f64>) -> String {
+    match value {
+        Some(value) => format!("{value:.6}"),
+        None => "null".to_string(),
+    }
+}
+
+fn format_optional_f64(value: Option<f64>) -> String {
+    match value {
+        Some(value) => format!("{value:.6}"),
+        None => "none".to_string(),
+    }
+}
+
 fn json_escape(value: &str) -> String {
     let mut escaped = String::new();
     for character in value.chars() {
@@ -375,6 +554,19 @@ mod tests {
         let report = output.replay_report();
         assert_eq!(report.schema_version, 1);
         assert_eq!(report.pricing_model_version, PRICING_MODEL_VERSION);
+        assert_eq!(report.summary.matched_count, 1);
+        assert_eq!(report.summary.rejected_count, 1);
+        assert_eq!(
+            report.summary.rejection_counts,
+            vec![RejectionCount {
+                reason: "InsufficientLiquidity".to_string(),
+                count: 1,
+            }]
+        );
+        assert_eq!(report.summary.net_edge.sample_count, 1);
+        assert!((report.summary.net_edge.average.unwrap() - 0.081338).abs() < 1e-6);
+        assert!((report.summary.net_edge.min.unwrap() - 0.081338).abs() < 1e-6);
+        assert!((report.summary.net_edge.max.unwrap() - 0.081338).abs() < 1e-6);
         assert_eq!(report.entries.len(), 2);
         assert_eq!(
             output.observations[0].deribit_instrument_id,
@@ -407,6 +599,47 @@ mod tests {
             .expect("expected JSON report should be readable");
 
         assert_eq!(output.report_json(), expected);
+    }
+
+    #[test]
+    fn replay_summary_uses_null_edge_stats_when_there_are_no_matches() {
+        let summary = ReplaySummary::from_entries(&[
+            ReplayReportEntry::Rejected {
+                reason: "InsufficientLiquidity".to_string(),
+                deribit_instrument_id: Some("ETH-20260601-3000-C".to_string()),
+                polymarket_market_slug: Some("eth-above-3000-june-1".to_string()),
+            },
+            ReplayReportEntry::Rejected {
+                reason: "OptionPricingUnavailable".to_string(),
+                deribit_instrument_id: Some("ETH-20260601-3500-C".to_string()),
+                polymarket_market_slug: Some("eth-above-3500-june-1".to_string()),
+            },
+            ReplayReportEntry::Rejected {
+                reason: "InsufficientLiquidity".to_string(),
+                deribit_instrument_id: Some("ETH-20260601-4000-C".to_string()),
+                polymarket_market_slug: Some("eth-above-4000-june-1".to_string()),
+            },
+        ]);
+
+        assert_eq!(summary.matched_count, 0);
+        assert_eq!(summary.rejected_count, 3);
+        assert_eq!(
+            summary.rejection_counts,
+            vec![
+                RejectionCount {
+                    reason: "InsufficientLiquidity".to_string(),
+                    count: 2,
+                },
+                RejectionCount {
+                    reason: "OptionPricingUnavailable".to_string(),
+                    count: 1,
+                },
+            ]
+        );
+        assert_eq!(summary.net_edge.sample_count, 0);
+        assert_eq!(summary.net_edge.average, None);
+        assert_eq!(summary.net_edge.min, None);
+        assert_eq!(summary.net_edge.max, None);
     }
 
     #[test]

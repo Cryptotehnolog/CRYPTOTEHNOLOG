@@ -123,3 +123,7 @@ Replay core вынесен в `crates/replay/src/lib.rs`, а `main.rs` стал 
 ## [2026-05-20] implementation | Semantic replay report
 
 Добавлен `ReplayReport` semantic contract в `crates/replay/src/lib.rs`. Replay теперь генерирует primary `golden_report.json` для machine-readable regression и secondary `golden_report.txt` для human-readable CLI output. Скрипты `update_golden_fixture.ps1`, `run_replay_regression.ps1` и `check_golden_fixture_current.ps1` обновлены для проверки обоих форматов.
+
+## [2026-05-20] implementation | Replay summary metrics
+
+Добавлен `ReplaySummary` поверх `ReplayReport`: counts matched/rejected, counts by rejection reason и average/min/max `net_edge_probability` по matched entries. Golden JSON/text reports обновлены через `scripts/update_golden_fixture.ps1`. `fixtures/manifest.toml` осознанно отложен до появления нескольких replay fixture scenarios.

@@ -107,12 +107,22 @@ Runner также создает matched `BasisObservation` records через `
 
 `ReplayReport` в `crates/replay/src/lib.rs` является semantic report contract.
 
+`ReplaySummary` является агрегированным слоем поверх `ReplayReport` и содержит:
+
+- количество `matched` и `rejected` decisions,
+- количество rejected decisions по `reason`,
+- `sample_count`, average, min и max `net_edge_probability`.
+
+Статистика `net_edge_probability` считается только по matched entries. Если matched entries отсутствуют, `average`, `min` и `max` должны быть `null` в JSON и `none` в text output. Нельзя подставлять `0`, потому что это исказит аналитику.
+
 Он генерирует:
 
 - JSON report как основной machine-readable эталон,
 - text report как human-readable CLI output.
 
 Текущий JSON пишется вручную без `serde`, чтобы не добавлять dependencies на раннем Phase 0. При появлении более широкого report contract можно перейти на `serde_json`.
+
+Когда появится несколько replay scenarios, нужно добавить `fixtures/manifest.toml`, чтобы regression runner прогонял все сценарии из manifest, а не только `fixtures/probability_basis/golden_events.psv`. До появления второго fixture manifest не вводится, чтобы не создавать лишний слой конфигурации.
 
 ## Network Policy
 

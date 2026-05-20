@@ -1,6 +1,19 @@
 {
   "schema_version": 1,
   "pricing_model_version": "black_scholes_single_strike_v1",
+  "summary": {
+    "matched_count": 1,
+    "rejected_count": 1,
+    "rejection_counts": [
+      { "reason": "InsufficientLiquidity", "count": 1 }
+    ],
+    "net_edge": {
+      "sample_count": 1,
+      "average": 0.081338,
+      "min": 0.081338,
+      "max": 0.081338
+    }
+  },
   "entries": [
     {
       "type": "matched",
