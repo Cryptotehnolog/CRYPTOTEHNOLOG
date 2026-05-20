@@ -1,5 +1,19 @@
 use crate::events::{MarketEvent, RawDeribitEvent, RawPolymarketEvent, ReplayEventFilter};
 
+pub const EVENT_JOURNAL_TABLE: &str = "event_journal";
+
+pub const EVENT_JOURNAL_COLUMNS: [&str; 9] = [
+    "event_id",
+    "event_type",
+    "source",
+    "exchange_ts",
+    "received_ts",
+    "instrument_id",
+    "schema_version",
+    "config_version",
+    "payload",
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JournalErrorKind {
     DuplicateEvent,
@@ -42,6 +56,110 @@ pub trait EventJournal {
         &self,
         filter: ReplayEventFilter,
     ) -> Result<Vec<MarketEvent>, JournalError>;
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EventJournalRow {
+    pub event_id: String,
+    pub event_type: String,
+    pub source: String,
+    pub exchange_ts_ms: i64,
+    pub received_ts_ms: i64,
+    pub instrument_id: String,
+    pub schema_version: u16,
+    pub config_version: String,
+    pub payload_json: String,
+}
+
+impl EventJournalRow {
+    pub fn from_raw_deribit_event(event: &RawDeribitEvent) -> Self {
+        Self {
+            event_id: event.meta.event_id.clone(),
+            event_type: "raw_deribit_event".to_string(),
+            source: event.meta.source.clone(),
+            exchange_ts_ms: event.meta.exchange_ts_ms,
+            received_ts_ms: event.meta.received_ts_ms,
+            instrument_id: event.meta.instrument_id.clone(),
+            schema_version: event.meta.schema_version,
+            config_version: event.meta.config_version.clone(),
+            payload_json: event.payload_json.clone(),
+        }
+    }
+
+    pub fn from_raw_polymarket_event(event: &RawPolymarketEvent) -> Self {
+        Self {
+            event_id: event.meta.event_id.clone(),
+            event_type: "raw_polymarket_event".to_string(),
+            source: event.meta.source.clone(),
+            exchange_ts_ms: event.meta.exchange_ts_ms,
+            received_ts_ms: event.meta.received_ts_ms,
+            instrument_id: event.meta.instrument_id.clone(),
+            schema_version: event.meta.schema_version,
+            config_version: event.meta.config_version.clone(),
+            payload_json: event.payload_json.clone(),
+        }
+    }
+
+    pub fn from_market_event(event: &MarketEvent) -> Self {
+        let meta = event.meta();
+        Self {
+            event_id: meta.event_id.clone(),
+            event_type: event.event_type().to_string(),
+            source: meta.source.clone(),
+            exchange_ts_ms: meta.exchange_ts_ms,
+            received_ts_ms: meta.received_ts_ms,
+            instrument_id: meta.instrument_id.clone(),
+            schema_version: meta.schema_version,
+            config_version: meta.config_version.clone(),
+            payload_json: normalized_market_event_payload(event),
+        }
+    }
+
+    pub fn columns() -> &'static [&'static str; 9] {
+        &EVENT_JOURNAL_COLUMNS
+    }
+
+    pub fn values(&self) -> [EventJournalRowValue; 9] {
+        [
+            EventJournalRowValue::Text(self.event_id.clone()),
+            EventJournalRowValue::Text(self.event_type.clone()),
+            EventJournalRowValue::Text(self.source.clone()),
+            EventJournalRowValue::TimestampMillis(self.exchange_ts_ms),
+            EventJournalRowValue::TimestampMillis(self.received_ts_ms),
+            EventJournalRowValue::Text(self.instrument_id.clone()),
+            EventJournalRowValue::Integer(self.schema_version as i64),
+            EventJournalRowValue::Text(self.config_version.clone()),
+            EventJournalRowValue::Json(self.payload_json.clone()),
+        ]
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum EventJournalRowValue {
+    Text(String),
+    TimestampMillis(i64),
+    Integer(i64),
+    Json(String),
+}
+
+pub trait EventJournalRowWriter {
+    fn append_event_journal_row(&mut self, row: EventJournalRow) -> Result<(), JournalError>;
+}
+
+pub struct PostgresEventJournalAdapter;
+
+impl PostgresEventJournalAdapter {
+    pub fn table_name() -> &'static str {
+        EVENT_JOURNAL_TABLE
+    }
+
+    pub fn columns() -> &'static [&'static str; 9] {
+        &EVENT_JOURNAL_COLUMNS
+    }
+
+    pub fn insert_sql() -> &'static str {
+        "INSERT INTO event_journal (event_id, event_type, source, exchange_ts, received_ts, instrument_id, schema_version, config_version, payload) VALUES ($1, $2, $3, to_timestamp($4::double precision / 1000.0), to_timestamp($5::double precision / 1000.0), $6, $7, $8, $9::jsonb)"
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -129,6 +247,32 @@ impl EventJournal for InMemoryEventJournal {
 
         Ok(events)
     }
+}
+
+fn normalized_market_event_payload(event: &MarketEvent) -> String {
+    let payload = match event {
+        MarketEvent::DeribitOptionQuote(quote) => serde_json::json!({
+            "underlying": &quote.underlying,
+            "expiry_ts_ms": quote.expiry_ts_ms,
+            "strike": quote.strike,
+            "option_kind": format!("{:?}", quote.option_kind),
+            "underlying_price": quote.underlying_price,
+            "bid": quote.bid,
+            "ask": quote.ask,
+            "mark_iv": quote.mark_iv,
+        }),
+        MarketEvent::PolymarketOutcomeQuote(quote) => serde_json::json!({
+            "event_slug": &quote.event_slug,
+            "market_slug": &quote.market_slug,
+            "outcome": &quote.outcome,
+            "target_expiry_ts_ms": quote.target_expiry_ts_ms,
+            "bid_probability": quote.bid_probability,
+            "ask_probability": quote.ask_probability,
+            "liquidity_usd": quote.liquidity_usd,
+        }),
+    };
+
+    payload.to_string()
 }
 
 #[cfg(test)]
@@ -259,5 +403,57 @@ mod tests {
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].meta().event_id, "p");
+    }
+
+    #[test]
+    fn event_journal_row_maps_raw_deribit_event_to_postgres_contract() {
+        let raw = RawDeribitEvent {
+            meta: meta("raw-deribit-1", "ETH-20260601-3000-C", 2000),
+            endpoint_or_channel: "public/ticker".to_string(),
+            payload_json: "{\"instrument_name\":\"ETH-20260601-3000-C\"}".to_string(),
+        };
+        let row = EventJournalRow::from_raw_deribit_event(&raw);
+
+        assert_eq!(PostgresEventJournalAdapter::table_name(), "event_journal");
+        assert_eq!(
+            PostgresEventJournalAdapter::columns(),
+            EventJournalRow::columns()
+        );
+        assert_eq!(
+            row.values(),
+            [
+                EventJournalRowValue::Text("raw-deribit-1".to_string()),
+                EventJournalRowValue::Text("raw_deribit_event".to_string()),
+                EventJournalRowValue::Text("mock".to_string()),
+                EventJournalRowValue::TimestampMillis(1900),
+                EventJournalRowValue::TimestampMillis(2000),
+                EventJournalRowValue::Text("ETH-20260601-3000-C".to_string()),
+                EventJournalRowValue::Integer(1),
+                EventJournalRowValue::Text("test".to_string()),
+                EventJournalRowValue::Json(
+                    "{\"instrument_name\":\"ETH-20260601-3000-C\"}".to_string()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn event_journal_row_maps_normalized_market_event_payload_to_json() {
+        let event = polymarket_quote("poly-quote-1", 2000);
+        let row = EventJournalRow::from_market_event(&event);
+        let payload: serde_json::Value =
+            serde_json::from_str(&row.payload_json).expect("payload should be JSON");
+
+        assert_eq!(row.event_type, "polymarket_outcome_quote");
+        assert_eq!(payload["market_slug"], "eth-above-3000-june-1");
+        assert_eq!(payload["target_expiry_ts_ms"], 1_780_000_000_000i64);
+    }
+
+    #[test]
+    fn postgres_event_journal_adapter_exposes_stable_insert_contract() {
+        assert_eq!(
+            PostgresEventJournalAdapter::insert_sql(),
+            "INSERT INTO event_journal (event_id, event_type, source, exchange_ts, received_ts, instrument_id, schema_version, config_version, payload) VALUES ($1, $2, $3, to_timestamp($4::double precision / 1000.0), to_timestamp($5::double precision / 1000.0), $6, $7, $8, $9::jsonb)"
+        );
     }
 }

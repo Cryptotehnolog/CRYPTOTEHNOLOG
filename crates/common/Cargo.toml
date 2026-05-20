@@ -9,3 +9,5 @@ rust-version.workspace = true
 name = "cryptotehnolog_common"
 path = "src/lib.rs"
 
+[dependencies]
+serde_json = "1.0"

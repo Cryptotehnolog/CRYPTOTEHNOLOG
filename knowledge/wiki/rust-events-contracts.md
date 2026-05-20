@@ -137,9 +137,39 @@ gross_edge_probability
 estimated_cost_probability
 net_edge_probability
 survives_costs
+schema_version
+config_version
 ```
 
 `observed_at` в row boundary передается как `observed_at_ts_ms`, а future PostgreSQL adapter должен конвертировать milliseconds в `timestamptz`.
+
+### `EventJournalRow`
+
+`EventJournalRow` - PostgreSQL-oriented serialization boundary для будущей таблицы `event_journal`.
+
+Он отделяет raw/normalized event domain objects от storage row contract:
+
+```text
+RawDeribitEvent | RawPolymarketEvent | MarketEvent
+  -> EventJournalRow
+  -> future PostgreSQL adapter
+```
+
+Fixed column order:
+
+```text
+event_id
+event_type
+source
+exchange_ts
+received_ts
+instrument_id
+schema_version
+config_version
+payload
+```
+
+`exchange_ts` и `received_ts` в row boundary передаются как Unix milliseconds, а future PostgreSQL adapter должен конвертировать их через `to_timestamp(ms / 1000.0)`. `payload` хранится как JSON text для future `jsonb` insert.
 
 ### `RawDeribitEvent`
 
@@ -170,6 +200,7 @@ Raw API payload wrapper before normalization.
 - `InMemoryEventJournal`.
 - `InMemoryBasisObservationWriter`.
 - `PostgresBasisObservationAdapter` skeleton без real DB connection.
+- `PostgresEventJournalAdapter` skeleton без real DB connection.
 
 Также реализован probability-basis matcher skeleton:
 
@@ -181,6 +212,7 @@ Raw API payload wrapper before normalization.
 - Black-Scholes `N(d2)` probability calculation для call-like events.
 - `BasisObservationWriter` interface без PostgreSQL подключения.
 - `BasisObservationRowWriter` interface для storage-row layer.
+- `EventJournalRowWriter` interface для event-journal storage-row layer.
 
 ### `crates/ingestion`
 

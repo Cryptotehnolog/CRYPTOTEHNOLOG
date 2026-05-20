@@ -174,6 +174,17 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 
 Включен в `check_all` и CI. Это freshness-check для ingestion semantic reports, аналогичный replay golden freshness.
 
+### `scripts/run_phase0_daily_report.ps1`
+
+Ручной локальный агрегатор Phase 0 состояния.
+
+Скрипт читает replay golden JSON reports, ingestion semantic reports и последние network/live probe artifacts из `artifacts/`, затем пишет:
+
+- `artifacts/phase0_daily_report.json`,
+- `artifacts/phase0_daily_report.md`.
+
+Скрипт не вызывает LLM, не делает network requests, не пишет в PostgreSQL и не выполняет trading. Это reporting wrapper поверх уже существующих deterministic artifacts.
+
 ## Phase Gate
 
 ### `scripts/check_phase_gate.ps1`

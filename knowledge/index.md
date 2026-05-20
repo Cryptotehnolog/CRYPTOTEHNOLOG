@@ -75,6 +75,7 @@ sources:
 - [OmniRoute](raw/sources/source-omniroute.md) - source note по local LLM gateway для research layer.
 - [Polymarket API](raw/sources/source-polymarket-api.md) - official Gamma/CLOB API source note.
 - [Quantum Bot Polymarket](raw/sources/source-quantum-bot-polymarket.md) - low-confidence anecdotal source по probability basis идее.
+- [Rust Skills](raw/sources/source-rust-skills.md) - optional external Rust rules skill для AI coding agents.
 
 ## Tools
 

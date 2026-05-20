@@ -267,3 +267,11 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-20] hardening | Timestamp semantics and JSON writer guard
 
 `PolymarketOutcomeQuote` получил отдельное поле `target_expiry_ts_ms`, чтобы не смешивать quote timestamp (`meta.exchange_ts_ms`) и event/settlement target timestamp. Probability-basis matcher теперь использует `target_expiry_ts_ms` для expiry matching и `max_quote_time_skew_ms` для rejection `StalePair`. Добавлен CI/local script `check_manual_json_writers.ps1`, который запрещает новые ручные JSON writers в `crates/replay`.
+
+## [2026-05-20] source | Rust Skills
+
+Изучен GitHub repository `leonardomso/rust-skills`. Добавлен source note `knowledge/raw/sources/source-rust-skills.md`. Вывод: полезно как optional Codex skill для Rust review/type-safety/error-handling, но не должно заменять project-specific `AGENTS.md`.
+
+## [2026-05-20] workflow | Phase 0 daily report
+
+Добавлен `scripts/run_phase0_daily_report.ps1`, который локально агрегирует replay reports, ingestion reports и последние probe artifacts в `artifacts/phase0_daily_report.json` и `.md` без LLM, сети, PostgreSQL и trading.
