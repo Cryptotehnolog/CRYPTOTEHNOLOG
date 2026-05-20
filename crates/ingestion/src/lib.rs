@@ -1074,24 +1074,39 @@ impl PolymarketLiveIngestionClient {
             .unwrap_or_else(|| market_slug.clone());
         let outcome_index = parser.outcome_index(&self.outcome)?;
         let outcome = self.outcome.clone();
-        if outcome_index.is_none() {
+        let Some(outcome_index) = outcome_index else {
             return Err(IngestionError::new(
                 IngestionErrorKind::MalformedPayload,
                 Some(IngestionSource::Polymarket),
                 format!("Polymarket outcome `{}` not found in payload", self.outcome),
             ));
-        }
-        let outcome_index = outcome_index.expect("checked above");
+        };
 
         let timestamp_ms = parser
             .optional_i64_any(&["timestamp", "updatedAtMillis"])?
             .unwrap_or(received_ts_ms);
-        let bid_probability = parser
-            .optional_f64_any(&["bid_probability", "bestBid"])?
-            .unwrap_or_else(|| parser.outcome_price(outcome_index).unwrap_or(f64::NAN));
-        let ask_probability = parser
-            .optional_f64_any(&["ask_probability", "bestAsk"])?
-            .unwrap_or_else(|| parser.outcome_price(outcome_index).unwrap_or(f64::NAN));
+        let explicit_bid_probability = parser.optional_f64_any(&["bid_probability", "bestBid"])?;
+        let explicit_ask_probability = parser.optional_f64_any(&["ask_probability", "bestAsk"])?;
+        let fallback_outcome_price =
+            if explicit_bid_probability.is_none() || explicit_ask_probability.is_none() {
+                Some(parser.outcome_price(outcome_index)?)
+            } else {
+                None
+            };
+        let Some(bid_probability) = explicit_bid_probability.or(fallback_outcome_price) else {
+            return Err(IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Polymarket),
+                "Polymarket bid probability is missing",
+            ));
+        };
+        let Some(ask_probability) = explicit_ask_probability.or(fallback_outcome_price) else {
+            return Err(IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Polymarket),
+                "Polymarket ask probability is missing",
+            ));
+        };
         let liquidity_usd = parser
             .optional_f64_any(&["liquidity_usd", "liquidityNum", "liquidity"])?
             .unwrap_or(0.0);
@@ -3113,6 +3128,61 @@ mod tests {
         assert_eq!(quote.bid_probability, 0.51);
         assert_eq!(quote.ask_probability, 0.51);
         assert_eq!(quote.liquidity_usd, 10_000.0);
+    }
+
+    #[test]
+    fn polymarket_live_skeleton_rejects_missing_outcomes_without_panic() {
+        let client = PolymarketLiveIngestionClient::new(
+            "https://gamma-api.polymarket.com",
+            "eth-above-3000-june-1",
+            "Yes",
+        );
+        let payload = r#"{
+            "slug": "eth-above-3000-june-1",
+            "outcomePrices": "[\"0.51\", \"0.49\"]",
+            "liquidity": "10000.0"
+        }"#;
+
+        let error = client
+            .parse_gamma_market_payload(
+                payload,
+                &IngestionConfig::phase0_polymarket("https://gamma-api.polymarket.com"),
+                1_779_200_000_200,
+            )
+            .expect_err("missing outcomes should return IngestionError");
+
+        assert_eq!(error.kind, IngestionErrorKind::MalformedPayload);
+        assert!(error.message.contains("outcome `Yes` not found"));
+    }
+
+    #[test]
+    fn polymarket_live_skeleton_rejects_outcome_price_mismatch_without_panic() {
+        let client = PolymarketLiveIngestionClient::new(
+            "https://gamma-api.polymarket.com",
+            "eth-above-3000-june-1",
+            "No",
+        );
+        let payload = r#"{
+            "slug": "eth-above-3000-june-1",
+            "outcomes": "[\"Yes\", \"No\"]",
+            "outcomePrices": "[\"0.51\"]",
+            "liquidity": "10000.0"
+        }"#;
+
+        let error = client
+            .parse_gamma_market_payload(
+                payload,
+                &IngestionConfig::phase0_polymarket("https://gamma-api.polymarket.com"),
+                1_779_200_000_200,
+            )
+            .expect_err("short outcomePrices should return IngestionError");
+
+        assert_eq!(error.kind, IngestionErrorKind::MalformedPayload);
+        assert!(
+            error
+                .message
+                .contains("malformed Polymarket field `outcomePrices`")
+        );
     }
 
     #[test]

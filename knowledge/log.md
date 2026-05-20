@@ -255,3 +255,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-20] hardening | Phase 0 normalized event validation
 
 `Phase0NormalizedBatchValidator` теперь отклоняет normalized events с unsupported `schema_version` и с `received_ts_ms < exchange_ts_ms`, сохраняя raw events в journal. Добавлен ingestion scenario `schema_timestamp_invalid_batches` и semantic report `schema_timestamp_invalid_report.json`, чтобы regression показывал data-quality rejection до попадания события в matcher.
+
+## [2026-05-20] hardening | Polymarket parser error propagation
+
+В `PolymarketLiveIngestionClient::parse_gamma_market_payload()` удален production-style `expect("checked above")`; missing outcome и несогласованные `outcomes`/`outcomePrices` теперь возвращают явный `IngestionError`. Добавлены targeted tests на Gamma payload без `outcomes` и с коротким `outcomePrices`, чтобы external payload shape не мог вызвать panic в parser boundary.
