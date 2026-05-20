@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "instrument_name": "ETH-20260601-3000-C",
+    "timestamp": 1779200000000,
+    "underlying_price": 3100.0,
+    "best_bid_price": 0.12,
+    "best_ask_price": 0.13,
+    "mark_iv": 0.62
+  }
+}

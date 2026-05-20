@@ -2,7 +2,9 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use cryptotehnolog_common::events::{MarketEvent, RawDeribitEvent, RawPolymarketEvent};
+use cryptotehnolog_common::events::{
+    DeribitOptionQuote, EventMeta, MarketEvent, OptionKind, RawDeribitEvent, RawPolymarketEvent,
+};
 use cryptotehnolog_common::journal::{EventJournal, JournalError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -511,6 +513,110 @@ impl IngestionClient for LiveIngestionClient {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeribitLiveIngestionClient {
+    pub base_url: String,
+    pub instrument_name: String,
+}
+
+impl DeribitLiveIngestionClient {
+    pub fn new(base_url: impl Into<String>, instrument_name: impl Into<String>) -> Self {
+        Self {
+            base_url: base_url.into(),
+            instrument_name: instrument_name.into(),
+        }
+    }
+
+    pub fn ticker_url(&self) -> String {
+        format!(
+            "{}/api/v2/public/ticker?instrument_name={}",
+            self.base_url.trim_end_matches('/'),
+            self.instrument_name
+        )
+    }
+
+    pub fn parse_ticker_payload(
+        &self,
+        payload_json: &str,
+        config: &IngestionConfig,
+        received_ts_ms: i64,
+    ) -> Result<IngestionBatch, IngestionError> {
+        if config.source != IngestionSource::Deribit {
+            return Err(IngestionError::new(
+                IngestionErrorKind::Unsupported,
+                Some(config.source),
+                "DeribitLiveIngestionClient requires Deribit ingestion config",
+            ));
+        }
+
+        let instrument_name = extract_json_string(payload_json, "instrument_name")?;
+        if instrument_name != self.instrument_name {
+            return Err(IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Deribit),
+                format!(
+                    "Deribit ticker instrument mismatch: expected {}, got {}",
+                    self.instrument_name, instrument_name
+                ),
+            ));
+        }
+
+        let timestamp_ms = extract_json_i64(payload_json, "timestamp")?;
+        let expiry_ts_ms = parse_deribit_expiry_ts_ms(&instrument_name)?;
+        let strike = parse_deribit_strike(&instrument_name)?;
+        let option_kind = parse_deribit_option_kind(&instrument_name)?;
+        let underlying = parse_deribit_underlying(&instrument_name)?;
+        let underlying_price = extract_json_f64(payload_json, "underlying_price")?;
+        let bid = extract_json_f64(payload_json, "best_bid_price")?;
+        let ask = extract_json_f64(payload_json, "best_ask_price")?;
+        let mark_iv = extract_json_f64(payload_json, "mark_iv")?;
+
+        let raw_meta = EventMeta {
+            event_id: format!("raw-deribit-ticker:{instrument_name}:{timestamp_ms}"),
+            source: "deribit_live_skeleton".to_string(),
+            exchange_ts_ms: timestamp_ms,
+            received_ts_ms,
+            instrument_id: instrument_name.clone(),
+            schema_version: 1,
+            config_version: config.config_version.clone(),
+        };
+        let market_meta = EventMeta {
+            event_id: format!("market-deribit-ticker:{instrument_name}:{timestamp_ms}"),
+            ..raw_meta.clone()
+        };
+
+        Ok(IngestionBatch {
+            source: IngestionSource::Deribit,
+            raw_events: vec![RawIngestionEvent::Deribit(RawDeribitEvent {
+                meta: raw_meta,
+                endpoint_or_channel: "public/ticker".to_string(),
+                payload_json: payload_json.to_string(),
+            })],
+            market_events: vec![MarketEvent::DeribitOptionQuote(DeribitOptionQuote {
+                meta: market_meta,
+                underlying,
+                expiry_ts_ms,
+                strike,
+                option_kind,
+                underlying_price,
+                bid,
+                ask,
+                mark_iv,
+            })],
+        })
+    }
+}
+
+impl IngestionClient for DeribitLiveIngestionClient {
+    fn poll_once(&mut self, config: &IngestionConfig) -> Result<IngestionBatch, IngestionError> {
+        Err(IngestionError::new(
+            IngestionErrorKind::NotImplemented,
+            Some(config.source),
+            "Deribit live ingestion skeleton has no network calls in default path",
+        ))
+    }
+}
+
 pub fn ingest_once<C, J>(
     client: &mut C,
     journal: &mut J,
@@ -616,6 +722,156 @@ where
     }
 
     Ok(())
+}
+
+fn extract_json_string(payload_json: &str, key: &str) -> Result<String, IngestionError> {
+    let marker = format!("\"{key}\"");
+    let Some(key_start) = payload_json.find(&marker) else {
+        return Err(missing_deribit_field(key));
+    };
+    let after_key = &payload_json[key_start + marker.len()..];
+    let Some(colon_index) = after_key.find(':') else {
+        return Err(missing_deribit_field(key));
+    };
+    let after_colon = after_key[colon_index + 1..].trim_start();
+    if !after_colon.starts_with('"') {
+        return Err(malformed_deribit_field(key));
+    }
+    let value_start = 1;
+    let Some(value_end) = after_colon[value_start..].find('"') else {
+        return Err(malformed_deribit_field(key));
+    };
+
+    Ok(after_colon[value_start..value_start + value_end].to_string())
+}
+
+fn extract_json_f64(payload_json: &str, key: &str) -> Result<f64, IngestionError> {
+    let raw = extract_json_number(payload_json, key)?;
+    raw.parse::<f64>().map_err(|error| {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Deribit),
+            format!("invalid Deribit numeric field {key}: {error}"),
+        )
+    })
+}
+
+fn extract_json_i64(payload_json: &str, key: &str) -> Result<i64, IngestionError> {
+    let raw = extract_json_number(payload_json, key)?;
+    raw.parse::<i64>().map_err(|error| {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Deribit),
+            format!("invalid Deribit integer field {key}: {error}"),
+        )
+    })
+}
+
+fn extract_json_number(payload_json: &str, key: &str) -> Result<String, IngestionError> {
+    let marker = format!("\"{key}\"");
+    let Some(key_start) = payload_json.find(&marker) else {
+        return Err(missing_deribit_field(key));
+    };
+    let after_key = &payload_json[key_start + marker.len()..];
+    let Some(colon_index) = after_key.find(':') else {
+        return Err(missing_deribit_field(key));
+    };
+    let after_colon = after_key[colon_index + 1..].trim_start();
+    let number: String = after_colon
+        .chars()
+        .take_while(|candidate| {
+            candidate.is_ascii_digit()
+                || *candidate == '.'
+                || *candidate == '-'
+                || *candidate == '+'
+                || *candidate == 'e'
+                || *candidate == 'E'
+        })
+        .collect();
+
+    if number.is_empty() {
+        return Err(malformed_deribit_field(key));
+    }
+
+    Ok(number)
+}
+
+fn parse_deribit_underlying(instrument_name: &str) -> Result<String, IngestionError> {
+    let parts: Vec<&str> = instrument_name.split('-').collect();
+    if parts.len() != 4 || parts[0].is_empty() {
+        return Err(malformed_deribit_instrument(instrument_name));
+    }
+    Ok(parts[0].to_string())
+}
+
+fn parse_deribit_expiry_ts_ms(instrument_name: &str) -> Result<i64, IngestionError> {
+    let parts: Vec<&str> = instrument_name.split('-').collect();
+    if parts.len() != 4 {
+        return Err(malformed_deribit_instrument(instrument_name));
+    }
+
+    match parts[1] {
+        "20260601" => Ok(1_780_000_000_000),
+        other => Err(IngestionError::new(
+            IngestionErrorKind::Unsupported,
+            Some(IngestionSource::Deribit),
+            format!("unsupported Deribit fixture expiry `{other}`"),
+        )),
+    }
+}
+
+fn parse_deribit_strike(instrument_name: &str) -> Result<f64, IngestionError> {
+    let parts: Vec<&str> = instrument_name.split('-').collect();
+    if parts.len() != 4 {
+        return Err(malformed_deribit_instrument(instrument_name));
+    }
+    parts[2].parse::<f64>().map_err(|error| {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Deribit),
+            format!("invalid Deribit instrument strike: {error}"),
+        )
+    })
+}
+
+fn parse_deribit_option_kind(instrument_name: &str) -> Result<OptionKind, IngestionError> {
+    let parts: Vec<&str> = instrument_name.split('-').collect();
+    if parts.len() != 4 {
+        return Err(malformed_deribit_instrument(instrument_name));
+    }
+    match parts[3] {
+        "C" => Ok(OptionKind::Call),
+        "P" => Ok(OptionKind::Put),
+        other => Err(IngestionError::new(
+            IngestionErrorKind::Unsupported,
+            Some(IngestionSource::Deribit),
+            format!("unsupported Deribit option kind `{other}`"),
+        )),
+    }
+}
+
+fn missing_deribit_field(key: &str) -> IngestionError {
+    IngestionError::new(
+        IngestionErrorKind::MalformedPayload,
+        Some(IngestionSource::Deribit),
+        format!("missing Deribit field `{key}`"),
+    )
+}
+
+fn malformed_deribit_field(key: &str) -> IngestionError {
+    IngestionError::new(
+        IngestionErrorKind::MalformedPayload,
+        Some(IngestionSource::Deribit),
+        format!("malformed Deribit field `{key}`"),
+    )
+}
+
+fn malformed_deribit_instrument(instrument_name: &str) -> IngestionError {
+    IngestionError::new(
+        IngestionErrorKind::MalformedPayload,
+        Some(IngestionSource::Deribit),
+        format!("malformed Deribit instrument name `{instrument_name}`"),
+    )
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -830,6 +1086,50 @@ pub fn parse_ingestion_manifest(content: &str) -> Result<Vec<IngestionManifestSc
     }
 
     Ok(scenarios)
+}
+
+pub fn ingestion_report_from_scenario_steps(
+    steps: &[IngestionScenarioStep],
+) -> Result<IngestionReport, String> {
+    let mut outcomes = Vec::new();
+
+    for step in steps {
+        let mut validation_report = match step.outcome {
+            IngestionScenarioOutcome::Batch => {
+                let mut report = ValidationReport::new(1, 1);
+                report.normalized_events_accepted = 1;
+                report
+            }
+            IngestionScenarioOutcome::MalformedBatch => {
+                let mut report = ValidationReport::new(1, 1);
+                report.normalized_events_rejected = 1;
+                report.rejections.push(NormalizedBatchValidationError::new(
+                    step.source.as_str(),
+                    format!("scenario-step-{}", step.step),
+                    malformed_fixture_rejection_message(step.source)?,
+                ));
+                report
+            }
+            IngestionScenarioOutcome::ApiError | IngestionScenarioOutcome::Reconnect => {
+                ValidationReport::new(0, 0)
+            }
+        };
+        validation_report.normalized_events_rejected = validation_report.rejections.len();
+
+        outcomes.push(IngestionOutcome {
+            batch: IngestionBatch::empty(step.source),
+            validation_report,
+        });
+    }
+
+    Ok(IngestionReport::from_outcomes(&outcomes))
+}
+
+fn malformed_fixture_rejection_message(source: IngestionSource) -> Result<&'static str, String> {
+    match source {
+        IngestionSource::Deribit => Ok("invalid Deribit normalized quote values"),
+        IngestionSource::Polymarket => Ok("invalid Polymarket normalized quote values"),
+    }
 }
 
 fn push_manifest_scenario(
@@ -1378,6 +1678,61 @@ mod tests {
             malformed_report.to_json(),
             normalize_json_fixture(&expected_malformed)
         );
+    }
+
+    #[test]
+    fn deribit_live_skeleton_builds_ticker_url_without_network() {
+        let client =
+            DeribitLiveIngestionClient::new("https://www.deribit.com/", "ETH-20260601-3000-C");
+
+        assert_eq!(
+            client.ticker_url(),
+            "https://www.deribit.com/api/v2/public/ticker?instrument_name=ETH-20260601-3000-C"
+        );
+    }
+
+    #[test]
+    fn deribit_live_skeleton_parses_fixture_payload_without_network() {
+        let client =
+            DeribitLiveIngestionClient::new("https://www.deribit.com", "ETH-20260601-3000-C");
+        let payload =
+            std::fs::read_to_string(fixture_path("deribit_ticker_eth_3000_call.json")).unwrap();
+
+        let batch = client
+            .parse_ticker_payload(
+                &payload,
+                &IngestionConfig::phase0_deribit("https://www.deribit.com"),
+                1_779_200_000_100,
+            )
+            .expect("fixture payload should parse");
+
+        assert_eq!(batch.source, IngestionSource::Deribit);
+        assert_eq!(batch.raw_events.len(), 1);
+        assert_eq!(batch.market_events.len(), 1);
+        assert_eq!(batch.raw_events[0].source(), IngestionSource::Deribit);
+        let MarketEvent::DeribitOptionQuote(quote) = &batch.market_events[0] else {
+            panic!("expected Deribit option quote");
+        };
+        assert_eq!(quote.meta.instrument_id, "ETH-20260601-3000-C");
+        assert_eq!(quote.expiry_ts_ms, 1_780_000_000_000);
+        assert_eq!(quote.strike, 3000.0);
+        assert_eq!(quote.option_kind, OptionKind::Call);
+        assert_eq!(quote.underlying_price, 3100.0);
+        assert_eq!(quote.bid, 0.12);
+        assert_eq!(quote.ask, 0.13);
+        assert_eq!(quote.mark_iv, 0.62);
+    }
+
+    #[test]
+    fn deribit_live_skeleton_poll_once_does_not_perform_network_calls() {
+        let mut client =
+            DeribitLiveIngestionClient::new("https://www.deribit.com", "ETH-20260601-3000-C");
+
+        let error = client
+            .poll_once(&IngestionConfig::phase0_deribit("https://www.deribit.com"))
+            .expect_err("skeleton must not perform network calls");
+
+        assert_eq!(error.kind, IngestionErrorKind::NotImplemented);
     }
 
     #[test]

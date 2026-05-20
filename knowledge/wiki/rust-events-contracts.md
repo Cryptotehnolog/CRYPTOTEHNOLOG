@@ -195,6 +195,7 @@ IngestionBatch
 IngestionClient
 MockIngestionClient
 LiveIngestionClient
+DeribitLiveIngestionClient
 NormalizedBatchValidator
 AcceptAllNormalizedBatchValidator
 Phase0NormalizedBatchValidator
@@ -212,6 +213,7 @@ Design boundary:
 
 - `MockIngestionClient` используется для deterministic tests.
 - `LiveIngestionClient` пока возвращает `NotImplemented` и не делает network calls.
+- `DeribitLiveIngestionClient` строит read-only `public/ticker` URL и парсит fixture payload в raw + normalized Deribit events; default `poll_once()` остается `NotImplemented`.
 - `ingest_once()` сохраняет raw events до normalized market events.
 - `ingest_once_with_validator()` сохраняет raw events, затем валидирует normalized events и только после этого пишет их в journal.
 - `ingest_once_with_report()` возвращает `IngestionOutcome` с `ValidationReport`; raw events сохраняются, accepted normalized events пишутся, rejected normalized events не пишутся.
@@ -424,6 +426,7 @@ pub struct ReplayEventFilter {
 - BasisObservationRow column order and PostgreSQL insert SQL skeleton.
 - Ingestion skeleton: raw-before-normalized write order, validator-before-normalized-write boundary, validation report counters, API error without writes, live client `NotImplemented`, API error/reconnect fixture parsing, ingestion manifest parsing.
 - Ingestion semantic golden reports: `fixtures/ingestion/*_report.json` сравниваются с `IngestionReport::to_json()`.
+- Deribit live skeleton: ticker URL construction, fixture payload parsing и explicit no-network `poll_once()` behavior.
 - Thin orchestration: Deribit mock batch + Polymarket mock batch -> `EventJournal` -> `match_from_market_events()` -> `BasisObservation`.
 - Negative orchestration: malformed Polymarket quote сохраняет raw event, но не создает `BasisObservation`.
 

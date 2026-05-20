@@ -141,6 +141,14 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 
 Запускает `update_golden_fixture.ps1` и падает, если после перегенерации меняется JSON или text golden report. Включен в `check_all` и CI.
 
+### `scripts/update_ingestion_golden.ps1`
+
+Перегенерирует `expected_report` для всех scenarios из `fixtures/ingestion/manifest.toml`.
+
+Скрипт вызывает Rust binary `render_ingestion_report`, чтобы semantic source of truth оставался в `crates/ingestion`, а не в PowerShell.
+
+Использовать только когда изменение ingestion telemetry/report behavior ожидаемо. Изменение ingestion golden report должно быть reviewable в том же commit/PR.
+
 ## Phase Gate
 
 ### `scripts/check_phase_gate.ps1`
