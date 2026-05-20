@@ -7,23 +7,23 @@ sources:
   - karpathy-llm-wiki-2026-04-04
 ---
 
-# Knowledge Base Overview
+# Обзор Базы Знаний
 
-CRYPTOTEHNOLOG uses a local Markdown knowledge base to preserve project memory across engineering, research, market assumptions, risk decisions, and post-trade analysis.
+CRYPTOTEHNOLOG использует локальную Markdown-базу знаний, чтобы сохранять project memory по engineering, research, market assumptions, risk decisions и post-trade analysis.
 
-The knowledge base has three layers:
+У базы знаний три слоя:
 
-- raw sources: immutable source notes and evidence,
-- wiki pages: synthesized project knowledge maintained by Codex,
-- schema: rules that keep the wiki consistent and auditable.
+- raw sources: immutable source notes и evidence,
+- wiki pages: синтезированное project knowledge, поддерживаемое Codex,
+- schema: правила, которые держат wiki consistent и auditable.
 
-This is intentionally not a runtime trading component. The deterministic trading core must not depend on LLM-generated wiki content for order generation, risk checks, or execution.
+Это намеренно не runtime trading component. Детерминированное торговое ядро не должно зависеть от LLM-generated wiki content для order generation, risk checks или execution.
 
-## Why This Matters
+## Почему Это Важно
 
-The project has many moving parts: Deribit options, Polymarket markets, event matching, probability modeling, settlement mismatch, paper execution, risk controls, and later AI-assisted analysis. Without a maintained knowledge base, decisions will leak into chat history and become hard to audit.
+В проекте много движущихся частей: Deribit options, Polymarket markets, event matching, probability modeling, settlement mismatch, paper execution, risk controls и будущий AI-assisted analysis. Без поддерживаемой базы знаний решения будут утекать в историю чатов, и их будет сложно audit.
 
-## Maintenance Rule
+## Правило Поддержки
 
-Whenever Codex learns durable information about the project, it should either update an existing wiki page or create a focused new page, then update the index and log.
+Когда Codex узнает долговременную информацию о проекте, он должен либо обновить существующую wiki page, либо создать новую сфокусированную страницу, а затем обновить index и log.
 

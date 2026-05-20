@@ -1,122 +1,129 @@
 # CRYPTOTEHNOLOG
 
-Deterministic research and trading infrastructure for testing crypto probability-basis ideas.
+Детерминированная исследовательская и торговая инфраструктура для проверки crypto probability-basis идей.
 
-The first MVP is deliberately narrow: compare Deribit ETH option-implied probabilities with Polymarket event prices, record observations, and prove whether the spread survives fees, spreads, slippage, settlement mismatch, and liquidity constraints.
+Первый MVP намеренно узкий: сравнивать вероятности, подразумеваемые ETH-опционами Deribit, с ценами событий Polymarket, сохранять наблюдения и проверять, переживает ли спред комиссии, bid/ask spread, проскальзывание (slippage), несовпадение settlement и ограничения ликвидности.
 
-No live trading is part of the MVP.
+Live trading не входит в первый MVP.
 
-## Current Decision
+## Текущее Решение
 
-We are starting with `Deribit + Polymarket probability_basis`, not funding carry.
+Мы начинаем с `Deribit + Polymarket probability_basis`, а не с funding carry.
 
-This is not called arbitrage yet. The current goal is evidence:
+Пока это не называется арбитражем. Текущая цель - собрать доказательства:
 
-- Can matching events be found reliably?
-- Do expiry and settlement definitions match closely enough?
-- Is there enough liquidity on both sides?
-- Does the observed spread survive estimated costs?
-- Can the same raw event log be replayed deterministically?
+- Можно ли надежно находить соответствующие события?
+- Достаточно ли близко совпадают expiry и settlement definitions?
+- Есть ли ликвидность с обеих сторон?
+- Переживает ли наблюдаемый спред расчетные издержки?
+- Можно ли детерминированно воспроизвести один и тот же raw event log?
 
-## Repository Layout
+## Структура Репозитория
 
-- `crates/common` - canonical Rust event contracts.
-- `crates/replay` - deterministic replay skeleton.
-- `config/` - human-approved strategy, risk, venue, and instrument config.
-- `knowledge/` - LLM-maintained project knowledge base.
-- `migrations/` - PostgreSQL schema for event sourcing and observations.
-- `research/` - Python research scripts and notebooks later.
-- `scripts/` - local automation scripts.
-- `tests/` - Python tests later.
-- `PROJECT_REVIEW.md` - initial engineering review.
+- `crates/common` - канонические Rust event contracts.
+- `crates/replay` - каркас детерминированного воспроизведения (deterministic replay).
+- `config/` - human-approved конфиги стратегий, риска, площадок и инструментов.
+- `knowledge/` - база знаний проекта, поддерживаемая LLM.
+- `migrations/` - PostgreSQL schema для event sourcing и observations.
+- `research/` - будущие Python-скрипты и notebooks для исследований.
+- `scripts/` - локальные automation scripts.
+- `tests/` - будущие Python tests.
+- `PROJECT_REVIEW.md` - стартовый инженерный review.
 
-## Local Infrastructure
+## Локальная Инфраструктура
 
-PostgreSQL is the source of truth. Redis will be used as a transient message bus after the contracts stabilize.
+PostgreSQL является источником истины (source of truth). Redis будет использоваться как временная message bus после стабилизации контрактов.
 
-Start local infra:
+Запустить локальную инфраструктуру:
 
 ```powershell
 docker compose up -d
 ```
 
-Run the current Rust replay smoke test:
+Запустить текущий Rust replay smoke test:
 
 ```powershell
 cargo run -p cryptotehnolog-replay
 ```
 
-Run the knowledge-base health check:
+Проверить здоровье базы знаний:
 
 ```powershell
 .\scripts\kb_health_check.ps1
 ```
 
-Run the local Markdown link check:
+Проверить локальные Markdown-ссылки:
 
 ```powershell
 .\scripts\validate_local_links.ps1
 ```
 
-Run all fast local checks:
+Запустить все быстрые локальные проверки:
 
 ```powershell
 .\scripts\check_all.ps1
 ```
 
-Show development status before a work session:
+Показать состояние проекта перед рабочей сессией:
 
 ```powershell
 .\scripts\dev_status.ps1
 ```
 
-Create a raw source note:
+Создать raw source note:
 
 ```powershell
 .\scripts\new_source_note.ps1 -Title "Source title" -Url "https://example.com"
 ```
 
-## Knowledge Base
+## База Знаний
 
-The project uses a local Markdown knowledge base inspired by Karpathy's LLM Wiki pattern.
+Проект использует локальную Markdown-базу знаний по паттерну Karpathy LLM Wiki.
 
-- Raw source notes live in `knowledge/raw/`.
-- Synthesized project pages live in `knowledge/wiki/`.
-- The operating contract is `knowledge/schema.md`.
-- `knowledge/index.md` is the content map.
-- `knowledge/log.md` is the append-only maintenance history.
+- Raw source notes живут в `knowledge/raw/`.
+- Синтезированные страницы проекта живут в `knowledge/wiki/`.
+- Рабочий контракт описан в `knowledge/schema.md`.
+- `knowledge/index.md` - смысловая карта базы знаний.
+- `knowledge/log.md` - append-only журнал обслуживания.
 
-Codex should update the knowledge base automatically whenever a durable project decision, source analysis, risk critique, or reusable synthesis appears.
+Codex должен автоматически обновлять базу знаний, когда появляется долговременное проектное решение, анализ источника, risk critique или переиспользуемый synthesis.
 
-Codex usage rule:
+Правило использования Codex:
 
-- before architecture or strategy code, read `knowledge/index.md` and the relevant wiki pages;
-- after durable decisions or reusable analysis, update the relevant wiki page, `knowledge/index.md`, and `knowledge/log.md`;
-- run `.\scripts\kb_health_check.ps1` before committing knowledge changes.
+- перед архитектурным или стратегическим кодом читать `knowledge/index.md` и релевантные wiki-страницы;
+- после долговременных решений или reusable analysis обновлять релевантную wiki-страницу, `knowledge/index.md` и `knowledge/log.md`;
+- перед коммитом knowledge changes запускать `.\scripts\kb_health_check.ps1`.
 
-Obsidian usage:
+Использование Obsidian:
 
-- open `D:\CRYPTOTEHNOLOG\knowledge` as an Obsidian vault;
-- use it for reading, graph navigation, backlinks, and manual review;
-- do not make Obsidian plugins a runtime dependency of the trading system.
+- открыть `D:\CRYPTOTEHNOLOG\knowledge` как Obsidian vault;
+- использовать для чтения, graph navigation, backlinks и ручного review;
+- не делать Obsidian plugins runtime-зависимостью торговой системы.
 
-## Risk Stance
+## Языковая Политика
 
-MVP constraints:
+Проектная документация пишется на русском языке.
 
-- No live orders.
-- No AI agent in the execution path.
-- No Kelly sizing.
-- No short Deribit options.
-- No short Polymarket outcomes.
-- PostgreSQL event journal before derived features.
-- Deterministic replay before real ingestion.
+Технические контракты остаются на английском: code identifiers, config keys, SQL names, Redis stream names, API fields, имена crates/modules и пути. При первом упоминании важных терминов используем русский текст и английский термин в скобках.
 
-## Next Improvements To Automate
+## Риск-Позиция
 
-1. Add `justfile` or `Makefile` equivalents for Windows-friendly commands.
-2. Add a migration runner.
-3. Add deterministic replay tests.
-4. Add JSON serialization once external dependencies are allowed.
-5. Add Deribit and Polymarket discovery adapters behind traits.
-6. Add a report that lists candidate market pairs and rejects bad matches with reasons.
+Ограничения MVP:
+
+- Нет live orders.
+- AI agent не участвует в execution path.
+- Нет Kelly sizing.
+- Нет short Deribit options.
+- Нет short Polymarket outcomes.
+- PostgreSQL event journal идет перед derived features.
+- Deterministic replay идет перед real ingestion.
+
+## Следующие Улучшения Для Автоматизации
+
+1. Добавить Windows-friendly аналоги `justfile` или `Makefile`.
+2. Добавить migration runner.
+3. Добавить deterministic replay tests.
+4. Добавить JSON serialization, когда будут разрешены внешние зависимости.
+5. Добавить Deribit и Polymarket discovery adapters за traits.
+6. Добавить отчет, который перечисляет candidate market pairs и отклоняет плохие matches с причинами.
+

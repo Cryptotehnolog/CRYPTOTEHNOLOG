@@ -1,49 +1,65 @@
 # AGENTS.md
 
-This file defines the operating rules for AI agents working in this repository.
+Этот файл задает рабочие правила для AI-агентов, которые работают в этом репозитории.
 
-## Before Work
+## Перед Работой
 
-For architecture, strategy, risk, market-data, research, or knowledge-base changes:
+Перед изменениями в архитектуре, стратегиях, риск-модели, рыночных данных, исследовательском слое или базе знаний:
 
-1. Read `knowledge/schema.md`.
-2. Read `knowledge/index.md`.
-3. Open relevant pages from `knowledge/wiki/`.
-4. Check active decisions, rejected ideas, low-confidence assumptions, and known risks.
+1. Прочитай `knowledge/schema.md`.
+2. Прочитай `knowledge/index.md`.
+3. Открой релевантные страницы из `knowledge/wiki/`.
+4. Проверь активные решения, отклоненные идеи, низкоуверенные допущения и известные риски.
 
-Small mechanical actions such as `git status`, formatting, or reading a file do not require a full wiki review.
+Мелкие механические действия вроде `git status`, форматирования или чтения файла не требуют полного обзора wiki.
 
-## During Work
+## Во Время Работы
 
-- Prefer small, reviewable changes.
-- Keep runtime trading behavior in code, tests, configs, migrations, and event logs.
-- Do not make deterministic trading services depend on Markdown, Obsidian, or LLM-generated summaries.
-- Do not store secrets, API keys, exchange credentials, or private account details in the knowledge base.
+- Делай небольшие, проверяемые изменения.
+- Держи runtime-поведение торговой системы в коде, тестах, конфигах, миграциях и журналах событий (event logs).
+- Не делай детерминированные торговые сервисы зависимыми от Markdown, Obsidian или LLM-сводок.
+- Не сохраняй секреты, API-ключи, биржевые credentials или приватные данные счетов в базе знаний.
 
-## After Work
+## После Работы
 
-If the work creates durable project knowledge, update:
+Если работа создает долговременное знание проекта, обнови:
 
-1. the relevant page in `knowledge/wiki/`,
-2. `knowledge/index.md` if a new page was added,
+1. релевантную страницу в `knowledge/wiki/`,
+2. `knowledge/index.md`, если была добавлена новая страница,
 3. `knowledge/log.md`.
 
-Before committing, run:
+Перед коммитом запусти:
 
 ```powershell
 .\scripts\kb_health_check.ps1
 ```
 
-## Check Policy
+## Языковая Политика
 
-Pre-commit checks must remain fast, local, deterministic, and network-free.
+Проектная документация пишется на русском языке.
 
-They must not:
+Исключения остаются на английском:
 
-- call LLMs,
-- call external APIs,
-- validate external URLs,
-- run heavy tests or long audits.
+- code identifiers,
+- имена crates, modules, structs, functions,
+- config keys,
+- SQL table/column names,
+- Redis stream names,
+- API field names,
+- имена файлов и директорий, если они являются техническими контрактами.
 
-If a check becomes slow or needs network access, move it to CI or a separate manual audit script.
+При первом упоминании важного технического термина используй русский текст и английский термин в скобках: например, `журнал событий (event journal)` или `детерминированное воспроизведение (deterministic replay)`.
+
+## Политика Проверок
+
+Pre-commit проверки должны оставаться быстрыми, локальными, детерминированными и без сети.
+
+Они не должны:
+
+- вызывать LLM,
+- обращаться к внешним API,
+- проверять внешние URL,
+- запускать тяжелые тесты или длинные аудиты.
+
+Если проверка становится медленной или требует сети, перенеси ее в CI или отдельный ручной audit script.
 

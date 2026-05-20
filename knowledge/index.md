@@ -8,33 +8,34 @@ sources:
   - project-review-2026-05-19
 ---
 
-# Knowledge Base Index
+# Индекс Базы Знаний
 
 ## System
 
-- [Knowledge Base Schema](schema.md) - operating contract for maintaining this wiki.
-- [Knowledge Base Overview](wiki/system-knowledge-base.md) - why this project uses a persistent LLM-maintained wiki.
+- [Схема базы знаний](schema.md) - operating contract для поддержки wiki.
+- [Обзор базы знаний](wiki/system-knowledge-base.md) - зачем проекту нужна постоянная LLM-maintained wiki.
 
 ## Decisions
 
-- [First MVP](wiki/decision-first-mvp.md) - Deribit + Polymarket probability basis is the first MVP; funding carry is postponed.
+- [Первый MVP](wiki/decision-first-mvp.md) - Deribit + Polymarket probability basis является первым MVP; funding carry отложен.
 
 ## Concepts
 
-- [LLM Wiki](wiki/concept-llm-wiki.md) - persistent, synthesized Markdown wiki maintained by an LLM.
-- [Probability Basis](wiki/concept-probability-basis.md) - research framing for Deribit option-implied probabilities versus Polymarket event prices.
+- [LLM Wiki](wiki/concept-llm-wiki.md) - постоянная синтезированная Markdown-wiki, поддерживаемая LLM.
+- [Probability Basis](wiki/concept-probability-basis.md) - research framing для сравнения Deribit option-implied probabilities и Polymarket event prices.
 
 ## Workflows
 
-- [Codex Wiki Usage](wiki/workflow-codex-wiki-usage.md) - how Codex reads and updates project memory while working.
-- [Obsidian](wiki/workflow-obsidian.md) - how to use Obsidian as a human interface over the Markdown vault.
-- [Source Ingestion](wiki/workflow-source-ingestion.md) - how new sources are converted into durable wiki knowledge.
-- [Wiki Health Check](wiki/workflow-wiki-health-check.md) - recurring maintenance workflow for index, links, contradictions, and stale claims.
+- [Использование wiki в Codex](wiki/workflow-codex-wiki-usage.md) - как Codex читает и обновляет project memory во время работы.
+- [Obsidian](wiki/workflow-obsidian.md) - как использовать Obsidian как human interface поверх Markdown vault.
+- [Source Ingestion](wiki/workflow-source-ingestion.md) - как новые sources превращаются в долговременное wiki knowledge.
+- [Wiki Health Check](wiki/workflow-wiki-health-check.md) - recurring maintenance workflow для index, links, contradictions и stale claims.
 
 ## Risks
 
-- [Automation Quality Risk](wiki/risk-automation-quality.md) - why fully automated knowledge maintenance needs confidence labels and audit trails.
+- [Риск качества автоматизации](wiki/risk-automation-quality.md) - почему fully automated knowledge maintenance требует confidence labels и audit trail.
 
 ## Raw Sources
 
-- [Karpathy LLM Wiki](raw/sources/karpathy-llm-wiki-2026-04-04.md) - source note for the LLM Wiki gist.
+- [Karpathy LLM Wiki](raw/sources/karpathy-llm-wiki-2026-04-04.md) - source note по LLM Wiki gist.
+

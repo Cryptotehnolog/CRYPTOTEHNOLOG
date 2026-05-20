@@ -7,15 +7,15 @@ sources:
   - project-review-2026-05-19
 ---
 
-# Decision: First MVP
+# Решение: Первый MVP
 
-The first MVP is Deribit + Polymarket `probability_basis`.
+Первый MVP - Deribit + Polymarket `probability_basis`.
 
-Funding carry is postponed because the initial unhedged version is directional exposure with funding income, not a market-neutral arbitrage.
+Funding carry отложен, потому что начальная unhedged-версия является directional exposure с funding income, а не market-neutral arbitrage.
 
-## MVP Scope
+## Scope MVP
 
-Included:
+Входит:
 
 - Deribit and Polymarket market discovery,
 - candidate event matching,
@@ -24,7 +24,7 @@ Included:
 - observation storage,
 - quality reports.
 
-Excluded:
+Не входит:
 
 - live trading,
 - AI agents in execution path,
@@ -32,7 +32,7 @@ Excluded:
 - short Deribit options,
 - short Polymarket outcomes.
 
-## Success Criterion
+## Критерий Успеха
 
-The MVP succeeds only if it can produce auditable matched/rejected candidate reports with clear reasons and reproducible calculations.
+MVP успешен только если может выдавать auditable matched/rejected candidate reports с понятными причинами и воспроизводимыми calculations.
 

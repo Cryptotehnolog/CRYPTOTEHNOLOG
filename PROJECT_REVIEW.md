@@ -1,67 +1,67 @@
-# CRYPTOTEHNOLOG - engineering review
+# CRYPTOTEHNOLOG - инженерный review
 
-Date: 2026-05-19
+Дата: 2026-05-19
 
-## Executive position
+## Главная Позиция
 
-The project idea is technically interesting, but the current proposal is too broad for an MVP and mixes three different problem classes:
+Идея проекта технически интересная, но исходное предложение слишком широкое для MVP и смешивает три разных класса задач:
 
-1. reliable market-data infrastructure,
-2. statistically defensible trading research,
+1. надежная инфраструктура рыночных данных (market-data infrastructure),
+2. статистически защищаемое торговое исследование (trading research),
 3. AI-assisted post-trade analysis.
 
-The deterministic core must come first. The AI layer should remain out of scope until the system has clean data, reproducible backtests, and paper-trading telemetry. That part of your plan is correct.
+Детерминированное ядро (deterministic core) должно идти первым. AI-слой должен оставаться вне scope, пока у системы нет чистых данных, воспроизводимых backtests и paper-trading telemetry. Эта часть исходного плана правильная.
 
-The weakest parts of the current design are the proposed market assumptions:
+Самые слабые места текущего дизайна - рыночные допущения:
 
-- BitMEX commodity perpetual availability and liquidity must be verified before building around XAUtUSDT and BRENTUSDT.
-- The funding carry strategy is not market-neutral in the MVP version if it shorts only the perpetual without a real hedge.
-- The Deribit-to-Polymarket "probability arbitrage" is not a simple arbitrage. It is a basis trade across different settlement definitions, liquidity regimes, margin models, expiries, and resolution risk.
-- Redis Streams are useful for decoupling services, but they should not become the source of truth.
-- Rust for every deterministic component may slow early research. Rust is excellent for the execution/risk path, but feature research and backtesting may move faster in Python until formulas stabilize.
+- Доступность и ликвидность BitMEX commodity perpetuals надо проверить до построения системы вокруг XAUtUSDT и BRENTUSDT.
+- Funding carry в MVP-версии не является market-neutral, если мы просто short perpetual без реального hedge.
+- Deribit-to-Polymarket "probability arbitrage" не является простым арбитражем. Это basis trade между разными settlement definitions, liquidity regimes, margin models, expiries и resolution risk.
+- Redis Streams полезны для развязки сервисов, но не должны становиться источником истины (source of truth).
+- Rust для каждого детерминированного компонента может замедлить раннее исследование. Rust отлично подходит для execution/risk path, но feature research и backtesting могут быстрее двигаться на Python, пока формулы не стабилизированы.
 
-## What I would change
+## Что Я Бы Изменил
 
-### 1. Reduce the MVP
+### 1. Сузить MVP
 
-Start with one strategy and one exchange/data source pair.
+Начать с одной стратегии и одной пары exchange/data source.
 
-Recommended MVP:
+Рекомендованный MVP:
 
-- Data ingestion for Deribit ETH options and Polymarket crypto markets.
-- Normalized market snapshots.
+- Data ingestion для Deribit ETH options и Polymarket crypto markets.
+- Нормализованные market snapshots.
 - Backtest/event replay.
 - Paper execution simulator.
 - PostgreSQL event journal.
-- No live orders.
-- No Hermes, LightRAG, OmniRoute.
+- Без live orders.
+- Без Hermes, LightRAG, OmniRoute.
 
-Reason: the probability-arbitrage thesis is the more unique edge, but it is also the most likely to fail because of market-definition mismatch. It deserves validation before we build a large execution platform.
+Причина: probability-arbitrage тезис более уникален, но он же с наибольшей вероятностью сломается из-за market-definition mismatch. Его нужно валидировать до постройки большой execution platform.
 
-Alternative MVP:
+Альтернативный MVP:
 
-- BitMEX funding ingestion only.
-- Funding feature calculation.
+- Только BitMEX funding ingestion.
+- Расчет funding features.
 - Paper funding strategy.
-- PnL simulation with adverse price movement.
+- PnL simulation с adverse price movement.
 
-This is simpler technically, but the edge is weaker unless we find a real hedge.
+Технически это проще, но edge слабее, если мы не найдем реальный hedge.
 
-### 2. Treat "paper trading" as event replay plus live shadow mode
+### 2. Считать paper trading как event replay плюс live shadow mode
 
-Paper trading that only consumes live quotes is not enough. We need deterministic replay from stored raw events.
+Paper trading, который потребляет только live quotes, недостаточен. Нужен deterministic replay из сохраненных raw events.
 
-Minimum requirement:
+Минимальные требования:
 
-- Every raw inbound event gets persisted before feature calculation.
-- Every signal, risk decision, simulated fill, and portfolio update is replayable.
-- Strategy outputs must be deterministic for the same input event log and config version.
+- Каждый входящий raw event сохраняется до расчета features.
+- Каждый signal, risk decision, simulated fill и portfolio update воспроизводим.
+- Strategy outputs должны быть детерминированными для одного и того же input event log и config version.
 
-### 3. Add a schema and contract layer early
+### 3. Рано добавить schema и contract layer
 
-Do not use Pydantic as the internal model if the deterministic core is Rust. Use Rust structs as canonical types and serialize through JSON or MessagePack initially. Later, if needed, move to Protobuf or FlatBuffers.
+Не использовать Pydantic как внутреннюю модель, если deterministic core пишется на Rust. Каноническими типами должны быть Rust structs, сериализация на старте через JSON или MessagePack. Позже, если потребуется, можно перейти на Protobuf или FlatBuffers.
 
-Recommended event families:
+Рекомендованные event families:
 
 - `MarketEvent`
 - `FeatureEvent`
@@ -71,7 +71,7 @@ Recommended event families:
 - `ExecutionReport`
 - `PortfolioSnapshot`
 
-Each event should include:
+Каждый event должен включать:
 
 - `event_id`
 - `source`
@@ -81,24 +81,24 @@ Each event should include:
 - `schema_version`
 - `config_version`
 
-### 4. Separate research from production config
+### 4. Отделить research от production config
 
-Human-approved config changes should be explicit, versioned, and auditable.
+Human-approved изменения конфигов должны быть явными, версионированными и auditable.
 
-Add:
+Добавить:
 
 - `config/strategies.toml`
 - `config/risk.toml`
 - `config/instruments.toml`
 - `config/venues.toml`
 
-The AI agents may write recommendations, but not config patches that auto-apply.
+AI agents могут писать рекомендации, но не auto-apply config patches.
 
-### 5. Risk engine needs more than Kelly
+### 5. Risk engine должен быть шире Kelly
 
-Kelly sizing is fragile when edge estimates are noisy. In this project, the edge estimate will be very noisy at first.
+Kelly sizing хрупок, когда edge estimates шумные. В этом проекте оценка edge на старте будет очень шумной.
 
-Use capped fractional sizing for MVP:
+Для MVP использовать capped fractional sizing:
 
 - fixed notional percentage per strategy,
 - hard max position size,
@@ -109,63 +109,63 @@ Use capped fractional sizing for MVP:
 - stale-data rejection,
 - spread/liquidity rejection.
 
-Kelly can be added later as a research metric, not as the first production sizer.
+Kelly можно добавить позже как research metric, но не как первый production sizer.
 
-## Strategy critique
+## Критика Стратегий
 
 ### Funding Rate Carry
 
-Problem: if the MVP only shorts a positive-funding perp without a hedge, this is not carry arbitrage. It is directional short exposure with funding income.
+Проблема: если MVP просто short positive-funding perp без hedge, это не carry arbitrage. Это directional short exposure с funding income.
 
-What must be added:
+Что нужно добавить:
 
 - hedge instrument discovery,
 - basis tracking,
 - liquidation/margin simulation,
-- borrow/financing assumptions if spot hedge exists,
-- stress test for sharp commodity rallies.
+- borrow/financing assumptions, если есть spot hedge,
+- stress test для резких commodity rallies.
 
-Verdict: acceptable only as a tiny paper strategy or data-collection strategy. Do not treat it as market-neutral.
+Вердикт: допустимо только как маленькая paper strategy или data-collection strategy. Не считать market-neutral.
 
 ### Deribit vs Polymarket Probability Trade
 
-Problem: Deribit options do not map cleanly to Polymarket binary outcomes.
+Проблема: Deribit options не мапятся чисто на Polymarket binary outcomes.
 
-Key mismatches:
+Ключевые несовпадения:
 
 - European option payoff vs prediction-market binary payout.
-- Different expiry timestamps and settlement sources.
+- Разные expiry timestamps и settlement sources.
 - Path-independent option payoff vs event-specific market wording.
-- Implied probability from Black-Scholes is model-dependent.
-- Polymarket prices include liquidity, resolution, and capital lockup premia.
-- Shorting Polymarket outcomes may not be operationally equivalent to selling probability.
-- Short option positions on Deribit create convex tail risk.
+- Implied probability из Black-Scholes зависит от модели.
+- Polymarket prices включают liquidity, resolution и capital lockup premia.
+- Shorting Polymarket outcomes может быть операционно неэквивалентен продаже probability.
+- Short option positions на Deribit создают convex tail risk.
 
-Better MVP framing:
+Более правильная формулировка MVP:
 
-Do not call it arbitrage yet. Call it `probability_basis`.
+Пока не называть это арбитражем. Называть `probability_basis`.
 
-First validate:
+Сначала проверить:
 
-- whether equivalent events can be matched programmatically,
-- whether the spread persists after fees/spreads/slippage,
-- whether execution size exists on both venues,
-- whether mark-to-market PnL behaves as expected.
+- можно ли программно сопоставлять equivalent events,
+- сохраняется ли spread после fees/spreads/slippage,
+- есть ли execution size на обеих площадках,
+- ведет ли себя mark-to-market PnL ожидаемо.
 
-Verdict: promising as research, dangerous as a claimed arbitrage.
+Вердикт: перспективно как research, опасно как заявленный arbitrage.
 
-## Architecture recommendation
+## Архитектурная Рекомендация
 
-Suggested initial stack:
+Предлагаемый начальный stack:
 
-- Rust workspace for deterministic services.
-- Python only for notebooks/research/reports at first.
-- PostgreSQL as source of truth.
-- Redis Streams as transient bus.
-- Docker Compose for local infra.
-- Prometheus/Grafana after the first full event loop works.
+- Rust workspace для deterministic services.
+- Python сначала только для notebooks/research/reports.
+- PostgreSQL как source of truth.
+- Redis Streams как transient bus.
+- Docker Compose для local infra.
+- Prometheus/Grafana после первого полного event loop.
 
-Initial Rust crates:
+Начальные Rust crates:
 
 - `crates/common`
 - `crates/ingestion`
@@ -175,35 +175,36 @@ Initial Rust crates:
 - `crates/execution`
 - `crates/replay`
 
-Initial Python package:
+Начальный Python package:
 
 - `research/`
 - `scripts/`
 
-## Immediate next step
+## Ближайший Шаг
 
-Build a narrow foundation:
+Построить узкую основу:
 
 1. scaffold repo,
-2. add Docker Compose with Postgres and Redis,
-3. define event schemas,
-4. define config files,
-5. create a replay-first paper-trading loop with mocked market events,
-6. add CI/lint/test commands.
+2. добавить Docker Compose с Postgres и Redis,
+3. определить event schemas,
+4. определить config files,
+5. создать replay-first paper-trading loop с mocked market events,
+6. добавить CI/lint/test commands.
 
-Only after this should we connect real exchange APIs.
+Только после этого подключать реальные exchange APIs.
 
-## MVP decision - 2026-05-19
+## MVP Решение - 2026-05-19
 
-Chosen first MVP: Deribit + Polymarket `probability_basis`.
+Выбран первый MVP: Deribit + Polymarket `probability_basis`.
 
-The first milestone is not trading. The first milestone is to prove or disprove whether event pairs can be matched cleanly enough for systematic research:
+Первая milestone - не торговля. Первая milestone - доказать или опровергнуть, можно ли достаточно чисто сопоставлять event pairs для систематического research:
 
 - equivalent underlying,
 - compatible event wording,
-- compatible expiry and settlement timestamp,
+- compatible expiry и settlement timestamp,
 - sufficient order-book liquidity,
-- spread that survives estimated costs,
-- deterministic replay from stored raw events.
+- spread, который переживает estimated costs,
+- deterministic replay из сохраненных raw events.
 
-Funding carry is postponed. It remains a possible second MVP, but only after we define a real hedge or explicitly label it as directional funding-income exposure.
+Funding carry отложен. Он остается возможным вторым MVP, но только после определения реального hedge или явной маркировки как directional funding-income exposure.
+

@@ -5,24 +5,24 @@ owner: codex
 updated: 2026-05-20
 ---
 
-# Knowledge Base Schema
+# Схема Базы Знаний
 
-This document defines how Codex maintains the CRYPTOTEHNOLOG knowledge base.
+Этот документ задает правила, по которым Codex поддерживает базу знаний CRYPTOTEHNOLOG.
 
-The operating principle is based on Karpathy's LLM Wiki pattern: raw sources remain immutable, while Codex maintains a persistent, interlinked Markdown wiki that compounds over time.
+Операционный принцип основан на паттерне Karpathy LLM Wiki: raw sources остаются неизменяемыми, а Codex поддерживает постоянную связанную Markdown-wiki, которая накапливает ценность со временем.
 
-## Directory Layout
+## Структура Директорий
 
-- `knowledge/raw/` - immutable source notes and source metadata. Codex may add files here, but must not rewrite existing source captures except to fix broken metadata.
-- `knowledge/wiki/` - synthesized pages owned by Codex.
-- `knowledge/templates/` - reusable page templates.
-- `knowledge/index.md` - content-oriented map of the wiki.
+- `knowledge/raw/` - неизменяемые source notes и metadata источников. Codex может добавлять файлы сюда, но не должен переписывать существующие source captures, кроме исправления сломанной metadata.
+- `knowledge/wiki/` - синтезированные страницы, которыми управляет Codex.
+- `knowledge/templates/` - переиспользуемые page templates.
+- `knowledge/index.md` - смысловая карта wiki.
 - `knowledge/log.md` - append-only chronological maintenance log.
-- `knowledge/schema.md` - this operating contract.
+- `knowledge/schema.md` - этот operating contract.
 
-## Page Types
+## Типы Страниц
 
-Every Markdown page managed by Codex must use YAML frontmatter:
+Каждая Markdown-страница, которой управляет Codex, должна использовать YAML frontmatter:
 
 ```yaml
 ---
@@ -35,57 +35,75 @@ sources:
 ---
 ```
 
-## Quality Rules
+## Языковая Политика
 
-Codex must:
+Проектная документация пишется на русском языке.
 
-- Separate facts, assumptions, opinions, and decisions.
-- Cite sources by linking to raw source notes or canonical project files.
-- Mark uncertain claims with `confidence: low` or an explicit caveat.
-- Update `knowledge/index.md` after every knowledge-base edit.
-- Append to `knowledge/log.md` after every ingest, query synthesis, lint pass, or major rewrite.
-- Prefer small focused pages over large monolithic notes.
-- Create cross-links using relative Markdown links.
-- Preserve contradictory claims instead of silently overwriting them.
+Оставлять на английском нужно технические контракты:
 
-Codex must not:
+- code identifiers,
+- имена crates, modules, structs, functions,
+- config keys,
+- SQL table/column names,
+- Redis stream names,
+- API field names,
+- имена файлов и директорий, если они являются техническим контрактом.
 
-- Treat model output as a source of truth.
-- Rewrite immutable raw sources.
-- Promote a hypothesis to a decision without an explicit decision page.
-- Hide rejected ideas. Rejections are valuable project memory.
-- Store secrets, API keys, private credentials, or exchange account details in the wiki.
+При первом упоминании важного технического термина используем русский текст и английский термин в скобках: `журнал событий (event journal)`, `детерминированное воспроизведение (deterministic replay)`, `источник истины (source of truth)`.
 
-## Automation Workflow
+Не нужно делать bilingual-дублирование каждого раздела. Это увеличит стоимость поддержки.
 
-When processing a new source:
+## Правила Качества
 
-1. Create a raw source note in `knowledge/raw/sources/`.
-2. Extract claims, assumptions, decisions, and open questions.
-3. Update or create synthesized pages in `knowledge/wiki/`.
-4. Add links from affected pages to the raw source note.
-5. Update `knowledge/index.md`.
-6. Append a dated entry to `knowledge/log.md`.
-7. Run `scripts/kb_health_check.ps1`.
+Codex обязан:
 
-When answering an architectural question:
+- Разделять факты, допущения, мнения и решения.
+- Ссылаться на raw source notes или канонические project files.
+- Помечать неопределенные утверждения через `confidence: low` или явную оговорку.
+- Обновлять `knowledge/index.md` после каждого knowledge-base edit.
+- Добавлять запись в `knowledge/log.md` после каждого ingest, query synthesis, lint pass или крупной переработки.
+- Предпочитать небольшие сфокусированные страницы большим монолитным заметкам.
+- Создавать cross-links через relative Markdown links.
+- Сохранять противоречивые утверждения, а не молча перетирать их.
 
-1. Read `knowledge/index.md`.
-2. Read the relevant wiki pages.
-3. If the answer creates a reusable synthesis, file it as a wiki page.
-4. Update `knowledge/log.md`.
+Codex не должен:
 
-When linting the wiki:
+- Считать model output источником истины.
+- Переписывать immutable raw sources.
+- Повышать hypothesis до decision без явной decision page.
+- Прятать rejected ideas. Отклонения являются ценной project memory.
+- Сохранять secrets, API keys, private credentials или exchange account details в wiki.
 
-1. Check for missing frontmatter.
-2. Check for missing index entries.
-3. Check for stale `updated` dates.
-4. Check for orphan pages.
-5. Check for unresolved contradictions or low-confidence claims that need source work.
+## Workflow Автоматизации
+
+При обработке нового источника:
+
+1. Создать raw source note в `knowledge/raw/sources/`.
+2. Извлечь claims, assumptions, decisions и open questions.
+3. Обновить или создать synthesized pages в `knowledge/wiki/`.
+4. Добавить ссылки из затронутых страниц на raw source note.
+5. Обновить `knowledge/index.md`.
+6. Добавить dated entry в `knowledge/log.md`.
+7. Запустить `scripts/kb_health_check.ps1`.
+
+При ответе на архитектурный вопрос:
+
+1. Прочитать `knowledge/index.md`.
+2. Прочитать релевантные wiki pages.
+3. Если ответ создает reusable synthesis, оформить его как wiki page.
+4. Обновить `knowledge/log.md`.
+
+При linting wiki:
+
+1. Проверить missing frontmatter.
+2. Проверить missing index entries.
+3. Проверить stale `updated` dates.
+4. Проверить orphan pages.
+5. Проверить unresolved contradictions или low-confidence claims, которым нужны источники.
 
 ## Naming Conventions
 
-Use lowercase kebab-case filenames:
+Используем lowercase kebab-case filenames:
 
 - `concept-probability-basis.md`
 - `decision-first-mvp.md`
@@ -94,7 +112,7 @@ Use lowercase kebab-case filenames:
 
 ## Source Identifiers
 
-Use stable IDs:
+Используем stable IDs:
 
 - `karpathy-llm-wiki-2026-04-04`
 - `project-review-2026-05-19`

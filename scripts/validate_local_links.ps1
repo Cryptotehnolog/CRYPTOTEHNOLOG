@@ -35,7 +35,12 @@ function Resolve-MarkdownTarget {
 }
 
 $markdownFiles = Get-ChildItem -Path $root -Recurse -Filter "*.md" -File |
-    Where-Object { $_.FullName -notlike "*\.git\*" -and $_.FullName -notlike "*\target\*" }
+    Where-Object {
+        $_.FullName -notlike "*\.git\*" -and
+        $_.FullName -notlike "*\target\*" -and
+        $_.FullName -notlike "*\knowledge\.obsidian\*" -and
+        $_.FullName -notmatch "\\knowledge\\20\d\d-\d\d-\d\d\.md$"
+    }
 
 $linkPattern = '(?<!\!)\[[^\]]+\]\(([^)\s]+)(?:\s+"[^"]*")?\)'
 
@@ -69,4 +74,3 @@ if ($failures.Count -gt 0) {
 }
 
 Write-Output "Local Markdown link validation passed. Checked $($markdownFiles.Count) Markdown files."
-

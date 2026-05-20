@@ -14,7 +14,7 @@ url: https://example.com
 
 ## Summary
 
-Short paraphrased summary.
+Краткое paraphrased summary.
 
 ## Key Takeaways
 
@@ -23,7 +23,7 @@ Short paraphrased summary.
 
 ## Project Impact
 
-How this source changes CRYPTOTEHNOLOG.
+Как этот source меняет CRYPTOTEHNOLOG.
 
 ## Open Questions
 

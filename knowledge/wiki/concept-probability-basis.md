@@ -9,11 +9,11 @@ sources:
 
 # Probability Basis
 
-Probability basis is the current research framing for comparing Deribit option-implied event probabilities against Polymarket prediction-market prices.
+Probability basis - текущая research-формулировка для сравнения event probabilities, подразумеваемых опционами Deribit, с ценами prediction markets на Polymarket.
 
-This is not yet called arbitrage. The spread may reflect real costs and risks:
+Пока это не называется arbitrage. Спред может отражать реальные costs и risks:
 
-- different settlement definitions,
+- разные settlement definitions,
 - expiry mismatch,
 - liquidity mismatch,
 - transaction costs,
@@ -22,11 +22,11 @@ This is not yet called arbitrage. The spread may reflect real costs and risks:
 - short-option tail risk,
 - prediction-market resolution risk.
 
-## MVP Question
+## Вопрос MVP
 
-Can we reliably match Deribit ETH options to Polymarket crypto events and observe a net probability spread that survives realistic costs?
+Можем ли мы надежно сопоставлять Deribit ETH options с Polymarket crypto events и наблюдать net probability spread, который переживает realistic costs?
 
-## Current Constraint
+## Текущее Ограничение
 
-The MVP is observation and replay only. It must not place live orders.
+MVP только наблюдает и воспроизводит данные (observation and replay). Он не размещает live orders.
 

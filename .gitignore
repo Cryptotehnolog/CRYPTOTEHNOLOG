@@ -10,3 +10,9 @@
 *.db
 *.sqlite
 
+# Local Obsidian workspace artifacts. The project knowledge base is versioned
+# as Markdown, but user-specific vault state should stay local.
+knowledge/.obsidian/
+knowledge/*.canvas
+knowledge/*.base
+knowledge/20??-??-??.md

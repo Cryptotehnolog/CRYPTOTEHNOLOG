@@ -7,24 +7,24 @@ sources:
   - karpathy-llm-wiki-2026-04-04
 ---
 
-# Risk: Automation Quality
+# Риск: Качество Автоматизации
 
-Fully automated wiki maintenance can create a false sense of confidence if generated summaries are treated as facts.
+Полностью автоматическое обслуживание wiki может создать ложное чувство уверенности, если generated summaries воспринимать как факты.
 
 ## Failure Modes
 
-- The LLM merges distinct concepts under one name.
-- Duplicate pages appear for the same concept.
-- A weak inference becomes a confident project claim.
-- Old claims survive after newer sources contradict them.
-- Important rejections disappear because only active decisions are indexed.
+- LLM объединяет разные concepts под одним названием.
+- Появляются duplicate pages для одного concept.
+- Слабый inference превращается в уверенное project claim.
+- Старые claims остаются после того, как новые sources им противоречат.
+- Важные rejections исчезают, потому что индексируются только active decisions.
 
 ## Mitigation
 
-- Keep raw source notes immutable.
-- Require frontmatter with `confidence` and `status`.
-- Keep rejected and superseded pages indexed.
-- Preserve contradictions explicitly.
-- Run health checks after each ingest.
-- Treat the wiki as project memory, not as runtime truth for trading.
+- Держать raw source notes immutable.
+- Требовать frontmatter с `confidence` и `status`.
+- Индексировать rejected и superseded pages.
+- Явно сохранять contradictions.
+- Запускать health checks после каждого ingest.
+- Считать wiki project memory, а не runtime truth для trading.
 

@@ -9,27 +9,29 @@ sources:
 
 # Workflow: Wiki Health Check
 
-The wiki must be checked periodically so automated maintenance does not accumulate quiet errors.
+Wiki нужно периодически проверять, чтобы automated maintenance не накапливал тихие ошибки.
 
 ## Checks
 
-- Every managed Markdown page has YAML frontmatter.
-- Every wiki page is linked from `knowledge/index.md`.
-- Every knowledge edit appends to `knowledge/log.md`.
-- Local Markdown links resolve to existing files.
-- Low-confidence pages are easy to find.
-- Rejected and superseded pages remain visible.
-- Contradictions are documented instead of erased.
+- У каждой managed Markdown page есть YAML frontmatter.
+- Каждая wiki page связана из `knowledge/index.md`.
+- Каждое knowledge edit добавляет запись в `knowledge/log.md`.
+- Local Markdown links указывают на существующие файлы.
+- Low-confidence pages легко найти.
+- Rejected и superseded pages остаются видимыми.
+- Contradictions документируются, а не стираются.
+
+Managed pages - это `knowledge/schema.md`, `knowledge/index.md`, `knowledge/log.md`, а также Markdown-файлы в `knowledge/raw/`, `knowledge/wiki/` и `knowledge/templates/`. Личные Obsidian notes вне этих путей не валидируются этим скриптом.
 
 ## Pre-Commit Policy
 
-`scripts/kb_health_check.ps1` is allowed to run in a Git pre-commit hook. Therefore it must remain fast, local, deterministic, and network-free.
+`scripts/kb_health_check.ps1` разрешен в Git pre-commit hook. Поэтому он должен оставаться fast, local, deterministic и network-free.
 
-`scripts/validate_local_links.ps1` validates only local Markdown links. It is included in CI and `scripts/check_all.ps1`, but is not currently installed in the pre-commit hook.
+`scripts/validate_local_links.ps1` проверяет только local Markdown links. Он включен в CI и `scripts/check_all.ps1`, но сейчас не установлен в pre-commit hook.
 
-It must not call:
+Он не должен вызывать:
 
-- LLMs,
+- LLM,
 - external APIs,
 - external URL validators,
 - Docker,
@@ -37,8 +39,8 @@ It must not call:
 - long-running audits,
 - heavy test suites.
 
-If a knowledge-base check needs network access, LLM judgment, external URL validation, or heavy computation, it must be implemented as a separate CI/manual audit script instead of being added to `kb_health_check.ps1`.
+Если knowledge-base check требует network access, LLM judgment, external URL validation или heavy computation, его нужно реализовать как отдельный CI/manual audit script, а не добавлять в `kb_health_check.ps1`.
 
-## Frequency
+## Частота
 
-Run after every source ingest and before major architecture changes.
+Запускать после каждого source ingest и перед крупными architecture changes.

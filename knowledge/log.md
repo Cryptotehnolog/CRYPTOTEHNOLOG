@@ -6,34 +6,42 @@ updated: 2026-05-20
 sources: []
 ---
 
-# Knowledge Base Log
+# Журнал Базы Знаний
 
 ## [2026-05-20] ingest | Karpathy LLM Wiki
 
-Created the CRYPTOTEHNOLOG knowledge-base structure from Karpathy's LLM Wiki pattern:
+Создана структура базы знаний CRYPTOTEHNOLOG по паттерну Karpathy LLM Wiki:
 
-- added immutable raw source note,
-- added schema and operating rules,
-- added index and append-only log,
-- added initial concept, workflow, decision, and risk pages,
-- added health-check script.
+- добавлен immutable raw source note,
+- добавлены schema и operating rules,
+- добавлены index и append-only log,
+- добавлены стартовые concept, workflow, decision и risk pages,
+- добавлен health-check script.
 
 ## [2026-05-20] automation | CI and source ingest
 
-Added GitHub Actions CI for Rust checks and knowledge-base health checks. Added `scripts/new_source_note.ps1` to create raw source notes with stable source IDs, frontmatter, index entries, log entries, and immediate health-check validation.
+Добавлен GitHub Actions CI для Rust checks и knowledge-base health checks. Добавлен `scripts/new_source_note.ps1`, который создает raw source notes со stable source IDs, frontmatter, index entries, log entries и immediate health-check validation.
 
 ## [2026-05-20] workflow | Codex and Obsidian usage
 
-Documented how Codex should read and update the wiki during engineering work, and how Obsidian should be used as a Markdown vault interface without becoming a runtime dependency.
+Задокументировано, как Codex должен читать и обновлять wiki во время engineering work, и как Obsidian используется как Markdown vault interface без превращения в runtime dependency.
 
 ## [2026-05-20] automation | Agent rules and pre-commit policy
 
-Added root `AGENTS.md` rules for AI agents. Added a Git hook installer and documented that pre-commit knowledge checks must remain fast, local, deterministic, and network-free.
+Добавлен root `AGENTS.md` с правилами для AI agents. Добавлен Git hook installer и задокументировано, что pre-commit knowledge checks должны оставаться fast, local, deterministic и network-free.
 
 ## [2026-05-20] automation | Local checks
 
-Added local Markdown link validation and `scripts/check_all.ps1` for the fast local check set. The link checker validates local Markdown targets only and is included in CI, but not in pre-commit.
+Добавлена local Markdown link validation и `scripts/check_all.ps1` для fast local check set. Link checker валидирует только local Markdown targets и включен в CI, но не в pre-commit.
 
 ## [2026-05-20] automation | Development status
 
-Added `scripts/dev_status.ps1` as a read-only session-start diagnostic for Git status, last commit, remotes, CI workflow presence, pre-commit hook presence, and core tool versions.
+Добавлен `scripts/dev_status.ps1` как read-only session-start diagnostic для Git status, last commit, remotes, CI workflow presence, pre-commit hook presence и core tool versions.
+
+## [2026-05-20] documentation | Russian language policy
+
+Проектная документация переведена на русский язык по варианту B: русский основной текст, английские technical terms сохраняются в скобках или как code/config/API contracts. Language policy добавлена в `AGENTS.md` и `knowledge/schema.md`.
+
+## [2026-05-20] workflow | Obsidian local artifacts
+
+После подключения Obsidian уточнено, что `.obsidian/`, `.canvas`, `.base` и daily notes являются user-specific локальными artifacts. Git игнорирует их, а `kb_health_check.ps1` проверяет только managed knowledge files.

@@ -9,7 +9,7 @@ param(
 
     [string] $Created = "",
 
-    [string] $Summary = "TODO: Add paraphrased summary.",
+    [string] $Summary = "TODO: Добавить краткое paraphrased summary.",
 
     [string[]] $Takeaways = @()
 )
@@ -63,7 +63,7 @@ if (Test-Path $sourcePath) {
 $takeawayLines = if ($Takeaways.Count -gt 0) {
     ($Takeaways | ForEach-Object { "- $_" }) -join "`n"
 } else {
-    "- TODO: Add key takeaway."
+    "- TODO: Добавить key takeaway."
 }
 
 $titleYaml = Escape-Yaml -Value $Title
@@ -94,11 +94,11 @@ $takeawayLines
 
 ## Project Impact
 
-TODO: Explain how this source changes CRYPTOTEHNOLOG.
+TODO: Объяснить, как этот source меняет CRYPTOTEHNOLOG.
 
 ## Open Questions
 
-- TODO: Add unresolved questions.
+- TODO: Добавить unresolved questions.
 "@
 
 Set-Content -LiteralPath $sourcePath -Value $content -Encoding utf8NoBOM
@@ -121,4 +121,3 @@ Add-Content -LiteralPath $logPath -Value $logEntry -Encoding utf8NoBOM
 & $healthCheck
 
 Write-Output "Created source note: $sourcePath"
-

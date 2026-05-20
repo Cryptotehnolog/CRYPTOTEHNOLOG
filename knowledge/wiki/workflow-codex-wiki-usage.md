@@ -7,28 +7,28 @@ sources:
   - karpathy-llm-wiki-2026-04-04
 ---
 
-# Workflow: Codex Wiki Usage
+# Workflow: Использование Wiki В Codex
 
-Codex should use the knowledge base as persistent project memory.
+Codex должен использовать базу знаний как постоянную project memory.
 
-## Before Coding
+## Перед Кодом
 
-For architecture, strategy, market-data, risk, or research changes, Codex should:
+Перед изменениями в architecture, strategy, market-data, risk или research Codex должен:
 
-1. Read `knowledge/index.md`.
-2. Open the relevant pages in `knowledge/wiki/`.
-3. Check for active decisions, rejected ideas, and low-confidence assumptions.
-4. Use the wiki to avoid repeating old debates or reintroducing rejected designs.
+1. Прочитать `knowledge/index.md`.
+2. Открыть релевантные страницы в `knowledge/wiki/`.
+3. Проверить active decisions, rejected ideas и low-confidence assumptions.
+4. Использовать wiki, чтобы не повторять старые дебаты и не возвращать rejected designs.
 
-Small mechanical edits do not require a full wiki read.
+Мелкие mechanical edits не требуют полного wiki read.
 
-## While Coding
+## Во Время Кода
 
-Codex should treat the wiki as guidance, not executable truth. Runtime behavior must come from code, tests, configs, migrations, and explicit human-approved parameters.
+Codex должен считать wiki guidance, а не executable truth. Runtime behavior должен приходить из code, tests, configs, migrations и explicit human-approved parameters.
 
-## After Coding
+## После Кода
 
-Codex should update the wiki when the work creates durable knowledge:
+Codex должен обновлять wiki, когда работа создает durable knowledge:
 
 - architecture decisions,
 - strategy assumptions,
@@ -38,9 +38,9 @@ Codex should update the wiki when the work creates durable knowledge:
 - rejected designs,
 - automation opportunities.
 
-Every knowledge update should also update `knowledge/index.md` and append to `knowledge/log.md`.
+Каждое knowledge update также должно обновлять `knowledge/index.md` и добавлять запись в `knowledge/log.md`.
 
-## Boundary
+## Граница
 
-The wiki must not become an execution dependency. No deterministic trading service should query Obsidian, Markdown pages, or LLM-generated summaries while making live risk or execution decisions.
+Wiki не должна становиться execution dependency. Ни один deterministic trading service не должен читать Obsidian, Markdown pages или LLM-generated summaries при принятии live risk или execution decisions.
 

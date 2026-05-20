@@ -9,13 +9,13 @@ sources:
 
 # LLM Wiki
 
-An LLM Wiki is a persistent, interlinked Markdown knowledge base maintained by an LLM agent.
+LLM Wiki - это постоянная связанная Markdown-база знаний, которую поддерживает LLM agent.
 
-It differs from basic RAG because the LLM does not only retrieve raw chunks at query time. It progressively compiles knowledge into stable pages, updates summaries, creates cross-links, records contradictions, and keeps an index and log.
+Она отличается от базового RAG тем, что LLM не просто достает raw chunks во время запроса. Она постепенно компилирует знания в стабильные страницы, обновляет summaries, создает cross-links, фиксирует contradictions и поддерживает index и log.
 
-## CRYPTOTEHNOLOG Adaptation
+## Адаптация Для CRYPTOTEHNOLOG
 
-For this project, the wiki should preserve:
+В этом проекте wiki должна сохранять:
 
 - architecture decisions,
 - market API findings,
@@ -26,7 +26,7 @@ For this project, the wiki should preserve:
 - rejected ideas,
 - future automation opportunities.
 
-## Boundary
+## Граница
 
-The wiki can advise development and research. It must not feed live trading decisions directly.
+Wiki может помогать разработке и research. Она не должна напрямую кормить live trading decisions.
 

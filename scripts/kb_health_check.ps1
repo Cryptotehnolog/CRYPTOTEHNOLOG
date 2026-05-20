@@ -23,11 +23,26 @@ if (!(Test-Path $log)) {
     throw "Missing knowledge log: $log"
 }
 
-$markdownFiles = Get-ChildItem -Path $knowledge -Recurse -Filter "*.md" -File
+$managedMarkdownFiles = @(
+    (Join-Path $knowledge "schema.md"),
+    (Join-Path $knowledge "index.md"),
+    (Join-Path $knowledge "log.md")
+)
+
+$managedMarkdownFiles += Get-ChildItem -Path (Join-Path $knowledge "wiki") -Recurse -Filter "*.md" -File |
+    ForEach-Object { $_.FullName }
+
+$managedMarkdownFiles += Get-ChildItem -Path (Join-Path $knowledge "raw") -Recurse -Filter "*.md" -File |
+    ForEach-Object { $_.FullName }
+
+$managedMarkdownFiles += Get-ChildItem -Path (Join-Path $knowledge "templates") -Recurse -Filter "*.md" -File |
+    ForEach-Object { $_.FullName }
+
 $failures = New-Object System.Collections.Generic.List[string]
 $indexText = Get-Content -LiteralPath $index -Raw
 
-foreach ($file in $markdownFiles) {
+foreach ($filePath in $managedMarkdownFiles) {
+    $file = Get-Item -LiteralPath $filePath
     $text = Get-Content -LiteralPath $file.FullName -Raw
     if (!$text.StartsWith("---`n") -and !$text.StartsWith("---`r`n")) {
         $failures.Add("Missing YAML frontmatter: $($file.FullName)")
@@ -47,4 +62,4 @@ if ($failures.Count -gt 0) {
     throw "Knowledge base health check failed with $($failures.Count) issue(s)."
 }
 
-Write-Output "Knowledge base health check passed. Checked $($markdownFiles.Count) Markdown files."
+Write-Output "Knowledge base health check passed. Checked $($managedMarkdownFiles.Count) managed Markdown files."

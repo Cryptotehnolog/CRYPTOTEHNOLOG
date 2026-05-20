@@ -9,33 +9,41 @@ sources:
 
 # Workflow: Obsidian
 
-Obsidian can be used as the human interface for the CRYPTOTEHNOLOG knowledge base.
+Obsidian используется как human interface для базы знаний CRYPTOTEHNOLOG.
 
 ## Setup
 
-Open this folder as an Obsidian vault:
+Открыть эту папку как Obsidian vault:
 
 ```text
 D:\CRYPTOTEHNOLOG\knowledge
 ```
 
-The vault is plain Markdown, so all notes remain versioned in Git and readable without Obsidian.
+Vault остается plain Markdown, поэтому все notes версионируются в Git и читаются без Obsidian.
 
-## Recommended Use
+## Рекомендуемое Использование
 
-Use Obsidian for:
+Использовать Obsidian для:
 
 - graph navigation,
 - backlinks,
-- reviewing project memory,
-- finding stale assumptions,
-- reading raw sources and synthesized pages side by side.
+- review project memory,
+- поиска stale assumptions,
+- чтения raw sources и synthesized pages рядом.
 
-## Not Recommended
+## Не Рекомендуется
 
-Do not make Obsidian plugins, local graph state, or UI metadata required for builds, tests, trading, or CI.
+Не делать Obsidian plugins, local graph state или UI metadata обязательными для builds, tests, trading или CI.
 
 ## Git Boundary
 
-Obsidian may create local `.obsidian/` settings. Those settings are user-specific and should only be committed if we intentionally decide to share a vault configuration.
+Obsidian может создать локальные `.obsidian/` settings, `.canvas`, `.base` и daily notes. Эти файлы user-specific и сейчас игнорируются Git через `.gitignore`.
 
+Codex-managed knowledge files остаются в:
+
+- `knowledge/schema.md`,
+- `knowledge/index.md`,
+- `knowledge/log.md`,
+- `knowledge/raw/`,
+- `knowledge/wiki/`,
+- `knowledge/templates/`.

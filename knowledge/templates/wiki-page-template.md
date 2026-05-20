@@ -8,15 +8,15 @@ sources: []
 
 # Page Title
 
-Short definition.
+Краткое определение.
 
 ## Current Understanding
 
-What we know.
+Что мы знаем.
 
 ## Project Impact
 
-Why it matters.
+Почему это важно.
 
 ## Open Questions
 

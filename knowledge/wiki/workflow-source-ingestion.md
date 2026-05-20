@@ -9,20 +9,20 @@ sources:
 
 # Workflow: Source Ingestion
 
-When Codex processes a new source, it must create durable project memory rather than leaving the source analysis in chat.
+Когда Codex обрабатывает новый source, он должен создавать долговременную project memory, а не оставлять анализ источника в чате.
 
 ## Steps
 
-1. Create a raw source note in `knowledge/raw/sources/`.
-2. Extract reusable claims, decisions, risks, and open questions.
-3. Update relevant wiki pages.
-4. Create new focused pages when the concept is reusable.
-5. Add source links to affected pages.
-6. Update `knowledge/index.md`.
-7. Append to `knowledge/log.md`.
-8. Run `scripts/kb_health_check.ps1`.
+1. Создать raw source note в `knowledge/raw/sources/`.
+2. Извлечь reusable claims, decisions, risks и open questions.
+3. Обновить релевантные wiki pages.
+4. Создать новые focused pages, если concept переиспользуемый.
+5. Добавить source links на затронутые pages.
+6. Обновить `knowledge/index.md`.
+7. Добавить запись в `knowledge/log.md`.
+8. Запустить `scripts/kb_health_check.ps1`.
 
-## Output Quality
+## Качество Output
 
-Each synthesis page should make clear what is fact, what is inference, and what remains unverified.
+Каждая synthesis page должна явно отделять facts, inference и то, что остается unverified.
 
