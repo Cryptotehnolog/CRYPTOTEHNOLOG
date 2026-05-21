@@ -339,3 +339,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] implementation | Event journal read persistence boundary
 
 Добавлен read-only storage-row boundary для `event_journal`: `EventJournalReplayQuery`, `EventJournalRowReader`, `InMemoryEventJournalRowReader` и helper `read_market_events_for_replay_from_rows()`. `PostgresEventJournalAdapter` теперь фиксирует future replay `SELECT` contract без real DB connector. Manual `Network integration` workflow дополнен artifact `phase0-daily-report`.
+
+## [2026-05-21] hardening | Postgres event journal reader skeleton and daily report warnings
+
+Добавлен feature-gated `PostgresEventJournalReader` skeleton с `connection_label`, `select_replay_sql()` и controlled `JournalErrorKind::Storage` без реального PostgreSQL connector. `scripts/run_phase0_daily_report.ps1` теперь добавляет warning, если Phase 0 pipeline reports содержат scenarios со статусом не `ok`.

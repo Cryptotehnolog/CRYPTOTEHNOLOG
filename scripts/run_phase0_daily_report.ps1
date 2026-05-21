@@ -96,9 +96,16 @@ foreach ($file in $artifactFiles) {
     }
 }
 
+$phase0PipelineErrorCount = @($phase0PipelineReports | Where-Object { $_.status -ne "ok" }).Count
+$warnings = @()
+if ($phase0PipelineErrorCount -gt 0) {
+    $warnings += "Phase 0 pipeline has $phase0PipelineErrorCount scenario(s) with non-ok status. Check phase0_pipeline.reports for controlled failure paths."
+}
+
 $report = [pscustomobject]@{
     schema_version = 1
     generated_at_utc = (Get-Date).ToUniversalTime().ToString("o")
+    warnings = $warnings
     replay = [pscustomobject]@{
         scenario_count = $replayReports.Count
         matched_count = ($replayReports | Measure-Object -Property matched_count -Sum).Sum
@@ -115,7 +122,7 @@ $report = [pscustomobject]@{
     phase0_pipeline = [pscustomobject]@{
         scenario_count = $phase0PipelineReports.Count
         ok_count = @($phase0PipelineReports | Where-Object { $_.status -eq "ok" }).Count
-        error_count = @($phase0PipelineReports | Where-Object { $_.status -ne "ok" }).Count
+        error_count = $phase0PipelineErrorCount
         raw_events = ($phase0PipelineReports | Measure-Object -Property raw_events -Sum).Sum
         normalized_events = ($phase0PipelineReports | Measure-Object -Property normalized_events -Sum).Sum
         observations = ($phase0PipelineReports | Measure-Object -Property observations -Sum).Sum
@@ -131,11 +138,21 @@ $markdown = New-Object System.Collections.Generic.List[string]
 $markdown.Add("# Phase 0 Daily Report")
 $markdown.Add("")
 $markdown.Add("- Generated UTC: $($report.generated_at_utc)")
+$markdown.Add("- Warnings: $($report.warnings.Count)")
 $markdown.Add("- Replay scenarios: $($report.replay.scenario_count)")
 $markdown.Add("- Replay matched/rejected: $($report.replay.matched_count)/$($report.replay.rejected_count)")
 $markdown.Add("- Ingestion scenarios: $($report.ingestion.scenario_count)")
 $markdown.Add("- Ingestion accepted/rejected normalized events: $($report.ingestion.normalized_events_accepted)/$($report.ingestion.normalized_events_rejected)")
 $markdown.Add("- Phase 0 pipeline scenarios ok/error: $($report.phase0_pipeline.ok_count)/$($report.phase0_pipeline.error_count)")
+$markdown.Add("")
+if ($report.warnings.Count -gt 0) {
+    $markdown.Add("## Warnings")
+    $markdown.Add("")
+    foreach ($warning in $report.warnings) {
+        $markdown.Add("- $warning")
+    }
+    $markdown.Add("")
+}
 $markdown.Add("")
 $markdown.Add("## Replay Reports")
 $markdown.Add("")

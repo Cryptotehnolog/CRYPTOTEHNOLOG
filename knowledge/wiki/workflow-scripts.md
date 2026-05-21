@@ -196,7 +196,7 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 
 Скрипт читает replay golden JSON reports, ingestion semantic reports, Phase 0 pipeline reports из `fixtures/phase0_pipeline/` и последние network/live probe artifacts из `artifacts/`.
 
-Для Phase 0 pipeline reports он показывает status-aware summary: `ok`/`error`, counts по этапам и `error_stage` для controlled failures.
+Для Phase 0 pipeline reports он показывает status-aware summary: `ok`/`error`, counts по этапам и `error_stage` для controlled failures. Если хотя бы один Phase 0 pipeline scenario имеет status не `ok`, JSON и Markdown daily report добавляют warning, чтобы controlled failure path был виден в manual artifact без чтения всех rows.
 
 Скрипт пишет:
 

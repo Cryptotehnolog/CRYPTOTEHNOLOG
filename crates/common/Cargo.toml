@@ -11,6 +11,7 @@ path = "src/lib.rs"
 
 [features]
 default = []
+postgres-reader = []
 postgres-writer = []
 
 [dependencies]

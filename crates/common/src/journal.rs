@@ -429,6 +429,42 @@ impl EventJournalRowWriter for PostgresEventJournalWriter {
     }
 }
 
+#[cfg(feature = "postgres-reader")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PostgresEventJournalReader {
+    connection_label: String,
+}
+
+#[cfg(feature = "postgres-reader")]
+impl PostgresEventJournalReader {
+    pub fn new(connection_label: impl Into<String>) -> Self {
+        Self {
+            connection_label: connection_label.into(),
+        }
+    }
+
+    pub fn connection_label(&self) -> &str {
+        &self.connection_label
+    }
+
+    pub fn select_replay_sql(&self) -> &'static str {
+        PostgresEventJournalAdapter::select_replay_sql()
+    }
+}
+
+#[cfg(feature = "postgres-reader")]
+impl EventJournalRowReader for PostgresEventJournalReader {
+    fn read_event_journal_rows(
+        &self,
+        _query: &EventJournalReplayQuery,
+    ) -> Result<Vec<EventJournalRow>, JournalError> {
+        Err(JournalError::new(
+            JournalErrorKind::Storage,
+            "postgres event journal reader is a Phase 0 skeleton without database connector",
+        ))
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct InMemoryEventJournal {
     raw_deribit_events: Vec<RawDeribitEvent>,
@@ -897,6 +933,31 @@ mod tests {
 
         let row = EventJournalRow::from_market_event(&polymarket_quote("poly-quote-1", 2000));
         let error = writer.append_event_journal_row(row).unwrap_err();
+
+        assert_eq!(error.kind, JournalErrorKind::Storage);
+        assert!(error.message.contains("Phase 0 skeleton"));
+    }
+
+    #[cfg(feature = "postgres-reader")]
+    #[test]
+    fn postgres_event_journal_reader_is_feature_gated_skeleton() {
+        let reader = PostgresEventJournalReader::new("phase0-local");
+        assert_eq!(reader.connection_label(), "phase0-local");
+        assert_eq!(
+            reader.select_replay_sql(),
+            PostgresEventJournalAdapter::select_replay_sql()
+        );
+
+        let query = EventJournalReplayQuery::from_filter(ReplayEventFilter {
+            start_ts_ms: 0,
+            end_ts_ms: 1_000,
+            event_types: vec![],
+            instrument_ids: vec![],
+            config_version: None,
+        });
+        let error = reader
+            .read_event_journal_rows(&query)
+            .expect_err("reader skeleton should not connect to PostgreSQL");
 
         assert_eq!(error.kind, JournalErrorKind::Storage);
         assert!(error.message.contains("Phase 0 skeleton"));

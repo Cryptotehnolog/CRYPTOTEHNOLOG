@@ -75,6 +75,8 @@ Real PostgreSQL writer намеренно не добавлен в этой ит
 
 `EventJournalRowReader` и `read_market_events_for_replay_from_rows()` позволяют читать persisted rows и восстанавливать normalized `MarketEvent` для matcher без live DB connection. Это intentionally offline boundary: default tests используют `InMemoryEventJournalRowReader`, а `PostgresEventJournalAdapter::select_replay_sql()` фиксирует SQL contract для будущего connector.
 
+`PostgresEventJournalWriter` и `PostgresEventJournalReader` feature-gated skeletons фиксируют симметричные write/read boundaries с явным `connection_label`. Они возвращают controlled `Storage` error и не подключаются к реальной PostgreSQL в default tests.
+
 Сейчас real PostgreSQL connector не реализован. Это защищает default CI от внешней БД и async runtime, но уже проверяет, что replay можно строить от persisted row shape, а не только от in-memory domain structs.
 
 ## Adapter Traits
