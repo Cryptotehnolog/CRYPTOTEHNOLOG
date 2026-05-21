@@ -367,3 +367,7 @@ Probability-basis matcher переведен с decisive midpoint edge на exec
 ## [2026-05-21] workflow | Manual network artifact readability
 
 Manual `Network integration` workflow теперь загружает `artifacts/live_probe_replay_trend_summary.txt` отдельным artifact `live-probe-replay-trend-summary`, чтобы trend-summary можно было открыть без распаковки общего live probe JSON artifact. В `workflow-scripts.md` добавлена короткая секция “как читать manual network artifacts”.
+
+## [2026-05-21] implementation | Polymarket CLOB executable price boundary
+
+Добавлен read-only CLOB orderbook parser boundary для Polymarket: `PolymarketClobBookQuote`, CLOB `/book?token_id=...` URL helper, payload shape `polymarket_clob_book_v1` и fixture flow `Gamma market + CLOB book -> executable bid/ask`. Gamma `outcomePrices` остаются fallback для discovery/probe, а CLOB best bid/ask теперь показывает, где появляется реальный executable spread. Добавлены fixtures `polymarket_gamma_eth_above_3000_with_clob_token.json` и `polymarket_clob_book_eth_above_3000_yes.json` плюс unit tests без network calls.

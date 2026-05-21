@@ -22,6 +22,7 @@ pub const DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION: &str = "deribit_get_instrum
 pub const DERIBIT_TICKER_PAYLOAD_SHAPE_VERSION: &str = "deribit_json_rpc_ticker_v1";
 pub const POLYMARKET_GAMMA_MARKETS_PAYLOAD_SHAPE_VERSION: &str = "polymarket_gamma_markets_v1";
 pub const POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION: &str = "polymarket_gamma_market_v1";
+pub const POLYMARKET_CLOB_BOOK_PAYLOAD_SHAPE_VERSION: &str = "polymarket_clob_book_v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IngestionSource {
@@ -1369,6 +1370,7 @@ pub struct PolymarketLiveIngestionClient {
     pub base_url: String,
     pub market_slug: String,
     pub outcome: String,
+    pub outcome_token_id: Option<String>,
     pub target_expiry_ts_ms: Option<i64>,
 }
 
@@ -1397,8 +1399,20 @@ pub struct PolymarketDiscoveredMarket {
     pub event_slug: String,
     pub question: String,
     pub outcome: String,
+    pub outcome_token_id: Option<String>,
     pub target_expiry_ts_ms: i64,
     pub liquidity_usd: f64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PolymarketClobBookQuote {
+    pub token_id: String,
+    pub market_id: Option<String>,
+    pub bid_probability: f64,
+    pub ask_probability: f64,
+    pub bid_size: Option<f64>,
+    pub ask_size: Option<f64>,
+    pub timestamp_ms: Option<i64>,
 }
 
 impl PolymarketLiveIngestionClient {
@@ -1411,6 +1425,7 @@ impl PolymarketLiveIngestionClient {
             base_url: base_url.into(),
             market_slug: market_slug.into(),
             outcome: outcome.into(),
+            outcome_token_id: None,
             target_expiry_ts_ms: None,
         }
     }
@@ -1424,7 +1439,18 @@ impl PolymarketLiveIngestionClient {
             discovered.market_slug.clone(),
             discovered.outcome.clone(),
         )
+        .with_outcome_token_id_option(discovered.outcome_token_id.clone())
         .with_target_expiry(discovered.target_expiry_ts_ms)
+    }
+
+    pub fn with_outcome_token_id(mut self, outcome_token_id: impl Into<String>) -> Self {
+        self.outcome_token_id = Some(outcome_token_id.into());
+        self
+    }
+
+    fn with_outcome_token_id_option(mut self, outcome_token_id: Option<String>) -> Self {
+        self.outcome_token_id = outcome_token_id;
+        self
     }
 
     pub fn with_target_expiry(mut self, target_expiry_ts_ms: i64) -> Self {
@@ -1445,6 +1471,28 @@ impl PolymarketLiveIngestionClient {
             self.base_url.trim_end_matches('/'),
             self.market_slug
         )
+    }
+
+    pub fn clob_book_url_for_token(base_url: &str, token_id: &str) -> String {
+        format!(
+            "{}/book?token_id={token_id}",
+            base_url.trim_end_matches('/')
+        )
+    }
+
+    pub fn clob_book_url(&self, base_url: &str) -> Result<String, IngestionError> {
+        let Some(token_id) = &self.outcome_token_id else {
+            return Err(IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Polymarket),
+                format!(
+                    "Polymarket CLOB book URL requires outcome token id for {} {}",
+                    self.market_slug, self.outcome
+                ),
+            ));
+        };
+
+        Ok(Self::clob_book_url_for_token(base_url, token_id))
     }
 
     pub fn discover_market_from_payload(
@@ -1571,6 +1619,76 @@ impl PolymarketLiveIngestionClient {
                 },
             )],
         })
+    }
+
+    pub fn parse_clob_book_payload(
+        payload_json: &str,
+    ) -> Result<PolymarketClobBookQuote, IngestionError> {
+        parse_polymarket_clob_book_payload(payload_json)
+    }
+
+    pub fn parse_gamma_market_with_clob_book_payload(
+        &self,
+        gamma_payload_json: &str,
+        clob_payload_json: &str,
+        config: &IngestionConfig,
+        received_ts_ms: i64,
+    ) -> Result<IngestionBatch, IngestionError> {
+        let mut batch =
+            self.parse_gamma_market_payload(gamma_payload_json, config, received_ts_ms)?;
+        let clob_quote = Self::parse_clob_book_payload(clob_payload_json)?;
+        if let Some(expected_token_id) = &self.outcome_token_id {
+            if &clob_quote.token_id != expected_token_id {
+                return Err(IngestionError::new(
+                    IngestionErrorKind::MalformedPayload,
+                    Some(IngestionSource::Polymarket),
+                    format!(
+                        "Polymarket CLOB token mismatch: expected {}, got {}",
+                        expected_token_id, clob_quote.token_id
+                    ),
+                ));
+            }
+        }
+
+        let exchange_ts_ms = clob_quote.timestamp_ms.unwrap_or(received_ts_ms);
+        let raw_meta = EventMeta {
+            event_id: format!(
+                "raw-polymarket-clob:{}:{}:{}",
+                self.market_slug, clob_quote.token_id, exchange_ts_ms
+            ),
+            source: "polymarket_live_skeleton".to_string(),
+            exchange_ts_ms,
+            received_ts_ms,
+            instrument_id: clob_quote.token_id.clone(),
+            schema_version: 1,
+            config_version: config.config_version.clone(),
+        };
+        batch
+            .raw_events
+            .push(RawIngestionEvent::Polymarket(RawPolymarketEvent {
+                meta: raw_meta,
+                api_layer: PolymarketApiLayer::Clob,
+                payload_json: clob_payload_json.to_string(),
+            }));
+
+        let Some(MarketEvent::PolymarketOutcomeQuote(quote)) = batch.market_events.first_mut()
+        else {
+            return Err(IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Polymarket),
+                "Polymarket Gamma batch did not produce outcome quote",
+            ));
+        };
+
+        quote.meta.event_id = format!(
+            "market-polymarket-clob:{}:{}:{}",
+            self.market_slug, self.outcome, exchange_ts_ms
+        );
+        quote.meta.exchange_ts_ms = exchange_ts_ms;
+        quote.bid_probability = clob_quote.bid_probability;
+        quote.ask_probability = clob_quote.ask_probability;
+
+        Ok(batch)
     }
 
     pub fn fetch_gamma_market_with_transport<T>(
@@ -2205,15 +2323,21 @@ fn parse_polymarket_markets_payload(
         let outcomes = parser
             .string_array_from(market, "outcomes")?
             .unwrap_or_default();
-        if !outcomes.iter().any(|outcome| outcome == &criteria.outcome) {
+        let Some(outcome_index) = outcomes
+            .iter()
+            .position(|outcome| outcome == &criteria.outcome)
+        else {
             continue;
-        }
+        };
+        let outcome_token_id =
+            polymarket_outcome_token_id_from_object(&parser, market, outcome_index)?;
 
         discovered.push(PolymarketDiscoveredMarket {
             market_slug,
             event_slug,
             question,
             outcome: criteria.outcome.clone(),
+            outcome_token_id,
             target_expiry_ts_ms: criteria.target_expiry_ts_ms,
             liquidity_usd,
         });
@@ -2304,6 +2428,89 @@ fn select_polymarket_market_candidate(
             ),
         )
     })
+}
+
+fn parse_polymarket_clob_book_payload(
+    payload_json: &str,
+) -> Result<PolymarketClobBookQuote, IngestionError> {
+    let parser =
+        JsonPayloadParser::new(payload_json, IngestionSource::Polymarket, "Polymarket CLOB")?;
+    let token_id = parser
+        .optional_string_any(&["asset_id", "token_id", "tokenId"])?
+        .ok_or_else(|| parser.missing_field("asset_id|token_id|tokenId"))?;
+    let market_id = parser.optional_string_any(&["market", "condition_id", "conditionId"])?;
+    let (bid_probability, bid_size) = polymarket_clob_best_level(&parser, "bids", "bid")?;
+    let (ask_probability, ask_size) = polymarket_clob_best_level(&parser, "asks", "ask")?;
+    if bid_probability > ask_probability {
+        return Err(IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Polymarket),
+            format!(
+                "Polymarket CLOB bid/ask crossed: bid {} > ask {}",
+                bid_probability, ask_probability
+            ),
+        ));
+    }
+    let timestamp_ms = parser.optional_i64_any(&["timestamp_ms", "timestampMillis"])?;
+
+    Ok(PolymarketClobBookQuote {
+        token_id,
+        market_id,
+        bid_probability,
+        ask_probability,
+        bid_size,
+        ask_size,
+        timestamp_ms,
+    })
+}
+
+fn polymarket_clob_best_level(
+    parser: &JsonPayloadParser,
+    levels_key: &str,
+    side_name: &str,
+) -> Result<(f64, Option<f64>), IngestionError> {
+    let levels = parser.array_at(&[levels_key]).ok_or_else(|| {
+        IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Polymarket),
+            format!("missing Polymarket CLOB `{levels_key}` array"),
+        )
+    })?;
+    let Some(best_level) = levels.first() else {
+        return Err(IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Polymarket),
+            format!("empty Polymarket CLOB `{levels_key}` array"),
+        ));
+    };
+    let price = parser.f64_from(best_level, "price")?;
+    if !(0.0..=1.0).contains(&price) {
+        return Err(IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Polymarket),
+            format!("invalid Polymarket CLOB {side_name} price: {price}"),
+        ));
+    }
+    let size = parser.optional_f64_from(best_level, "size")?;
+    Ok((price, size))
+}
+
+fn polymarket_outcome_token_id_from_object(
+    parser: &JsonPayloadParser,
+    object: &Value,
+    outcome_index: usize,
+) -> Result<Option<String>, IngestionError> {
+    for key in ["clobTokenIds", "clob_token_ids", "tokenIds"] {
+        if let Some(token_ids) = parser.string_array_from(object, key)? {
+            return Ok(token_ids.get(outcome_index).cloned());
+        }
+    }
+
+    if let Some(token_id) = parser.optional_string_from(object, "token_id")? {
+        return Ok(Some(token_id));
+    }
+
+    parser.optional_string_from(object, "tokenId")
 }
 
 fn first_nested_string_from_value(
@@ -3588,6 +3795,23 @@ mod tests {
     }
 
     #[test]
+    fn polymarket_live_skeleton_builds_clob_book_url_without_network() {
+        let client = PolymarketLiveIngestionClient::new(
+            "https://gamma-api.polymarket.com",
+            "eth-above-3000-june-1",
+            "Yes",
+        )
+        .with_outcome_token_id("1234567890");
+
+        assert_eq!(
+            client
+                .clob_book_url("https://clob.polymarket.com/")
+                .expect("token id should build CLOB book URL"),
+            "https://clob.polymarket.com/book?token_id=1234567890"
+        );
+    }
+
+    #[test]
     fn polymarket_live_skeleton_parses_fixture_payload_without_network() {
         let client = PolymarketLiveIngestionClient::new(
             "https://gamma-api.polymarket.com",
@@ -3656,6 +3880,64 @@ mod tests {
         assert_eq!(quote.bid_probability, 0.51);
         assert_eq!(quote.ask_probability, 0.51);
         assert_eq!(quote.liquidity_usd, 10_000.0);
+    }
+
+    #[test]
+    fn polymarket_live_skeleton_parses_gamma_plus_clob_book_fixture_without_network() {
+        let client = PolymarketLiveIngestionClient::new(
+            "https://gamma-api.polymarket.com",
+            "eth-above-3000-june-1",
+            "Yes",
+        )
+        .with_outcome_token_id("1234567890");
+        let gamma_payload = std::fs::read_to_string(fixture_path(
+            "polymarket_gamma_eth_above_3000_with_clob_token.json",
+        ))
+        .expect("Gamma fixture should exist");
+        let clob_payload =
+            std::fs::read_to_string(fixture_path("polymarket_clob_book_eth_above_3000_yes.json"))
+                .expect("CLOB fixture should exist");
+
+        let batch = client
+            .parse_gamma_market_with_clob_book_payload(
+                &gamma_payload,
+                &clob_payload,
+                &IngestionConfig::phase0_polymarket("https://gamma-api.polymarket.com"),
+                1_779_200_000_200,
+            )
+            .expect("Gamma + CLOB fixtures should parse");
+
+        assert_eq!(batch.source, IngestionSource::Polymarket);
+        assert_eq!(batch.raw_events.len(), 2);
+        assert_eq!(batch.market_events.len(), 1);
+        let RawIngestionEvent::Polymarket(clob_raw) = &batch.raw_events[1] else {
+            panic!("expected Polymarket CLOB raw event");
+        };
+        assert_eq!(clob_raw.api_layer, PolymarketApiLayer::Clob);
+        assert_eq!(clob_raw.meta.instrument_id, "1234567890");
+
+        let MarketEvent::PolymarketOutcomeQuote(quote) = &batch.market_events[0] else {
+            panic!("expected Polymarket outcome quote");
+        };
+        assert_eq!(quote.market_slug, "eth-above-3000-june-1");
+        assert_eq!(quote.bid_probability, 0.49);
+        assert_eq!(quote.ask_probability, 0.54);
+        assert_eq!(quote.meta.exchange_ts_ms, 1_779_200_000_100);
+    }
+
+    #[test]
+    fn polymarket_clob_book_parser_rejects_crossed_book_without_panic() {
+        let payload = r#"{
+            "asset_id": "1234567890",
+            "bids": [{ "price": "0.56", "size": "100" }],
+            "asks": [{ "price": "0.54", "size": "100" }]
+        }"#;
+
+        let error = PolymarketLiveIngestionClient::parse_clob_book_payload(payload)
+            .expect_err("crossed CLOB book should return IngestionError");
+
+        assert_eq!(error.kind, IngestionErrorKind::MalformedPayload);
+        assert!(error.message.contains("bid/ask crossed"));
     }
 
     #[test]
@@ -3739,6 +4021,7 @@ mod tests {
                 "question": "Will ETH be above $3000 on June 1?",
                 "outcomes": "[\"Yes\", \"No\"]",
                 "outcomePrices": "[\"0.51\", \"0.49\"]",
+                "clobTokenIds": "[\"1234567890\", \"0987654321\"]",
                 "liquidity": "10000",
                 "active": true,
                 "closed": false,
@@ -3755,6 +4038,7 @@ mod tests {
         assert_eq!(discovered.market_slug, "eth-above-3000-june-1");
         assert_eq!(discovered.event_slug, "eth-above-3000");
         assert_eq!(discovered.outcome, "Yes");
+        assert_eq!(discovered.outcome_token_id.as_deref(), Some("1234567890"));
         assert_eq!(discovered.liquidity_usd, 10_000.0);
     }
 

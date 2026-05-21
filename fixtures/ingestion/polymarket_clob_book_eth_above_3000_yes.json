@@ -1,0 +1,17 @@
+{
+  "market": "0xethabove3000condition",
+  "asset_id": "1234567890",
+  "timestamp_ms": 1779200000100,
+  "bids": [
+    { "price": "0.49", "size": "1000" },
+    { "price": "0.48", "size": "2500" }
+  ],
+  "asks": [
+    { "price": "0.54", "size": "800" },
+    { "price": "0.55", "size": "1500" }
+  ],
+  "min_order_size": "5",
+  "tick_size": "0.01",
+  "neg_risk": false,
+  "hash": "0xfixture"
+}

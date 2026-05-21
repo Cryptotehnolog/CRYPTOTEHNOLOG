@@ -1,0 +1,13 @@
+{
+  "slug": "eth-above-3000-june-1",
+  "question": "Will ETH be above $3000 on June 1?",
+  "outcomes": "[\"Yes\", \"No\"]",
+  "outcomePrices": "[\"0.51\", \"0.49\"]",
+  "clobTokenIds": "[\"1234567890\", \"0987654321\"]",
+  "liquidity": "10000.0",
+  "events": [
+    { "slug": "eth-above-3000" }
+  ],
+  "updatedAtMillis": "1779200000000",
+  "target_expiry_ts_ms": 1780272000000
+}

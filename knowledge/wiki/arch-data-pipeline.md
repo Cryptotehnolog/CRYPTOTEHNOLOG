@@ -130,7 +130,9 @@ BasisObservationRowWriter
 - `IngestionReport` - aggregate report поверх одного или нескольких `ValidationReport`, сгруппированный по source и rejection message.
 - `JsonPayloadParser` - JSON-aware parsing helper для fixture-shaped и real-shaped REST payloads Deribit/Polymarket; использует `serde_json`, но остается внутри parsing boundary и не делает network calls.
 - `DeribitLiveIngestionClient` - first read-only live adapter skeleton: строит `public/get_instruments` и `public/ticker` URLs, выбирает option candidate из instruments payload и парсит Deribit ticker payload, но `poll_once()` не делает network calls.
-- `PolymarketLiveIngestionClient` - first read-only Gamma adapter skeleton: строит Gamma markets и market-by-slug URLs, выбирает market candidate из markets payload и парсит Polymarket Gamma market payload, но `poll_once()` не делает network calls.
+- `PolymarketLiveIngestionClient` - first read-only Gamma/CLOB adapter skeleton: строит Gamma markets, market-by-slug и CLOB `/book?token_id=...` URLs, выбирает market candidate из Gamma markets payload, парсит Gamma market payload и может наложить CLOB best bid/ask из fixture orderbook payload, но `poll_once()` не делает network calls.
+
+Gamma `outcomePrices` остаются discovery/probe fallback: если CLOB snapshot отсутствует, ingestion может временно создать `bid_probability == ask_probability == outcomePrice`. Для executable pricing этот fallback недостаточен; CLOB best bid/ask является отдельным boundary, где впервые появляется реальный spread.
 
 Это не live API implementation. Real HTTP/WebSocket logic добавляется позже отдельным decision/code review.
 
