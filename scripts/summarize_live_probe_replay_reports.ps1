@@ -218,6 +218,16 @@ foreach ($file in $files) {
     $hasPolymarketExpiryMismatch = Select-MismatchFlag $selection.polymarket_expiry_mismatch $fallbackPolymarketExpiryMismatch
     $selectionQuality = Select-SelectionQuality $selection.selection_quality $selection.selected_deribit_instrument $selection.selected_polymarket_market_slug $hasStrikeMismatch $hasExpiryMismatch $hasPolymarketExpiryMismatch
     $basisAlignmentStatus = Select-BasisAlignmentStatus $selection.basis_alignment_status $selection.selected_deribit_instrument $selection.selected_polymarket_market_slug $hasStrikeMismatch $hasExpiryMismatch $hasPolymarketExpiryMismatch
+    $candidatePolicy = Format-OptionalValue $selection.candidate_policy
+    if ([string]::IsNullOrWhiteSpace($candidatePolicy)) {
+        if ($basisAlignmentStatus -eq "exact") {
+            $candidatePolicy = "clean_basis_candidate"
+        } elseif ($basisAlignmentStatus -eq "missing") {
+            $candidatePolicy = "missing"
+        } else {
+            $candidatePolicy = "diagnostic_only"
+        }
+    }
     $warningReasons = @()
     if ($hasStrikeMismatch) {
         $warningReasons += "strike_distance > 0"
@@ -249,6 +259,7 @@ foreach ($file in $files) {
         Report = $file.Name
         Quality = $selectionQuality
         BasisAlignment = $basisAlignmentStatus
+        CandidatePolicy = $candidatePolicy
         DeribitInstrument = Format-OptionalValue $selection.selected_deribit_instrument
         PolymarketMarket = Format-OptionalValue $selection.selected_polymarket_market_slug
         TargetExpiryDate = $targetExpiryDate
@@ -353,7 +364,7 @@ if ($mismatchRows.Count -gt 0) {
     Write-Output ""
     Write-Output "WARNING: Basis mismatch risk detected in selected candidates"
     foreach ($row in $mismatchRows) {
-        Write-Output "- $($row.Report): status=$($row.BasisAlignment); $($row.Warning) (Deribit=$($row.DeribitInstrument), Polymarket=$($row.PolymarketMarket), target_expiry_date=$($row.TargetExpiryDate), selected_expiry_date=$($row.SelectedExpiryDate), polymarket_end_date=$($row.PolymarketEndDate), strike_distance=$($row.StrikeDistance))"
+        Write-Output "- $($row.Report): status=$($row.BasisAlignment); policy=$($row.CandidatePolicy); $($row.Warning) (Deribit=$($row.DeribitInstrument), Polymarket=$($row.PolymarketMarket), target_expiry_date=$($row.TargetExpiryDate), selected_expiry_date=$($row.SelectedExpiryDate), polymarket_end_date=$($row.PolymarketEndDate), strike_distance=$($row.StrikeDistance))"
     }
 }
 

@@ -223,6 +223,8 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 
 Если live probe `basis_alignment_status` не равен `exact`, daily report добавляет warning. Это warning-only индикатор, что выбранная Deribit/Polymarket пара пока не является чистым basis candidate: например, выбран nearby Deribit expiry, есть Polymarket settlement mismatch, strike mismatch или одна из сторон отсутствует.
 
+Если live probe содержит `candidate_policy = diagnostic_only`, daily report добавляет отдельный warning. Diagnostic-only candidates можно логировать для discovery/debugging, но нельзя считать clean Phase 0 basis candidates.
+
 Для Phase 0 pipeline reports он показывает status-aware summary: `ok`/`error`, counts по этапам и `error_stage` для controlled failures. Если хотя бы один Phase 0 pipeline scenario имеет status не `ok`, JSON и Markdown daily report добавляют warning, чтобы controlled failure path был виден в manual artifact без чтения всех rows.
 
 Скрипт пишет:
@@ -348,7 +350,7 @@ Polymarket path теперь использует targeted Gamma discovery и CL
 - `config_version`,
 - `pricing_model_version`,
 - `payload_shape_versions`,
-- `selection_report` с `selection_quality`, компактным `basis_alignment_status`, `target_expiry_ts_ms`/`selected_expiry_ts_ms`, UTC `target_expiry_date`/`selected_expiry_date`, `deribit_expiry_candidates` top candidates, Polymarket-specific `selected_polymarket_end_ts_ms`/`selected_polymarket_end_date` и derived `strike_mismatch`/`expiry_mismatch`/`polymarket_expiry_mismatch` flags,
+- `selection_report` с `selection_quality`, компактным `basis_alignment_status`, `candidate_policy`, `clean_basis_candidate`, `target_expiry_ts_ms`/`selected_expiry_ts_ms`, UTC `target_expiry_date`/`selected_expiry_date`, `deribit_expiry_candidates` top candidates, Polymarket-specific `selected_polymarket_end_ts_ms`/`selected_polymarket_end_date` и derived `strike_mismatch`/`expiry_mismatch`/`polymarket_expiry_mismatch` flags,
 - `polymarket_discovery_diagnostics` - top Gamma candidates с причинами отбраковки: `terms_mismatch`, `outcome_mismatch`, `liquidity_below_min`, `inactive`, `closed`,
 - `probe_reports`,
 - `ingestion_report`,
@@ -400,7 +402,7 @@ Default pattern: `artifacts\network_connectivity_report*.json`.
 - matcher decisions и observations;
 - edge quality totals: matched, `EdgeBelowThreshold`, `MidEdgeFalsePositive`;
 - total warnings count и warning kinds, включая `WideExecutableSpread` и `BroadPolymarketGammaDiscovery`;
-- отдельную таблицу `Selected Candidates` с коротким `Quality`, `BasisAlignment`, выбранной Deribit/Polymarket парой и UTC expiry dates;
+- отдельную таблицу `Selected Candidates` с коротким `Quality`, `BasisAlignment`, `CandidatePolicy`, выбранной Deribit/Polymarket парой и UTC expiry dates;
 - блок `Polymarket Gamma candidate diagnostics`, если Gamma discovery не выбрал market или отфильтровал candidates; блок показывает `market`, rejection reasons, missing terms, liquidity, `active`/`closed` и найден ли нужный outcome;
 - блок `Deribit expiry candidates` показывает top ближайших option candidates вокруг target date: instrument, expiry date, expiry distance in days, strike distance и попадание в текущие expiry/strike windows;
 - warning, если `strike_mismatch`, `expiry_mismatch` или `polymarket_expiry_mismatch` равны `true`, потому что это basis mismatch risk; для старых reports без flags скрипт fallback-считает их из `strike_distance`, expiry timestamps и Polymarket end date;

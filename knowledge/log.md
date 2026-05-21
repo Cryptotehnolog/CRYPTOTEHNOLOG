@@ -399,3 +399,7 @@ Polymarket discovery в manual `live_probe_replay` переведен с broad f
 ## [2026-05-21] implementation | Basis alignment status in live probe reports
 
 `live_probe_replay_report.json` расширен `selection_report.basis_alignment_status`: `exact`, `deribit_expiry_nearby`, `polymarket_date_mismatch`, `strike_mismatch` или `missing`. `scripts/summarize_live_probe_replay_reports.ps1` показывает этот статус в `Selected Candidates`, а `scripts/run_phase0_daily_report.ps1` добавляет warning, если live probe alignment не `exact`, чтобы manual artifacts сразу подсвечивали, что выбранная пара пока не является чистым basis candidate.
+
+## [2026-05-21] decision | Diagnostic-only policy for non-exact basis alignment
+
+Phase 0 policy закреплена в коде и wiki: только `basis_alignment_status = exact` считается `clean_basis_candidate`. `deribit_expiry_nearby`, `polymarket_date_mismatch`, `strike_mismatch` и `missing` являются diagnostic-only/missing states. `live_probe_replay_report.json` теперь включает `candidate_policy` и `clean_basis_candidate`, а daily report добавляет warning для diagnostic-only candidates, чтобы nearby пары не попадали в clean candidate metrics или future paper/live gates.

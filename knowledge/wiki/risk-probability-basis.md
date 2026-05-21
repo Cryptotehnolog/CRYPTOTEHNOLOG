@@ -55,6 +55,8 @@ Candidate должен быть rejected, если:
 - market data stale,
 - model probability зависит от непроверенного IV assumption.
 
+В Phase 0 `deribit_expiry_nearby`, `polymarket_date_mismatch`, `strike_mismatch` и `missing` не являются чистыми basis candidates. Их можно логировать как diagnostic observations для улучшения discovery, но они не должны попадать в clean candidate metrics, paper-trading readiness или live gate.
+
 ## Cost Assumptions
 
 Все cost assumptions должны быть явными:
@@ -70,4 +72,3 @@ Candidate должен быть rejected, если:
 ## Success Condition
 
 Risk page считается актуальной, пока MVP не размещает live orders. Перед live phase нужна новая risk review page.
-

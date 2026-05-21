@@ -65,6 +65,19 @@ net_edge >= min_net_edge_probability
 
 Текущий config использует `min_net_edge_probability = 0.025`.
 
+## Phase 0 Alignment Policy
+
+В Phase 0 только `basis_alignment_status = exact` считается чистым basis candidate.
+
+Все остальные статусы являются diagnostic-only:
+
+- `deribit_expiry_nearby` - Deribit option выбран как ближайший доступный expiry, но дата не совпадает с target event date.
+- `polymarket_date_mismatch` - Polymarket settlement/end date не совпадает с target event date.
+- `strike_mismatch` - выбранный option strike не совпадает с target threshold.
+- `missing` - одна из сторон пары не выбрана.
+
+Diagnostic-only candidates можно сохранять и анализировать для улучшения discovery, но их нельзя считать подтверждением working edge, включать в clean candidate metrics или использовать как основание для paper/live trading gate.
+
 `gross_mid_edge` остается диагностикой, но не должен быть решающим edge для matched decision. Это защищает Phase 0 от ложноположительных сигналов, где midpoint выглядит привлекательным, но executable side рынка уже уничтожает edge.
 
 Если `gross_mid_edge` после costs прошел бы `min_net_edge_probability`, но `gross_executable_edge` после costs не проходит threshold, matcher отклоняет пару как `MidEdgeFalsePositive`. Этот счетчик должен быть виден в replay reports и CI, потому что он показывает, сколько кажущихся opportunities исчезает при переходе от midpoint к executable pricing.

@@ -111,6 +111,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
 
     let outcomes = ingest_batches(&mut journal, batches, &mut errors);
     let ingestion_report = IngestionReport::from_outcomes(&outcomes);
+    push_basis_alignment_policy_warning(&selection_report, &mut warnings);
     let replay_events = journal
         .read_events_for_replay(ReplayEventFilter {
             start_ts_ms: 0,
@@ -951,6 +952,44 @@ impl SelectionReport {
 
         "exact"
     }
+
+    fn clean_basis_candidate(&self) -> bool {
+        self.basis_alignment_status() == "exact"
+    }
+
+    fn candidate_policy(&self) -> &'static str {
+        if self.selected_deribit_instrument.is_none()
+            || self.selected_polymarket_market_slug.is_none()
+        {
+            return "missing";
+        }
+
+        if self.clean_basis_candidate() {
+            "clean_basis_candidate"
+        } else {
+            "diagnostic_only"
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+fn push_basis_alignment_policy_warning(
+    selection_report: &SelectionReport,
+    warnings: &mut Vec<DiagnosticWarning>,
+) {
+    let status = selection_report.basis_alignment_status();
+    if status == "exact" || status == "missing" {
+        return;
+    }
+
+    warnings.push(DiagnosticWarning::new(
+        "selection",
+        "live_probe_replay",
+        "NonExactBasisAlignment",
+        format!(
+            "basis_alignment_status={status}; selected pair is diagnostic-only and must not be counted as a clean Phase 0 basis candidate"
+        ),
+    ));
 }
 
 #[cfg(feature = "network-integration")]
@@ -1193,6 +1232,8 @@ impl From<&PayloadShapeVersion> for PayloadShapeVersionDto {
 struct SelectionReportDto {
     selection_quality: &'static str,
     basis_alignment_status: &'static str,
+    candidate_policy: &'static str,
+    clean_basis_candidate: bool,
     selected_deribit_instrument: Option<String>,
     target_expiry_ts_ms: Option<i64>,
     target_expiry_date: Option<String>,
@@ -1216,6 +1257,8 @@ impl From<&SelectionReport> for SelectionReportDto {
         Self {
             selection_quality: value.selection_quality(),
             basis_alignment_status: value.basis_alignment_status(),
+            candidate_policy: value.candidate_policy(),
+            clean_basis_candidate: value.clean_basis_candidate(),
             selected_deribit_instrument: value.selected_deribit_instrument.clone(),
             target_expiry_ts_ms: value.target_expiry_ts_ms,
             target_expiry_date: value.target_expiry_date.clone(),
@@ -1521,7 +1564,10 @@ fn render_report(
             "pricing_model_version": PRICING_MODEL_VERSION,
             "payload_shape_versions": [],
             "selection_report": {
-                "selection_quality": "missing"
+                "selection_quality": "missing",
+                "basis_alignment_status": "missing",
+                "candidate_policy": "missing",
+                "clean_basis_candidate": false
             },
             "polymarket_discovery_diagnostics": [],
             "probe_reports": [],
@@ -1550,7 +1596,8 @@ fn now_ms() -> i64 {
 #[cfg(all(test, feature = "network-integration"))]
 mod tests {
     use super::{
-        ReplayEdgeQualitySummary, SelectionReport, SelectionReportDto, utc_date_from_unix_ms,
+        ReplayEdgeQualitySummary, SelectionReport, SelectionReportDto,
+        push_basis_alignment_policy_warning, utc_date_from_unix_ms,
     };
     use cryptotehnolog_common::events::{EventMeta, OptionKind};
     use cryptotehnolog_common::probability_basis::{MatchDecision, RejectionReason};
@@ -1592,6 +1639,8 @@ mod tests {
         assert_eq!(json["polymarket_expiry_mismatch"], false);
         assert_eq!(json["selection_quality"], "missing");
         assert_eq!(json["basis_alignment_status"], "missing");
+        assert_eq!(json["candidate_policy"], "missing");
+        assert_eq!(json["clean_basis_candidate"], false);
     }
 
     #[test]
@@ -1608,6 +1657,8 @@ mod tests {
         assert_eq!(json["polymarket_expiry_mismatch"], false);
         assert_eq!(json["selection_quality"], "missing");
         assert_eq!(json["basis_alignment_status"], "missing");
+        assert_eq!(json["candidate_policy"], "missing");
+        assert_eq!(json["clean_basis_candidate"], false);
     }
 
     #[test]
@@ -1629,11 +1680,15 @@ mod tests {
         );
         assert_eq!(exact.selection_quality(), "exact");
         assert_eq!(exact.basis_alignment_status(), "exact");
+        assert_eq!(exact.candidate_policy(), "clean_basis_candidate");
+        assert!(exact.clean_basis_candidate());
 
         let mut strike_mismatch = exact.clone();
         strike_mismatch.strike_distance = Some(100.0);
         assert_eq!(strike_mismatch.selection_quality(), "nearby");
         assert_eq!(strike_mismatch.basis_alignment_status(), "strike_mismatch");
+        assert_eq!(strike_mismatch.candidate_policy(), "diagnostic_only");
+        assert!(!strike_mismatch.clean_basis_candidate());
 
         let mut mismatch = strike_mismatch.clone();
         mismatch.selected_expiry_ts_ms = Some(1_782_432_000_000);
@@ -1648,6 +1703,8 @@ mod tests {
             deribit_expiry_nearby.basis_alignment_status(),
             "deribit_expiry_nearby"
         );
+        assert_eq!(deribit_expiry_nearby.candidate_policy(), "diagnostic_only");
+        assert!(!deribit_expiry_nearby.clean_basis_candidate());
     }
 
     #[test]
@@ -1673,10 +1730,40 @@ mod tests {
         assert!(report.polymarket_expiry_mismatch());
         assert_eq!(report.selection_quality(), "nearby");
         assert_eq!(report.basis_alignment_status(), "polymarket_date_mismatch");
+        assert_eq!(report.candidate_policy(), "diagnostic_only");
+        assert!(!report.clean_basis_candidate());
         let json = selection_report_value(&report);
         assert_eq!(json["selected_polymarket_end_date"], "2026-05-31");
         assert_eq!(json["polymarket_expiry_mismatch"], true);
         assert_eq!(json["basis_alignment_status"], "polymarket_date_mismatch");
+        assert_eq!(json["candidate_policy"], "diagnostic_only");
+        assert_eq!(json["clean_basis_candidate"], false);
+    }
+
+    #[test]
+    fn non_exact_basis_alignment_pushes_diagnostic_only_warning() {
+        let criteria = DeribitOptionDiscoveryCriteria::phase0_eth_call_3000_june_2026();
+        let mut report = SelectionReport::empty();
+        report.selected_polymarket_market_slug =
+            Some("will-ethereum-reach-3000-in-may-2026".to_string());
+        report.selected_polymarket_end_date = Some("2026-06-01".to_string());
+        report.set_deribit(
+            &criteria,
+            &DeribitDiscoveredOption {
+                instrument_name: "ETH-29MAY26-3000-C".to_string(),
+                underlying: "ETH".to_string(),
+                expiry_ts_ms: 1_779_926_400_000,
+                strike: criteria.target_strike,
+                option_kind: OptionKind::Call,
+            },
+        );
+
+        let mut warnings = Vec::new();
+        push_basis_alignment_policy_warning(&report, &mut warnings);
+
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].kind, "NonExactBasisAlignment");
+        assert!(warnings[0].message.contains("diagnostic-only"));
     }
 
     #[test]
@@ -1729,6 +1816,8 @@ mod tests {
             value["selection_report"]["basis_alignment_status"],
             "missing"
         );
+        assert_eq!(value["selection_report"]["candidate_policy"], "missing");
+        assert_eq!(value["selection_report"]["clean_basis_candidate"], false);
         assert_eq!(
             value["replay_summary"]["edge_quality"]["midpoint_false_positive_count"],
             0

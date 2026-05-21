@@ -229,12 +229,23 @@ foreach ($file in $liveProbeReportFiles) {
     $json = Read-JsonFile -Path $file.FullName
     $edgeQuality = $json.replay_summary.edge_quality
     $basisAlignmentStatus = Select-BasisAlignmentStatus $json.selection_report
+    $candidatePolicy = Format-OptionalValue $json.selection_report.candidate_policy
+    if ([string]::IsNullOrWhiteSpace($candidatePolicy)) {
+        if ($basisAlignmentStatus -eq "exact") {
+            $candidatePolicy = "clean_basis_candidate"
+        } elseif ($basisAlignmentStatus -eq "missing") {
+            $candidatePolicy = "missing"
+        } else {
+            $candidatePolicy = "diagnostic_only"
+        }
+    }
     $liveProbeReports += [pscustomobject]@{
         file = RelPath $file.FullName
         matched_count = if ($edgeQuality) { [int]$edgeQuality.matched_count } else { [int]$json.replay_summary.matched }
         edge_below_threshold_count = if ($edgeQuality) { [int]$edgeQuality.edge_below_threshold_count } else { 0 }
         midpoint_false_positive_count = if ($edgeQuality) { [int]$edgeQuality.midpoint_false_positive_count } else { 0 }
         basis_alignment_status = $basisAlignmentStatus
+        candidate_policy = $candidatePolicy
     }
 }
 
@@ -264,6 +275,10 @@ if ($liveProbeNonExactAlignmentReports.Count -gt 0) {
         Sort-Object Name |
         ForEach-Object { "$($_.Name)=$($_.Count)" })
     $warnings += "Live probe basis alignment is not exact for $($liveProbeNonExactAlignmentReports.Count) report(s): $($statusCounts -join ', '). Selected pair is not yet a clean basis candidate."
+}
+$liveProbeDiagnosticOnlyReports = @($liveProbeReports | Where-Object { $_.candidate_policy -eq "diagnostic_only" })
+if ($liveProbeDiagnosticOnlyReports.Count -gt 0) {
+    $warnings += "Live probe has $($liveProbeDiagnosticOnlyReports.Count) diagnostic-only candidate report(s). These observations can be logged for discovery/debugging but must not count toward clean Phase 0 basis candidate metrics."
 }
 
 $report = [pscustomobject]@{
@@ -301,6 +316,8 @@ $report = [pscustomobject]@{
     artifacts = $artifactReports
     live_probe_review = [pscustomobject]@{
         report_count = $liveProbeReports.Count
+        clean_candidate_count = @($liveProbeReports | Where-Object { $_.candidate_policy -eq "clean_basis_candidate" }).Count
+        diagnostic_only_count = $liveProbeDiagnosticOnlyReports.Count
         matched_count = $liveProbeMatchedCount
         edge_below_threshold_count = ($liveProbeReports | Measure-Object -Property edge_below_threshold_count -Sum).Sum
         midpoint_false_positive_count = $liveProbeMidpointFalsePositiveCount
@@ -324,6 +341,7 @@ $markdown.Add("- Ingestion accepted/rejected normalized events: $($report.ingest
 $markdown.Add("- Phase 0 pipeline scenarios ok/error: $($report.phase0_pipeline.ok_count)/$($report.phase0_pipeline.error_count)")
 if ($report.live_probe_review.report_count -gt 0) {
     $markdown.Add("- Live probe edge quality matched/edge-below/midpoint-fp: $($report.live_probe_review.matched_count)/$($report.live_probe_review.edge_below_threshold_count)/$($report.live_probe_review.midpoint_false_positive_count)")
+    $markdown.Add("- Live probe clean/diagnostic-only candidates: $($report.live_probe_review.clean_candidate_count)/$($report.live_probe_review.diagnostic_only_count)")
 }
 $markdown.Add("")
 if ($report.warnings.Count -gt 0) {
@@ -381,10 +399,10 @@ $markdown.Add("")
 if ($liveProbeReports.Count -eq 0) {
     $markdown.Add("No live probe replay reports found.")
 } else {
-    $markdown.Add("| File | Alignment | Matched | Edge Below | Midpoint FP |")
-    $markdown.Add("| --- | --- | ---: | ---: | ---: |")
+    $markdown.Add("| File | Alignment | Policy | Matched | Edge Below | Midpoint FP |")
+    $markdown.Add("| --- | --- | --- | ---: | ---: | ---: |")
     foreach ($item in $liveProbeReports) {
-        $markdown.Add("| $($item.file) | $($item.basis_alignment_status) | $($item.matched_count) | $($item.edge_below_threshold_count) | $($item.midpoint_false_positive_count) |")
+        $markdown.Add("| $($item.file) | $($item.basis_alignment_status) | $($item.candidate_policy) | $($item.matched_count) | $($item.edge_below_threshold_count) | $($item.midpoint_false_positive_count) |")
     }
 }
 
