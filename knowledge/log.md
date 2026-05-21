@@ -391,3 +391,7 @@ Polymarket discovery в manual `live_probe_replay` переведен с broad f
 ## [2026-05-21] implementation | Polymarket settlement date in selection report
 
 `live_probe_replay_report.json` теперь включает Polymarket-specific settlement fields: `selected_polymarket_end_ts_ms`, `selected_polymarket_end_date` и derived `polymarket_expiry_mismatch`. Gamma parser читает `endDate`/`endDateIso` и близкие end/close aliases без panic на `null`. Summary script показывает Polymarket end date рядом с Deribit selected expiry, чтобы basis mismatch risk был виден без ручного чтения JSON.
+
+## [2026-05-21] implementation | Deribit expiry candidate diagnostics
+
+`live_probe_replay_report.json` теперь включает `selection_report.deribit_expiry_candidates`: top ближайших Deribit option candidates вокруг target expiry/strike с `expiry_date`, `expiry_distance_days`, `strike_distance` и window flags. Summary script выводит блок `Deribit expiry candidates`, чтобы manual probe объяснял, есть ли exact expiry или только nearby options. Локальный manual probe показал ближайшие candidates на `2026-05-29`, то есть текущий `nearby` quality объясняется Deribit expiry mismatch, а не Polymarket settlement mismatch.

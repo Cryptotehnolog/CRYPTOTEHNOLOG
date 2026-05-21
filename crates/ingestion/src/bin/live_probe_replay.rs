@@ -21,13 +21,14 @@ use cryptotehnolog_common::probability_basis::{
 #[cfg(feature = "network-integration")]
 use cryptotehnolog_ingestion::{
     DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION, DERIBIT_TICKER_PAYLOAD_SHAPE_VERSION,
-    DeribitDiscoveredOption, DeribitLiveIngestionClient, DeribitOptionDiscoveryCriteria,
-    IngestionBatch, IngestionConfig, IngestionError, IngestionOutcome, IngestionReport,
-    IngestionSource, LiveHttpTransport, LiveIngestionProbeReport, MockIngestionClient,
-    MockIngestionStep, POLYMARKET_CLOB_BOOK_PAYLOAD_SHAPE_VERSION,
-    POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION, Phase0NormalizedBatchValidator,
-    PolymarketDiscoveredMarket, PolymarketLiveIngestionClient, PolymarketMarketCandidateDiagnostic,
-    PolymarketMarketDiscoveryCriteria, ReqwestHttpTransport, ingest_once_with_report,
+    DeribitDiscoveredOption, DeribitLiveIngestionClient, DeribitOptionCandidateDiagnostic,
+    DeribitOptionDiscoveryCriteria, IngestionBatch, IngestionConfig, IngestionError,
+    IngestionOutcome, IngestionReport, IngestionSource, LiveHttpTransport,
+    LiveIngestionProbeReport, MockIngestionClient, MockIngestionStep,
+    POLYMARKET_CLOB_BOOK_PAYLOAD_SHAPE_VERSION, POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION,
+    Phase0NormalizedBatchValidator, PolymarketDiscoveredMarket, PolymarketLiveIngestionClient,
+    PolymarketMarketCandidateDiagnostic, PolymarketMarketDiscoveryCriteria, ReqwestHttpTransport,
+    ingest_once_with_report,
 };
 #[cfg(feature = "network-integration")]
 use serde::Serialize;
@@ -193,6 +194,16 @@ where
                 DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION,
             ));
             let criteria = DeribitOptionDiscoveryCriteria::phase0_eth_call_3000_june_2026();
+            match DeribitLiveIngestionClient::diagnose_option_candidates_from_payload(
+                &payload, &criteria, 3,
+            ) {
+                Ok(candidates) => selection_report.set_deribit_expiry_candidates(candidates),
+                Err(error) => errors.push(DiagnosticError::from_ingestion_error(
+                    "diagnostics",
+                    "Deribit instruments",
+                    error,
+                )),
+            }
             match DeribitLiveIngestionClient::discover_option_from_payload(&payload, &criteria) {
                 Ok(discovered) => {
                     selection_report.set_deribit(&criteria, &discovered);
@@ -824,6 +835,7 @@ struct SelectionReport {
     selected_expiry_ts_ms: Option<i64>,
     selected_expiry_date: Option<String>,
     strike_distance: Option<f64>,
+    deribit_expiry_candidates: Vec<DeribitOptionCandidateDiagnostic>,
     selected_polymarket_market_slug: Option<String>,
     selected_polymarket_event_slug: Option<String>,
     selected_polymarket_end_ts_ms: Option<i64>,
@@ -841,6 +853,7 @@ impl SelectionReport {
             selected_expiry_ts_ms: None,
             selected_expiry_date: None,
             strike_distance: None,
+            deribit_expiry_candidates: Vec::new(),
             selected_polymarket_market_slug: None,
             selected_polymarket_event_slug: None,
             selected_polymarket_end_ts_ms: None,
@@ -860,6 +873,10 @@ impl SelectionReport {
         self.selected_expiry_ts_ms = Some(discovered.expiry_ts_ms);
         self.selected_expiry_date = Some(utc_date_from_unix_ms(discovered.expiry_ts_ms));
         self.strike_distance = Some((discovered.strike - criteria.target_strike).abs());
+    }
+
+    fn set_deribit_expiry_candidates(&mut self, candidates: Vec<DeribitOptionCandidateDiagnostic>) {
+        self.deribit_expiry_candidates = candidates;
     }
 
     fn set_polymarket(&mut self, discovered: &PolymarketDiscoveredMarket) {
@@ -1159,6 +1176,7 @@ struct SelectionReportDto {
     selected_expiry_ts_ms: Option<i64>,
     selected_expiry_date: Option<String>,
     strike_distance: Option<f64>,
+    deribit_expiry_candidates: Vec<DeribitOptionCandidateDiagnosticDto>,
     strike_mismatch: bool,
     expiry_mismatch: bool,
     polymarket_expiry_mismatch: bool,
@@ -1180,6 +1198,11 @@ impl From<&SelectionReport> for SelectionReportDto {
             selected_expiry_ts_ms: value.selected_expiry_ts_ms,
             selected_expiry_date: value.selected_expiry_date.clone(),
             strike_distance: value.strike_distance,
+            deribit_expiry_candidates: value
+                .deribit_expiry_candidates
+                .iter()
+                .map(Into::into)
+                .collect(),
             strike_mismatch: value.strike_mismatch(),
             expiry_mismatch: value.expiry_mismatch(),
             polymarket_expiry_mismatch: value.polymarket_expiry_mismatch(),
@@ -1188,6 +1211,37 @@ impl From<&SelectionReport> for SelectionReportDto {
             selected_polymarket_end_ts_ms: value.selected_polymarket_end_ts_ms,
             selected_polymarket_end_date: value.selected_polymarket_end_date.clone(),
             selected_polymarket_liquidity_usd: value.selected_polymarket_liquidity_usd,
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct DeribitOptionCandidateDiagnosticDto {
+    instrument_name: String,
+    expiry_ts_ms: i64,
+    expiry_date: String,
+    strike: f64,
+    expiry_distance_ms: i64,
+    expiry_distance_days: f64,
+    strike_distance: f64,
+    within_expiry_window: bool,
+    within_strike_window: bool,
+}
+
+#[cfg(feature = "network-integration")]
+impl From<&DeribitOptionCandidateDiagnostic> for DeribitOptionCandidateDiagnosticDto {
+    fn from(value: &DeribitOptionCandidateDiagnostic) -> Self {
+        Self {
+            instrument_name: value.instrument_name.clone(),
+            expiry_ts_ms: value.expiry_ts_ms,
+            expiry_date: value.expiry_date.clone(),
+            strike: value.strike,
+            expiry_distance_ms: value.expiry_distance_ms,
+            expiry_distance_days: value.expiry_distance_days,
+            strike_distance: value.strike_distance,
+            within_expiry_window: value.within_expiry_window,
+            within_strike_window: value.within_strike_window,
         }
     }
 }

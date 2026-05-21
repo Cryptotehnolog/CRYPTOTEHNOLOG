@@ -1168,6 +1168,21 @@ pub struct DeribitDiscoveredOption {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct DeribitOptionCandidateDiagnostic {
+    pub instrument_name: String,
+    pub underlying: String,
+    pub expiry_ts_ms: i64,
+    pub expiry_date: String,
+    pub strike: f64,
+    pub option_kind: OptionKind,
+    pub expiry_distance_ms: i64,
+    pub expiry_distance_days: f64,
+    pub strike_distance: f64,
+    pub within_expiry_window: bool,
+    pub within_strike_window: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct DeribitInstrumentName {
     raw: String,
     pub underlying: String,
@@ -1259,6 +1274,19 @@ impl DeribitLiveIngestionClient {
     ) -> Result<DeribitDiscoveredOption, IngestionError> {
         let instruments = parse_deribit_instruments_payload(payload_json, criteria)?;
         select_deribit_option_candidate(instruments, criteria)
+    }
+
+    pub fn diagnose_option_candidates_from_payload(
+        payload_json: &str,
+        criteria: &DeribitOptionDiscoveryCriteria,
+        limit: usize,
+    ) -> Result<Vec<DeribitOptionCandidateDiagnostic>, IngestionError> {
+        let instruments = parse_deribit_instruments_payload(payload_json, criteria)?;
+        Ok(diagnose_deribit_option_candidates(
+            instruments,
+            criteria,
+            limit,
+        ))
     }
 
     pub fn parse_ticker_payload(
@@ -2831,6 +2859,44 @@ fn select_deribit_option_candidate(
     })
 }
 
+fn diagnose_deribit_option_candidates(
+    instruments: Vec<DeribitDiscoveredOption>,
+    criteria: &DeribitOptionDiscoveryCriteria,
+    limit: usize,
+) -> Vec<DeribitOptionCandidateDiagnostic> {
+    let mut candidates: Vec<DeribitOptionCandidateDiagnostic> = instruments
+        .into_iter()
+        .filter(|instrument| instrument.underlying == criteria.underlying)
+        .filter(|instrument| instrument.option_kind == criteria.option_kind)
+        .map(|instrument| {
+            let expiry_distance_ms = (instrument.expiry_ts_ms - criteria.target_expiry_ts_ms).abs();
+            let strike_distance = (instrument.strike - criteria.target_strike).abs();
+            DeribitOptionCandidateDiagnostic {
+                instrument_name: instrument.instrument_name,
+                underlying: instrument.underlying,
+                expiry_ts_ms: instrument.expiry_ts_ms,
+                expiry_date: deribit_utc_date_from_unix_ms(instrument.expiry_ts_ms),
+                strike: instrument.strike,
+                option_kind: instrument.option_kind,
+                expiry_distance_ms,
+                expiry_distance_days: expiry_distance_ms as f64 / 86_400_000.0,
+                strike_distance,
+                within_expiry_window: expiry_distance_ms <= criteria.max_expiry_distance_ms,
+                within_strike_window: strike_distance <= criteria.max_strike_distance,
+            }
+        })
+        .collect();
+
+    candidates.sort_by(|left, right| {
+        left.expiry_distance_ms
+            .cmp(&right.expiry_distance_ms)
+            .then_with(|| left.strike_distance.total_cmp(&right.strike_distance))
+            .then_with(|| left.instrument_name.cmp(&right.instrument_name))
+    });
+    candidates.truncate(limit);
+    candidates
+}
+
 fn select_polymarket_market_candidate(
     markets: Vec<PolymarketDiscoveredMarket>,
     criteria: &PolymarketMarketDiscoveryCriteria,
@@ -3109,6 +3175,12 @@ fn deribit_month_number(month_text: &str) -> Option<u32> {
         "DEC" => Some(12),
         _ => None,
     }
+}
+
+fn deribit_utc_date_from_unix_ms(timestamp_ms: i64) -> String {
+    let days_since_unix_epoch = timestamp_ms.div_euclid(86_400_000);
+    let (year, month, day) = civil_date_from_unix_days(days_since_unix_epoch);
+    format!("{year:04}-{month:02}-{day:02}")
 }
 
 fn utc_midnight_ts_ms(year: i32, month: u32, day: u32) -> Result<i64, IngestionError> {
@@ -4212,6 +4284,60 @@ mod tests {
         assert_eq!(discovered.expiry_ts_ms, 1_780_272_000_000);
         assert_eq!(discovered.strike, 3000.0);
         assert_eq!(discovered.option_kind, OptionKind::Call);
+    }
+
+    #[test]
+    fn deribit_discovery_diagnostics_rank_nearest_expiry_and_strike_candidates() {
+        let payload = r#"{
+            "result": [
+                {
+                    "instrument_name": "ETH-20260626-3000-C",
+                    "base_currency": "ETH",
+                    "expiration_timestamp": 1782432000000,
+                    "strike": 3000.0,
+                    "option_type": "call"
+                },
+                {
+                    "instrument_name": "ETH-20260529-3000-C",
+                    "base_currency": "ETH",
+                    "expiration_timestamp": 1780041600000,
+                    "strike": 3000.0,
+                    "option_type": "call"
+                },
+                {
+                    "instrument_name": "ETH-20260529-3200-C",
+                    "base_currency": "ETH",
+                    "expiration_timestamp": 1780041600000,
+                    "strike": 3200.0,
+                    "option_type": "call"
+                },
+                {
+                    "instrument_name": "ETH-20260605-3000-P",
+                    "base_currency": "ETH",
+                    "expiration_timestamp": 1780617600000,
+                    "strike": 3000.0,
+                    "option_type": "put"
+                }
+            ]
+        }"#;
+
+        let candidates = DeribitLiveIngestionClient::diagnose_option_candidates_from_payload(
+            payload,
+            &DeribitOptionDiscoveryCriteria::phase0_eth_call_3000_june_2026(),
+            3,
+        )
+        .expect("Deribit candidates should parse");
+
+        assert_eq!(candidates.len(), 3);
+        assert_eq!(candidates[0].instrument_name, "ETH-20260529-3000-C");
+        assert_eq!(candidates[0].expiry_date, "2026-05-29");
+        assert!((candidates[0].expiry_distance_days - 2.666_666_666_7).abs() < 1e-9);
+        assert_eq!(candidates[0].strike_distance, 0.0);
+        assert!(candidates[0].within_expiry_window);
+        assert!(candidates[0].within_strike_window);
+        assert_eq!(candidates[1].instrument_name, "ETH-20260529-3200-C");
+        assert_eq!(candidates[2].instrument_name, "ETH-20260626-3000-C");
+        assert!(!candidates[2].within_expiry_window);
     }
 
     #[test]

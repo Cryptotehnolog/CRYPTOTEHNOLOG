@@ -346,7 +346,7 @@ Polymarket path теперь использует targeted Gamma discovery и CL
 - `config_version`,
 - `pricing_model_version`,
 - `payload_shape_versions`,
-- `selection_report` с `selection_quality`, `target_expiry_ts_ms`/`selected_expiry_ts_ms`, UTC `target_expiry_date`/`selected_expiry_date`, Polymarket-specific `selected_polymarket_end_ts_ms`/`selected_polymarket_end_date` и derived `strike_mismatch`/`expiry_mismatch`/`polymarket_expiry_mismatch` flags,
+- `selection_report` с `selection_quality`, `target_expiry_ts_ms`/`selected_expiry_ts_ms`, UTC `target_expiry_date`/`selected_expiry_date`, `deribit_expiry_candidates` top candidates, Polymarket-specific `selected_polymarket_end_ts_ms`/`selected_polymarket_end_date` и derived `strike_mismatch`/`expiry_mismatch`/`polymarket_expiry_mismatch` flags,
 - `polymarket_discovery_diagnostics` - top Gamma candidates с причинами отбраковки: `terms_mismatch`, `outcome_mismatch`, `liquidity_below_min`, `inactive`, `closed`,
 - `probe_reports`,
 - `ingestion_report`,
@@ -400,6 +400,7 @@ Default pattern: `artifacts\network_connectivity_report*.json`.
 - total warnings count и warning kinds, включая `WideExecutableSpread` и `BroadPolymarketGammaDiscovery`;
 - отдельную таблицу `Selected Candidates` с коротким `Quality`, выбранной Deribit/Polymarket парой и UTC expiry dates;
 - блок `Polymarket Gamma candidate diagnostics`, если Gamma discovery не выбрал market или отфильтровал candidates; блок показывает `market`, rejection reasons, missing terms, liquidity, `active`/`closed` и найден ли нужный outcome;
+- блок `Deribit expiry candidates` показывает top ближайших option candidates вокруг target date: instrument, expiry date, expiry distance in days, strike distance и попадание в текущие expiry/strike windows;
 - warning, если `strike_mismatch`, `expiry_mismatch` или `polymarket_expiry_mismatch` равны `true`, потому что это basis mismatch risk; для старых reports без flags скрипт fallback-считает их из `strike_distance`, expiry timestamps и Polymarket end date;
 - payload shape versions отдельной таблицей, чтобы они не раздували основной summary;
 - errors by stage/endpoint/kind.

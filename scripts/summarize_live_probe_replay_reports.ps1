@@ -150,6 +150,7 @@ if ($files.Count -eq 0) {
 
 $reportRows = @()
 $selectionRows = @()
+$deribitCandidateRows = @()
 $polymarketCandidateRows = @()
 $payloadShapeRows = @()
 $mismatchRows = @()
@@ -223,6 +224,19 @@ foreach ($file in $files) {
 
     if ($warningReasons.Count -gt 0) {
         $mismatchRows += $selectionRow
+    }
+
+    foreach ($candidate in @($selection.deribit_expiry_candidates)) {
+        $deribitCandidateRows += [pscustomobject]@{
+            Report = $file.Name
+            Instrument = [string]$candidate.instrument_name
+            ExpiryDate = Format-OptionalValue $candidate.expiry_date
+            ExpiryDistanceDays = Convert-NullableDouble $candidate.expiry_distance_days
+            Strike = Convert-NullableDouble $candidate.strike
+            StrikeDistance = Convert-NullableDouble $candidate.strike_distance
+            WithinExpiryWindow = [System.Convert]::ToBoolean($candidate.within_expiry_window)
+            WithinStrikeWindow = [System.Convert]::ToBoolean($candidate.within_strike_window)
+        }
     }
 
     foreach ($payloadShape in @($report.payload_shape_versions)) {
@@ -303,6 +317,14 @@ if ($mismatchRows.Count -gt 0) {
     Write-Output "WARNING: Basis mismatch risk detected in selected candidates"
     foreach ($row in $mismatchRows) {
         Write-Output "- $($row.Report): $($row.Warning) (Deribit=$($row.DeribitInstrument), Polymarket=$($row.PolymarketMarket), target_expiry_date=$($row.TargetExpiryDate), selected_expiry_date=$($row.SelectedExpiryDate), polymarket_end_date=$($row.PolymarketEndDate), strike_distance=$($row.StrikeDistance))"
+    }
+}
+
+if ($deribitCandidateRows.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Deribit expiry candidates"
+    foreach ($row in $deribitCandidateRows) {
+        Write-Output "- $($row.Report): instrument=$($row.Instrument) expiry_date=$($row.ExpiryDate) expiry_distance_days=$($row.ExpiryDistanceDays) strike=$($row.Strike) strike_distance=$($row.StrikeDistance) within_expiry_window=$($row.WithinExpiryWindow) within_strike_window=$($row.WithinStrikeWindow)"
     }
 }
 
