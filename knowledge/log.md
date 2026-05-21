@@ -355,3 +355,7 @@ Probability-basis matcher переведен с decisive midpoint edge на exec
 ## [2026-05-21] hardening | Replay edge quality summary
 
 `ReplaySummary` расширен блоком `edge_quality` с `matched_count`, `edge_below_threshold_count` и `midpoint_false_positive_count`. `scripts/run_phase0_daily_report.ps1` теперь показывает replay edge quality в JSON/Markdown daily report. Добавлен ручной diagnostic script `scripts/summarize_replay_edge_quality_reports.ps1` для trend-summary midpoint false positives по нескольким replay JSON reports.
+
+## [2026-05-21] hardening | Live probe replay edge quality artifact
+
+`live_probe_replay_report.json` расширен `replay_summary.edge_quality`, чтобы manual live payload probe показывал matched, `EdgeBelowThreshold` и `MidEdgeFalsePositive` counters. `scripts/summarize_live_probe_replay_reports.ps1` теперь выводит edge quality totals, а manual `network-integration` workflow сохраняет `artifacts/live_probe_replay_trend_summary.txt` рядом с live probe JSON artifact.

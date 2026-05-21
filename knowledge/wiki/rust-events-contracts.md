@@ -282,6 +282,7 @@ Design boundary:
 - Timestamp contract: `meta.exchange_ts_ms` означает quote/snapshot timestamp, `meta.received_ts_ms` означает local receive time, а `PolymarketOutcomeQuote.target_expiry_ts_ms` означает target event/settlement timestamp. Matcher использует `target_expiry_ts_ms` для expiry matching и `exchange_ts_ms` для quote freshness/skew checks.
 - `payload_shape_version` в manual reports фиксирует parser contract, который обработал live payload: `deribit_get_instruments_v1`, `deribit_json_rpc_ticker_v1`, `polymarket_gamma_markets_v1`, `polymarket_gamma_market_v1`.
 - `selection_report` в `live_probe_replay_report.json` фиксирует выбранный Deribit instrument, target/selected expiry timestamps, человекочитаемые UTC dates, `strike_distance`, derived mismatch flags `strike_mismatch`/`expiry_mismatch`, агрегированный `selection_quality` (`missing`/`exact`/`nearby`/`mismatch`) и выбранный Polymarket market slug.
+- `replay_summary.edge_quality` в `live_probe_replay_report.json` фиксирует matched, `EdgeBelowThreshold` и `MidEdgeFalsePositive` counters, чтобы manual live probe показывал, сколько real payload opportunities умирает на executable pricing.
 - `live_probe_replay_report.json` строится через локальные `serde Serialize` DTO в producer binary, чтобы внешний report contract был отделен от внутреннего состояния probe/replay pipeline.
 - `ingest_once()` сохраняет raw events до normalized market events.
 - `ingest_once_with_validator()` сохраняет raw events, затем валидирует normalized events и только после этого пишет их в journal.

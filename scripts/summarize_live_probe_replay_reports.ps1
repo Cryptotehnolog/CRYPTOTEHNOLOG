@@ -114,6 +114,25 @@ function Select-SelectionQuality {
     return "exact"
 }
 
+function Select-ReplayEdgeQuality {
+    param($Report)
+
+    $quality = $Report.replay_summary.edge_quality
+    if ($quality) {
+        return [pscustomobject]@{
+            Matched = [int]$quality.matched_count
+            EdgeBelowThreshold = [int]$quality.edge_below_threshold_count
+            MidpointFalsePositive = [int]$quality.midpoint_false_positive_count
+        }
+    }
+
+    return [pscustomobject]@{
+        Matched = [int]$Report.replay_summary.matched
+        EdgeBelowThreshold = 0
+        MidpointFalsePositive = 0
+    }
+}
+
 if (-not [System.IO.Path]::IsPathRooted($ReportsGlob)) {
     $ReportsGlob = Join-Path $root $ReportsGlob
 }
@@ -137,6 +156,7 @@ foreach ($file in $files) {
     $accepted = [int]$report.ingestion_report.total_normalized_events_accepted
     $decisions = [int]$report.replay_summary.decisions
     $observations = [int]$report.replay_summary.observations
+    $edgeQuality = Select-ReplayEdgeQuality -Report $report
     $matcherReady = ($accepted -ge 2 -and $decisions -gt 0)
     $targetExpiryTsMs = Convert-NullableInt64 $selection.target_expiry_ts_ms
     $selectedExpiryTsMs = Convert-NullableInt64 $selection.selected_expiry_ts_ms
@@ -165,6 +185,9 @@ foreach ($file in $files) {
         AcceptedNormalized = $accepted
         MatcherDecisions = $decisions
         Observations = $observations
+        Matched = $edgeQuality.Matched
+        EdgeBelowThreshold = $edgeQuality.EdgeBelowThreshold
+        MidpointFalsePositive = $edgeQuality.MidpointFalsePositive
         MatcherReady = $matcherReady
     }
 
@@ -207,11 +230,15 @@ $totalReports = $reportRows.Count
 $readyReports = @($reportRows | Where-Object { $_.MatcherReady }).Count
 $reportsWithParseErrors = @($reportRows | Where-Object { $_.ParseErrors -gt 0 }).Count
 $reportsWithHttpErrors = @($reportRows | Where-Object { $_.HttpErrors -gt 0 }).Count
+$totalMatched = ($reportRows | Measure-Object -Property Matched -Sum).Sum
+$totalEdgeBelowThreshold = ($reportRows | Measure-Object -Property EdgeBelowThreshold -Sum).Sum
+$totalMidpointFalsePositive = ($reportRows | Measure-Object -Property MidpointFalsePositive -Sum).Sum
 
 Write-Output "Live probe replay summary ($totalReports files)"
 Write-Output "Matcher readiness: $readyReports/$totalReports reports ready ($([math]::Round(($readyReports / [double]$totalReports) * 100.0, 2))%)"
 Write-Output "Reports with parse errors: $reportsWithParseErrors/$totalReports"
 Write-Output "Reports with HTTP errors: $reportsWithHttpErrors/$totalReports"
+Write-Output "Edge quality totals: matched=$totalMatched edge_below_threshold=$totalEdgeBelowThreshold midpoint_false_positive=$totalMidpointFalsePositive"
 Write-Output ""
 
 $reportRows | Format-Table -AutoSize

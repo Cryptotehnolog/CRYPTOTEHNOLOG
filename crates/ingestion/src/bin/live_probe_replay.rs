@@ -15,7 +15,8 @@ use cryptotehnolog_common::journal::{EventJournal, InMemoryEventJournal};
 use cryptotehnolog_common::observations::observations_from_match_decisions;
 #[cfg(feature = "network-integration")]
 use cryptotehnolog_common::probability_basis::{
-    MatchDecision, PRICING_MODEL_VERSION, ProbabilityBasisConfig, match_from_market_events,
+    MatchDecision, PRICING_MODEL_VERSION, ProbabilityBasisConfig, RejectionReason,
+    match_from_market_events,
 };
 #[cfg(feature = "network-integration")]
 use cryptotehnolog_ingestion::{
@@ -688,6 +689,15 @@ struct ReplayPipelineSummary {
     matched: usize,
     rejected: usize,
     observations: usize,
+    edge_quality: ReplayEdgeQualitySummary,
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ReplayEdgeQualitySummary {
+    matched_count: usize,
+    edge_below_threshold_count: usize,
+    midpoint_false_positive_count: usize,
 }
 
 #[cfg(feature = "network-integration")]
@@ -698,20 +708,49 @@ impl ReplayPipelineSummary {
             matched: 0,
             rejected: 0,
             observations: 0,
+            edge_quality: ReplayEdgeQualitySummary::empty(),
         }
     }
 
     fn from_decisions(decisions: &[MatchDecision], observations: usize) -> Self {
-        let matched = decisions
-            .iter()
-            .filter(|decision| matches!(decision, MatchDecision::Matched { .. }))
-            .count();
+        let edge_quality = ReplayEdgeQualitySummary::from_decisions(decisions);
         Self {
             decisions: decisions.len(),
-            matched,
-            rejected: decisions.len() - matched,
+            matched: edge_quality.matched_count,
+            rejected: decisions.len() - edge_quality.matched_count,
             observations,
+            edge_quality,
         }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+impl ReplayEdgeQualitySummary {
+    fn empty() -> Self {
+        Self {
+            matched_count: 0,
+            edge_below_threshold_count: 0,
+            midpoint_false_positive_count: 0,
+        }
+    }
+
+    fn from_decisions(decisions: &[MatchDecision]) -> Self {
+        let mut summary = Self::empty();
+        for decision in decisions {
+            match decision {
+                MatchDecision::Matched { .. } => summary.matched_count += 1,
+                MatchDecision::Rejected { reason, .. } => match reason {
+                    RejectionReason::EdgeBelowThreshold => {
+                        summary.edge_below_threshold_count += 1;
+                    }
+                    RejectionReason::MidEdgeFalsePositive => {
+                        summary.midpoint_false_positive_count += 1;
+                    }
+                    _ => {}
+                },
+            }
+        }
+        summary
     }
 }
 
@@ -920,6 +959,15 @@ struct ReplayPipelineSummaryDto {
     matched: usize,
     rejected: usize,
     observations: usize,
+    edge_quality: ReplayEdgeQualitySummaryDto,
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct ReplayEdgeQualitySummaryDto {
+    matched_count: usize,
+    edge_below_threshold_count: usize,
+    midpoint_false_positive_count: usize,
 }
 
 #[cfg(feature = "network-integration")]
@@ -930,6 +978,18 @@ impl From<&ReplayPipelineSummary> for ReplayPipelineSummaryDto {
             matched: value.matched,
             rejected: value.rejected,
             observations: value.observations,
+            edge_quality: (&value.edge_quality).into(),
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+impl From<&ReplayEdgeQualitySummary> for ReplayEdgeQualitySummaryDto {
+    fn from(value: &ReplayEdgeQualitySummary) -> Self {
+        Self {
+            matched_count: value.matched_count,
+            edge_below_threshold_count: value.edge_below_threshold_count,
+            midpoint_false_positive_count: value.midpoint_false_positive_count,
         }
     }
 }
@@ -1009,8 +1069,11 @@ fn now_ms() -> i64 {
 
 #[cfg(all(test, feature = "network-integration"))]
 mod tests {
-    use super::{SelectionReport, SelectionReportDto, utc_date_from_unix_ms};
-    use cryptotehnolog_common::events::OptionKind;
+    use super::{
+        ReplayEdgeQualitySummary, SelectionReport, SelectionReportDto, utc_date_from_unix_ms,
+    };
+    use cryptotehnolog_common::events::{EventMeta, OptionKind};
+    use cryptotehnolog_common::probability_basis::{MatchDecision, RejectionReason};
     use cryptotehnolog_ingestion::{DeribitDiscoveredOption, DeribitOptionDiscoveryCriteria};
     use serde_json::Value;
 
@@ -1112,10 +1175,65 @@ mod tests {
         assert_eq!(value["schema_version"], 1);
         assert_eq!(value["selection_report"]["selection_quality"], "missing");
         assert_eq!(
+            value["replay_summary"]["edge_quality"]["midpoint_false_positive_count"],
+            0
+        );
+        assert_eq!(
             value["payload_shape_versions"][0]["payload_shape_version"],
             "deribit_get_instruments_v1"
         );
         assert_eq!(value["errors"][0]["kind"], "MalformedPayload");
+    }
+
+    #[test]
+    fn live_probe_replay_edge_quality_counts_midpoint_false_positives() {
+        let decisions = vec![
+            MatchDecision::Matched {
+                feature: cryptotehnolog_common::events::ProbabilityBasisFeature {
+                    meta: EventMeta {
+                        event_id: "feature-1".to_string(),
+                        source: "test".to_string(),
+                        exchange_ts_ms: 1,
+                        received_ts_ms: 1,
+                        instrument_id: "ETH-1JUN26-3000-C".to_string(),
+                        schema_version: 1,
+                        config_version: "test".to_string(),
+                    },
+                    deribit_instrument_id: "ETH-1JUN26-3000-C".to_string(),
+                    polymarket_market_slug: "eth-above-3000".to_string(),
+                    model_probability: 0.61,
+                    polymarket_mid_probability: 0.52,
+                    polymarket_executable_probability: 0.53,
+                    gross_mid_edge_probability: 0.09,
+                    gross_executable_edge_probability: 0.08,
+                    gross_edge_probability: 0.08,
+                    estimated_cost_probability: 0.01,
+                },
+                net_edge_probability: 0.07,
+                survives_costs: true,
+            },
+            MatchDecision::Rejected {
+                reason: RejectionReason::EdgeBelowThreshold,
+                deribit_instrument_id: Some("ETH-1JUN26-3000-C".to_string()),
+                polymarket_market_slug: Some("eth-low-edge".to_string()),
+            },
+            MatchDecision::Rejected {
+                reason: RejectionReason::MidEdgeFalsePositive,
+                deribit_instrument_id: Some("ETH-1JUN26-3000-C".to_string()),
+                polymarket_market_slug: Some("eth-wide-spread".to_string()),
+            },
+            MatchDecision::Rejected {
+                reason: RejectionReason::InvalidQuote,
+                deribit_instrument_id: Some("ETH-1JUN26-3000-C".to_string()),
+                polymarket_market_slug: Some("eth-invalid".to_string()),
+            },
+        ];
+
+        let summary = ReplayEdgeQualitySummary::from_decisions(&decisions);
+
+        assert_eq!(summary.matched_count, 1);
+        assert_eq!(summary.edge_below_threshold_count, 1);
+        assert_eq!(summary.midpoint_false_positive_count, 1);
     }
 }
 

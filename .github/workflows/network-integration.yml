@@ -24,6 +24,17 @@ jobs:
         shell: pwsh
         run: .\scripts\run_live_probe_replay.ps1 -Timestamped
 
+      - name: Summarize live probe replay reports
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          if (Test-Path artifacts/live_probe_replay_report*.json) {
+            .\scripts\summarize_live_probe_replay_reports.ps1 | Tee-Object -FilePath artifacts/live_probe_replay_trend_summary.txt
+          } else {
+            "No live probe replay reports found." | Set-Content -Path artifacts/live_probe_replay_trend_summary.txt
+          }
+
       - name: Build Phase 0 daily report
         if: always()
         shell: pwsh
@@ -42,7 +53,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: live-probe-replay-report
-          path: artifacts/live_probe_replay_report*.json
+          path: |
+            artifacts/live_probe_replay_report*.json
+            artifacts/live_probe_replay_trend_summary.txt
           if-no-files-found: warn
 
       - name: Upload Phase 0 daily report
