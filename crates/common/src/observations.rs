@@ -296,7 +296,10 @@ mod tests {
             polymarket_market_slug: "eth-above-3000-june-1".to_string(),
             model_probability: 0.611338,
             polymarket_mid_probability: 0.520000,
-            gross_edge_probability: 0.091338,
+            polymarket_executable_probability: 0.530000,
+            gross_mid_edge_probability: 0.091338,
+            gross_executable_edge_probability: 0.081338,
+            gross_edge_probability: 0.081338,
             estimated_cost_probability: 0.010000,
         }
     }
@@ -309,7 +312,7 @@ mod tests {
         assert_eq!(observation.observed_at_ts_ms, 1_780_000_000_000);
         assert_eq!(observation.deribit_instrument_id, "ETH-20260601-3000-C");
         assert_eq!(observation.polymarket_market_slug, "eth-above-3000-june-1");
-        assert!((observation.net_edge_probability - 0.081338).abs() < 1e-6);
+        assert!((observation.net_edge_probability - 0.071338).abs() < 1e-6);
         assert!(observation.survives_costs);
     }
 
@@ -354,9 +357,9 @@ mod tests {
         );
         assert_numeric_value(&values[4], 0.611338);
         assert_numeric_value(&values[5], 0.520000);
-        assert_numeric_value(&values[6], 0.091338);
+        assert_numeric_value(&values[6], 0.081338);
         assert_numeric_value(&values[7], 0.010000);
-        assert_numeric_value(&values[8], 0.081338);
+        assert_numeric_value(&values[8], 0.071338);
         assert_eq!(values[9], BasisObservationRowValue::Bool(true));
         assert_eq!(values[10], BasisObservationRowValue::Integer(1));
         assert_eq!(

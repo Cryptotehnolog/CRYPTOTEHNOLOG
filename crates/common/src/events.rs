@@ -108,6 +108,9 @@ pub struct ProbabilityBasisFeature {
     pub polymarket_market_slug: String,
     pub model_probability: f64,
     pub polymarket_mid_probability: f64,
+    pub polymarket_executable_probability: f64,
+    pub gross_mid_edge_probability: f64,
+    pub gross_executable_edge_probability: f64,
     pub gross_edge_probability: f64,
     pub estimated_cost_probability: f64,
 }

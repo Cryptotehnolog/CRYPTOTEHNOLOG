@@ -199,6 +199,10 @@ pub enum ReplayReportEntry {
         deribit_instrument_id: String,
         polymarket_market_slug: String,
         #[serde(serialize_with = "serialize_probability")]
+        gross_mid_edge_probability: f64,
+        #[serde(serialize_with = "serialize_probability")]
+        gross_executable_edge_probability: f64,
+        #[serde(serialize_with = "serialize_probability")]
         net_edge_probability: f64,
         survives_costs: bool,
     },
@@ -216,11 +220,18 @@ impl ReplayReportEntry {
             ReplayReportEntry::Matched {
                 deribit_instrument_id,
                 polymarket_market_slug,
+                gross_mid_edge_probability,
+                gross_executable_edge_probability,
                 net_edge_probability,
                 survives_costs,
             } => format!(
-                "matched|{}|{}|net_edge={:.6}|survives={}",
-                deribit_instrument_id, polymarket_market_slug, net_edge_probability, survives_costs
+                "matched|{}|{}|mid_edge={:.6}|executable_edge={:.6}|net_edge={:.6}|survives={}",
+                deribit_instrument_id,
+                polymarket_market_slug,
+                gross_mid_edge_probability,
+                gross_executable_edge_probability,
+                net_edge_probability,
+                survives_costs
             ),
             ReplayReportEntry::Rejected {
                 reason,
@@ -246,6 +257,8 @@ impl From<&MatchDecision> for ReplayReportEntry {
             } => ReplayReportEntry::Matched {
                 deribit_instrument_id: feature.deribit_instrument_id.clone(),
                 polymarket_market_slug: feature.polymarket_market_slug.clone(),
+                gross_mid_edge_probability: feature.gross_mid_edge_probability,
+                gross_executable_edge_probability: feature.gross_executable_edge_probability,
                 net_edge_probability: *net_edge_probability,
                 survives_costs: *survives_costs,
             },
@@ -482,9 +495,9 @@ mod tests {
             }]
         );
         assert_eq!(report.summary.net_edge.sample_count, 1);
-        assert!((report.summary.net_edge.average.unwrap() - 0.081338).abs() < 1e-6);
-        assert!((report.summary.net_edge.min.unwrap() - 0.081338).abs() < 1e-6);
-        assert!((report.summary.net_edge.max.unwrap() - 0.081338).abs() < 1e-6);
+        assert!((report.summary.net_edge.average.unwrap() - 0.071338).abs() < 1e-6);
+        assert!((report.summary.net_edge.min.unwrap() - 0.071338).abs() < 1e-6);
+        assert!((report.summary.net_edge.max.unwrap() - 0.071338).abs() < 1e-6);
         assert_eq!(report.entries.len(), 2);
         assert_eq!(
             output.observations[0].deribit_instrument_id,
@@ -494,7 +507,7 @@ mod tests {
             output.observations[0].polymarket_market_slug,
             "eth-above-3000-june-1"
         );
-        assert!((output.observations[0].net_edge_probability - 0.081338).abs() < 1e-6);
+        assert!((output.observations[0].net_edge_probability - 0.071338).abs() < 1e-6);
         assert!(output.observations[0].survives_costs);
     }
 
@@ -525,6 +538,29 @@ mod tests {
             "edge_below_threshold_events.psv",
         ))
         .expect("edge-below-threshold fixture replay should succeed");
+        let report = output.replay_report();
+
+        assert_eq!(output.decisions.len(), 1);
+        assert!(output.observations.is_empty());
+        assert_eq!(report.summary.matched_count, 0);
+        assert_eq!(report.summary.rejected_count, 1);
+        assert_eq!(
+            report.summary.rejection_counts,
+            vec![RejectionCount {
+                reason: "EdgeBelowThreshold".to_string(),
+                count: 1,
+            }]
+        );
+        assert_eq!(report.summary.net_edge.sample_count, 0);
+        assert_eq!(report.summary.net_edge.average, None);
+    }
+
+    #[test]
+    fn mid_edge_false_positive_fixture_produces_only_rejection() {
+        let output = run_probability_basis_replay(&workspace_fixture_path(
+            "mid_edge_false_positive_events.psv",
+        ))
+        .expect("mid-edge false-positive fixture replay should succeed");
         let report = output.replay_report();
 
         assert_eq!(output.decisions.len(), 1);

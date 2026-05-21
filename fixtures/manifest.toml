@@ -11,6 +11,12 @@ expected_json = "fixtures/probability_basis/edge_below_threshold_report.json"
 expected_text = "fixtures/probability_basis/edge_below_threshold_report.txt"
 
 [[scenario]]
+name = "probability_basis_mid_edge_false_positive"
+fixture = "fixtures/probability_basis/mid_edge_false_positive_events.psv"
+expected_json = "fixtures/probability_basis/mid_edge_false_positive_report.json"
+expected_text = "fixtures/probability_basis/mid_edge_false_positive_report.txt"
+
+[[scenario]]
 name = "probability_basis_invalid_quote"
 fixture = "fixtures/probability_basis/invalid_quote_events.psv"
 expected_json = "fixtures/probability_basis/invalid_quote_report.json"

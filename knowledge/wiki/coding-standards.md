@@ -3,7 +3,7 @@ type: workflow
 status: active
 confidence: high
 stability: stable
-updated: 2026-05-20
+updated: 2026-05-21
 review_after: 2026-08-18
 sources:
   - project-review-2026-05-19
@@ -46,6 +46,7 @@ Rust:
 
 - `rustfmt` через `cargo fmt --check`.
 - `clippy` добавляется в CI, когда кодовая база станет достаточно содержательной.
+- toolchain фиксируется в `rust-toolchain.toml`; `rust-version` в workspace и toolchain channel должны быть согласованы.
 
 ## Типизация
 

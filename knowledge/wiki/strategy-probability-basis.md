@@ -3,7 +3,7 @@ type: strategy
 status: active
 confidence: medium
 stability: volatile
-updated: 2026-05-20
+updated: 2026-05-21
 review_after: 2026-06-19
 sources:
   - deribit-api-2026-05-20
@@ -43,9 +43,18 @@ Probability basis - первая MVP-стратегия CRYPTOTEHNOLOG. Она �
 Минимальная рабочая формула:
 
 ```text
-gross_edge = deribit_model_probability - polymarket_mid_probability
+polymarket_mid_probability = (bid_probability + ask_probability) / 2
+
+gross_mid_edge = deribit_model_probability - polymarket_mid_probability
+
+if deribit_model_probability >= polymarket_mid_probability:
+    polymarket_executable_probability = ask_probability
+else:
+    polymarket_executable_probability = bid_probability
+
+gross_executable_edge = deribit_model_probability - polymarket_executable_probability
 estimated_cost = deribit_spread_cost + polymarket_spread_cost + fees + slippage + mismatch_penalty
-net_edge = abs(gross_edge) - estimated_cost
+net_edge = abs(gross_executable_edge) - estimated_cost
 ```
 
 Кандидат считается интересным только если:
@@ -55,6 +64,8 @@ net_edge >= min_net_edge_probability
 ```
 
 Текущий config использует `min_net_edge_probability = 0.025`.
+
+`gross_mid_edge` остается диагностикой, но не должен быть решающим edge для matched decision. Это защищает Phase 0 от ложноположительных сигналов, где midpoint выглядит привлекательным, но executable side рынка уже уничтожает edge.
 
 ## Probability Model
 
@@ -77,6 +88,7 @@ Open question: нужна отдельная спецификация `source-de
 - matched/rejected decisions,
 - rejection reasons,
 - net edge calculation,
+- separate mid-edge vs executable-edge reporting,
 - golden replay fixture test.
 
 `model_probability` теперь рассчитывается через Black-Scholes `N(d2)` для call-like события `S_T > K` с MVP assumptions `r=0`, `q=0`.

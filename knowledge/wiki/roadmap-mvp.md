@@ -3,7 +3,7 @@ type: system
 status: active
 confidence: medium
 stability: volatile
-updated: 2026-05-20
+updated: 2026-05-21
 review_after: 2026-06-19
 sources:
   - project-review-2026-05-19
@@ -137,3 +137,16 @@ MVP считается неудачным, если:
 - liquidity слишком низкая,
 - settlement mismatch не формализуется,
 - observations не воспроизводятся.
+
+## Deferred Audit Backlog
+
+Из последнего code audit принято к отложенной реализации:
+
+| Item | Когда возвращаться | Почему не сейчас |
+| --- | --- | --- |
+| `rust_decimal` / fixed-point для accounting | Перед paper execution и PnL accounting | Model layer Black-Scholes остается на `f64`; accounting/execution не должен использовать `f64`. |
+| Smart constructors/newtypes для market ids и quotes | После стабилизации live payload shapes | Сейчас публичные structs ускоряют Phase 0 contracts; сначала нужны stable parser boundaries. |
+| `statrs` или другая reference CDF implementation | Если tail accuracy tests покажут расхождение | Текущий `erf_approx` покрыт deterministic tests, но требует future reference check на хвостах. |
+| `tracing` | Перед long-running live ingestion service | Пока reports дают больше ценности, чем runtime logs. |
+| Real PostgreSQL connector | После завершения row reader/writer contracts и Docker/local integration decision | Default CI должен оставаться offline; skeletons уже фиксируют boundary. |
+| Optimize in-memory clone/sort replay path | Если in-memory replay станет bottleneck | Production replay должен читать ordered rows из PostgreSQL. |

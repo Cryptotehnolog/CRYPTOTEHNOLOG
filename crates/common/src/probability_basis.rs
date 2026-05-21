@@ -136,7 +136,10 @@ pub fn match_probability_basis(
     };
     let polymarket_mid_probability =
         (polymarket_quote.bid_probability + polymarket_quote.ask_probability) / 2.0;
-    let gross_edge_probability = model_probability - polymarket_mid_probability;
+    let gross_mid_edge_probability = model_probability - polymarket_mid_probability;
+    let polymarket_executable_probability =
+        executable_polymarket_probability(model_probability, polymarket_quote);
+    let gross_executable_edge_probability = model_probability - polymarket_executable_probability;
 
     let feature = ProbabilityBasisFeature {
         meta: feature_meta(deribit_quote, polymarket_quote),
@@ -144,7 +147,10 @@ pub fn match_probability_basis(
         polymarket_market_slug: polymarket_quote.market_slug.clone(),
         model_probability,
         polymarket_mid_probability,
-        gross_edge_probability,
+        polymarket_executable_probability,
+        gross_mid_edge_probability,
+        gross_executable_edge_probability,
+        gross_edge_probability: gross_executable_edge_probability,
         estimated_cost_probability: config.estimated_cost_probability,
     };
 
@@ -268,6 +274,18 @@ fn is_valid_deribit_quote(quote: &DeribitOptionQuote) -> bool {
         && quote.strike > 0.0
         && quote.mark_iv > 0.0
         && quote.underlying_price > 0.0
+}
+
+fn executable_polymarket_probability(
+    model_probability: f64,
+    quote: &PolymarketOutcomeQuote,
+) -> f64 {
+    let mid_probability = (quote.bid_probability + quote.ask_probability) / 2.0;
+    if model_probability >= mid_probability {
+        quote.ask_probability
+    } else {
+        quote.bid_probability
+    }
 }
 
 fn black_scholes_call_probability(
@@ -429,8 +447,10 @@ mod tests {
             } => {
                 assert_eq!(feature.deribit_instrument_id, "ETH-20260601-3000-C");
                 assert_eq!(feature.polymarket_market_slug, "eth-above-3000-june-1");
-                assert!((feature.gross_edge_probability - 0.091338).abs() < 1e-6);
-                assert!((net_edge_probability - 0.081338).abs() < 1e-6);
+                assert!((feature.gross_mid_edge_probability - 0.091338).abs() < 1e-6);
+                assert!((feature.gross_executable_edge_probability - 0.081338).abs() < 1e-6);
+                assert!((feature.gross_edge_probability - 0.081338).abs() < 1e-6);
+                assert!((net_edge_probability - 0.071338).abs() < 1e-6);
                 assert!(survives_costs);
             }
             MatchDecision::Rejected { reason, .. } => {
@@ -529,9 +549,26 @@ mod tests {
         assert_eq!(
             report,
             [
-                "matched|ETH-20260601-3000-C|eth-above-3000-june-1|net_edge=0.081338|survives=true",
+                "matched|ETH-20260601-3000-C|eth-above-3000-june-1|net_edge=0.071338|survives=true",
                 "rejected|InsufficientLiquidity|ETH-20260601-3000-C|eth-above-3000-low-liquidity",
             ]
+        );
+    }
+
+    #[test]
+    fn rejects_when_mid_edge_survives_but_executable_edge_does_not() {
+        let deribit = deribit_quote(0.62, 3100.0, 1_780_000_000_000);
+        let polymarket = polymarket_quote(0.56, 0.62, 10_000.0, 1_780_000_000_000);
+
+        let decision = match_probability_basis(Some(&deribit), Some(&polymarket), &config());
+
+        assert_eq!(
+            decision,
+            MatchDecision::Rejected {
+                reason: RejectionReason::EdgeBelowThreshold,
+                deribit_instrument_id: Some("ETH-20260601-3000-C".to_string()),
+                polymarket_market_slug: Some("eth-above-3000-june-1".to_string()),
+            }
         );
     }
 

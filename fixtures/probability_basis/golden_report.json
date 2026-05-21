@@ -12,9 +12,9 @@
     ],
     "net_edge": {
       "sample_count": 1,
-      "average": 0.081338,
-      "min": 0.081338,
-      "max": 0.081338
+      "average": 0.071338,
+      "min": 0.071338,
+      "max": 0.071338
     }
   },
   "entries": [
@@ -22,7 +22,9 @@
       "type": "matched",
       "deribit_instrument_id": "ETH-20260601-3000-C",
       "polymarket_market_slug": "eth-above-3000-june-1",
-      "net_edge_probability": 0.081338,
+      "gross_mid_edge_probability": 0.091338,
+      "gross_executable_edge_probability": 0.081338,
+      "net_edge_probability": 0.071338,
       "survives_costs": true
     },
     {

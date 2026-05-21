@@ -3,7 +3,7 @@ type: workflow
 status: active
 confidence: high
 stability: volatile
-updated: 2026-05-20
+updated: 2026-05-21
 review_after: 2026-06-19
 sources:
   - project-review-2026-05-19
@@ -91,7 +91,7 @@ CLI text regression остается smoke test, который проверяе
 metadata|pricing_model_version=black_scholes_single_strike_v1
 summary|matched=1|rejected=1|net_edge_count=1|net_edge_avg=0.081338|net_edge_min=0.081338|net_edge_max=0.081338
 summary_rejection|reason=InsufficientLiquidity|count=1
-matched|ETH-20260601-3000-C|eth-above-3000-june-1|net_edge=0.081338|survives=true
+matched|ETH-20260601-3000-C|eth-above-3000-june-1|mid_edge=0.091338|executable_edge=0.081338|net_edge=0.071338|survives=true
 rejected|InsufficientLiquidity|ETH-20260601-3000-C|eth-above-3000-low-liquidity
 ```
 
@@ -101,6 +101,7 @@ Manifest scenarios:
 | --- | --- | --- |
 | `probability_basis_golden` | baseline: один matched signal и один low-liquidity reject | `Matched`, `InsufficientLiquidity` |
 | `probability_basis_edge_below_threshold` | strategy threshold boundary после costs | `EdgeBelowThreshold` |
+| `probability_basis_mid_edge_false_positive` | midpoint edge выглядит привлекательным, но executable side после spread/costs не проходит threshold | `EdgeBelowThreshold` |
 | `probability_basis_invalid_quote` | data-quality rejection path для некорректной quote book probability | `InvalidQuote` |
 | `probability_basis_expiry_mismatch` | temporal/event alignment между Deribit expiry и Polymarket event timestamp | `ExpiryMismatch` |
 
@@ -135,7 +136,7 @@ Runner также создает matched `BasisObservation` records через `
 - JSON report как основной machine-readable эталон,
 - text report как human-readable CLI output.
 
-Текущий JSON пишется вручную без `serde`, чтобы не добавлять dependencies на раннем Phase 0. При появлении более широкого report contract можно перейти на `serde_json`.
+Текущий JSON формируется через typed `serde Serialize` contract, а не ручной `format!()`/конкатенацией строк.
 
 `fixtures/manifest.toml` является registry для replay scenarios. Новые scenarios должны добавляться туда вместе с input fixture, primary JSON report и secondary text report.
 

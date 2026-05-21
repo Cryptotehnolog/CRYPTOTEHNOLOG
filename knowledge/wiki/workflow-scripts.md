@@ -90,7 +90,7 @@ Warning-only проверка `stability` и `review_after`.
 
 Дополнительная smoke-проверка сравнивает text output с `expected_text` из manifest.
 
-JSON/text output включает `ReplaySummary`: counts matched/rejected, counts by rejection reason и агрегаты `net_edge_probability` по matched entries.
+JSON/text output включает `ReplaySummary`: counts matched/rejected, counts by rejection reason и агрегаты `net_edge_probability` по matched entries. Matched replay entries также показывают `gross_mid_edge_probability` и `gross_executable_edge_probability`, чтобы midpoint false positives были видны в отчетах.
 
 Это smoke-level CLI regression, а не замена Rust unit tests.
 

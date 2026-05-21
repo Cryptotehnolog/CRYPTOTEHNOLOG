@@ -343,3 +343,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] hardening | Postgres event journal reader skeleton and daily report warnings
 
 Добавлен feature-gated `PostgresEventJournalReader` skeleton с `connection_label`, `select_replay_sql()` и controlled `JournalErrorKind::Storage` без реального PostgreSQL connector. `scripts/run_phase0_daily_report.ps1` теперь добавляет warning, если Phase 0 pipeline reports содержат scenarios со статусом не `ok`.
+
+## [2026-05-21] hardening | Executable edge and audit backlog
+
+Probability-basis matcher переведен с decisive midpoint edge на executable-side edge: `gross_mid_edge_probability` остается диагностикой, а threshold применяется к `gross_executable_edge_probability` после costs. Добавлен replay scenario `probability_basis_mid_edge_false_positive`, где midpoint выглядит привлекательным, но ask-side execution уничтожает edge. `rust-toolchain.toml` зафиксирован на `1.93.0`; отложенные audit items записаны в `roadmap-mvp.md`.

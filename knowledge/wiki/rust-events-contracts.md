@@ -3,7 +3,7 @@ type: system
 status: active
 confidence: medium
 stability: volatile
-updated: 2026-05-20
+updated: 2026-05-21
 review_after: 2026-06-19
 sources:
   - project-review-2026-05-19
@@ -76,7 +76,10 @@ MarketEvent::PolymarketOutcomeQuote(PolymarketOutcomeQuote)
 | `polymarket_market_slug` | `String` | Polymarket market slug. |
 | `model_probability` | `f64` | Deribit-derived probability. |
 | `polymarket_mid_probability` | `f64` | Polymarket midpoint probability. |
-| `gross_edge_probability` | `f64` | Difference before costs. |
+| `polymarket_executable_probability` | `f64` | Polymarket side used for executable edge: ask when model is above midpoint, bid when model is below midpoint. |
+| `gross_mid_edge_probability` | `f64` | Diagnostic midpoint edge before costs. Not used as decisive edge. |
+| `gross_executable_edge_probability` | `f64` | Executable-side edge before costs. |
+| `gross_edge_probability` | `f64` | Backward-compatible canonical gross edge; currently equal to `gross_executable_edge_probability`. |
 | `estimated_cost_probability` | `f64` | Cost estimate. |
 
 Implemented methods:
@@ -514,6 +517,7 @@ pub struct ReplayEventFilter {
 - duplicate event rejection,
 - deterministic replay ordering/filtering.
 - probability-basis matched/rejected decisions,
+- executable-edge rejection when midpoint edge is a false positive,
 - golden replay fixture report.
 - Black-Scholes edge cases: zero/negative IV, expired option, deep ITM/OTM behavior, deterministic normal CDF approximation.
 - BasisObservation mapping and duplicate observation rejection.

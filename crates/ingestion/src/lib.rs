@@ -3081,7 +3081,7 @@ mod tests {
             } => {
                 assert_eq!(feature.deribit_instrument_id, "ETH-20260601-3000-C");
                 assert_eq!(feature.polymarket_market_slug, "eth-above-3000-june-1");
-                assert!((*net_edge_probability - 0.081338).abs() < 1e-6);
+                assert!((*net_edge_probability - 0.071338).abs() < 1e-6);
                 assert!(*survives_costs);
             }
             MatchDecision::Rejected { reason, .. } => {
@@ -3102,7 +3102,7 @@ mod tests {
             "probability-basis:market-deribit-1:market-polymarket-1"
         );
         assert!(observation.survives_costs);
-        assert!((observation.net_edge_probability - 0.081338).abs() < 1e-6);
+        assert!((observation.net_edge_probability - 0.071338).abs() < 1e-6);
     }
 
     #[test]

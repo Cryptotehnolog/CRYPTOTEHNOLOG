@@ -94,7 +94,7 @@ Storage boundary уже определен:
 | `polymarket_market_slug` | `text not null` | Polymarket market slug. |
 | `model_probability` | `numeric not null` | Deribit-derived model probability. |
 | `polymarket_mid_probability` | `numeric not null` | Mid probability на Polymarket. |
-| `gross_edge_probability` | `numeric not null` | Разница до costs. |
+| `gross_edge_probability` | `numeric not null` | Canonical gross edge до costs. В текущей Phase 0 модели это executable-side edge, а не midpoint edge. |
 | `estimated_cost_probability` | `numeric not null` | Estimated fees/spread/slippage/mismatch costs. |
 | `net_edge_probability` | `numeric not null` | Net edge после estimated costs. |
 | `survives_costs` | `boolean not null` | Проходит ли threshold после costs. |
