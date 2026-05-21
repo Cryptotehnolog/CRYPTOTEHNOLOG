@@ -149,8 +149,8 @@ impl EventJournalRow {
 
     pub fn to_market_event(&self) -> Result<Option<MarketEvent>, JournalError> {
         match self.event_type.as_str() {
-            "deribit_option_quote" => self.deribit_option_quote().map(|event| Some(event)),
-            "polymarket_outcome_quote" => self.polymarket_outcome_quote().map(|event| Some(event)),
+            "deribit_option_quote" => self.deribit_option_quote().map(Some),
+            "polymarket_outcome_quote" => self.polymarket_outcome_quote().map(Some),
             _ => Ok(None),
         }
     }
@@ -273,10 +273,10 @@ impl EventJournalReplayQuery {
             return false;
         }
 
-        if let Some(config_version) = &self.config_version {
-            if &row.config_version != config_version {
-                return false;
-            }
+        if let Some(config_version) = &self.config_version
+            && &row.config_version != config_version
+        {
+            return false;
         }
 
         true

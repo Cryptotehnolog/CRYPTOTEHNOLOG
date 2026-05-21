@@ -396,6 +396,7 @@ Default pattern: `artifacts\network_connectivity_report*.json`.
 - accepted normalized events;
 - matcher decisions и observations;
 - edge quality totals: matched, `EdgeBelowThreshold`, `MidEdgeFalsePositive`;
+- total warnings count и warning kinds, включая `WideExecutableSpread`;
 - отдельную таблицу `Selected Candidates` с коротким `Quality`, выбранной Deribit/Polymarket парой и UTC expiry dates;
 - warning, если `strike_mismatch` или `expiry_mismatch` равны `true`, потому что это basis mismatch risk; для старых reports без flags скрипт fallback-считает их из `strike_distance` и expiry timestamps;
 - payload shape versions отдельной таблицей, чтобы они не раздували основной summary;

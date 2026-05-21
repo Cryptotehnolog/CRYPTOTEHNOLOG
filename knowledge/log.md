@@ -375,3 +375,7 @@ Manual `Network integration` workflow теперь загружает `artifacts
 ## [2026-05-21] implementation | Live probe CLOB executable pricing
 
 Manual `live_probe_replay` подключен к Polymarket CLOB boundary: после Gamma discovery он извлекает `clobTokenIds`, делает read-only CLOB `/book` запрос, нормализует executable bid/ask из orderbook и только затем отправляет Polymarket quote в matcher. `live_probe_replay_report.json` получил `warnings[]`; если CLOB spread превышает `0.10`, добавляется warning `WideExecutableSpread`. Default CI и `check_all` остаются offline.
+
+## [2026-05-21] workflow | Live probe warning summary
+
+`scripts/summarize_live_probe_replay_reports.ps1` теперь выводит общее количество warnings и агрегированный список warning kinds, чтобы `WideExecutableSpread` был виден в trend-summary без открытия JSON artifact.

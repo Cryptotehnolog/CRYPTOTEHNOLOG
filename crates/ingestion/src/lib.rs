@@ -1637,17 +1637,17 @@ impl PolymarketLiveIngestionClient {
         let mut batch =
             self.parse_gamma_market_payload(gamma_payload_json, config, received_ts_ms)?;
         let clob_quote = Self::parse_clob_book_payload(clob_payload_json)?;
-        if let Some(expected_token_id) = &self.outcome_token_id {
-            if &clob_quote.token_id != expected_token_id {
-                return Err(IngestionError::new(
-                    IngestionErrorKind::MalformedPayload,
-                    Some(IngestionSource::Polymarket),
-                    format!(
-                        "Polymarket CLOB token mismatch: expected {}, got {}",
-                        expected_token_id, clob_quote.token_id
-                    ),
-                ));
-            }
+        if let Some(expected_token_id) = &self.outcome_token_id
+            && &clob_quote.token_id != expected_token_id
+        {
+            return Err(IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Polymarket),
+                format!(
+                    "Polymarket CLOB token mismatch: expected {}, got {}",
+                    expected_token_id, clob_quote.token_id
+                ),
+            ));
         }
 
         let exchange_ts_ms = clob_quote.timestamp_ms.unwrap_or(received_ts_ms);
@@ -2976,6 +2976,7 @@ fn malformed_fixture_rejection_message(source: IngestionSource) -> Result<&'stat
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_manifest_scenario(
     scenarios: &mut Vec<IngestionManifestScenario>,
     current_name: &mut Option<String>,

@@ -286,6 +286,7 @@ where
 }
 
 #[cfg(feature = "network-integration")]
+#[allow(clippy::too_many_arguments)]
 fn fetch_deribit_batch<T>(
     client: &DeribitLiveIngestionClient,
     transport: &T,
@@ -345,6 +346,7 @@ fn fetch_deribit_batch<T>(
 }
 
 #[cfg(feature = "network-integration")]
+#[allow(clippy::too_many_arguments)]
 fn fetch_polymarket_batch<T>(
     client: &PolymarketLiveIngestionClient,
     transport: &T,

@@ -161,10 +161,10 @@ impl ReplayEventFilter {
             return false;
         }
 
-        if let Some(config_version) = &self.config_version {
-            if &meta.config_version != config_version {
-                return false;
-            }
+        if let Some(config_version) = &self.config_version
+            && &meta.config_version != config_version
+        {
+            return false;
         }
 
         true

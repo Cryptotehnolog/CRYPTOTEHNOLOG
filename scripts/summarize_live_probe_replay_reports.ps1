@@ -146,10 +146,12 @@ $reportRows = @()
 $selectionRows = @()
 $payloadShapeRows = @()
 $mismatchRows = @()
+$warningRows = @()
 $errorRows = @()
 foreach ($file in $files) {
     $report = Get-Content $file.FullName -Raw | ConvertFrom-Json
     $errors = @($report.errors)
+    $warnings = @($report.warnings)
     $parseErrors = @($errors | Where-Object { $_.stage -eq "parse" })
     $httpErrors = @($errors | Where-Object { $_.stage -eq "http" })
     $selection = $report.selection_report
@@ -182,6 +184,7 @@ foreach ($file in $files) {
         ProbeErrors = @($report.probe_reports | Where-Object { $_.status -ne "ok" }).Count
         ParseErrors = $parseErrors.Count
         HttpErrors = $httpErrors.Count
+        Warnings = $warnings.Count
         AcceptedNormalized = $accepted
         MatcherDecisions = $decisions
         Observations = $observations
@@ -215,6 +218,16 @@ foreach ($file in $files) {
         }
     }
 
+    foreach ($warningEntry in $warnings) {
+        $warningRows += [pscustomobject]@{
+            Report = $file.Name
+            Stage = [string]$warningEntry.stage
+            Endpoint = [string]$warningEntry.endpoint
+            Kind = [string]$warningEntry.kind
+            Message = [string]$warningEntry.message
+        }
+    }
+
     foreach ($errorEntry in $errors) {
         $errorRows += [pscustomobject]@{
             Report = $file.Name
@@ -230,6 +243,11 @@ $totalReports = $reportRows.Count
 $readyReports = @($reportRows | Where-Object { $_.MatcherReady }).Count
 $reportsWithParseErrors = @($reportRows | Where-Object { $_.ParseErrors -gt 0 }).Count
 $reportsWithHttpErrors = @($reportRows | Where-Object { $_.HttpErrors -gt 0 }).Count
+$totalWarnings = ($reportRows | Measure-Object -Property Warnings -Sum).Sum
+$warningKinds = @($warningRows |
+    Group-Object Kind |
+    Sort-Object Name |
+    ForEach-Object { "$($_.Name)=$($_.Count)" })
 $totalMatched = ($reportRows | Measure-Object -Property Matched -Sum).Sum
 $totalEdgeBelowThreshold = ($reportRows | Measure-Object -Property EdgeBelowThreshold -Sum).Sum
 $totalMidpointFalsePositive = ($reportRows | Measure-Object -Property MidpointFalsePositive -Sum).Sum
@@ -238,6 +256,8 @@ Write-Output "Live probe replay summary ($totalReports files)"
 Write-Output "Matcher readiness: $readyReports/$totalReports reports ready ($([math]::Round(($readyReports / [double]$totalReports) * 100.0, 2))%)"
 Write-Output "Reports with parse errors: $reportsWithParseErrors/$totalReports"
 Write-Output "Reports with HTTP errors: $reportsWithHttpErrors/$totalReports"
+Write-Output "Warnings: $totalWarnings"
+Write-Output "Warning kinds: $(if ($warningKinds.Count -gt 0) { $warningKinds -join ', ' } else { 'none' })"
 Write-Output "Edge quality totals: matched=$totalMatched edge_below_threshold=$totalEdgeBelowThreshold midpoint_false_positive=$totalMidpointFalsePositive"
 Write-Output ""
 
@@ -261,6 +281,23 @@ if ($payloadShapeRows.Count -gt 0) {
     Write-Output ""
     Write-Output "Payload Shapes"
     $payloadShapeRows | Format-Table -AutoSize
+}
+
+if ($warningRows.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Warnings by stage/endpoint/kind"
+    $warningRows |
+        Group-Object Stage, Endpoint, Kind |
+        ForEach-Object {
+            [pscustomobject]@{
+                Stage = $_.Group[0].Stage
+                Endpoint = $_.Group[0].Endpoint
+                Kind = $_.Group[0].Kind
+                Count = $_.Count
+            }
+        } |
+        Sort-Object Stage, Endpoint, Kind |
+        Format-Table -AutoSize
 }
 
 if ($errorRows.Count -gt 0) {
