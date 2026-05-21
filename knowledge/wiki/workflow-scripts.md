@@ -353,7 +353,7 @@ Polymarket path теперь использует targeted Gamma discovery и CL
 - `config_version`,
 - `pricing_model_version`,
 - `payload_shape_versions`,
-- `selection_report` с `selection_quality`, компактным `basis_alignment_status`, `candidate_policy`, `clean_basis_candidate`, `target_expiry_ts_ms`/`selected_expiry_ts_ms`, UTC `target_expiry_date`/`selected_expiry_date`, `deribit_expiry_candidates` top candidates, Polymarket-specific `selected_polymarket_end_ts_ms`/`selected_polymarket_end_date` и derived `strike_mismatch`/`expiry_mismatch`/`polymarket_expiry_mismatch` flags,
+- `selection_report` с `selection_quality`, компактным `basis_alignment_status`, `candidate_policy`, `clean_basis_candidate`, `clean_candidate_blockers`, `target_expiry_ts_ms`/`selected_expiry_ts_ms`, UTC `target_expiry_date`/`selected_expiry_date`, `deribit_expiry_candidates` top candidates, Polymarket-specific `selected_polymarket_end_ts_ms`/`selected_polymarket_end_date` и derived `strike_mismatch`/`expiry_mismatch`/`polymarket_expiry_mismatch` flags,
 - `polymarket_discovery_diagnostics` - top Gamma candidates с причинами отбраковки: `terms_mismatch`, `outcome_mismatch`, `liquidity_below_min`, `inactive`, `closed`,
 - `probe_reports`,
 - `ingestion_report`,
@@ -362,6 +362,8 @@ Polymarket path теперь использует targeted Gamma discovery и CL
 - `errors`.
 
 `probe_reports[].status = transient_http_failure` означает, что read-only HTTP boundary исчерпал короткие retry attempts для retryable API/rate-limit/reconnect ошибки. Такой статус не делает report успешным, но показывает, что blocker находится на connectivity layer, а не в matcher или parser.
+
+Selection policy Phase 0: Polymarket candidate selection должна учитывать дату события, а не только terms/liquidity. Market с высокой ликвидностью, но датой вне `max_end_date_distance_ms`, не должен вытеснять более близкий target-date candidate. Deribit nearby expiry можно использовать только как diagnostic fallback: `clean_candidate_blockers` должен явно показывать `deribit_expiry_not_exact`, если clean basis pair не найден.
 
 `live_probe_replay_report.json` формируется через `serde Serialize` DTO, а не ручной `format!()`/конкатенацией строк. Это делает report contract устойчивее к кавычкам, newline и изменению порядка внутренних Rust-представлений.
 
@@ -412,6 +414,7 @@ Default pattern: `artifacts\network_connectivity_report*.json`.
 - блок `Polymarket Gamma candidate diagnostics`, если Gamma discovery не выбрал market или отфильтровал candidates; блок показывает `market`, rejection reasons, missing terms, liquidity, `active`/`closed` и найден ли нужный outcome;
 - блок `Deribit expiry candidates` показывает top ближайших option candidates вокруг target date: instrument, expiry date, expiry distance in days, strike distance и попадание в текущие expiry/strike windows;
 - warning, если `strike_mismatch`, `expiry_mismatch` или `polymarket_expiry_mismatch` равны `true`, потому что это basis mismatch risk; для старых reports без flags скрипт fallback-считает их из `strike_distance`, expiry timestamps и Polymarket end date;
+- `clean_candidate_blockers` в `Selected Candidates`, чтобы сразу видеть, почему найденная пара не считается clean Phase 0 basis candidate;
 - payload shape versions отдельной таблицей, чтобы они не раздували основной summary;
 - errors by stage/endpoint/kind.
 

@@ -407,3 +407,7 @@ Phase 0 policy закреплена в коде и wiki: только `basis_ali
 ## [2026-05-21] hardening | Retry-aware manual network probes
 
 Read-only manual network probes получили bounded retry/backoff на HTTP boundary. `LiveIngestionProbeReport` теперь включает `attempts`, а retryable API/rate-limit/reconnect failures после исчерпания попыток получают `status = transient_http_failure`. Это отделяет connectivity instability от parser/discovery/matcher failures без включения network checks в default CI и без runtime monitoring loop.
+
+## [2026-05-21] hardening | Cleaner Phase 0 candidate selection policy
+
+Polymarket Gamma discovery теперь учитывает target event date через `max_end_date_distance_ms`, чтобы high-liquidity market с неправильной датой не вытеснял более чистый candidate. `live_probe_replay_report.json` получил `clean_candidate_blockers`, а Deribit diagnostics явно маркируют `clean_expiry_match`, чтобы nearby expiry оставался diagnostic fallback, а не clean Phase 0 basis candidate.

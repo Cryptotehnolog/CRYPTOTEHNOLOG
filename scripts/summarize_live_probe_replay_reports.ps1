@@ -262,6 +262,7 @@ foreach ($file in $files) {
         Quality = $selectionQuality
         BasisAlignment = $basisAlignmentStatus
         CandidatePolicy = $candidatePolicy
+        CleanBlockers = if ($null -ne $selection.clean_candidate_blockers) { @($selection.clean_candidate_blockers) -join "," } else { "" }
         DeribitInstrument = Format-OptionalValue $selection.selected_deribit_instrument
         PolymarketMarket = Format-OptionalValue $selection.selected_polymarket_market_slug
         TargetExpiryDate = $targetExpiryDate

@@ -1244,6 +1244,7 @@ pub struct DeribitOptionDiscoveryCriteria {
     pub target_strike: f64,
     pub option_kind: OptionKind,
     pub max_expiry_distance_ms: i64,
+    pub clean_expiry_distance_ms: i64,
     pub max_strike_distance: f64,
 }
 
@@ -1255,6 +1256,7 @@ impl DeribitOptionDiscoveryCriteria {
             target_strike: 3000.0,
             option_kind: OptionKind::Call,
             max_expiry_distance_ms: 7 * 86_400_000,
+            clean_expiry_distance_ms: 0,
             max_strike_distance: 500.0,
         }
     }
@@ -1280,6 +1282,7 @@ pub struct DeribitOptionCandidateDiagnostic {
     pub expiry_distance_ms: i64,
     pub expiry_distance_days: f64,
     pub strike_distance: f64,
+    pub clean_expiry_match: bool,
     pub within_expiry_window: bool,
     pub within_strike_window: bool,
 }
@@ -1512,6 +1515,7 @@ pub struct PolymarketMarketDiscoveryCriteria {
     pub search_queries: Vec<String>,
     pub outcome: String,
     pub target_expiry_ts_ms: i64,
+    pub max_end_date_distance_ms: i64,
     pub min_liquidity_usd: f64,
 }
 
@@ -1522,6 +1526,7 @@ impl PolymarketMarketDiscoveryCriteria {
             search_queries: vec!["eth 3000".to_string(), "ethereum 3000".to_string()],
             outcome: "Yes".to_string(),
             target_expiry_ts_ms: 1_780_272_000_000,
+            max_end_date_distance_ms: 86_400_000,
             min_liquidity_usd: 1_000.0,
         }
     }
@@ -1553,6 +1558,8 @@ pub struct PolymarketMarketCandidateDiagnostic {
     pub missing_terms: Vec<String>,
     pub liquidity_usd: f64,
     pub liquidity_ok: bool,
+    pub end_date_distance_ms: Option<i64>,
+    pub end_date_ok: bool,
     pub outcome_token_id: Option<String>,
     pub rejection_reasons: Vec<String>,
 }
@@ -2644,6 +2651,11 @@ fn diagnose_polymarket_markets_payload(
             .cloned()
             .collect();
         let liquidity_ok = liquidity_usd >= criteria.min_liquidity_usd;
+        let end_date_distance_ms =
+            end_ts_ms.map(|end_ts_ms| (end_ts_ms - criteria.target_expiry_ts_ms).abs());
+        let end_date_ok = end_date_distance_ms
+            .map(|distance| distance <= criteria.max_end_date_distance_ms)
+            .unwrap_or(false);
         let mut rejection_reasons = Vec::new();
         if !active {
             rejection_reasons.push("inactive".to_string());
@@ -2660,6 +2672,9 @@ fn diagnose_polymarket_markets_payload(
         if !liquidity_ok {
             rejection_reasons.push("liquidity_below_min".to_string());
         }
+        if !end_date_ok {
+            rejection_reasons.push("end_date_mismatch".to_string());
+        }
 
         diagnostics.push(PolymarketMarketCandidateDiagnostic {
             market_slug,
@@ -2673,6 +2688,8 @@ fn diagnose_polymarket_markets_payload(
             missing_terms,
             liquidity_usd,
             liquidity_ok,
+            end_date_distance_ms,
+            end_date_ok,
             outcome_token_id,
             rejection_reasons,
         });
@@ -2687,6 +2704,12 @@ fn diagnose_polymarket_markets_payload(
                 right
                     .matched_terms_count(required_terms.len())
                     .cmp(&left.matched_terms_count(required_terms.len()))
+            })
+            .then_with(|| right.end_date_ok.cmp(&left.end_date_ok))
+            .then_with(|| {
+                left.end_date_distance_ms
+                    .unwrap_or(i64::MAX)
+                    .cmp(&right.end_date_distance_ms.unwrap_or(i64::MAX))
             })
             .then_with(|| right.liquidity_usd.total_cmp(&left.liquidity_usd))
             .then_with(|| left.market_slug.cmp(&right.market_slug))
@@ -2983,6 +3006,7 @@ fn diagnose_deribit_option_candidates(
                 expiry_distance_ms,
                 expiry_distance_days: expiry_distance_ms as f64 / 86_400_000.0,
                 strike_distance,
+                clean_expiry_match: expiry_distance_ms <= criteria.clean_expiry_distance_ms,
                 within_expiry_window: expiry_distance_ms <= criteria.max_expiry_distance_ms,
                 within_strike_window: strike_distance <= criteria.max_strike_distance,
             }
@@ -3012,6 +3036,15 @@ fn select_polymarket_market_candidate(
         .into_iter()
         .filter(|market| market.liquidity_usd >= criteria.min_liquidity_usd)
         .filter(|market| {
+            market
+                .end_ts_ms
+                .map(|end_ts_ms| {
+                    (end_ts_ms - criteria.target_expiry_ts_ms).abs()
+                        <= criteria.max_end_date_distance_ms
+                })
+                .unwrap_or(false)
+        })
+        .filter(|market| {
             let haystack = format!(
                 "{} {} {}",
                 market.market_slug, market.question, market.event_slug
@@ -3024,9 +3057,18 @@ fn select_polymarket_market_candidate(
         .collect();
 
     candidates.sort_by(|left, right| {
-        right
-            .liquidity_usd
-            .total_cmp(&left.liquidity_usd)
+        let left_end_distance = left
+            .end_ts_ms
+            .map(|end_ts_ms| (end_ts_ms - criteria.target_expiry_ts_ms).abs())
+            .unwrap_or(i64::MAX);
+        let right_end_distance = right
+            .end_ts_ms
+            .map(|end_ts_ms| (end_ts_ms - criteria.target_expiry_ts_ms).abs())
+            .unwrap_or(i64::MAX);
+
+        left_end_distance
+            .cmp(&right_end_distance)
+            .then_with(|| right.liquidity_usd.total_cmp(&left.liquidity_usd))
             .then_with(|| left.market_slug.cmp(&right.market_slug))
     });
 
@@ -3035,8 +3077,12 @@ fn select_polymarket_market_candidate(
             IngestionErrorKind::MalformedPayload,
             Some(IngestionSource::Polymarket),
             format!(
-                "no Polymarket market candidate for terms {:?}, outcome {}, min liquidity {}",
-                criteria.required_terms, criteria.outcome, criteria.min_liquidity_usd
+                "no Polymarket market candidate for terms {:?}, outcome {}, target expiry {}, max end-date distance {} ms, min liquidity {}",
+                criteria.required_terms,
+                criteria.outcome,
+                criteria.target_expiry_ts_ms,
+                criteria.max_end_date_distance_ms,
+                criteria.min_liquidity_usd
             ),
         )
     })
@@ -4716,6 +4762,7 @@ mod tests {
                 "outcomePrices": "[\"0.51\", \"0.49\"]",
                 "clobTokenIds": "[\"1234567890\", \"0987654321\"]",
                 "liquidity": "10000",
+                "endDate": "2026-06-01T00:00:00Z",
                 "active": true,
                 "closed": false,
                 "events": [{ "slug": "eth-above-3000" }]
@@ -4733,6 +4780,46 @@ mod tests {
         assert_eq!(discovered.outcome, "Yes");
         assert_eq!(discovered.outcome_token_id.as_deref(), Some("1234567890"));
         assert_eq!(discovered.liquidity_usd, 10_000.0);
+    }
+
+    #[test]
+    fn polymarket_discovery_prefers_target_date_over_higher_liquidity_mismatch() {
+        let payload = r#"[
+            {
+                "slug": "eth-above-3000-wrong-date-high-liquidity",
+                "question": "Will ETH be above $3000 on July 1?",
+                "outcomes": "[\"Yes\", \"No\"]",
+                "outcomePrices": "[\"0.51\", \"0.49\"]",
+                "clobTokenIds": "[\"wrong-date-yes\", \"wrong-date-no\"]",
+                "liquidity": "500000",
+                "endDate": "2026-07-01T00:00:00Z",
+                "active": true,
+                "closed": false
+            },
+            {
+                "slug": "eth-above-3000-target-date",
+                "question": "Will ETH be above $3000 on June 1?",
+                "outcomes": "[\"Yes\", \"No\"]",
+                "outcomePrices": "[\"0.51\", \"0.49\"]",
+                "clobTokenIds": "[\"target-date-yes\", \"target-date-no\"]",
+                "liquidity": "5000",
+                "endDate": "2026-06-01T00:00:00Z",
+                "active": true,
+                "closed": false
+            }
+        ]"#;
+
+        let discovered = PolymarketLiveIngestionClient::discover_market_from_payload(
+            payload,
+            &PolymarketMarketDiscoveryCriteria::phase0_eth_above_3000_yes(),
+        )
+        .expect("target-date candidate should be selected");
+
+        assert_eq!(discovered.market_slug, "eth-above-3000-target-date");
+        assert_eq!(
+            discovered.outcome_token_id.as_deref(),
+            Some("target-date-yes")
+        );
     }
 
     #[test]
@@ -4834,6 +4921,7 @@ mod tests {
                 "question": "Will BTC be above $3000 on June 1?",
                 "outcomes": "[\"Yes\", \"No\"]",
                 "liquidity": "20000",
+                "endDate": "2026-06-01T00:00:00Z",
                 "active": true,
                 "closed": false
             },
@@ -4842,6 +4930,7 @@ mod tests {
                 "question": "Will ETH be above $3000?",
                 "outcomes": "[\"Yes\", \"No\"]",
                 "liquidity": "100",
+                "endDate": "2026-06-01T00:00:00Z",
                 "active": true,
                 "closed": false
             },
@@ -4850,6 +4939,7 @@ mod tests {
                 "question": "Will ETH be above $3000?",
                 "outcomes": "[\"Up\", \"Down\"]",
                 "liquidity": "10000",
+                "endDate": "2026-06-01T00:00:00Z",
                 "active": true,
                 "closed": false
             },
@@ -4858,6 +4948,7 @@ mod tests {
                 "question": "Will ETH be above $3000?",
                 "outcomes": "[\"Yes\", \"No\"]",
                 "liquidity": "10000",
+                "endDate": "2026-06-01T00:00:00Z",
                 "active": true,
                 "closed": true
             }

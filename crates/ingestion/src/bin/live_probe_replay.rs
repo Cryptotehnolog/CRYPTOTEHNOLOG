@@ -949,6 +949,26 @@ impl SelectionReport {
         self.basis_alignment_status() == "exact"
     }
 
+    fn clean_candidate_blockers(&self) -> Vec<&'static str> {
+        let mut blockers = Vec::new();
+        if self.selected_deribit_instrument.is_none() {
+            blockers.push("missing_deribit_candidate");
+        }
+        if self.selected_polymarket_market_slug.is_none() {
+            blockers.push("missing_polymarket_candidate");
+        }
+        if self.strike_mismatch() {
+            blockers.push("strike_mismatch");
+        }
+        if self.expiry_mismatch() {
+            blockers.push("deribit_expiry_not_exact");
+        }
+        if self.polymarket_expiry_mismatch() {
+            blockers.push("polymarket_date_mismatch");
+        }
+        blockers
+    }
+
     fn candidate_policy(&self) -> &'static str {
         if self.selected_deribit_instrument.is_none()
             || self.selected_polymarket_market_slug.is_none()
@@ -1226,6 +1246,7 @@ struct SelectionReportDto {
     basis_alignment_status: &'static str,
     candidate_policy: &'static str,
     clean_basis_candidate: bool,
+    clean_candidate_blockers: Vec<&'static str>,
     selected_deribit_instrument: Option<String>,
     target_expiry_ts_ms: Option<i64>,
     target_expiry_date: Option<String>,
@@ -1251,6 +1272,7 @@ impl From<&SelectionReport> for SelectionReportDto {
             basis_alignment_status: value.basis_alignment_status(),
             candidate_policy: value.candidate_policy(),
             clean_basis_candidate: value.clean_basis_candidate(),
+            clean_candidate_blockers: value.clean_candidate_blockers(),
             selected_deribit_instrument: value.selected_deribit_instrument.clone(),
             target_expiry_ts_ms: value.target_expiry_ts_ms,
             target_expiry_date: value.target_expiry_date.clone(),
@@ -1284,6 +1306,7 @@ struct DeribitOptionCandidateDiagnosticDto {
     expiry_distance_ms: i64,
     expiry_distance_days: f64,
     strike_distance: f64,
+    clean_expiry_match: bool,
     within_expiry_window: bool,
     within_strike_window: bool,
 }
@@ -1299,6 +1322,7 @@ impl From<&DeribitOptionCandidateDiagnostic> for DeribitOptionCandidateDiagnosti
             expiry_distance_ms: value.expiry_distance_ms,
             expiry_distance_days: value.expiry_distance_days,
             strike_distance: value.strike_distance,
+            clean_expiry_match: value.clean_expiry_match,
             within_expiry_window: value.within_expiry_window,
             within_strike_window: value.within_strike_window,
         }
@@ -1319,6 +1343,8 @@ struct PolymarketMarketCandidateDiagnosticDto {
     missing_terms: Vec<String>,
     liquidity_usd: f64,
     liquidity_ok: bool,
+    end_date_distance_ms: Option<i64>,
+    end_date_ok: bool,
     outcome_token_id: Option<String>,
     rejection_reasons: Vec<String>,
 }
@@ -1338,6 +1364,8 @@ impl From<&PolymarketMarketCandidateDiagnostic> for PolymarketMarketCandidateDia
             missing_terms: value.missing_terms.clone(),
             liquidity_usd: value.liquidity_usd,
             liquidity_ok: value.liquidity_ok,
+            end_date_distance_ms: value.end_date_distance_ms,
+            end_date_ok: value.end_date_ok,
             outcome_token_id: value.outcome_token_id.clone(),
             rejection_reasons: value.rejection_reasons.clone(),
         }
@@ -1782,6 +1810,8 @@ mod tests {
                     missing_terms: vec![],
                     liquidity_usd: 100.0,
                     liquidity_ok: false,
+                    end_date_distance_ms: Some(0),
+                    end_date_ok: true,
                     outcome_token_id: Some("123".to_string()),
                     rejection_reasons: vec!["liquidity_below_min".to_string()],
                 },

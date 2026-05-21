@@ -134,6 +134,8 @@ BasisObservationRowWriter
 
 Gamma `outcomePrices` остаются discovery/probe fallback: если CLOB snapshot отсутствует, ingestion может временно создать `bid_probability == ask_probability == outcomePrice`. Для executable pricing этот fallback недостаточен; CLOB best bid/ask является отдельным boundary, где впервые появляется реальный spread.
 
+Phase 0 selection policy не должна выбирать market только по высокой ликвидности. Polymarket discovery учитывает target event date через `max_end_date_distance_ms`, а live probe report выводит `clean_candidate_blockers`, если найденная пара не является exact basis candidate. Deribit nearby expiry остается diagnostic fallback, а не clean trading hypothesis.
+
 Это не live API implementation. Real HTTP/WebSocket logic добавляется позже отдельным decision/code review.
 
 `LiveHttpTransport` намеренно отделяет network IO от parsing и normalization. Default tests используют только `FixtureHttpTransport` или `DisabledHttpTransport`; реальные HTTP clients не входят в default CI.
