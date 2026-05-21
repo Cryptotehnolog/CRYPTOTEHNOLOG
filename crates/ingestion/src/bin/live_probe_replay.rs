@@ -826,6 +826,8 @@ struct SelectionReport {
     strike_distance: Option<f64>,
     selected_polymarket_market_slug: Option<String>,
     selected_polymarket_event_slug: Option<String>,
+    selected_polymarket_end_ts_ms: Option<i64>,
+    selected_polymarket_end_date: Option<String>,
     selected_polymarket_liquidity_usd: Option<f64>,
 }
 
@@ -841,6 +843,8 @@ impl SelectionReport {
             strike_distance: None,
             selected_polymarket_market_slug: None,
             selected_polymarket_event_slug: None,
+            selected_polymarket_end_ts_ms: None,
+            selected_polymarket_end_date: None,
             selected_polymarket_liquidity_usd: None,
         }
     }
@@ -861,6 +865,8 @@ impl SelectionReport {
     fn set_polymarket(&mut self, discovered: &PolymarketDiscoveredMarket) {
         self.selected_polymarket_market_slug = Some(discovered.market_slug.clone());
         self.selected_polymarket_event_slug = Some(discovered.event_slug.clone());
+        self.selected_polymarket_end_ts_ms = discovered.end_ts_ms;
+        self.selected_polymarket_end_date = discovered.end_date.clone();
         self.selected_polymarket_liquidity_usd = Some(discovered.liquidity_usd);
     }
 
@@ -877,6 +883,13 @@ impl SelectionReport {
         }
     }
 
+    fn polymarket_expiry_mismatch(&self) -> bool {
+        match (&self.target_expiry_date, &self.selected_polymarket_end_date) {
+            (Some(target), Some(selected)) => target != selected,
+            _ => false,
+        }
+    }
+
     fn selection_quality(&self) -> &'static str {
         if self.selected_deribit_instrument.is_none()
             || self.selected_polymarket_market_slug.is_none()
@@ -884,10 +897,19 @@ impl SelectionReport {
             return "missing";
         }
 
-        match (self.strike_mismatch(), self.expiry_mismatch()) {
-            (false, false) => "exact",
-            (true, true) => "mismatch",
-            (true, false) | (false, true) => "nearby",
+        let mismatch_count = [
+            self.strike_mismatch(),
+            self.expiry_mismatch(),
+            self.polymarket_expiry_mismatch(),
+        ]
+        .into_iter()
+        .filter(|mismatch| *mismatch)
+        .count();
+
+        match mismatch_count {
+            0 => "exact",
+            1 => "nearby",
+            _ => "mismatch",
         }
     }
 }
@@ -1139,8 +1161,11 @@ struct SelectionReportDto {
     strike_distance: Option<f64>,
     strike_mismatch: bool,
     expiry_mismatch: bool,
+    polymarket_expiry_mismatch: bool,
     selected_polymarket_market_slug: Option<String>,
     selected_polymarket_event_slug: Option<String>,
+    selected_polymarket_end_ts_ms: Option<i64>,
+    selected_polymarket_end_date: Option<String>,
     selected_polymarket_liquidity_usd: Option<f64>,
 }
 
@@ -1157,8 +1182,11 @@ impl From<&SelectionReport> for SelectionReportDto {
             strike_distance: value.strike_distance,
             strike_mismatch: value.strike_mismatch(),
             expiry_mismatch: value.expiry_mismatch(),
+            polymarket_expiry_mismatch: value.polymarket_expiry_mismatch(),
             selected_polymarket_market_slug: value.selected_polymarket_market_slug.clone(),
             selected_polymarket_event_slug: value.selected_polymarket_event_slug.clone(),
+            selected_polymarket_end_ts_ms: value.selected_polymarket_end_ts_ms,
+            selected_polymarket_end_date: value.selected_polymarket_end_date.clone(),
             selected_polymarket_liquidity_usd: value.selected_polymarket_liquidity_usd,
         }
     }
@@ -1172,6 +1200,8 @@ struct PolymarketMarketCandidateDiagnosticDto {
     question: String,
     active: bool,
     closed: bool,
+    end_ts_ms: Option<i64>,
+    end_date: Option<String>,
     outcome_found: bool,
     missing_terms: Vec<String>,
     liquidity_usd: f64,
@@ -1189,6 +1219,8 @@ impl From<&PolymarketMarketCandidateDiagnostic> for PolymarketMarketCandidateDia
             question: value.question.clone(),
             active: value.active,
             closed: value.closed,
+            end_ts_ms: value.end_ts_ms,
+            end_date: value.end_date.clone(),
             outcome_found: value.outcome_found,
             missing_terms: value.missing_terms.clone(),
             liquidity_usd: value.liquidity_usd,
@@ -1479,6 +1511,7 @@ mod tests {
         let json = selection_report_value(&report);
         assert_eq!(json["strike_mismatch"], true);
         assert_eq!(json["expiry_mismatch"], true);
+        assert_eq!(json["polymarket_expiry_mismatch"], false);
         assert_eq!(json["selection_quality"], "missing");
     }
 
@@ -1488,10 +1521,12 @@ mod tests {
 
         assert!(!report.strike_mismatch());
         assert!(!report.expiry_mismatch());
+        assert!(!report.polymarket_expiry_mismatch());
         assert_eq!(report.selection_quality(), "missing");
         let json = selection_report_value(&report);
         assert_eq!(json["strike_mismatch"], false);
         assert_eq!(json["expiry_mismatch"], false);
+        assert_eq!(json["polymarket_expiry_mismatch"], false);
         assert_eq!(json["selection_quality"], "missing");
     }
 
@@ -1500,6 +1535,8 @@ mod tests {
         let criteria = DeribitOptionDiscoveryCriteria::phase0_eth_call_3000_june_2026();
         let mut exact = SelectionReport::empty();
         exact.selected_polymarket_market_slug = Some("eth-above-3000-june-2026".to_string());
+        exact.selected_polymarket_end_ts_ms = Some(criteria.target_expiry_ts_ms);
+        exact.selected_polymarket_end_date = Some("2026-06-01".to_string());
         exact.set_deribit(
             &criteria,
             &DeribitDiscoveredOption {
@@ -1522,6 +1559,33 @@ mod tests {
     }
 
     #[test]
+    fn selection_report_flags_polymarket_expiry_mismatch_independently() {
+        let criteria = DeribitOptionDiscoveryCriteria::phase0_eth_call_3000_june_2026();
+        let mut report = SelectionReport::empty();
+        report.selected_polymarket_market_slug =
+            Some("will-ethereum-reach-3000-in-may-2026".to_string());
+        report.selected_polymarket_end_ts_ms = Some(1_780_185_600_000);
+        report.selected_polymarket_end_date = Some("2026-05-31".to_string());
+        report.set_deribit(
+            &criteria,
+            &DeribitDiscoveredOption {
+                instrument_name: "ETH-1JUN26-3000-C".to_string(),
+                underlying: "ETH".to_string(),
+                expiry_ts_ms: criteria.target_expiry_ts_ms,
+                strike: criteria.target_strike,
+                option_kind: OptionKind::Call,
+            },
+        );
+
+        assert!(!report.expiry_mismatch());
+        assert!(report.polymarket_expiry_mismatch());
+        assert_eq!(report.selection_quality(), "nearby");
+        let json = selection_report_value(&report);
+        assert_eq!(json["selected_polymarket_end_date"], "2026-05-31");
+        assert_eq!(json["polymarket_expiry_mismatch"], true);
+    }
+
+    #[test]
     fn live_probe_replay_report_is_serialized_by_serde_contract() {
         let report_json = super::render_report(
             &[],
@@ -1537,6 +1601,8 @@ mod tests {
                     question: "Will ETH be above $3000?".to_string(),
                     active: true,
                     closed: false,
+                    end_ts_ms: Some(1_780_272_000_000),
+                    end_date: Some("2026-06-01".to_string()),
                     outcome_found: true,
                     missing_terms: vec![],
                     liquidity_usd: 100.0,

@@ -90,7 +90,8 @@ function Select-SelectionQuality {
         $DeribitInstrument,
         $PolymarketMarket,
         [bool]$StrikeMismatch,
-        [bool]$ExpiryMismatch
+        [bool]$ExpiryMismatch,
+        [bool]$PolymarketExpiryMismatch
     )
 
     $qualityText = Format-OptionalValue $QualityValue
@@ -103,11 +104,16 @@ function Select-SelectionQuality {
         return "missing"
     }
 
-    if ($StrikeMismatch -and $ExpiryMismatch) {
+    $mismatchCount = 0
+    if ($StrikeMismatch) { $mismatchCount++ }
+    if ($ExpiryMismatch) { $mismatchCount++ }
+    if ($PolymarketExpiryMismatch) { $mismatchCount++ }
+
+    if ($mismatchCount -gt 1) {
         return "mismatch"
     }
 
-    if ($StrikeMismatch -or $ExpiryMismatch) {
+    if ($mismatchCount -eq 1) {
         return "nearby"
     }
 
@@ -166,17 +172,24 @@ foreach ($file in $files) {
     $strikeDistance = Convert-NullableDouble $selection.strike_distance
     $targetExpiryDate = Select-ExpiryDate $selection.target_expiry_date $targetExpiryTsMs
     $selectedExpiryDate = Select-ExpiryDate $selection.selected_expiry_date $selectedExpiryTsMs
+    $selectedPolymarketEndTsMs = Convert-NullableInt64 $selection.selected_polymarket_end_ts_ms
+    $selectedPolymarketEndDate = Select-ExpiryDate $selection.selected_polymarket_end_date $selectedPolymarketEndTsMs
     $fallbackStrikeMismatch = ($null -ne $strikeDistance -and $strikeDistance -gt 0.0)
     $fallbackExpiryMismatch = ($null -ne $targetExpiryTsMs -and $null -ne $selectedExpiryTsMs -and $selectedExpiryTsMs -ne $targetExpiryTsMs)
+    $fallbackPolymarketExpiryMismatch = (-not [string]::IsNullOrWhiteSpace($targetExpiryDate) -and -not [string]::IsNullOrWhiteSpace($selectedPolymarketEndDate) -and $targetExpiryDate -ne $selectedPolymarketEndDate)
     $hasStrikeMismatch = Select-MismatchFlag $selection.strike_mismatch $fallbackStrikeMismatch
     $hasExpiryMismatch = Select-MismatchFlag $selection.expiry_mismatch $fallbackExpiryMismatch
-    $selectionQuality = Select-SelectionQuality $selection.selection_quality $selection.selected_deribit_instrument $selection.selected_polymarket_market_slug $hasStrikeMismatch $hasExpiryMismatch
+    $hasPolymarketExpiryMismatch = Select-MismatchFlag $selection.polymarket_expiry_mismatch $fallbackPolymarketExpiryMismatch
+    $selectionQuality = Select-SelectionQuality $selection.selection_quality $selection.selected_deribit_instrument $selection.selected_polymarket_market_slug $hasStrikeMismatch $hasExpiryMismatch $hasPolymarketExpiryMismatch
     $warningReasons = @()
     if ($hasStrikeMismatch) {
         $warningReasons += "strike_distance > 0"
     }
     if ($hasExpiryMismatch) {
         $warningReasons += "selected_expiry_ts_ms != target_expiry_ts_ms"
+    }
+    if ($hasPolymarketExpiryMismatch) {
+        $warningReasons += "selected_polymarket_end_date != target_expiry_date"
     }
 
     $reportRows += [pscustomobject]@{
@@ -202,6 +215,7 @@ foreach ($file in $files) {
         PolymarketMarket = Format-OptionalValue $selection.selected_polymarket_market_slug
         TargetExpiryDate = $targetExpiryDate
         SelectedExpiryDate = $selectedExpiryDate
+        PolymarketEndDate = $selectedPolymarketEndDate
         StrikeDistance = Format-OptionalValue $strikeDistance
         Warning = if ($warningReasons.Count -gt 0) { $warningReasons -join "; " } else { "" }
     }
@@ -288,7 +302,7 @@ if ($mismatchRows.Count -gt 0) {
     Write-Output ""
     Write-Output "WARNING: Basis mismatch risk detected in selected candidates"
     foreach ($row in $mismatchRows) {
-        Write-Output "- $($row.Report): $($row.Warning) (Deribit=$($row.DeribitInstrument), Polymarket=$($row.PolymarketMarket), target_expiry_date=$($row.TargetExpiryDate), selected_expiry_date=$($row.SelectedExpiryDate), strike_distance=$($row.StrikeDistance))"
+        Write-Output "- $($row.Report): $($row.Warning) (Deribit=$($row.DeribitInstrument), Polymarket=$($row.PolymarketMarket), target_expiry_date=$($row.TargetExpiryDate), selected_expiry_date=$($row.SelectedExpiryDate), polymarket_end_date=$($row.PolymarketEndDate), strike_distance=$($row.StrikeDistance))"
     }
 }
 

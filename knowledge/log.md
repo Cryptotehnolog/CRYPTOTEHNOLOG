@@ -387,3 +387,7 @@ Manual `live_probe_replay` теперь добавляет `polymarket_discovery
 ## [2026-05-21] implementation | Targeted Polymarket Gamma discovery
 
 Polymarket discovery в manual `live_probe_replay` переведен с broad first-page `/markets` на targeted sequence: `public-search?q=eth+3000`, `public-search?q=ethereum+3000`, затем broad `/markets` fallback. Parser discovery payload теперь принимает `markets`, `data/result` и nested `events[].markets` shapes. Добавлен warning `BroadPolymarketGammaDiscovery`, если top candidates отвергнуты только по `terms_mismatch`. Локальный manual probe подтвердил, что pipeline теперь выбирает `will-ethereum-reach-3000-in-may-2026`, доходит до Gamma market, CLOB `/book`, normalized events и matcher без секретов и без trading.
+
+## [2026-05-21] implementation | Polymarket settlement date in selection report
+
+`live_probe_replay_report.json` теперь включает Polymarket-specific settlement fields: `selected_polymarket_end_ts_ms`, `selected_polymarket_end_date` и derived `polymarket_expiry_mismatch`. Gamma parser читает `endDate`/`endDateIso` и близкие end/close aliases без panic на `null`. Summary script показывает Polymarket end date рядом с Deribit selected expiry, чтобы basis mismatch risk был виден без ручного чтения JSON.

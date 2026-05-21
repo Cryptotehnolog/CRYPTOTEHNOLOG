@@ -1405,6 +1405,8 @@ pub struct PolymarketDiscoveredMarket {
     pub outcome: String,
     pub outcome_token_id: Option<String>,
     pub target_expiry_ts_ms: i64,
+    pub end_ts_ms: Option<i64>,
+    pub end_date: Option<String>,
     pub liquidity_usd: f64,
 }
 
@@ -1415,6 +1417,8 @@ pub struct PolymarketMarketCandidateDiagnostic {
     pub question: String,
     pub active: bool,
     pub closed: bool,
+    pub end_ts_ms: Option<i64>,
+    pub end_date: Option<String>,
     pub outcome_found: bool,
     pub missing_terms: Vec<String>,
     pub liquidity_usd: f64,
@@ -2388,6 +2392,8 @@ fn parse_polymarket_markets_payload(
         if !active || closed {
             continue;
         }
+        let end_ts_ms = polymarket_market_end_ts_ms(&parser, market)?;
+        let end_date = end_ts_ms.map(polymarket_utc_date_from_unix_ms);
         let liquidity_usd = parser
             .optional_f64_from(market, "liquidityNum")?
             .or_else(|| parser.optional_f64_from(market, "liquidity").ok().flatten())
@@ -2417,6 +2423,8 @@ fn parse_polymarket_markets_payload(
             outcome: criteria.outcome.clone(),
             outcome_token_id,
             target_expiry_ts_ms: criteria.target_expiry_ts_ms,
+            end_ts_ms,
+            end_date,
             liquidity_usd,
         });
     }
@@ -2476,6 +2484,8 @@ fn diagnose_polymarket_markets_payload(
         let closed = parser
             .optional_bool_from(market, "closed")?
             .unwrap_or(false);
+        let end_ts_ms = polymarket_market_end_ts_ms(&parser, market)?;
+        let end_date = end_ts_ms.map(polymarket_utc_date_from_unix_ms);
         let liquidity_usd = parser
             .optional_f64_from(market, "liquidityNum")?
             .or_else(|| parser.optional_f64_from(market, "liquidity").ok().flatten())
@@ -2527,6 +2537,8 @@ fn diagnose_polymarket_markets_payload(
             question,
             active,
             closed,
+            end_ts_ms,
+            end_date,
             outcome_found,
             missing_terms,
             liquidity_usd,
@@ -2587,6 +2599,178 @@ fn polymarket_market_values(parser: &JsonPayloadParser) -> Vec<&Value> {
     }
 
     markets
+}
+
+fn polymarket_market_end_ts_ms(
+    parser: &JsonPayloadParser,
+    market: &Value,
+) -> Result<Option<i64>, IngestionError> {
+    let Some(raw) = optional_string_or_number_from_keys(
+        parser,
+        market,
+        &[
+            "endDate",
+            "endDateIso",
+            "end_date",
+            "end_date_iso",
+            "closeTime",
+            "close_time",
+            "closedTime",
+            "closed_time",
+            "expirationDate",
+            "expiration_date",
+        ],
+    )?
+    else {
+        return Ok(None);
+    };
+
+    parse_polymarket_timestamp_ms(&raw)
+        .map(Some)
+        .map_err(|message| {
+            IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Polymarket),
+                format!("invalid Polymarket end date `{raw}`: {message}"),
+            )
+        })
+}
+
+fn optional_string_or_number_from_keys(
+    parser: &JsonPayloadParser,
+    object: &Value,
+    keys: &[&str],
+) -> Result<Option<String>, IngestionError> {
+    for key in keys {
+        let Some(value) = object.get(*key) else {
+            continue;
+        };
+        if value.is_null() {
+            continue;
+        }
+        if let Some(text) = value.as_str() {
+            return Ok(Some(text.to_string()));
+        }
+        if value.is_number() {
+            return Ok(Some(value.to_string()));
+        }
+        return Err(parser.malformed_field(key));
+    }
+    Ok(None)
+}
+
+fn parse_polymarket_timestamp_ms(raw: &str) -> Result<i64, String> {
+    if let Ok(value) = raw.parse::<i64>() {
+        if value.abs() < 10_000_000_000 {
+            return value
+                .checked_mul(1_000)
+                .ok_or_else(|| "seconds timestamp overflow".to_string());
+        }
+        return Ok(value);
+    }
+
+    let date = raw
+        .get(0..10)
+        .ok_or_else(|| "date string is shorter than YYYY-MM-DD".to_string())?;
+    let (year, month, day) = parse_yyyy_mm_dd(date)?;
+    let time_seconds = parse_time_hms(raw)?;
+    let year = i32::try_from(year).map_err(|_| "year out of range".to_string())?;
+    let month = u32::try_from(month).map_err(|_| "month out of range".to_string())?;
+    let day = u32::try_from(day).map_err(|_| "day out of range".to_string())?;
+    let days = days_from_civil(year, month, day);
+    let seconds = days
+        .checked_mul(86_400)
+        .and_then(|base| base.checked_add(time_seconds))
+        .ok_or_else(|| "timestamp overflow".to_string())?;
+    seconds
+        .checked_mul(1_000)
+        .ok_or_else(|| "millisecond timestamp overflow".to_string())
+}
+
+fn parse_yyyy_mm_dd(value: &str) -> Result<(i64, i64, i64), String> {
+    let mut parts = value.split('-');
+    let year = parts
+        .next()
+        .ok_or_else(|| "missing year".to_string())?
+        .parse::<i64>()
+        .map_err(|error| format!("invalid year: {error}"))?;
+    let month = parts
+        .next()
+        .ok_or_else(|| "missing month".to_string())?
+        .parse::<i64>()
+        .map_err(|error| format!("invalid month: {error}"))?;
+    let day = parts
+        .next()
+        .ok_or_else(|| "missing day".to_string())?
+        .parse::<i64>()
+        .map_err(|error| format!("invalid day: {error}"))?;
+    if parts.next().is_some() {
+        return Err("too many date components".to_string());
+    }
+    if !(1..=12).contains(&month) {
+        return Err("month out of range".to_string());
+    }
+    if !(1..=31).contains(&day) {
+        return Err("day out of range".to_string());
+    }
+    Ok((year, month, day))
+}
+
+fn parse_time_hms(value: &str) -> Result<i64, String> {
+    let Some(time_start) = value.find('T') else {
+        return Ok(0);
+    };
+    let time = &value[time_start + 1..];
+    let hour = time
+        .get(0..2)
+        .ok_or_else(|| "missing hour".to_string())?
+        .parse::<i64>()
+        .map_err(|error| format!("invalid hour: {error}"))?;
+    let minute = time
+        .get(3..5)
+        .ok_or_else(|| "missing minute".to_string())?
+        .parse::<i64>()
+        .map_err(|error| format!("invalid minute: {error}"))?;
+    let second = time
+        .get(6..8)
+        .ok_or_else(|| "missing second".to_string())?
+        .parse::<i64>()
+        .map_err(|error| format!("invalid second: {error}"))?;
+    if !(0..=23).contains(&hour) {
+        return Err("hour out of range".to_string());
+    }
+    if !(0..=59).contains(&minute) {
+        return Err("minute out of range".to_string());
+    }
+    if !(0..=60).contains(&second) {
+        return Err("second out of range".to_string());
+    }
+    Ok(hour * 3_600 + minute * 60 + second)
+}
+
+fn polymarket_utc_date_from_unix_ms(timestamp_ms: i64) -> String {
+    let days_since_unix_epoch = timestamp_ms.div_euclid(86_400_000);
+    let (year, month, day) = civil_date_from_unix_days(days_since_unix_epoch);
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+fn civil_date_from_unix_days(days_since_unix_epoch: i64) -> (i64, i64, i64) {
+    let shifted_days = days_since_unix_epoch + 719_468;
+    let era = if shifted_days >= 0 {
+        shifted_days
+    } else {
+        shifted_days - 146_096
+    } / 146_097;
+    let day_of_era = shifted_days - era * 146_097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let year = year_of_era + era * 400;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_prime = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * month_prime + 2) / 5 + 1;
+    let month = month_prime + if month_prime < 10 { 3 } else { -9 };
+    let year = year + i64::from(month <= 2);
+    (year, month, day)
 }
 
 fn encode_query_component(value: &str) -> String {
@@ -4357,6 +4541,8 @@ mod tests {
                     "outcomePrices": "[\"0.51\", \"0.49\"]",
                     "clobTokenIds": "[\"1234567890\", \"0987654321\"]",
                     "liquidity": "15000",
+                    "endDate": "2026-06-01T04:00:00Z",
+                    "endDateIso": "2026-06-01",
                     "active": true,
                     "closed": false,
                     "events": [{ "slug": "ethereum-above-3000" }]
@@ -4376,6 +4562,8 @@ mod tests {
             "will-ethereum-be-above-3000-on-june-1"
         );
         assert_eq!(discovered.outcome_token_id.as_deref(), Some("1234567890"));
+        assert_eq!(discovered.end_date.as_deref(), Some("2026-06-01"));
+        assert_eq!(discovered.end_ts_ms, Some(1_780_286_400_000));
         assert_eq!(discovered.liquidity_usd, 15_000.0);
     }
 
