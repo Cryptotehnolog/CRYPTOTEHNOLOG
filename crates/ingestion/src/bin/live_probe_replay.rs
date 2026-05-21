@@ -25,10 +25,9 @@ use cryptotehnolog_ingestion::{
     IngestionBatch, IngestionConfig, IngestionError, IngestionOutcome, IngestionReport,
     IngestionSource, LiveHttpTransport, LiveIngestionProbeReport, MockIngestionClient,
     MockIngestionStep, POLYMARKET_CLOB_BOOK_PAYLOAD_SHAPE_VERSION,
-    POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION, POLYMARKET_GAMMA_MARKETS_PAYLOAD_SHAPE_VERSION,
-    Phase0NormalizedBatchValidator, PolymarketDiscoveredMarket, PolymarketLiveIngestionClient,
-    PolymarketMarketCandidateDiagnostic, PolymarketMarketDiscoveryCriteria, ReqwestHttpTransport,
-    ingest_once_with_report,
+    POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION, Phase0NormalizedBatchValidator,
+    PolymarketDiscoveredMarket, PolymarketLiveIngestionClient, PolymarketMarketCandidateDiagnostic,
+    PolymarketMarketDiscoveryCriteria, ReqwestHttpTransport, ingest_once_with_report,
 };
 #[cfg(feature = "network-integration")]
 use serde::Serialize;
@@ -94,6 +93,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
         &mut selection_report,
         &mut polymarket_discovery_diagnostics,
         &mut errors,
+        &mut warnings,
     ) {
         fetch_polymarket_batch(
             &polymarket_client,
@@ -236,68 +236,118 @@ fn discover_polymarket_market_client<T>(
     selection_report: &mut SelectionReport,
     polymarket_discovery_diagnostics: &mut Vec<PolymarketMarketCandidateDiagnostic>,
     errors: &mut Vec<DiagnosticError>,
+    warnings: &mut Vec<DiagnosticWarning>,
 ) -> Option<PolymarketLiveIngestionClient>
 where
     T: LiveHttpTransport,
 {
     let base_url = "https://gamma-api.polymarket.com";
-    let url = PolymarketLiveIngestionClient::markets_url(base_url);
-    let started_at = Instant::now();
-    match transport.get(&url) {
-        Ok(payload) => {
-            probe_reports.push(LiveIngestionProbeReport::ok(
-                "Polymarket Gamma markets",
-                url,
-                payload.len(),
-                started_at.elapsed().as_millis(),
-            ));
-            payload_shape_versions.push(PayloadShapeVersion::new(
-                "Polymarket Gamma markets",
-                POLYMARKET_GAMMA_MARKETS_PAYLOAD_SHAPE_VERSION,
-            ));
-            let criteria = PolymarketMarketDiscoveryCriteria::phase0_eth_above_3000_yes();
-            match PolymarketLiveIngestionClient::diagnose_market_candidates_from_payload(
-                &payload, &criteria, 10,
-            ) {
-                Ok(diagnostics) => *polymarket_discovery_diagnostics = diagnostics,
-                Err(error) => errors.push(DiagnosticError::from_ingestion_error(
-                    "diagnostics",
-                    "Polymarket Gamma markets",
-                    error,
-                )),
-            }
-            match PolymarketLiveIngestionClient::discover_market_from_payload(&payload, &criteria) {
-                Ok(discovered) => {
-                    selection_report.set_polymarket(&discovered);
-                    Some(PolymarketLiveIngestionClient::from_discovered(
-                        base_url,
-                        &discovered,
-                    ))
-                }
-                Err(error) => {
-                    errors.push(DiagnosticError::from_ingestion_error(
-                        "discovery",
-                        "Polymarket Gamma markets",
+    let criteria = PolymarketMarketDiscoveryCriteria::phase0_eth_above_3000_yes();
+    let mut last_discovery_error = None;
+
+    for discovery_url in PolymarketLiveIngestionClient::discovery_urls(base_url, &criteria) {
+        let started_at = Instant::now();
+        match transport.get(&discovery_url.url) {
+            Ok(payload) => {
+                let endpoint = discovery_url.endpoint.clone();
+                probe_reports.push(LiveIngestionProbeReport::ok(
+                    endpoint.clone(),
+                    discovery_url.url.clone(),
+                    payload.len(),
+                    started_at.elapsed().as_millis(),
+                ));
+                payload_shape_versions.push(PayloadShapeVersion::new(
+                    endpoint.clone(),
+                    discovery_url.payload_shape_version,
+                ));
+                match PolymarketLiveIngestionClient::diagnose_market_candidates_from_payload(
+                    &payload, &criteria, 10,
+                ) {
+                    Ok(diagnostics) => {
+                        warn_if_discovery_is_terms_only(
+                            &endpoint,
+                            &diagnostics,
+                            &criteria,
+                            warnings,
+                        );
+                        *polymarket_discovery_diagnostics = diagnostics;
+                    }
+                    Err(error) => errors.push(DiagnosticError::from_ingestion_error(
+                        "diagnostics",
+                        endpoint.clone(),
                         error,
-                    ));
-                    None
+                    )),
+                }
+                match PolymarketLiveIngestionClient::discover_market_from_payload(
+                    &payload, &criteria,
+                ) {
+                    Ok(discovered) => {
+                        selection_report.set_polymarket(&discovered);
+                        return Some(PolymarketLiveIngestionClient::from_discovered(
+                            base_url,
+                            &discovered,
+                        ));
+                    }
+                    Err(error) => {
+                        last_discovery_error = Some(DiagnosticError::from_ingestion_error(
+                            "discovery",
+                            endpoint,
+                            error,
+                        ));
+                    }
                 }
             }
+            Err(error) => {
+                probe_reports.push(LiveIngestionProbeReport::error(
+                    discovery_url.endpoint.clone(),
+                    discovery_url.url,
+                    started_at.elapsed().as_millis(),
+                    error.clone(),
+                ));
+                errors.push(DiagnosticError::from_ingestion_error(
+                    "http",
+                    discovery_url.endpoint,
+                    error,
+                ));
+            }
         }
-        Err(error) => {
-            probe_reports.push(LiveIngestionProbeReport::error(
-                "Polymarket Gamma markets",
-                url,
-                started_at.elapsed().as_millis(),
-                error.clone(),
-            ));
-            errors.push(DiagnosticError::from_ingestion_error(
-                "http",
-                "Polymarket Gamma markets",
-                error,
-            ));
-            None
-        }
+    }
+
+    if let Some(error) = last_discovery_error {
+        errors.push(error);
+    }
+
+    None
+}
+
+#[cfg(feature = "network-integration")]
+fn warn_if_discovery_is_terms_only(
+    endpoint: &str,
+    diagnostics: &[PolymarketMarketCandidateDiagnostic],
+    criteria: &PolymarketMarketDiscoveryCriteria,
+    warnings: &mut Vec<DiagnosticWarning>,
+) {
+    if diagnostics.is_empty() {
+        return;
+    }
+    let all_terms_only = diagnostics.iter().all(|candidate| {
+        candidate.rejection_reasons.len() == 1
+            && candidate
+                .rejection_reasons
+                .iter()
+                .any(|reason| reason == "terms_mismatch")
+    });
+    if all_terms_only {
+        warnings.push(DiagnosticWarning::new(
+            "discovery",
+            endpoint,
+            "BroadPolymarketGammaDiscovery",
+            format!(
+                "all top {} Polymarket Gamma candidates were rejected only by terms_mismatch for required terms {:?}; discovery query is probably too broad or not targeting the event class",
+                diagnostics.len(),
+                criteria.required_terms
+            ),
+        ));
     }
 }
 

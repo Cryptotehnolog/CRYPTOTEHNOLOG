@@ -21,6 +21,8 @@ use serde_json::Value;
 pub const DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION: &str = "deribit_get_instruments_v1";
 pub const DERIBIT_TICKER_PAYLOAD_SHAPE_VERSION: &str = "deribit_json_rpc_ticker_v1";
 pub const POLYMARKET_GAMMA_MARKETS_PAYLOAD_SHAPE_VERSION: &str = "polymarket_gamma_markets_v1";
+pub const POLYMARKET_GAMMA_PUBLIC_SEARCH_PAYLOAD_SHAPE_VERSION: &str =
+    "polymarket_gamma_public_search_v1";
 pub const POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION: &str = "polymarket_gamma_market_v1";
 pub const POLYMARKET_CLOB_BOOK_PAYLOAD_SHAPE_VERSION: &str = "polymarket_clob_book_v1";
 
@@ -1377,6 +1379,7 @@ pub struct PolymarketLiveIngestionClient {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PolymarketMarketDiscoveryCriteria {
     pub required_terms: Vec<String>,
+    pub search_queries: Vec<String>,
     pub outcome: String,
     pub target_expiry_ts_ms: i64,
     pub min_liquidity_usd: f64,
@@ -1386,6 +1389,7 @@ impl PolymarketMarketDiscoveryCriteria {
     pub fn phase0_eth_above_3000_yes() -> Self {
         Self {
             required_terms: vec!["eth".to_string(), "3000".to_string()],
+            search_queries: vec!["eth 3000".to_string(), "ethereum 3000".to_string()],
             outcome: "Yes".to_string(),
             target_expiry_ts_ms: 1_780_272_000_000,
             min_liquidity_usd: 1_000.0,
@@ -1484,10 +1488,47 @@ impl PolymarketLiveIngestionClient {
     }
 
     pub fn markets_url(base_url: &str) -> String {
+        Self::markets_url_with_offset(base_url, 0, 100)
+    }
+
+    pub fn markets_url_with_offset(base_url: &str, offset: usize, limit: usize) -> String {
         format!(
-            "{}/markets?active=true&closed=false&limit=100",
+            "{}/markets?active=true&closed=false&order=volume_24hr&ascending=false&limit={limit}&offset={offset}",
             base_url.trim_end_matches('/')
         )
+    }
+
+    pub fn public_search_url(
+        base_url: &str,
+        query: &str,
+        limit_per_type: usize,
+        page: usize,
+    ) -> String {
+        format!(
+            "{}/public-search?q={}&events_status=active&keep_closed_markets=0&search_profiles=false&search_tags=false&limit_per_type={limit_per_type}&page={page}",
+            base_url.trim_end_matches('/'),
+            encode_query_component(query)
+        )
+    }
+
+    pub fn discovery_urls(
+        base_url: &str,
+        criteria: &PolymarketMarketDiscoveryCriteria,
+    ) -> Vec<PolymarketGammaDiscoveryUrl> {
+        let mut urls = Vec::new();
+        for query in &criteria.search_queries {
+            urls.push(PolymarketGammaDiscoveryUrl {
+                endpoint: format!("Polymarket Gamma public-search `{query}`"),
+                url: Self::public_search_url(base_url, query, 25, 1),
+                payload_shape_version: POLYMARKET_GAMMA_PUBLIC_SEARCH_PAYLOAD_SHAPE_VERSION,
+            });
+        }
+        urls.push(PolymarketGammaDiscoveryUrl {
+            endpoint: "Polymarket Gamma markets fallback".to_string(),
+            url: Self::markets_url_with_offset(base_url, 0, 100),
+            payload_shape_version: POLYMARKET_GAMMA_MARKETS_PAYLOAD_SHAPE_VERSION,
+        });
+        urls
     }
 
     pub fn gamma_market_url(&self) -> String {
@@ -1744,6 +1785,13 @@ impl PolymarketLiveIngestionClient {
 
         self.parse_gamma_market_payload(&payload_json, config, received_ts_ms)
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PolymarketGammaDiscoveryUrl {
+    pub endpoint: String,
+    pub url: String,
+    pub payload_shape_version: &'static str,
 }
 
 impl IngestionClient for PolymarketLiveIngestionClient {
@@ -2296,17 +2344,14 @@ fn parse_polymarket_markets_payload(
     criteria: &PolymarketMarketDiscoveryCriteria,
 ) -> Result<Vec<PolymarketDiscoveredMarket>, IngestionError> {
     let parser = JsonPayloadParser::new(payload_json, IngestionSource::Polymarket, "Polymarket")?;
-    let markets = parser
-        .root_array()
-        .or_else(|| parser.array_at(&["result"]))
-        .or_else(|| parser.array_at(&["data"]))
-        .ok_or_else(|| {
-            IngestionError::new(
-                IngestionErrorKind::MalformedPayload,
-                Some(IngestionSource::Polymarket),
-                "missing Polymarket markets array",
-            )
-        })?;
+    let markets = polymarket_market_values(&parser);
+    if markets.is_empty() {
+        return Err(IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Polymarket),
+            "missing Polymarket markets array",
+        ));
+    }
 
     let mut discovered = Vec::new();
     for market in markets {
@@ -2385,17 +2430,14 @@ fn diagnose_polymarket_markets_payload(
     limit: usize,
 ) -> Result<Vec<PolymarketMarketCandidateDiagnostic>, IngestionError> {
     let parser = JsonPayloadParser::new(payload_json, IngestionSource::Polymarket, "Polymarket")?;
-    let markets = parser
-        .root_array()
-        .or_else(|| parser.array_at(&["result"]))
-        .or_else(|| parser.array_at(&["data"]))
-        .ok_or_else(|| {
-            IngestionError::new(
-                IngestionErrorKind::MalformedPayload,
-                Some(IngestionSource::Polymarket),
-                "missing Polymarket markets array",
-            )
-        })?;
+    let markets = polymarket_market_values(&parser);
+    if markets.is_empty() {
+        return Err(IngestionError::new(
+            IngestionErrorKind::MalformedPayload,
+            Some(IngestionSource::Polymarket),
+            "missing Polymarket markets array",
+        ));
+    }
 
     let required_terms: Vec<String> = criteria
         .required_terms
@@ -2512,6 +2554,55 @@ fn diagnose_polymarket_markets_payload(
     Ok(diagnostics)
 }
 
+fn polymarket_market_values(parser: &JsonPayloadParser) -> Vec<&Value> {
+    let mut markets = Vec::new();
+
+    for direct_markets in [
+        parser.root_array(),
+        parser.array_at(&["result"]),
+        parser.array_at(&["data"]),
+        parser.array_at(&["markets"]),
+        parser.array_at(&["result", "markets"]),
+        parser.array_at(&["data", "markets"]),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        markets.extend(direct_markets.iter());
+    }
+
+    for events in [
+        parser.array_at(&["events"]),
+        parser.array_at(&["result", "events"]),
+        parser.array_at(&["data", "events"]),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        for event in events {
+            if let Some(event_markets) = event.get("markets").and_then(Value::as_array) {
+                markets.extend(event_markets.iter());
+            }
+        }
+    }
+
+    markets
+}
+
+fn encode_query_component(value: &str) -> String {
+    let mut encoded = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                encoded.push(byte as char);
+            }
+            b' ' => encoded.push('+'),
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
+}
+
 fn select_deribit_option_candidate(
     instruments: Vec<DeribitDiscoveredOption>,
     criteria: &DeribitOptionDiscoveryCriteria,
@@ -2569,8 +2660,11 @@ fn select_polymarket_market_candidate(
         .into_iter()
         .filter(|market| market.liquidity_usd >= criteria.min_liquidity_usd)
         .filter(|market| {
-            let haystack =
-                format!("{} {}", market.market_slug, market.question).to_ascii_lowercase();
+            let haystack = format!(
+                "{} {} {}",
+                market.market_slug, market.question, market.event_slug
+            )
+            .to_ascii_lowercase();
             required_terms
                 .iter()
                 .all(|term| haystack.contains(term.as_str()))
@@ -4227,6 +4321,62 @@ mod tests {
         assert_eq!(discovered.outcome, "Yes");
         assert_eq!(discovered.outcome_token_id.as_deref(), Some("1234567890"));
         assert_eq!(discovered.liquidity_usd, 10_000.0);
+    }
+
+    #[test]
+    fn polymarket_discovery_builds_targeted_search_urls_before_broad_fallback() {
+        let criteria = PolymarketMarketDiscoveryCriteria::phase0_eth_above_3000_yes();
+        let urls = PolymarketLiveIngestionClient::discovery_urls(
+            "https://gamma-api.polymarket.com",
+            &criteria,
+        );
+
+        assert_eq!(urls.len(), 3);
+        assert_eq!(
+            urls[0].payload_shape_version,
+            POLYMARKET_GAMMA_PUBLIC_SEARCH_PAYLOAD_SHAPE_VERSION
+        );
+        assert!(urls[0].url.contains("/public-search?"));
+        assert!(urls[0].url.contains("q=eth+3000"));
+        assert!(urls[0].url.contains("events_status=active"));
+        assert!(urls[0].url.contains("keep_closed_markets=0"));
+        assert_eq!(
+            urls[2].url,
+            "https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume_24hr&ascending=false&limit=100&offset=0"
+        );
+    }
+
+    #[test]
+    fn polymarket_discovery_parses_public_search_markets_shape() {
+        let payload = r#"{
+            "markets": [
+                {
+                    "slug": "will-ethereum-be-above-3000-on-june-1",
+                    "question": "Will Ethereum be above $3000 on June 1?",
+                    "outcomes": "[\"Yes\", \"No\"]",
+                    "outcomePrices": "[\"0.51\", \"0.49\"]",
+                    "clobTokenIds": "[\"1234567890\", \"0987654321\"]",
+                    "liquidity": "15000",
+                    "active": true,
+                    "closed": false,
+                    "events": [{ "slug": "ethereum-above-3000" }]
+                }
+            ],
+            "pagination": { "hasMore": false, "totalResults": 1 }
+        }"#;
+
+        let discovered = PolymarketLiveIngestionClient::discover_market_from_payload(
+            payload,
+            &PolymarketMarketDiscoveryCriteria::phase0_eth_above_3000_yes(),
+        )
+        .expect("public-search markets payload should produce a candidate");
+
+        assert_eq!(
+            discovered.market_slug,
+            "will-ethereum-be-above-3000-on-june-1"
+        );
+        assert_eq!(discovered.outcome_token_id.as_deref(), Some("1234567890"));
+        assert_eq!(discovered.liquidity_usd, 15_000.0);
     }
 
     #[test]
