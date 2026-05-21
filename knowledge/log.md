@@ -363,3 +363,7 @@ Probability-basis matcher переведен с decisive midpoint edge на exec
 ## [2026-05-21] hardening | Daily report live probe review
 
 `scripts/run_phase0_daily_report.ps1` теперь подхватывает optional `artifacts/live_probe_replay_report*.json` и `artifacts/live_probe_replay_trend_summary.txt`, добавляет секцию `Live Probe Review` в Markdown и machine-readable `live_probe_review` в JSON. Daily report добавляет warning, если live probe midpoint false positives превышают matched opportunities.
+
+## [2026-05-21] workflow | Manual network artifact readability
+
+Manual `Network integration` workflow теперь загружает `artifacts/live_probe_replay_trend_summary.txt` отдельным artifact `live-probe-replay-trend-summary`, чтобы trend-summary можно было открыть без распаковки общего live probe JSON artifact. В `workflow-scripts.md` добавлена короткая секция “как читать manual network artifacts”.

@@ -53,9 +53,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: live-probe-replay-report
-          path: |
-            artifacts/live_probe_replay_report*.json
-            artifacts/live_probe_replay_trend_summary.txt
+          path: artifacts/live_probe_replay_report*.json
+          if-no-files-found: warn
+
+      - name: Upload live probe replay trend summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-probe-replay-trend-summary
+          path: artifacts/live_probe_replay_trend_summary.txt
           if-no-files-found: warn
 
       - name: Upload Phase 0 daily report
