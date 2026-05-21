@@ -3,8 +3,8 @@ use std::process;
 
 #[cfg(feature = "network-integration")]
 use cryptotehnolog_ingestion::{
-    DeribitLiveIngestionClient, PolymarketLiveIngestionClient, ReqwestHttpTransport,
-    probe_live_http_endpoint, probe_reports_to_json,
+    DeribitLiveIngestionClient, LiveHttpRetryPolicy, PolymarketLiveIngestionClient,
+    ReqwestHttpTransport, fetch_live_http_endpoint, probe_reports_to_json,
 };
 
 #[cfg(feature = "network-integration")]
@@ -17,17 +17,22 @@ fn main() {
         }
     };
 
+    let retry_policy = LiveHttpRetryPolicy::phase0_manual_probe();
     let reports = vec![
-        probe_live_http_endpoint(
+        fetch_live_http_endpoint(
             "Deribit instruments",
             DeribitLiveIngestionClient::instruments_url("https://www.deribit.com"),
             &transport,
-        ),
-        probe_live_http_endpoint(
+            retry_policy,
+        )
+        .1,
+        fetch_live_http_endpoint(
             "Polymarket Gamma markets",
             PolymarketLiveIngestionClient::markets_url("https://gamma-api.polymarket.com"),
             &transport,
-        ),
+            retry_policy,
+        )
+        .1,
     ];
     println!("{}", probe_reports_to_json(&reports));
 

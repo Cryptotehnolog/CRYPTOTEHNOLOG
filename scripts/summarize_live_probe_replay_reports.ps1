@@ -197,6 +197,7 @@ foreach ($file in $files) {
     $warnings = @($report.warnings)
     $parseErrors = @($errors | Where-Object { $_.stage -eq "parse" })
     $httpErrors = @($errors | Where-Object { $_.stage -eq "http" })
+    $transientProbeFailures = @($report.probe_reports | Where-Object { $_.status -eq "transient_http_failure" })
     $selection = $report.selection_report
     $accepted = [int]$report.ingestion_report.total_normalized_events_accepted
     $decisions = [int]$report.replay_summary.decisions
@@ -242,6 +243,7 @@ foreach ($file in $files) {
     $reportRows += [pscustomobject]@{
         Report = $file.Name
         ProbeOk = @($report.probe_reports | Where-Object { $_.status -eq "ok" }).Count
+        ProbeTransient = $transientProbeFailures.Count
         ProbeErrors = @($report.probe_reports | Where-Object { $_.status -ne "ok" }).Count
         ParseErrors = $parseErrors.Count
         HttpErrors = $httpErrors.Count
@@ -334,6 +336,7 @@ $totalReports = $reportRows.Count
 $readyReports = @($reportRows | Where-Object { $_.MatcherReady }).Count
 $reportsWithParseErrors = @($reportRows | Where-Object { $_.ParseErrors -gt 0 }).Count
 $reportsWithHttpErrors = @($reportRows | Where-Object { $_.HttpErrors -gt 0 }).Count
+$reportsWithTransientProbeFailures = @($reportRows | Where-Object { $_.ProbeTransient -gt 0 }).Count
 $totalWarnings = ($reportRows | Measure-Object -Property Warnings -Sum).Sum
 $warningKinds = @($warningRows |
     Group-Object Kind |
@@ -347,6 +350,7 @@ Write-Output "Live probe replay summary ($totalReports files)"
 Write-Output "Matcher readiness: $readyReports/$totalReports reports ready ($([math]::Round(($readyReports / [double]$totalReports) * 100.0, 2))%)"
 Write-Output "Reports with parse errors: $reportsWithParseErrors/$totalReports"
 Write-Output "Reports with HTTP errors: $reportsWithHttpErrors/$totalReports"
+Write-Output "Reports with transient HTTP probe failures: $reportsWithTransientProbeFailures/$totalReports"
 Write-Output "Warnings: $totalWarnings"
 Write-Output "Warning kinds: $(if ($warningKinds.Count -gt 0) { $warningKinds -join ', ' } else { 'none' })"
 Write-Output "Edge quality totals: matched=$totalMatched edge_below_threshold=$totalEdgeBelowThreshold midpoint_false_positive=$totalMidpointFalsePositive"

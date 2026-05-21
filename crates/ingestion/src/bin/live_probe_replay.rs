@@ -2,7 +2,7 @@
 use std::process;
 
 #[cfg(feature = "network-integration")]
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(feature = "network-integration")]
 use cryptotehnolog_common::events::{
@@ -23,12 +23,12 @@ use cryptotehnolog_ingestion::{
     DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION, DERIBIT_TICKER_PAYLOAD_SHAPE_VERSION,
     DeribitDiscoveredOption, DeribitLiveIngestionClient, DeribitOptionCandidateDiagnostic,
     DeribitOptionDiscoveryCriteria, IngestionBatch, IngestionConfig, IngestionError,
-    IngestionOutcome, IngestionReport, IngestionSource, LiveHttpTransport,
-    LiveIngestionProbeReport, MockIngestionClient, MockIngestionStep,
+    IngestionErrorKind, IngestionOutcome, IngestionReport, IngestionSource, LiveHttpRetryPolicy,
+    LiveHttpTransport, LiveIngestionProbeReport, MockIngestionClient, MockIngestionStep,
     POLYMARKET_CLOB_BOOK_PAYLOAD_SHAPE_VERSION, POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION,
     Phase0NormalizedBatchValidator, PolymarketDiscoveredMarket, PolymarketLiveIngestionClient,
     PolymarketMarketCandidateDiagnostic, PolymarketMarketDiscoveryCriteria, ReqwestHttpTransport,
-    ingest_once_with_report,
+    fetch_live_http_endpoint, ingest_once_with_report,
 };
 #[cfg(feature = "network-integration")]
 use serde::Serialize;
@@ -169,6 +169,38 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
 }
 
 #[cfg(feature = "network-integration")]
+fn fetch_probe_payload<T>(
+    endpoint: impl Into<String>,
+    url: impl Into<String>,
+    transport: &T,
+) -> (Option<String>, LiveIngestionProbeReport)
+where
+    T: LiveHttpTransport,
+{
+    fetch_live_http_endpoint(
+        endpoint,
+        url,
+        transport,
+        LiveHttpRetryPolicy::phase0_manual_probe(),
+    )
+}
+
+#[cfg(feature = "network-integration")]
+fn ingestion_error_from_probe_report(
+    report: &LiveIngestionProbeReport,
+    fallback_message: &str,
+) -> IngestionError {
+    IngestionError::new(
+        report.error_kind.unwrap_or(IngestionErrorKind::Api),
+        None,
+        report
+            .error_message
+            .clone()
+            .unwrap_or_else(|| fallback_message.to_string()),
+    )
+}
+
+#[cfg(feature = "network-integration")]
 fn discover_deribit_option_client<T>(
     transport: &T,
     probe_reports: &mut Vec<LiveIngestionProbeReport>,
@@ -181,15 +213,10 @@ where
 {
     let base_url = "https://www.deribit.com";
     let url = DeribitLiveIngestionClient::instruments_url(base_url);
-    let started_at = Instant::now();
-    match transport.get(&url) {
-        Ok(payload) => {
-            probe_reports.push(LiveIngestionProbeReport::ok(
-                "Deribit instruments",
-                url,
-                payload.len(),
-                started_at.elapsed().as_millis(),
-            ));
+    let (payload, report) = fetch_probe_payload("Deribit instruments", url, transport);
+    match payload {
+        Some(payload) => {
+            probe_reports.push(report);
             payload_shape_versions.push(PayloadShapeVersion::new(
                 "Deribit instruments",
                 DERIBIT_INSTRUMENTS_PAYLOAD_SHAPE_VERSION,
@@ -223,13 +250,10 @@ where
                 }
             }
         }
-        Err(error) => {
-            probe_reports.push(LiveIngestionProbeReport::error(
-                "Deribit instruments",
-                url,
-                started_at.elapsed().as_millis(),
-                error.clone(),
-            ));
+        None => {
+            let error =
+                ingestion_error_from_probe_report(&report, "Deribit instruments HTTP probe failed");
+            probe_reports.push(report);
             errors.push(DiagnosticError::from_ingestion_error(
                 "http",
                 "Deribit instruments",
@@ -258,16 +282,12 @@ where
     let mut last_discovery_error = None;
 
     for discovery_url in PolymarketLiveIngestionClient::discovery_urls(base_url, &criteria) {
-        let started_at = Instant::now();
-        match transport.get(&discovery_url.url) {
-            Ok(payload) => {
-                let endpoint = discovery_url.endpoint.clone();
-                probe_reports.push(LiveIngestionProbeReport::ok(
-                    endpoint.clone(),
-                    discovery_url.url.clone(),
-                    payload.len(),
-                    started_at.elapsed().as_millis(),
-                ));
+        let endpoint = discovery_url.endpoint.clone();
+        let (payload, report) =
+            fetch_probe_payload(endpoint.clone(), discovery_url.url.clone(), transport);
+        match payload {
+            Some(payload) => {
+                probe_reports.push(report);
                 payload_shape_versions.push(PayloadShapeVersion::new(
                     endpoint.clone(),
                     discovery_url.payload_shape_version,
@@ -309,17 +329,14 @@ where
                     }
                 }
             }
-            Err(error) => {
-                probe_reports.push(LiveIngestionProbeReport::error(
-                    discovery_url.endpoint.clone(),
-                    discovery_url.url,
-                    started_at.elapsed().as_millis(),
-                    error.clone(),
-                ));
+            None => {
+                let error = ingestion_error_from_probe_report(
+                    &report,
+                    "Polymarket discovery HTTP probe failed",
+                );
+                probe_reports.push(report);
                 errors.push(DiagnosticError::from_ingestion_error(
-                    "http",
-                    discovery_url.endpoint,
-                    error,
+                    "http", endpoint, error,
                 ));
             }
         }
@@ -379,15 +396,10 @@ fn fetch_deribit_batch<T>(
 {
     let url = client.ticker_url();
     let received_ts_ms = now_ms();
-    let started_at = Instant::now();
-    match transport.get(&url) {
-        Ok(payload) => {
-            probe_reports.push(LiveIngestionProbeReport::ok(
-                "Deribit",
-                url,
-                payload.len(),
-                started_at.elapsed().as_millis(),
-            ));
+    let (payload, report) = fetch_probe_payload("Deribit", url, transport);
+    match payload {
+        Some(payload) => {
+            probe_reports.push(report);
             payload_shape_versions.push(PayloadShapeVersion::new(
                 "Deribit",
                 DERIBIT_TICKER_PAYLOAD_SHAPE_VERSION,
@@ -409,13 +421,9 @@ fn fetch_deribit_batch<T>(
                 }
             }
         }
-        Err(error) => {
-            probe_reports.push(LiveIngestionProbeReport::error(
-                "Deribit",
-                url,
-                started_at.elapsed().as_millis(),
-                error.clone(),
-            ));
+        None => {
+            let error = ingestion_error_from_probe_report(&report, "Deribit HTTP probe failed");
+            probe_reports.push(report);
             errors.push(DiagnosticError::from_ingestion_error(
                 "http", "Deribit", error,
             ));
@@ -440,15 +448,10 @@ fn fetch_polymarket_batch<T>(
 {
     let url = client.gamma_market_url();
     let received_ts_ms = now_ms();
-    let started_at = Instant::now();
-    match transport.get(&url) {
-        Ok(payload) => {
-            probe_reports.push(LiveIngestionProbeReport::ok(
-                "Polymarket Gamma",
-                url,
-                payload.len(),
-                started_at.elapsed().as_millis(),
-            ));
+    let (payload, report) = fetch_probe_payload("Polymarket Gamma", url, transport);
+    match payload {
+        Some(payload) => {
+            probe_reports.push(report);
             payload_shape_versions.push(PayloadShapeVersion::new(
                 "Polymarket Gamma",
                 POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION,
@@ -485,13 +488,10 @@ fn fetch_polymarket_batch<T>(
                 }
             }
         }
-        Err(error) => {
-            probe_reports.push(LiveIngestionProbeReport::error(
-                "Polymarket Gamma",
-                url,
-                started_at.elapsed().as_millis(),
-                error.clone(),
-            ));
+        None => {
+            let error =
+                ingestion_error_from_probe_report(&report, "Polymarket Gamma HTTP probe failed");
+            probe_reports.push(report);
             errors.push(DiagnosticError::from_ingestion_error(
                 "http",
                 "Polymarket Gamma",
@@ -548,15 +548,10 @@ fn fetch_polymarket_clob_book_batch<T>(
             return;
         }
     };
-    let started_at = Instant::now();
-    match transport.get(&clob_url) {
-        Ok(clob_payload) => {
-            probe_reports.push(LiveIngestionProbeReport::ok(
-                "Polymarket CLOB",
-                clob_url,
-                clob_payload.len(),
-                started_at.elapsed().as_millis(),
-            ));
+    let (clob_payload, report) = fetch_probe_payload("Polymarket CLOB", clob_url, transport);
+    match clob_payload {
+        Some(clob_payload) => {
+            probe_reports.push(report);
             payload_shape_versions.push(PayloadShapeVersion::new(
                 "Polymarket CLOB",
                 POLYMARKET_CLOB_BOOK_PAYLOAD_SHAPE_VERSION,
@@ -613,13 +608,10 @@ fn fetch_polymarket_clob_book_batch<T>(
                 }
             }
         }
-        Err(error) => {
-            probe_reports.push(LiveIngestionProbeReport::error(
-                "Polymarket CLOB",
-                clob_url,
-                started_at.elapsed().as_millis(),
-                error.clone(),
-            ));
+        None => {
+            let error =
+                ingestion_error_from_probe_report(&report, "Polymarket CLOB HTTP probe failed");
+            probe_reports.push(report);
             preserve_polymarket_raw_payload(
                 client,
                 config,
@@ -1360,6 +1352,7 @@ struct LiveIngestionProbeReportDto {
     status: String,
     payload_bytes: usize,
     latency_ms: u128,
+    attempts: usize,
     error_kind: Option<&'static str>,
     error_message: Option<String>,
 }
@@ -1373,6 +1366,7 @@ impl From<&LiveIngestionProbeReport> for LiveIngestionProbeReportDto {
             status: value.status.clone(),
             payload_bytes: value.payload_bytes,
             latency_ms: value.latency_ms,
+            attempts: value.attempts,
             error_kind: value.error_kind.map(|kind| kind.as_str()),
             error_message: value.error_message.clone(),
         }

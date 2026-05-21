@@ -166,6 +166,32 @@ pub trait LiveHttpTransport {
     fn get(&self, url: &str) -> Result<String, IngestionError>;
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LiveHttpRetryPolicy {
+    pub max_attempts: usize,
+    pub backoff_ms: u64,
+}
+
+impl LiveHttpRetryPolicy {
+    pub fn disabled() -> Self {
+        Self {
+            max_attempts: 1,
+            backoff_ms: 0,
+        }
+    }
+
+    pub fn phase0_manual_probe() -> Self {
+        Self {
+            max_attempts: 3,
+            backoff_ms: 250,
+        }
+    }
+
+    fn normalized_attempts(self) -> usize {
+        self.max_attempts.max(1)
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct DisabledHttpTransport;
 
@@ -221,6 +247,7 @@ pub struct LiveIngestionProbeReport {
     pub status: String,
     pub payload_bytes: usize,
     pub latency_ms: u128,
+    pub attempts: usize,
     pub error_kind: Option<IngestionErrorKind>,
     pub error_message: Option<String>,
 }
@@ -238,6 +265,7 @@ impl LiveIngestionProbeReport {
             status: "ok".to_string(),
             payload_bytes,
             latency_ms,
+            attempts: 1,
             error_kind: None,
             error_message: None,
         }
@@ -249,12 +277,24 @@ impl LiveIngestionProbeReport {
         latency_ms: u128,
         error: IngestionError,
     ) -> Self {
+        Self::error_with_status(endpoint, url, "error", latency_ms, 1, error)
+    }
+
+    pub fn error_with_status(
+        endpoint: impl Into<String>,
+        url: impl Into<String>,
+        status: impl Into<String>,
+        latency_ms: u128,
+        attempts: usize,
+        error: IngestionError,
+    ) -> Self {
         Self {
             endpoint: endpoint.into(),
             url: url.into(),
-            status: "error".to_string(),
+            status: status.into(),
             payload_bytes: 0,
             latency_ms,
+            attempts: attempts.max(1),
             error_kind: Some(error.kind),
             error_message: Some(error.message),
         }
@@ -276,12 +316,13 @@ impl LiveIngestionProbeReport {
             .unwrap_or_else(|| "null".to_string());
 
         format!(
-            "{{\"endpoint\":\"{}\",\"url\":\"{}\",\"status\":\"{}\",\"payload_bytes\":{},\"latency_ms\":{},\"error_kind\":{},\"error_message\":{}}}",
+            "{{\"endpoint\":\"{}\",\"url\":\"{}\",\"status\":\"{}\",\"payload_bytes\":{},\"latency_ms\":{},\"attempts\":{},\"error_kind\":{},\"error_message\":{}}}",
             json_escape(&self.endpoint),
             json_escape(&self.url),
             json_escape(&self.status),
             self.payload_bytes,
             self.latency_ms,
+            self.attempts,
             error_kind,
             error_message
         )
@@ -302,6 +343,78 @@ impl IngestionErrorKind {
     }
 }
 
+fn is_transient_http_error(error: &IngestionError) -> bool {
+    matches!(
+        error.kind,
+        IngestionErrorKind::Api
+            | IngestionErrorKind::RateLimit
+            | IngestionErrorKind::ReconnectRequired
+    )
+}
+
+pub fn fetch_live_http_endpoint<T>(
+    endpoint: impl Into<String>,
+    url: impl Into<String>,
+    transport: &T,
+    retry_policy: LiveHttpRetryPolicy,
+) -> (Option<String>, LiveIngestionProbeReport)
+where
+    T: LiveHttpTransport,
+{
+    let endpoint = endpoint.into();
+    let url = url.into();
+    let started_at = std::time::Instant::now();
+    let max_attempts = retry_policy.normalized_attempts();
+    let mut last_error = None;
+
+    for attempt in 1..=max_attempts {
+        match transport.get(&url) {
+            Ok(payload) => {
+                let mut report = LiveIngestionProbeReport::ok(
+                    endpoint,
+                    url,
+                    payload.len(),
+                    started_at.elapsed().as_millis(),
+                );
+                report.attempts = attempt;
+                return (Some(payload), report);
+            }
+            Err(error) => {
+                let retryable = is_transient_http_error(&error);
+                last_error = Some(error);
+                if attempt == max_attempts || !retryable {
+                    break;
+                }
+                if retry_policy.backoff_ms > 0 {
+                    std::thread::sleep(std::time::Duration::from_millis(retry_policy.backoff_ms));
+                }
+            }
+        }
+    }
+
+    let error = last_error.unwrap_or_else(|| {
+        IngestionError::new(
+            IngestionErrorKind::Api,
+            None,
+            "HTTP endpoint failed without an error",
+        )
+    });
+    let status = if max_attempts > 1 && is_transient_http_error(&error) {
+        "transient_http_failure"
+    } else {
+        "error"
+    };
+    let report = LiveIngestionProbeReport::error_with_status(
+        endpoint,
+        url,
+        status,
+        started_at.elapsed().as_millis(),
+        max_attempts,
+        error,
+    );
+    (None, report)
+}
+
 pub fn probe_live_http_endpoint<T>(
     endpoint: impl Into<String>,
     url: impl Into<String>,
@@ -310,20 +423,9 @@ pub fn probe_live_http_endpoint<T>(
 where
     T: LiveHttpTransport,
 {
-    let endpoint = endpoint.into();
-    let url = url.into();
-    let started_at = std::time::Instant::now();
-    match transport.get(&url) {
-        Ok(payload) => LiveIngestionProbeReport::ok(
-            endpoint,
-            url,
-            payload.len(),
-            started_at.elapsed().as_millis(),
-        ),
-        Err(error) => {
-            LiveIngestionProbeReport::error(endpoint, url, started_at.elapsed().as_millis(), error)
-        }
-    }
+    let (_, report) =
+        fetch_live_http_endpoint(endpoint, url, transport, LiveHttpRetryPolicy::disabled());
+    report
 }
 
 pub fn probe_reports_to_json(reports: &[LiveIngestionProbeReport]) -> String {
@@ -5208,9 +5310,11 @@ mod tests {
         assert_eq!(report.url, "https://example.test/ok");
         assert_eq!(report.status, "ok");
         assert_eq!(report.payload_bytes, 11);
+        assert_eq!(report.attempts, 1);
         assert_eq!(report.error_kind, None);
         assert_eq!(report.error_message, None);
         assert!(report.to_json().contains("\"status\":\"ok\""));
+        assert!(report.to_json().contains("\"attempts\":1"));
     }
 
     #[test]
@@ -5224,9 +5328,41 @@ mod tests {
         assert!(!report.is_ok());
         assert_eq!(report.status, "error");
         assert_eq!(report.payload_bytes, 0);
+        assert_eq!(report.attempts, 1);
         assert_eq!(report.error_kind, Some(IngestionErrorKind::NotImplemented));
         assert!(report.error_message.as_ref().unwrap().contains("disabled"));
         assert!(probe_reports_to_json(&[report]).contains("\"error_kind\":\"NotImplemented\""));
+    }
+
+    #[derive(Debug)]
+    struct AlwaysApiErrorTransport;
+
+    impl LiveHttpTransport for AlwaysApiErrorTransport {
+        fn get(&self, url: &str) -> Result<String, IngestionError> {
+            Err(IngestionError::new(
+                IngestionErrorKind::Api,
+                None,
+                format!("transient fixture failure for {url}"),
+            ))
+        }
+    }
+
+    #[test]
+    fn live_http_probe_marks_retried_api_failures_as_transient() {
+        let (_, report) = fetch_live_http_endpoint(
+            "Example",
+            "https://example.test/transient",
+            &AlwaysApiErrorTransport,
+            LiveHttpRetryPolicy {
+                max_attempts: 2,
+                backoff_ms: 0,
+            },
+        );
+
+        assert_eq!(report.status, "transient_http_failure");
+        assert_eq!(report.attempts, 2);
+        assert_eq!(report.error_kind, Some(IngestionErrorKind::Api));
+        assert!(report.error_message.as_ref().unwrap().contains("transient"));
     }
 
     #[cfg(feature = "network-integration")]

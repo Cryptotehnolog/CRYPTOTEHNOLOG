@@ -403,3 +403,7 @@ Polymarket discovery в manual `live_probe_replay` переведен с broad f
 ## [2026-05-21] decision | Diagnostic-only policy for non-exact basis alignment
 
 Phase 0 policy закреплена в коде и wiki: только `basis_alignment_status = exact` считается `clean_basis_candidate`. `deribit_expiry_nearby`, `polymarket_date_mismatch`, `strike_mismatch` и `missing` являются diagnostic-only/missing states. `live_probe_replay_report.json` теперь включает `candidate_policy` и `clean_basis_candidate`, а daily report добавляет warning для diagnostic-only candidates, чтобы nearby пары не попадали в clean candidate metrics или future paper/live gates.
+
+## [2026-05-21] hardening | Retry-aware manual network probes
+
+Read-only manual network probes получили bounded retry/backoff на HTTP boundary. `LiveIngestionProbeReport` теперь включает `attempts`, а retryable API/rate-limit/reconnect failures после исчерпания попыток получают `status = transient_http_failure`. Это отделяет connectivity instability от parser/discovery/matcher failures без включения network checks в default CI и без runtime monitoring loop.
