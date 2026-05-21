@@ -215,6 +215,12 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 
 Для replay reports он агрегирует `edge_quality`: matched, `EdgeBelowThreshold` и `MidEdgeFalsePositive`, чтобы daily report показывал качество signal discovery без чтения всех rejection reasons.
 
+Если в `artifacts/` есть `live_probe_replay_report*.json`, daily report добавляет секцию `Live Probe Review` с matched, `EdgeBelowThreshold` и `MidEdgeFalsePositive` по manual live probe runs.
+
+Если рядом есть `artifacts/live_probe_replay_trend_summary.txt`, daily report добавляет короткий preview этой trend-summary в Markdown report. Это optional review artifact: отсутствие файла не считается ошибкой.
+
+Если live probe `midpoint_false_positive_count` больше `matched_count`, daily report добавляет warning. Это warning-only индикатор того, что текущий matching может выглядеть лучше на midpoint, чем в executable pricing.
+
 Для Phase 0 pipeline reports он показывает status-aware summary: `ok`/`error`, counts по этапам и `error_stage` для controlled failures. Если хотя бы один Phase 0 pipeline scenario имеет status не `ok`, JSON и Markdown daily report добавляют warning, чтобы controlled failure path был виден в manual artifact без чтения всех rows.
 
 Скрипт пишет:

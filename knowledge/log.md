@@ -359,3 +359,7 @@ Probability-basis matcher переведен с decisive midpoint edge на exec
 ## [2026-05-21] hardening | Live probe replay edge quality artifact
 
 `live_probe_replay_report.json` расширен `replay_summary.edge_quality`, чтобы manual live payload probe показывал matched, `EdgeBelowThreshold` и `MidEdgeFalsePositive` counters. `scripts/summarize_live_probe_replay_reports.ps1` теперь выводит edge quality totals, а manual `network-integration` workflow сохраняет `artifacts/live_probe_replay_trend_summary.txt` рядом с live probe JSON artifact.
+
+## [2026-05-21] hardening | Daily report live probe review
+
+`scripts/run_phase0_daily_report.ps1` теперь подхватывает optional `artifacts/live_probe_replay_report*.json` и `artifacts/live_probe_replay_trend_summary.txt`, добавляет секцию `Live Probe Review` в Markdown и machine-readable `live_probe_review` в JSON. Daily report добавляет warning, если live probe midpoint false positives превышают matched opportunities.

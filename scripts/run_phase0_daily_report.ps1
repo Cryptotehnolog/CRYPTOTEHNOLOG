@@ -117,10 +117,38 @@ foreach ($file in $artifactFiles) {
     }
 }
 
+$liveProbeReports = @()
+$liveProbeReportFiles = Get-ChildItem -Path $outputRoot -File -Filter "live_probe_replay_report*.json" -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTimeUtc -Descending
+foreach ($file in $liveProbeReportFiles) {
+    $json = Read-JsonFile -Path $file.FullName
+    $edgeQuality = $json.replay_summary.edge_quality
+    $liveProbeReports += [pscustomobject]@{
+        file = RelPath $file.FullName
+        matched_count = if ($edgeQuality) { [int]$edgeQuality.matched_count } else { [int]$json.replay_summary.matched }
+        edge_below_threshold_count = if ($edgeQuality) { [int]$edgeQuality.edge_below_threshold_count } else { 0 }
+        midpoint_false_positive_count = if ($edgeQuality) { [int]$edgeQuality.midpoint_false_positive_count } else { 0 }
+    }
+}
+
+$liveProbeTrendSummaryPath = Join-Path $outputRoot "live_probe_replay_trend_summary.txt"
+$liveProbeTrendSummary = $null
+if (Test-Path -LiteralPath $liveProbeTrendSummaryPath) {
+    $liveProbeTrendSummary = [pscustomobject]@{
+        file = RelPath $liveProbeTrendSummaryPath
+        preview = @((Get-Content -LiteralPath $liveProbeTrendSummaryPath -TotalCount 12))
+    }
+}
+
 $phase0PipelineErrorCount = @($phase0PipelineReports | Where-Object { $_.status -ne "ok" }).Count
 $warnings = @()
 if ($phase0PipelineErrorCount -gt 0) {
     $warnings += "Phase 0 pipeline has $phase0PipelineErrorCount scenario(s) with non-ok status. Check phase0_pipeline.reports for controlled failure paths."
+}
+$liveProbeMatchedCount = ($liveProbeReports | Measure-Object -Property matched_count -Sum).Sum
+$liveProbeMidpointFalsePositiveCount = ($liveProbeReports | Measure-Object -Property midpoint_false_positive_count -Sum).Sum
+if ($liveProbeReports.Count -gt 0 -and $liveProbeMidpointFalsePositiveCount -gt $liveProbeMatchedCount) {
+    $warnings += "Live probe midpoint false positives ($liveProbeMidpointFalsePositiveCount) exceed matched opportunities ($liveProbeMatchedCount). Current matching may look better at midpoint than at executable pricing."
 }
 
 $report = [pscustomobject]@{
@@ -156,6 +184,14 @@ $report = [pscustomobject]@{
         reports = $phase0PipelineReports
     }
     artifacts = $artifactReports
+    live_probe_review = [pscustomobject]@{
+        report_count = $liveProbeReports.Count
+        matched_count = $liveProbeMatchedCount
+        edge_below_threshold_count = ($liveProbeReports | Measure-Object -Property edge_below_threshold_count -Sum).Sum
+        midpoint_false_positive_count = $liveProbeMidpointFalsePositiveCount
+        reports = $liveProbeReports
+        trend_summary = $liveProbeTrendSummary
+    }
 }
 
 $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $jsonPath -Encoding UTF8
@@ -171,6 +207,9 @@ $markdown.Add("- Replay edge quality matched/edge-below/midpoint-fp: $($report.r
 $markdown.Add("- Ingestion scenarios: $($report.ingestion.scenario_count)")
 $markdown.Add("- Ingestion accepted/rejected normalized events: $($report.ingestion.normalized_events_accepted)/$($report.ingestion.normalized_events_rejected)")
 $markdown.Add("- Phase 0 pipeline scenarios ok/error: $($report.phase0_pipeline.ok_count)/$($report.phase0_pipeline.error_count)")
+if ($report.live_probe_review.report_count -gt 0) {
+    $markdown.Add("- Live probe edge quality matched/edge-below/midpoint-fp: $($report.live_probe_review.matched_count)/$($report.live_probe_review.edge_below_threshold_count)/$($report.live_probe_review.midpoint_false_positive_count)")
+}
 $markdown.Add("")
 if ($report.warnings.Count -gt 0) {
     $markdown.Add("## Warnings")
@@ -219,6 +258,32 @@ if ($artifactReports.Count -eq 0) {
     foreach ($item in $artifactReports) {
         $markdown.Add("| $($item.file) | $($item.last_write_utc) | $($item.bytes) |")
     }
+}
+
+$markdown.Add("")
+$markdown.Add("## Live Probe Review")
+$markdown.Add("")
+if ($liveProbeReports.Count -eq 0) {
+    $markdown.Add("No live probe replay reports found.")
+} else {
+    $markdown.Add("| File | Matched | Edge Below | Midpoint FP |")
+    $markdown.Add("| --- | ---: | ---: | ---: |")
+    foreach ($item in $liveProbeReports) {
+        $markdown.Add("| $($item.file) | $($item.matched_count) | $($item.edge_below_threshold_count) | $($item.midpoint_false_positive_count) |")
+    }
+}
+
+if ($null -ne $liveProbeTrendSummary) {
+    $markdown.Add("")
+    $markdown.Add("### Live Probe Trend Summary")
+    $markdown.Add("")
+    $markdown.Add(('Source: `{0}`' -f $liveProbeTrendSummary.file))
+    $markdown.Add("")
+    $markdown.Add('```text')
+    foreach ($line in $liveProbeTrendSummary.preview) {
+        $markdown.Add($line)
+    }
+    $markdown.Add('```')
 }
 
 $markdown | Set-Content -LiteralPath $markdownPath -Encoding UTF8
