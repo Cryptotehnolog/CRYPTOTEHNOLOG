@@ -395,3 +395,7 @@ Polymarket discovery в manual `live_probe_replay` переведен с broad f
 ## [2026-05-21] implementation | Deribit expiry candidate diagnostics
 
 `live_probe_replay_report.json` теперь включает `selection_report.deribit_expiry_candidates`: top ближайших Deribit option candidates вокруг target expiry/strike с `expiry_date`, `expiry_distance_days`, `strike_distance` и window flags. Summary script выводит блок `Deribit expiry candidates`, чтобы manual probe объяснял, есть ли exact expiry или только nearby options. Локальный manual probe показал ближайшие candidates на `2026-05-29`, то есть текущий `nearby` quality объясняется Deribit expiry mismatch, а не Polymarket settlement mismatch.
+
+## [2026-05-21] implementation | Basis alignment status in live probe reports
+
+`live_probe_replay_report.json` расширен `selection_report.basis_alignment_status`: `exact`, `deribit_expiry_nearby`, `polymarket_date_mismatch`, `strike_mismatch` или `missing`. `scripts/summarize_live_probe_replay_reports.ps1` показывает этот статус в `Selected Candidates`, а `scripts/run_phase0_daily_report.ps1` добавляет warning, если live probe alignment не `exact`, чтобы manual artifacts сразу подсвечивали, что выбранная пара пока не является чистым basis candidate.

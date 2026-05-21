@@ -120,6 +120,41 @@ function Select-SelectionQuality {
     return "exact"
 }
 
+function Select-BasisAlignmentStatus {
+    param(
+        $StatusValue,
+        $DeribitInstrument,
+        $PolymarketMarket,
+        [bool]$StrikeMismatch,
+        [bool]$ExpiryMismatch,
+        [bool]$PolymarketExpiryMismatch
+    )
+
+    $statusText = Format-OptionalValue $StatusValue
+    if (-not [string]::IsNullOrWhiteSpace($statusText)) {
+        return $statusText
+    }
+
+    if ([string]::IsNullOrWhiteSpace((Format-OptionalValue $DeribitInstrument)) -or
+        [string]::IsNullOrWhiteSpace((Format-OptionalValue $PolymarketMarket))) {
+        return "missing"
+    }
+
+    if ($StrikeMismatch) {
+        return "strike_mismatch"
+    }
+
+    if ($PolymarketExpiryMismatch) {
+        return "polymarket_date_mismatch"
+    }
+
+    if ($ExpiryMismatch) {
+        return "deribit_expiry_nearby"
+    }
+
+    return "exact"
+}
+
 function Select-ReplayEdgeQuality {
     param($Report)
 
@@ -182,6 +217,7 @@ foreach ($file in $files) {
     $hasExpiryMismatch = Select-MismatchFlag $selection.expiry_mismatch $fallbackExpiryMismatch
     $hasPolymarketExpiryMismatch = Select-MismatchFlag $selection.polymarket_expiry_mismatch $fallbackPolymarketExpiryMismatch
     $selectionQuality = Select-SelectionQuality $selection.selection_quality $selection.selected_deribit_instrument $selection.selected_polymarket_market_slug $hasStrikeMismatch $hasExpiryMismatch $hasPolymarketExpiryMismatch
+    $basisAlignmentStatus = Select-BasisAlignmentStatus $selection.basis_alignment_status $selection.selected_deribit_instrument $selection.selected_polymarket_market_slug $hasStrikeMismatch $hasExpiryMismatch $hasPolymarketExpiryMismatch
     $warningReasons = @()
     if ($hasStrikeMismatch) {
         $warningReasons += "strike_distance > 0"
@@ -212,6 +248,7 @@ foreach ($file in $files) {
     $selectionRow = [pscustomobject]@{
         Report = $file.Name
         Quality = $selectionQuality
+        BasisAlignment = $basisAlignmentStatus
         DeribitInstrument = Format-OptionalValue $selection.selected_deribit_instrument
         PolymarketMarket = Format-OptionalValue $selection.selected_polymarket_market_slug
         TargetExpiryDate = $targetExpiryDate
@@ -316,7 +353,7 @@ if ($mismatchRows.Count -gt 0) {
     Write-Output ""
     Write-Output "WARNING: Basis mismatch risk detected in selected candidates"
     foreach ($row in $mismatchRows) {
-        Write-Output "- $($row.Report): $($row.Warning) (Deribit=$($row.DeribitInstrument), Polymarket=$($row.PolymarketMarket), target_expiry_date=$($row.TargetExpiryDate), selected_expiry_date=$($row.SelectedExpiryDate), polymarket_end_date=$($row.PolymarketEndDate), strike_distance=$($row.StrikeDistance))"
+        Write-Output "- $($row.Report): status=$($row.BasisAlignment); $($row.Warning) (Deribit=$($row.DeribitInstrument), Polymarket=$($row.PolymarketMarket), target_expiry_date=$($row.TargetExpiryDate), selected_expiry_date=$($row.SelectedExpiryDate), polymarket_end_date=$($row.PolymarketEndDate), strike_distance=$($row.StrikeDistance))"
     }
 }
 

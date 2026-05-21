@@ -27,6 +27,111 @@ function RelPath {
     return $Path.Substring($root.Length).TrimStart("\", "/")
 }
 
+function Format-OptionalValue {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    return [string]$Value
+}
+
+function Convert-NullableInt64 {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $null
+    }
+
+    return [int64]::Parse($text, [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Convert-UnixMsToUtcDate {
+    param($Value)
+
+    $timestampMs = Convert-NullableInt64 $Value
+    if ($null -eq $timestampMs) {
+        return ""
+    }
+
+    return [DateTimeOffset]::FromUnixTimeMilliseconds($timestampMs).UtcDateTime.ToString("yyyy-MM-dd")
+}
+
+function Select-ExpiryDate {
+    param(
+        $DateValue,
+        $TimestampMs
+    )
+
+    $dateText = Format-OptionalValue $DateValue
+    if (-not [string]::IsNullOrWhiteSpace($dateText)) {
+        return $dateText
+    }
+
+    return Convert-UnixMsToUtcDate $TimestampMs
+}
+
+function Select-BasisAlignmentStatus {
+    param($Selection)
+
+    $statusText = Format-OptionalValue $Selection.basis_alignment_status
+    if (-not [string]::IsNullOrWhiteSpace($statusText)) {
+        return $statusText
+    }
+
+    $deribitInstrument = Format-OptionalValue $Selection.selected_deribit_instrument
+    $polymarketMarket = Format-OptionalValue $Selection.selected_polymarket_market_slug
+    if ([string]::IsNullOrWhiteSpace($deribitInstrument) -or [string]::IsNullOrWhiteSpace($polymarketMarket)) {
+        return "missing"
+    }
+
+    $strikeDistance = $Selection.strike_distance
+    $strikeMismatch = if ($null -ne $Selection.strike_mismatch) {
+        [System.Convert]::ToBoolean($Selection.strike_mismatch)
+    } elseif ($null -ne $strikeDistance) {
+        [double]::Parse([string]$strikeDistance, [System.Globalization.CultureInfo]::InvariantCulture) -gt 0.0
+    } else {
+        $false
+    }
+
+    $targetExpiryTsMs = Convert-NullableInt64 $Selection.target_expiry_ts_ms
+    $selectedExpiryTsMs = Convert-NullableInt64 $Selection.selected_expiry_ts_ms
+    $expiryMismatch = if ($null -ne $Selection.expiry_mismatch) {
+        [System.Convert]::ToBoolean($Selection.expiry_mismatch)
+    } else {
+        $null -ne $targetExpiryTsMs -and $null -ne $selectedExpiryTsMs -and $targetExpiryTsMs -ne $selectedExpiryTsMs
+    }
+
+    $targetExpiryDate = Select-ExpiryDate $Selection.target_expiry_date $targetExpiryTsMs
+    $selectedPolymarketEndTsMs = Convert-NullableInt64 $Selection.selected_polymarket_end_ts_ms
+    $selectedPolymarketEndDate = Select-ExpiryDate $Selection.selected_polymarket_end_date $selectedPolymarketEndTsMs
+    $polymarketExpiryMismatch = if ($null -ne $Selection.polymarket_expiry_mismatch) {
+        [System.Convert]::ToBoolean($Selection.polymarket_expiry_mismatch)
+    } else {
+        -not [string]::IsNullOrWhiteSpace($targetExpiryDate) -and -not [string]::IsNullOrWhiteSpace($selectedPolymarketEndDate) -and $targetExpiryDate -ne $selectedPolymarketEndDate
+    }
+
+    if ($strikeMismatch) {
+        return "strike_mismatch"
+    }
+
+    if ($polymarketExpiryMismatch) {
+        return "polymarket_date_mismatch"
+    }
+
+    if ($expiryMismatch) {
+        return "deribit_expiry_nearby"
+    }
+
+    return "exact"
+}
+
 $replayReports = @()
 $replayReportFiles = Get-ChildItem -Path (Join-Path $root "fixtures/probability_basis") -Filter "*_report.json" -File |
     Sort-Object Name
@@ -123,11 +228,13 @@ $liveProbeReportFiles = Get-ChildItem -Path $outputRoot -File -Filter "live_prob
 foreach ($file in $liveProbeReportFiles) {
     $json = Read-JsonFile -Path $file.FullName
     $edgeQuality = $json.replay_summary.edge_quality
+    $basisAlignmentStatus = Select-BasisAlignmentStatus $json.selection_report
     $liveProbeReports += [pscustomobject]@{
         file = RelPath $file.FullName
         matched_count = if ($edgeQuality) { [int]$edgeQuality.matched_count } else { [int]$json.replay_summary.matched }
         edge_below_threshold_count = if ($edgeQuality) { [int]$edgeQuality.edge_below_threshold_count } else { 0 }
         midpoint_false_positive_count = if ($edgeQuality) { [int]$edgeQuality.midpoint_false_positive_count } else { 0 }
+        basis_alignment_status = $basisAlignmentStatus
     }
 }
 
@@ -149,6 +256,14 @@ $liveProbeMatchedCount = ($liveProbeReports | Measure-Object -Property matched_c
 $liveProbeMidpointFalsePositiveCount = ($liveProbeReports | Measure-Object -Property midpoint_false_positive_count -Sum).Sum
 if ($liveProbeReports.Count -gt 0 -and $liveProbeMidpointFalsePositiveCount -gt $liveProbeMatchedCount) {
     $warnings += "Live probe midpoint false positives ($liveProbeMidpointFalsePositiveCount) exceed matched opportunities ($liveProbeMatchedCount). Current matching may look better at midpoint than at executable pricing."
+}
+$liveProbeNonExactAlignmentReports = @($liveProbeReports | Where-Object { $_.basis_alignment_status -ne "exact" })
+if ($liveProbeNonExactAlignmentReports.Count -gt 0) {
+    $statusCounts = @($liveProbeNonExactAlignmentReports |
+        Group-Object basis_alignment_status |
+        Sort-Object Name |
+        ForEach-Object { "$($_.Name)=$($_.Count)" })
+    $warnings += "Live probe basis alignment is not exact for $($liveProbeNonExactAlignmentReports.Count) report(s): $($statusCounts -join ', '). Selected pair is not yet a clean basis candidate."
 }
 
 $report = [pscustomobject]@{
@@ -266,10 +381,10 @@ $markdown.Add("")
 if ($liveProbeReports.Count -eq 0) {
     $markdown.Add("No live probe replay reports found.")
 } else {
-    $markdown.Add("| File | Matched | Edge Below | Midpoint FP |")
-    $markdown.Add("| --- | ---: | ---: | ---: |")
+    $markdown.Add("| File | Alignment | Matched | Edge Below | Midpoint FP |")
+    $markdown.Add("| --- | --- | ---: | ---: | ---: |")
     foreach ($item in $liveProbeReports) {
-        $markdown.Add("| $($item.file) | $($item.matched_count) | $($item.edge_below_threshold_count) | $($item.midpoint_false_positive_count) |")
+        $markdown.Add("| $($item.file) | $($item.basis_alignment_status) | $($item.matched_count) | $($item.edge_below_threshold_count) | $($item.midpoint_false_positive_count) |")
     }
 }
 

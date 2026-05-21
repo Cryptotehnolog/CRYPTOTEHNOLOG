@@ -929,6 +929,28 @@ impl SelectionReport {
             _ => "mismatch",
         }
     }
+
+    fn basis_alignment_status(&self) -> &'static str {
+        if self.selected_deribit_instrument.is_none()
+            || self.selected_polymarket_market_slug.is_none()
+        {
+            return "missing";
+        }
+
+        if self.strike_mismatch() {
+            return "strike_mismatch";
+        }
+
+        if self.polymarket_expiry_mismatch() {
+            return "polymarket_date_mismatch";
+        }
+
+        if self.expiry_mismatch() {
+            return "deribit_expiry_nearby";
+        }
+
+        "exact"
+    }
 }
 
 #[cfg(feature = "network-integration")]
@@ -1170,6 +1192,7 @@ impl From<&PayloadShapeVersion> for PayloadShapeVersionDto {
 #[derive(Debug, Serialize)]
 struct SelectionReportDto {
     selection_quality: &'static str,
+    basis_alignment_status: &'static str,
     selected_deribit_instrument: Option<String>,
     target_expiry_ts_ms: Option<i64>,
     target_expiry_date: Option<String>,
@@ -1192,6 +1215,7 @@ impl From<&SelectionReport> for SelectionReportDto {
     fn from(value: &SelectionReport) -> Self {
         Self {
             selection_quality: value.selection_quality(),
+            basis_alignment_status: value.basis_alignment_status(),
             selected_deribit_instrument: value.selected_deribit_instrument.clone(),
             target_expiry_ts_ms: value.target_expiry_ts_ms,
             target_expiry_date: value.target_expiry_date.clone(),
@@ -1567,6 +1591,7 @@ mod tests {
         assert_eq!(json["expiry_mismatch"], true);
         assert_eq!(json["polymarket_expiry_mismatch"], false);
         assert_eq!(json["selection_quality"], "missing");
+        assert_eq!(json["basis_alignment_status"], "missing");
     }
 
     #[test]
@@ -1582,10 +1607,11 @@ mod tests {
         assert_eq!(json["expiry_mismatch"], false);
         assert_eq!(json["polymarket_expiry_mismatch"], false);
         assert_eq!(json["selection_quality"], "missing");
+        assert_eq!(json["basis_alignment_status"], "missing");
     }
 
     #[test]
-    fn selection_quality_summarizes_complete_candidate_alignment() {
+    fn selection_quality_and_basis_alignment_status_summarize_complete_candidate_alignment() {
         let criteria = DeribitOptionDiscoveryCriteria::phase0_eth_call_3000_june_2026();
         let mut exact = SelectionReport::empty();
         exact.selected_polymarket_market_slug = Some("eth-above-3000-june-2026".to_string());
@@ -1602,14 +1628,26 @@ mod tests {
             },
         );
         assert_eq!(exact.selection_quality(), "exact");
+        assert_eq!(exact.basis_alignment_status(), "exact");
 
-        let mut nearby = exact.clone();
-        nearby.strike_distance = Some(100.0);
-        assert_eq!(nearby.selection_quality(), "nearby");
+        let mut strike_mismatch = exact.clone();
+        strike_mismatch.strike_distance = Some(100.0);
+        assert_eq!(strike_mismatch.selection_quality(), "nearby");
+        assert_eq!(strike_mismatch.basis_alignment_status(), "strike_mismatch");
 
-        let mut mismatch = nearby.clone();
+        let mut mismatch = strike_mismatch.clone();
         mismatch.selected_expiry_ts_ms = Some(1_782_432_000_000);
         assert_eq!(mismatch.selection_quality(), "mismatch");
+        assert_eq!(mismatch.basis_alignment_status(), "strike_mismatch");
+
+        let mut deribit_expiry_nearby = exact.clone();
+        deribit_expiry_nearby.selected_expiry_ts_ms = Some(1_779_926_400_000);
+        deribit_expiry_nearby.selected_expiry_date = Some("2026-05-29".to_string());
+        assert_eq!(deribit_expiry_nearby.selection_quality(), "nearby");
+        assert_eq!(
+            deribit_expiry_nearby.basis_alignment_status(),
+            "deribit_expiry_nearby"
+        );
     }
 
     #[test]
@@ -1634,9 +1672,11 @@ mod tests {
         assert!(!report.expiry_mismatch());
         assert!(report.polymarket_expiry_mismatch());
         assert_eq!(report.selection_quality(), "nearby");
+        assert_eq!(report.basis_alignment_status(), "polymarket_date_mismatch");
         let json = selection_report_value(&report);
         assert_eq!(json["selected_polymarket_end_date"], "2026-05-31");
         assert_eq!(json["polymarket_expiry_mismatch"], true);
+        assert_eq!(json["basis_alignment_status"], "polymarket_date_mismatch");
     }
 
     #[test]
@@ -1685,6 +1725,10 @@ mod tests {
 
         assert_eq!(value["schema_version"], 1);
         assert_eq!(value["selection_report"]["selection_quality"], "missing");
+        assert_eq!(
+            value["selection_report"]["basis_alignment_status"],
+            "missing"
+        );
         assert_eq!(
             value["replay_summary"]["edge_quality"]["midpoint_false_positive_count"],
             0
