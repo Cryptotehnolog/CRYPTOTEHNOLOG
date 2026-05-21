@@ -22,4 +22,17 @@ if ($count -lt 1) {
     throw "Expected midpoint_false_positive_count >= 1 for dedicated false-positive scenario, got $count"
 }
 
+if (-not $report.summary.edge_quality) {
+    throw "Replay summary must expose edge_quality block: $reportPath"
+}
+
+if ($null -eq $report.summary.edge_quality.midpoint_false_positive_count) {
+    throw "Replay edge_quality must expose midpoint_false_positive_count: $reportPath"
+}
+
+$edgeQualityCount = [int]$report.summary.edge_quality.midpoint_false_positive_count
+if ($edgeQualityCount -ne $count) {
+    throw "Replay edge_quality midpoint false-positive count ($edgeQualityCount) must match summary count ($count)."
+}
+
 Write-Output "Midpoint false-positive report check passed: midpoint_false_positive_count=$count"

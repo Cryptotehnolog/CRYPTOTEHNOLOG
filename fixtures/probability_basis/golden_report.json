@@ -5,6 +5,11 @@
     "matched_count": 1,
     "rejected_count": 1,
     "midpoint_false_positive_count": 0,
+    "edge_quality": {
+      "matched_count": 1,
+      "edge_below_threshold_count": 0,
+      "midpoint_false_positive_count": 0
+    },
     "rejection_counts": [
       {
         "reason": "InsufficientLiquidity",

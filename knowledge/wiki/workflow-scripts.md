@@ -95,6 +95,8 @@ JSON/text output включает `ReplaySummary`: counts matched/rejected, coun
 
 `ReplaySummary.midpoint_false_positive_count` явно считает scenarios, где midpoint edge прошел бы threshold, но executable side после spread/costs не проходит. Это отдельный report contract, чтобы “красивые” midpoint opportunities не смешивались с обычным `EdgeBelowThreshold`.
 
+`ReplaySummary.edge_quality` является коротким diagnostic block для качества signal discovery: `matched_count`, `edge_below_threshold_count`, `midpoint_false_positive_count`.
+
 Это smoke-level CLI regression, а не замена Rust unit tests.
 
 Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, чтобы `run_replay_regression.ps1`, `update_golden_fixture.ps1` и `check_golden_fixture_current.ps1` не дублировали один и тот же TOML subset parser.
@@ -113,9 +115,15 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 
 ### `scripts/check_midpoint_false_positive_report.ps1`
 
-Проверяет dedicated `probability_basis_mid_edge_false_positive` JSON report без запуска сети: `summary.midpoint_false_positive_count` должен существовать и быть больше нуля.
+Проверяет dedicated `probability_basis_mid_edge_false_positive` JSON report без запуска сети: `summary.midpoint_false_positive_count` должен существовать и быть больше нуля. Также проверяет, что `summary.edge_quality.midpoint_false_positive_count` согласован с верхнеуровневым счетчиком.
 
 Включен в `check_all` и CI, чтобы счетчик midpoint false positives оставался видимым report contract.
+
+### `scripts/summarize_replay_edge_quality_reports.ps1`
+
+Читает несколько replay JSON reports и показывает trend-summary по `edge_quality`: matched, `EdgeBelowThreshold`, `MidEdgeFalsePositive` и долю midpoint false positives.
+
+Это ручной diagnostic script, а не CI gate. Он нужен для сравнения набора reports по мере улучшения live payload normalization и executable pricing.
 
 ### `scripts/check_ingestion_manifest.ps1`
 
@@ -204,6 +212,8 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 Ручной локальный агрегатор Phase 0 состояния.
 
 Скрипт читает replay golden JSON reports, ingestion semantic reports, Phase 0 pipeline reports из `fixtures/phase0_pipeline/` и последние network/live probe artifacts из `artifacts/`.
+
+Для replay reports он агрегирует `edge_quality`: matched, `EdgeBelowThreshold` и `MidEdgeFalsePositive`, чтобы daily report показывал качество signal discovery без чтения всех rejection reasons.
 
 Для Phase 0 pipeline reports он показывает status-aware summary: `ok`/`error`, counts по этапам и `error_stage` для controlled failures. Если хотя бы один Phase 0 pipeline scenario имеет status не `ok`, JSON и Markdown daily report добавляют warning, чтобы controlled failure path был виден в manual artifact без чтения всех rows.
 

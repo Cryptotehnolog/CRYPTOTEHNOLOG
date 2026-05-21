@@ -351,3 +351,7 @@ Probability-basis matcher переведен с decisive midpoint edge на exec
 ## [2026-05-21] hardening | Deribit instrument parser and midpoint false-positive report check
 
 Добавлен typed `DeribitInstrumentName` parser на discovery/ticker boundary для форматов `ETH-1JUN26-3000-C` и `ETH-20260601-3000-C` без распространения newtype на весь проект. `ReplaySummary` расширен `midpoint_false_positive_count`, matcher возвращает `MidEdgeFalsePositive` для pairs, где midpoint edge прошел бы threshold, но executable pricing нет. Добавлен `scripts/check_midpoint_false_positive_report.ps1`, включенный в `check_all` и CI.
+
+## [2026-05-21] hardening | Replay edge quality summary
+
+`ReplaySummary` расширен блоком `edge_quality` с `matched_count`, `edge_below_threshold_count` и `midpoint_false_positive_count`. `scripts/run_phase0_daily_report.ps1` теперь показывает replay edge quality в JSON/Markdown daily report. Добавлен ручной diagnostic script `scripts/summarize_replay_edge_quality_reports.ps1` для trend-summary midpoint false positives по нескольким replay JSON reports.

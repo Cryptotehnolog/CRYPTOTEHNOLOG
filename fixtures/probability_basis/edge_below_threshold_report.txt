@@ -1,4 +1,5 @@
 metadata|pricing_model_version=black_scholes_single_strike_v1
 summary|matched=0|rejected=1|midpoint_false_positives=0|net_edge_count=0|net_edge_avg=none|net_edge_min=none|net_edge_max=none
+summary_edge_quality|matched=0|edge_below_threshold=1|midpoint_false_positives=0
 summary_rejection|reason=EdgeBelowThreshold|count=1
 rejected|EdgeBelowThreshold|ETH-20260601-3000-C|eth-above-3000-edge-below-threshold

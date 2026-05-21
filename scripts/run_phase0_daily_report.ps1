@@ -32,11 +32,32 @@ $replayReportFiles = Get-ChildItem -Path (Join-Path $root "fixtures/probability_
     Sort-Object Name
 foreach ($file in $replayReportFiles) {
     $json = Read-JsonFile -Path $file.FullName
+    $edgeQuality = $json.summary.edge_quality
+    $edgeBelowThresholdCount = if ($edgeQuality -and $edgeQuality.PSObject.Properties["edge_below_threshold_count"]) {
+        [int]$edgeQuality.edge_below_threshold_count
+    } else {
+        $edgeCount = 0
+        foreach ($rejection in $json.summary.rejection_counts) {
+            if ($rejection.reason -eq "EdgeBelowThreshold") {
+                $edgeCount += [int]$rejection.count
+            }
+        }
+        $edgeCount
+    }
+    $midpointFalsePositiveCount = if ($edgeQuality -and $edgeQuality.PSObject.Properties["midpoint_false_positive_count"]) {
+        [int]$edgeQuality.midpoint_false_positive_count
+    } elseif ($json.summary.PSObject.Properties["midpoint_false_positive_count"]) {
+        [int]$json.summary.midpoint_false_positive_count
+    } else {
+        0
+    }
     $replayReports += [pscustomobject]@{
         file = RelPath $file.FullName
         pricing_model_version = $json.pricing_model_version
         matched_count = [int]$json.summary.matched_count
         rejected_count = [int]$json.summary.rejected_count
+        edge_below_threshold_count = $edgeBelowThresholdCount
+        midpoint_false_positive_count = $midpointFalsePositiveCount
         net_edge_average = $json.summary.net_edge.average
         net_edge_min = $json.summary.net_edge.min
         net_edge_max = $json.summary.net_edge.max
@@ -110,6 +131,11 @@ $report = [pscustomobject]@{
         scenario_count = $replayReports.Count
         matched_count = ($replayReports | Measure-Object -Property matched_count -Sum).Sum
         rejected_count = ($replayReports | Measure-Object -Property rejected_count -Sum).Sum
+        edge_quality = [pscustomobject]@{
+            matched_count = ($replayReports | Measure-Object -Property matched_count -Sum).Sum
+            edge_below_threshold_count = ($replayReports | Measure-Object -Property edge_below_threshold_count -Sum).Sum
+            midpoint_false_positive_count = ($replayReports | Measure-Object -Property midpoint_false_positive_count -Sum).Sum
+        }
         reports = $replayReports
     }
     ingestion = [pscustomobject]@{
@@ -141,6 +167,7 @@ $markdown.Add("- Generated UTC: $($report.generated_at_utc)")
 $markdown.Add("- Warnings: $($report.warnings.Count)")
 $markdown.Add("- Replay scenarios: $($report.replay.scenario_count)")
 $markdown.Add("- Replay matched/rejected: $($report.replay.matched_count)/$($report.replay.rejected_count)")
+$markdown.Add("- Replay edge quality matched/edge-below/midpoint-fp: $($report.replay.edge_quality.matched_count)/$($report.replay.edge_quality.edge_below_threshold_count)/$($report.replay.edge_quality.midpoint_false_positive_count)")
 $markdown.Add("- Ingestion scenarios: $($report.ingestion.scenario_count)")
 $markdown.Add("- Ingestion accepted/rejected normalized events: $($report.ingestion.normalized_events_accepted)/$($report.ingestion.normalized_events_rejected)")
 $markdown.Add("- Phase 0 pipeline scenarios ok/error: $($report.phase0_pipeline.ok_count)/$($report.phase0_pipeline.error_count)")
@@ -156,10 +183,10 @@ if ($report.warnings.Count -gt 0) {
 $markdown.Add("")
 $markdown.Add("## Replay Reports")
 $markdown.Add("")
-$markdown.Add("| File | Matched | Rejected | Avg Net Edge |")
-$markdown.Add("| --- | ---: | ---: | ---: |")
+$markdown.Add("| File | Matched | Rejected | Edge Below | Midpoint FP | Avg Net Edge |")
+$markdown.Add("| --- | ---: | ---: | ---: | ---: | ---: |")
 foreach ($item in $replayReports) {
-    $markdown.Add("| $($item.file) | $($item.matched_count) | $($item.rejected_count) | $($item.net_edge_average) |")
+    $markdown.Add("| $($item.file) | $($item.matched_count) | $($item.rejected_count) | $($item.edge_below_threshold_count) | $($item.midpoint_false_positive_count) | $($item.net_edge_average) |")
 }
 $markdown.Add("")
 $markdown.Add("## Ingestion Reports")

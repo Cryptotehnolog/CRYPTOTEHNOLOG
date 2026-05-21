@@ -87,6 +87,7 @@ pub struct ReplaySummary {
     pub matched_count: usize,
     pub rejected_count: usize,
     pub midpoint_false_positive_count: usize,
+    pub edge_quality: EdgeQualitySummary,
     pub rejection_counts: Vec<RejectionCount>,
     pub net_edge: NetEdgeSummary,
 }
@@ -122,6 +123,11 @@ impl ReplaySummary {
             matched_count,
             rejected_count,
             midpoint_false_positive_count,
+            edge_quality: EdgeQualitySummary::from_counts(
+                matched_count,
+                rejection_count(&rejection_counts, "EdgeBelowThreshold"),
+                midpoint_false_positive_count,
+            ),
             rejection_counts: rejection_counts
                 .into_iter()
                 .map(|(reason, count)| RejectionCount { reason, count })
@@ -141,6 +147,7 @@ impl ReplaySummary {
             format_optional_f64(self.net_edge.min),
             format_optional_f64(self.net_edge.max)
         )];
+        lines.push(self.edge_quality.to_text_line());
 
         for rejection_count in &self.rejection_counts {
             lines.push(format!(
@@ -154,9 +161,41 @@ impl ReplaySummary {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct EdgeQualitySummary {
+    pub matched_count: usize,
+    pub edge_below_threshold_count: usize,
+    pub midpoint_false_positive_count: usize,
+}
+
+impl EdgeQualitySummary {
+    fn from_counts(
+        matched_count: usize,
+        edge_below_threshold_count: usize,
+        midpoint_false_positive_count: usize,
+    ) -> Self {
+        Self {
+            matched_count,
+            edge_below_threshold_count,
+            midpoint_false_positive_count,
+        }
+    }
+
+    fn to_text_line(&self) -> String {
+        format!(
+            "summary_edge_quality|matched={}|edge_below_threshold={}|midpoint_false_positives={}",
+            self.matched_count, self.edge_below_threshold_count, self.midpoint_false_positive_count
+        )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RejectionCount {
     pub reason: String,
     pub count: usize,
+}
+
+fn rejection_count(rejection_counts: &BTreeMap<String, usize>, reason: &str) -> usize {
+    rejection_counts.get(reason).copied().unwrap_or(0)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -552,6 +591,9 @@ mod tests {
         assert_eq!(report.summary.matched_count, 0);
         assert_eq!(report.summary.rejected_count, 1);
         assert_eq!(report.summary.midpoint_false_positive_count, 0);
+        assert_eq!(report.summary.edge_quality.matched_count, 0);
+        assert_eq!(report.summary.edge_quality.edge_below_threshold_count, 1);
+        assert_eq!(report.summary.edge_quality.midpoint_false_positive_count, 0);
         assert_eq!(
             report.summary.rejection_counts,
             vec![RejectionCount {
@@ -576,6 +618,9 @@ mod tests {
         assert_eq!(report.summary.matched_count, 0);
         assert_eq!(report.summary.rejected_count, 1);
         assert_eq!(report.summary.midpoint_false_positive_count, 1);
+        assert_eq!(report.summary.edge_quality.matched_count, 0);
+        assert_eq!(report.summary.edge_quality.edge_below_threshold_count, 0);
+        assert_eq!(report.summary.edge_quality.midpoint_false_positive_count, 1);
         assert_eq!(
             report.summary.rejection_counts,
             vec![RejectionCount {
@@ -654,6 +699,9 @@ mod tests {
         assert_eq!(summary.matched_count, 0);
         assert_eq!(summary.rejected_count, 3);
         assert_eq!(summary.midpoint_false_positive_count, 0);
+        assert_eq!(summary.edge_quality.matched_count, 0);
+        assert_eq!(summary.edge_quality.edge_below_threshold_count, 0);
+        assert_eq!(summary.edge_quality.midpoint_false_positive_count, 0);
         assert_eq!(
             summary.rejection_counts,
             vec![

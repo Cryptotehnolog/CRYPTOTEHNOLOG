@@ -127,6 +127,7 @@ Runner также создает matched `BasisObservation` records через `
 
 - количество `matched` и `rejected` decisions,
 - количество `midpoint_false_positive` rejections,
+- блок `edge_quality` с `matched_count`, `edge_below_threshold_count` и `midpoint_false_positive_count`,
 - количество rejected decisions по `reason`,
 - `sample_count`, average, min и max `net_edge_probability`.
 
