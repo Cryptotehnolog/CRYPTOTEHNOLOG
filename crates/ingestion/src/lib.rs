@@ -2476,23 +2476,43 @@ fn polymarket_clob_best_level(
             format!("missing Polymarket CLOB `{levels_key}` array"),
         )
     })?;
-    let Some(best_level) = levels.first() else {
+    if levels.is_empty() {
         return Err(IngestionError::new(
             IngestionErrorKind::MalformedPayload,
             Some(IngestionSource::Polymarket),
             format!("empty Polymarket CLOB `{levels_key}` array"),
         ));
     };
-    let price = parser.f64_from(best_level, "price")?;
-    if !(0.0..=1.0).contains(&price) {
-        return Err(IngestionError::new(
+
+    let mut best: Option<(f64, Option<f64>)> = None;
+    for level in levels {
+        let price = parser.f64_from(level, "price")?;
+        if !(0.0..=1.0).contains(&price) {
+            return Err(IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Polymarket),
+                format!("invalid Polymarket CLOB {side_name} price: {price}"),
+            ));
+        }
+        let size = parser.optional_f64_from(level, "size")?;
+        let replace = match (side_name, best) {
+            (_, None) => true,
+            ("bid", Some((best_price, _))) => price > best_price,
+            ("ask", Some((best_price, _))) => price < best_price,
+            (_, Some(_)) => false,
+        };
+        if replace {
+            best = Some((price, size));
+        }
+    }
+
+    best.ok_or_else(|| {
+        IngestionError::new(
             IngestionErrorKind::MalformedPayload,
             Some(IngestionSource::Polymarket),
-            format!("invalid Polymarket CLOB {side_name} price: {price}"),
-        ));
-    }
-    let size = parser.optional_f64_from(best_level, "size")?;
-    Ok((price, size))
+            format!("missing best Polymarket CLOB {side_name} level"),
+        )
+    })
 }
 
 fn polymarket_outcome_token_id_from_object(

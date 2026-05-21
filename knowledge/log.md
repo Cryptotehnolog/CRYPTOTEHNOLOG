@@ -371,3 +371,7 @@ Manual `Network integration` workflow теперь загружает `artifacts
 ## [2026-05-21] implementation | Polymarket CLOB executable price boundary
 
 Добавлен read-only CLOB orderbook parser boundary для Polymarket: `PolymarketClobBookQuote`, CLOB `/book?token_id=...` URL helper, payload shape `polymarket_clob_book_v1` и fixture flow `Gamma market + CLOB book -> executable bid/ask`. Gamma `outcomePrices` остаются fallback для discovery/probe, а CLOB best bid/ask теперь показывает, где появляется реальный executable spread. Добавлены fixtures `polymarket_gamma_eth_above_3000_with_clob_token.json` и `polymarket_clob_book_eth_above_3000_yes.json` плюс unit tests без network calls.
+
+## [2026-05-21] implementation | Live probe CLOB executable pricing
+
+Manual `live_probe_replay` подключен к Polymarket CLOB boundary: после Gamma discovery он извлекает `clobTokenIds`, делает read-only CLOB `/book` запрос, нормализует executable bid/ask из orderbook и только затем отправляет Polymarket quote в matcher. `live_probe_replay_report.json` получил `warnings[]`; если CLOB spread превышает `0.10`, добавляется warning `WideExecutableSpread`. Default CI и `check_all` остаются offline.

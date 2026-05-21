@@ -24,16 +24,18 @@ use cryptotehnolog_ingestion::{
     DeribitDiscoveredOption, DeribitLiveIngestionClient, DeribitOptionDiscoveryCriteria,
     IngestionBatch, IngestionConfig, IngestionError, IngestionOutcome, IngestionReport,
     IngestionSource, LiveHttpTransport, LiveIngestionProbeReport, MockIngestionClient,
-    MockIngestionStep, POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION,
-    POLYMARKET_GAMMA_MARKETS_PAYLOAD_SHAPE_VERSION, Phase0NormalizedBatchValidator,
-    PolymarketDiscoveredMarket, PolymarketLiveIngestionClient, PolymarketMarketDiscoveryCriteria,
-    ReqwestHttpTransport, ingest_once_with_report,
+    MockIngestionStep, POLYMARKET_CLOB_BOOK_PAYLOAD_SHAPE_VERSION,
+    POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION, POLYMARKET_GAMMA_MARKETS_PAYLOAD_SHAPE_VERSION,
+    Phase0NormalizedBatchValidator, PolymarketDiscoveredMarket, PolymarketLiveIngestionClient,
+    PolymarketMarketDiscoveryCriteria, ReqwestHttpTransport, ingest_once_with_report,
 };
 #[cfg(feature = "network-integration")]
 use serde::Serialize;
 
 #[cfg(feature = "network-integration")]
 const CONFIG_VERSION: &str = "phase0-ingestion";
+#[cfg(feature = "network-integration")]
+const WIDE_POLYMARKET_CLOB_SPREAD_WARNING_THRESHOLD: f64 = 0.10;
 
 #[cfg(feature = "network-integration")]
 fn main() {
@@ -61,6 +63,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
     let mut payload_shape_versions = Vec::new();
     let mut selection_report = SelectionReport::empty();
     let mut errors = Vec::new();
+    let mut warnings = Vec::new();
     let mut batches = Vec::new();
     let mut journal = InMemoryEventJournal::new();
 
@@ -97,6 +100,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
             &mut probe_reports,
             &mut payload_shape_versions,
             &mut errors,
+            &mut warnings,
             &mut batches,
         );
     }
@@ -126,6 +130,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
                     &selection_report,
                     &ingestion_report,
                     &ReplayPipelineSummary::empty(),
+                    &warnings,
                     &errors,
                 ),
             )
@@ -138,6 +143,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
         &selection_report,
         &ingestion_report,
         &replay_summary,
+        &warnings,
         &errors,
     );
 
@@ -347,6 +353,7 @@ fn fetch_polymarket_batch<T>(
     probe_reports: &mut Vec<LiveIngestionProbeReport>,
     payload_shape_versions: &mut Vec<PayloadShapeVersion>,
     errors: &mut Vec<DiagnosticError>,
+    warnings: &mut Vec<DiagnosticWarning>,
     batches: &mut Vec<IngestionBatch>,
 ) where
     T: LiveHttpTransport,
@@ -367,7 +374,20 @@ fn fetch_polymarket_batch<T>(
                 POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION,
             ));
             match client.parse_gamma_market_payload(&payload, config, received_ts_ms) {
-                Ok(batch) => batches.push(batch),
+                Ok(gamma_batch) => fetch_polymarket_clob_book_batch(
+                    client,
+                    transport,
+                    config,
+                    received_ts_ms,
+                    payload,
+                    gamma_batch,
+                    journal,
+                    probe_reports,
+                    payload_shape_versions,
+                    errors,
+                    warnings,
+                    batches,
+                ),
                 Err(error) => {
                     preserve_polymarket_raw_payload(
                         client,
@@ -399,6 +419,152 @@ fn fetch_polymarket_batch<T>(
             ));
         }
     }
+}
+
+#[cfg(feature = "network-integration")]
+#[allow(clippy::too_many_arguments)]
+fn fetch_polymarket_clob_book_batch<T>(
+    client: &PolymarketLiveIngestionClient,
+    transport: &T,
+    config: &IngestionConfig,
+    received_ts_ms: i64,
+    gamma_payload: String,
+    gamma_batch: IngestionBatch,
+    journal: &mut InMemoryEventJournal,
+    probe_reports: &mut Vec<LiveIngestionProbeReport>,
+    payload_shape_versions: &mut Vec<PayloadShapeVersion>,
+    errors: &mut Vec<DiagnosticError>,
+    warnings: &mut Vec<DiagnosticWarning>,
+    batches: &mut Vec<IngestionBatch>,
+) where
+    T: LiveHttpTransport,
+{
+    let gamma_quote = gamma_batch
+        .market_events
+        .iter()
+        .find_map(|event| match event {
+            MarketEvent::PolymarketOutcomeQuote(quote) => Some(quote),
+            _ => None,
+        });
+    let gamma_fallback_mid = gamma_quote
+        .map(|quote| (quote.bid_probability + quote.ask_probability) / 2.0)
+        .unwrap_or(0.0);
+    let clob_url = match client.clob_book_url("https://clob.polymarket.com") {
+        Ok(url) => url,
+        Err(error) => {
+            preserve_polymarket_raw_payload(
+                client,
+                config,
+                received_ts_ms,
+                gamma_payload,
+                journal,
+                errors,
+            );
+            errors.push(DiagnosticError::from_ingestion_error(
+                "discovery",
+                "Polymarket CLOB",
+                error,
+            ));
+            return;
+        }
+    };
+    let started_at = Instant::now();
+    match transport.get(&clob_url) {
+        Ok(clob_payload) => {
+            probe_reports.push(LiveIngestionProbeReport::ok(
+                "Polymarket CLOB",
+                clob_url,
+                clob_payload.len(),
+                started_at.elapsed().as_millis(),
+            ));
+            payload_shape_versions.push(PayloadShapeVersion::new(
+                "Polymarket CLOB",
+                POLYMARKET_CLOB_BOOK_PAYLOAD_SHAPE_VERSION,
+            ));
+            match client.parse_gamma_market_with_clob_book_payload(
+                &gamma_payload,
+                &clob_payload,
+                config,
+                received_ts_ms,
+            ) {
+                Ok(batch) => {
+                    if let Some((bid, ask)) = polymarket_quote_bid_ask(&batch) {
+                        let spread = ask - bid;
+                        if spread > WIDE_POLYMARKET_CLOB_SPREAD_WARNING_THRESHOLD {
+                            warnings.push(DiagnosticWarning::new(
+                                "pricing",
+                                "Polymarket CLOB",
+                                "WideExecutableSpread",
+                                format!(
+                                    "Polymarket CLOB spread {:.6} exceeds {:.6}; Gamma fallback mid {:.6}, executable bid {:.6}, ask {:.6}",
+                                    spread,
+                                    WIDE_POLYMARKET_CLOB_SPREAD_WARNING_THRESHOLD,
+                                    gamma_fallback_mid,
+                                    bid,
+                                    ask
+                                ),
+                            ));
+                        }
+                    }
+                    batches.push(batch);
+                }
+                Err(error) => {
+                    preserve_polymarket_raw_payload(
+                        client,
+                        config,
+                        received_ts_ms,
+                        gamma_payload,
+                        journal,
+                        errors,
+                    );
+                    preserve_polymarket_clob_raw_payload(
+                        client,
+                        config,
+                        received_ts_ms,
+                        clob_payload,
+                        journal,
+                        errors,
+                    );
+                    errors.push(DiagnosticError::from_ingestion_error(
+                        "parse",
+                        "Polymarket CLOB",
+                        error,
+                    ));
+                }
+            }
+        }
+        Err(error) => {
+            probe_reports.push(LiveIngestionProbeReport::error(
+                "Polymarket CLOB",
+                clob_url,
+                started_at.elapsed().as_millis(),
+                error.clone(),
+            ));
+            preserve_polymarket_raw_payload(
+                client,
+                config,
+                received_ts_ms,
+                gamma_payload,
+                journal,
+                errors,
+            );
+            errors.push(DiagnosticError::from_ingestion_error(
+                "http",
+                "Polymarket CLOB",
+                error,
+            ));
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+fn polymarket_quote_bid_ask(batch: &IngestionBatch) -> Option<(f64, f64)> {
+    batch.market_events.iter().find_map(|event| match event {
+        MarketEvent::PolymarketOutcomeQuote(quote) => {
+            Some((quote.bid_probability, quote.ask_probability))
+        }
+        _ => None,
+    })
 }
 
 #[cfg(feature = "network-integration")]
@@ -518,6 +684,46 @@ fn preserve_polymarket_raw_payload(
         errors.push(DiagnosticError::new(
             "journal",
             "Polymarket Gamma",
+            "JournalWrite",
+            format!("{:?}: {}", error.kind, error.message),
+        ));
+    }
+}
+
+#[cfg(feature = "network-integration")]
+fn preserve_polymarket_clob_raw_payload(
+    client: &PolymarketLiveIngestionClient,
+    config: &IngestionConfig,
+    received_ts_ms: i64,
+    payload_json: String,
+    journal: &mut InMemoryEventJournal,
+    errors: &mut Vec<DiagnosticError>,
+) {
+    let instrument_id = client
+        .outcome_token_id
+        .clone()
+        .unwrap_or_else(|| client.market_slug.clone());
+    let event = RawPolymarketEvent {
+        meta: EventMeta {
+            event_id: format!(
+                "raw-polymarket-clob-live-probe:{}:{}:{received_ts_ms}",
+                client.market_slug, client.outcome
+            ),
+            source: "polymarket_live_probe_replay".to_string(),
+            exchange_ts_ms: received_ts_ms,
+            received_ts_ms,
+            instrument_id,
+            schema_version: 1,
+            config_version: config.config_version.clone(),
+        },
+        api_layer: PolymarketApiLayer::Clob,
+        payload_json,
+    };
+
+    if let Err(error) = journal.append_raw_polymarket_event(event) {
+        errors.push(DiagnosticError::new(
+            "journal",
+            "Polymarket CLOB",
             "JournalWrite",
             format!("{:?}: {}", error.kind, error.message),
         ));
@@ -683,6 +889,32 @@ impl DiagnosticError {
 }
 
 #[cfg(feature = "network-integration")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DiagnosticWarning {
+    stage: String,
+    endpoint: String,
+    kind: String,
+    message: String,
+}
+
+#[cfg(feature = "network-integration")]
+impl DiagnosticWarning {
+    fn new(
+        stage: impl Into<String>,
+        endpoint: impl Into<String>,
+        kind: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            stage: stage.into(),
+            endpoint: endpoint.into(),
+            kind: kind.into(),
+            message: message.into(),
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
 #[derive(Debug, Clone, PartialEq)]
 struct ReplayPipelineSummary {
     decisions: usize,
@@ -786,6 +1018,7 @@ impl LiveProbeReplayFailure {
                 &SelectionReport::empty(),
                 &IngestionReport::from_outcomes(&[]),
                 &ReplayPipelineSummary::empty(),
+                &[],
                 &errors,
             ),
         )
@@ -803,6 +1036,7 @@ struct LiveProbeReplayReportDto {
     probe_reports: Vec<LiveIngestionProbeReportDto>,
     ingestion_report: IngestionReportDto,
     replay_summary: ReplayPipelineSummaryDto,
+    warnings: Vec<DiagnosticWarningDto>,
     errors: Vec<DiagnosticErrorDto>,
 }
 
@@ -1004,6 +1238,27 @@ struct DiagnosticErrorDto {
 }
 
 #[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct DiagnosticWarningDto {
+    stage: String,
+    endpoint: String,
+    kind: String,
+    message: String,
+}
+
+#[cfg(feature = "network-integration")]
+impl From<&DiagnosticWarning> for DiagnosticWarningDto {
+    fn from(value: &DiagnosticWarning) -> Self {
+        Self {
+            stage: value.stage.clone(),
+            endpoint: value.endpoint.clone(),
+            kind: value.kind.clone(),
+            message: value.message.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
 impl From<&DiagnosticError> for DiagnosticErrorDto {
     fn from(value: &DiagnosticError) -> Self {
         Self {
@@ -1022,6 +1277,7 @@ fn render_report(
     selection_report: &SelectionReport,
     ingestion_report: &IngestionReport,
     replay_summary: &ReplayPipelineSummary,
+    warnings: &[DiagnosticWarning],
     errors: &[DiagnosticError],
 ) -> String {
     let report = LiveProbeReplayReportDto {
@@ -1033,6 +1289,7 @@ fn render_report(
         probe_reports: probe_reports.iter().map(Into::into).collect(),
         ingestion_report: ingestion_report.into(),
         replay_summary: replay_summary.into(),
+        warnings: warnings.iter().map(Into::into).collect(),
         errors: errors.iter().map(Into::into).collect(),
     };
 
@@ -1048,6 +1305,7 @@ fn render_report(
             "probe_reports": [],
             "ingestion_report": {},
             "replay_summary": {},
+            "warnings": [],
             "errors": [{
                 "stage": "serialize",
                 "endpoint": "live_probe_replay",
@@ -1162,6 +1420,12 @@ mod tests {
             &SelectionReport::empty(),
             &cryptotehnolog_ingestion::IngestionReport::from_outcomes(&[]),
             &super::ReplayPipelineSummary::empty(),
+            &[super::DiagnosticWarning::new(
+                "pricing",
+                "Polymarket CLOB",
+                "WideExecutableSpread",
+                "spread warning",
+            )],
             &[super::DiagnosticError::new(
                 "parse",
                 "Deribit",
@@ -1182,6 +1446,7 @@ mod tests {
             value["payload_shape_versions"][0]["payload_shape_version"],
             "deribit_get_instruments_v1"
         );
+        assert_eq!(value["warnings"][0]["kind"], "WideExecutableSpread");
         assert_eq!(value["errors"][0]["kind"], "MalformedPayload");
     }
 
