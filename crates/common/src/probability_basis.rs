@@ -43,6 +43,7 @@ pub enum RejectionReason {
     InvalidQuote,
     ExpiredOption,
     InvalidModelInput,
+    MidEdgeFalsePositive,
     EdgeBelowThreshold,
 }
 
@@ -158,6 +159,16 @@ pub fn match_probability_basis(
     let survives_costs = feature.survives_costs(config.min_net_edge_probability);
 
     if !survives_costs {
+        let midpoint_net_edge_probability =
+            gross_mid_edge_probability.abs() - config.estimated_cost_probability;
+        if midpoint_net_edge_probability >= config.min_net_edge_probability {
+            return reject_pair(
+                RejectionReason::MidEdgeFalsePositive,
+                deribit_quote,
+                polymarket_quote,
+            );
+        }
+
         return reject_pair(
             RejectionReason::EdgeBelowThreshold,
             deribit_quote,
@@ -558,14 +569,14 @@ mod tests {
     #[test]
     fn rejects_when_mid_edge_survives_but_executable_edge_does_not() {
         let deribit = deribit_quote(0.62, 3100.0, 1_780_000_000_000);
-        let polymarket = polymarket_quote(0.56, 0.62, 10_000.0, 1_780_000_000_000);
+        let polymarket = polymarket_quote(0.54, 0.60, 10_000.0, 1_780_000_000_000);
 
         let decision = match_probability_basis(Some(&deribit), Some(&polymarket), &config());
 
         assert_eq!(
             decision,
             MatchDecision::Rejected {
-                reason: RejectionReason::EdgeBelowThreshold,
+                reason: RejectionReason::MidEdgeFalsePositive,
                 deribit_instrument_id: Some("ETH-20260601-3000-C".to_string()),
                 polymarket_market_slug: Some("eth-above-3000-june-1".to_string()),
             }

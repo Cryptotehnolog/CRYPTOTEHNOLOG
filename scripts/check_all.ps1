@@ -37,6 +37,9 @@ try {
     Write-Output "== Manual JSON writer check =="
     .\scripts\check_manual_json_writers.ps1
 
+    Write-Output "== Midpoint false-positive report check =="
+    .\scripts\check_midpoint_false_positive_report.ps1
+
     Write-Output "== Rust formatting check =="
     cargo fmt --check
     if ($LASTEXITCODE -ne 0) { throw "cargo fmt --check failed." }

@@ -101,7 +101,7 @@ Manifest scenarios:
 | --- | --- | --- |
 | `probability_basis_golden` | baseline: один matched signal и один low-liquidity reject | `Matched`, `InsufficientLiquidity` |
 | `probability_basis_edge_below_threshold` | strategy threshold boundary после costs | `EdgeBelowThreshold` |
-| `probability_basis_mid_edge_false_positive` | midpoint edge выглядит привлекательным, но executable side после spread/costs не проходит threshold | `EdgeBelowThreshold` |
+| `probability_basis_mid_edge_false_positive` | midpoint edge выглядит привлекательным, но executable side после spread/costs не проходит threshold | `MidEdgeFalsePositive` |
 | `probability_basis_invalid_quote` | data-quality rejection path для некорректной quote book probability | `InvalidQuote` |
 | `probability_basis_expiry_mismatch` | temporal/event alignment между Deribit expiry и Polymarket event timestamp | `ExpiryMismatch` |
 
@@ -126,6 +126,7 @@ Runner также создает matched `BasisObservation` records через `
 `ReplaySummary` является агрегированным слоем поверх `ReplayReport` и содержит:
 
 - количество `matched` и `rejected` decisions,
+- количество `midpoint_false_positive` rejections,
 - количество rejected decisions по `reason`,
 - `sample_count`, average, min и max `net_edge_probability`.
 

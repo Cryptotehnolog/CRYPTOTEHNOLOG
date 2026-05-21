@@ -244,6 +244,7 @@ MockIngestionClient
 LiveIngestionClient
 DeribitOptionDiscoveryCriteria
 DeribitDiscoveredOption
+DeribitInstrumentName
 DeribitLiveIngestionClient
 PolymarketMarketDiscoveryCriteria
 PolymarketDiscoveredMarket
@@ -273,6 +274,7 @@ Design boundary:
 - `ReqwestHttpTransport` доступен только при feature `network-integration`; default CI его не компилирует и не запускает.
 - `LiveIngestionProbeReport` фиксирует diagnostic connectivity result: endpoint, url, status, payload bytes, latency_ms, error kind и error message.
 - `DeribitOptionDiscoveryCriteria` и `DeribitDiscoveredOption` задают read-only discovery boundary для выбора ближайшего Deribit option instrument перед ticker polling.
+- `DeribitInstrumentName` является typed parser boundary для Deribit names вида `ETH-1JUN26-3000-C` и fixture-friendly `ETH-20260601-3000-C`; он не заменяет все `instrument_id: String` в проекте и пока применяется только в discovery/ticker parsing boundary.
 - `DeribitLiveIngestionClient` строит read-only `public/get_instruments` и `public/ticker` URLs, выбирает option candidate из instruments payload и парсит fixture-shaped и real-shaped Deribit JSON-RPC ticker payloads в raw + normalized Deribit events; default `poll_once()` остается `NotImplemented`.
 - `PolymarketMarketDiscoveryCriteria` и `PolymarketDiscoveredMarket` задают read-only discovery boundary для выбора Polymarket Gamma market candidate перед market-by-slug polling.
 - `PolymarketLiveIngestionClient` строит read-only Gamma markets и market-by-slug URLs, выбирает candidate из markets payload и парсит fixture-shaped и real-shaped Polymarket Gamma market payloads в raw + normalized Polymarket outcome events; malformed/misaligned `outcomes` и `outcomePrices` возвращают `IngestionError`, а не panic; default `poll_once()` остается `NotImplemented`.

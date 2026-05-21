@@ -73,6 +73,10 @@ jobs:
         shell: pwsh
         run: .\scripts\check_manual_json_writers.ps1
 
+      - name: Check midpoint false-positive report
+        shell: pwsh
+        run: .\scripts\check_midpoint_false_positive_report.ps1
+
       - name: Run replay regression
         shell: pwsh
         run: .\scripts\run_replay_regression.ps1

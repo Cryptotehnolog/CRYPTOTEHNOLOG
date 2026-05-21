@@ -86,6 +86,7 @@ impl ReplayReport {
 pub struct ReplaySummary {
     pub matched_count: usize,
     pub rejected_count: usize,
+    pub midpoint_false_positive_count: usize,
     pub rejection_counts: Vec<RejectionCount>,
     pub net_edge: NetEdgeSummary,
 }
@@ -94,6 +95,7 @@ impl ReplaySummary {
     pub fn from_entries(entries: &[ReplayReportEntry]) -> Self {
         let mut matched_count = 0;
         let mut rejected_count = 0;
+        let mut midpoint_false_positive_count = 0;
         let mut rejection_counts = BTreeMap::new();
         let mut net_edges = Vec::new();
 
@@ -108,6 +110,9 @@ impl ReplaySummary {
                 }
                 ReplayReportEntry::Rejected { reason, .. } => {
                     rejected_count += 1;
+                    if reason == "MidEdgeFalsePositive" {
+                        midpoint_false_positive_count += 1;
+                    }
                     *rejection_counts.entry(reason.clone()).or_insert(0) += 1;
                 }
             }
@@ -116,6 +121,7 @@ impl ReplaySummary {
         Self {
             matched_count,
             rejected_count,
+            midpoint_false_positive_count,
             rejection_counts: rejection_counts
                 .into_iter()
                 .map(|(reason, count)| RejectionCount { reason, count })
@@ -126,9 +132,10 @@ impl ReplaySummary {
 
     fn to_text_lines(&self) -> Vec<String> {
         let mut lines = vec![format!(
-            "summary|matched={}|rejected={}|net_edge_count={}|net_edge_avg={}|net_edge_min={}|net_edge_max={}",
+            "summary|matched={}|rejected={}|midpoint_false_positives={}|net_edge_count={}|net_edge_avg={}|net_edge_min={}|net_edge_max={}",
             self.matched_count,
             self.rejected_count,
+            self.midpoint_false_positive_count,
             self.net_edge.sample_count,
             format_optional_f64(self.net_edge.average),
             format_optional_f64(self.net_edge.min),
@@ -544,6 +551,7 @@ mod tests {
         assert!(output.observations.is_empty());
         assert_eq!(report.summary.matched_count, 0);
         assert_eq!(report.summary.rejected_count, 1);
+        assert_eq!(report.summary.midpoint_false_positive_count, 0);
         assert_eq!(
             report.summary.rejection_counts,
             vec![RejectionCount {
@@ -567,10 +575,11 @@ mod tests {
         assert!(output.observations.is_empty());
         assert_eq!(report.summary.matched_count, 0);
         assert_eq!(report.summary.rejected_count, 1);
+        assert_eq!(report.summary.midpoint_false_positive_count, 1);
         assert_eq!(
             report.summary.rejection_counts,
             vec![RejectionCount {
-                reason: "EdgeBelowThreshold".to_string(),
+                reason: "MidEdgeFalsePositive".to_string(),
                 count: 1,
             }]
         );
@@ -644,6 +653,7 @@ mod tests {
 
         assert_eq!(summary.matched_count, 0);
         assert_eq!(summary.rejected_count, 3);
+        assert_eq!(summary.midpoint_false_positive_count, 0);
         assert_eq!(
             summary.rejection_counts,
             vec![

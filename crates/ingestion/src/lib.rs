@@ -1164,6 +1164,56 @@ pub struct DeribitDiscoveredOption {
     pub option_kind: OptionKind,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct DeribitInstrumentName {
+    raw: String,
+    pub underlying: String,
+    pub expiry_ts_ms: i64,
+    pub strike: f64,
+    pub option_kind: OptionKind,
+}
+
+impl DeribitInstrumentName {
+    pub fn parse(raw: impl Into<String>) -> Result<Self, IngestionError> {
+        let raw = raw.into();
+        let parts: Vec<&str> = raw.split('-').collect();
+        if parts.len() != 4 || parts[0].is_empty() {
+            return Err(malformed_deribit_instrument(&raw));
+        }
+
+        let underlying = parts[0].to_string();
+        let expiry_ts_ms = parse_deribit_expiry_part_ts_ms(parts[1])?;
+        let strike = parts[2].parse::<f64>().map_err(|error| {
+            IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Deribit),
+                format!("invalid Deribit instrument strike: {error}"),
+            )
+        })?;
+        if !strike.is_finite() || strike <= 0.0 {
+            return Err(IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Deribit),
+                format!("invalid Deribit instrument strike `{}`", parts[2]),
+            ));
+        }
+        let option_kind = parse_deribit_option_kind_text(parts[3])
+            .map_err(|_| malformed_deribit_instrument(&raw))?;
+
+        Ok(Self {
+            raw,
+            underlying,
+            expiry_ts_ms,
+            strike,
+            option_kind,
+        })
+    }
+
+    pub fn raw(&self) -> &str {
+        &self.raw
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeribitLiveIngestionClient {
     pub base_url: String,
@@ -1239,10 +1289,11 @@ impl DeribitLiveIngestionClient {
         }
 
         let timestamp_ms = parser.i64_from(ticker, "timestamp")?;
-        let expiry_ts_ms = parse_deribit_expiry_ts_ms(&instrument_name)?;
-        let strike = parse_deribit_strike(&instrument_name)?;
-        let option_kind = parse_deribit_option_kind(&instrument_name)?;
-        let underlying = parse_deribit_underlying(&instrument_name)?;
+        let parsed_instrument = DeribitInstrumentName::parse(instrument_name.clone())?;
+        let expiry_ts_ms = parsed_instrument.expiry_ts_ms;
+        let strike = parsed_instrument.strike;
+        let option_kind = parsed_instrument.option_kind;
+        let underlying = parsed_instrument.underlying;
         let underlying_price = parser.f64_from(ticker, "underlying_price")?;
         let bid = parser.f64_from(ticker, "best_bid_price")?;
         let ask = parser.f64_from(ticker, "best_ask_price")?;
@@ -2046,7 +2097,7 @@ impl JsonPayloadParser {
 
 fn parse_deribit_instruments_payload(
     payload_json: &str,
-    criteria: &DeribitOptionDiscoveryCriteria,
+    _criteria: &DeribitOptionDiscoveryCriteria,
 ) -> Result<Vec<DeribitDiscoveredOption>, IngestionError> {
     let parser = JsonPayloadParser::new(payload_json, IngestionSource::Deribit, "Deribit")?;
     let instruments = parser.array_at(&["result"]).ok_or_else(|| {
@@ -2060,23 +2111,21 @@ fn parse_deribit_instruments_payload(
     let mut discovered = Vec::new();
     for instrument in instruments {
         let instrument_name = parser.string_from(instrument, "instrument_name")?;
+        let parsed_instrument = DeribitInstrumentName::parse(instrument_name.clone())?;
         let underlying = parser
             .optional_string_from(instrument, "base_currency")?
-            .unwrap_or_else(|| {
-                parse_deribit_underlying(&instrument_name)
-                    .unwrap_or_else(|_| criteria.underlying.clone())
-            });
+            .unwrap_or_else(|| parsed_instrument.underlying.clone());
         let expiry_ts_ms = match parser.optional_i64_from(instrument, "expiration_timestamp")? {
             Some(value) => value,
-            None => parse_deribit_expiry_ts_ms(&instrument_name)?,
+            None => parsed_instrument.expiry_ts_ms,
         };
         let strike = match parser.optional_f64_from(instrument, "strike")? {
             Some(value) => value,
-            None => parse_deribit_strike(&instrument_name)?,
+            None => parsed_instrument.strike,
         };
         let option_kind = match parser.optional_string_from(instrument, "option_type")? {
             Some(kind) => parse_deribit_option_kind_text(&kind)?,
-            None => parse_deribit_option_kind(&instrument_name)?,
+            None => parsed_instrument.option_kind,
         };
 
         discovered.push(DeribitDiscoveredOption {
@@ -2282,61 +2331,21 @@ fn first_nested_string_from_value(
     parser.value_to_string(value, key).map(Some)
 }
 
-fn parse_deribit_underlying(instrument_name: &str) -> Result<String, IngestionError> {
-    let parts: Vec<&str> = instrument_name.split('-').collect();
-    if parts.len() != 4 || parts[0].is_empty() {
-        return Err(malformed_deribit_instrument(instrument_name));
-    }
-    Ok(parts[0].to_string())
-}
-
-fn parse_deribit_expiry_ts_ms(instrument_name: &str) -> Result<i64, IngestionError> {
-    let parts: Vec<&str> = instrument_name.split('-').collect();
-    if parts.len() != 4 {
-        return Err(malformed_deribit_instrument(instrument_name));
-    }
-
-    let expiry = parts[1];
+fn parse_deribit_expiry_part_ts_ms(expiry: &str) -> Result<i64, IngestionError> {
     if expiry.len() == 8 && expiry.chars().all(|candidate| candidate.is_ascii_digit()) {
         let year = expiry[0..4]
             .parse::<i32>()
-            .map_err(|_| malformed_deribit_instrument(instrument_name))?;
+            .map_err(|_| malformed_deribit_expiry(expiry))?;
         let month = expiry[4..6]
             .parse::<u32>()
-            .map_err(|_| malformed_deribit_instrument(instrument_name))?;
+            .map_err(|_| malformed_deribit_expiry(expiry))?;
         let day = expiry[6..8]
             .parse::<u32>()
-            .map_err(|_| malformed_deribit_instrument(instrument_name))?;
+            .map_err(|_| malformed_deribit_expiry(expiry))?;
         return utc_midnight_ts_ms(year, month, day);
     }
 
     parse_deribit_short_expiry_ts_ms(expiry)
-}
-
-fn parse_deribit_strike(instrument_name: &str) -> Result<f64, IngestionError> {
-    let parts: Vec<&str> = instrument_name.split('-').collect();
-    if parts.len() != 4 {
-        return Err(malformed_deribit_instrument(instrument_name));
-    }
-    parts[2].parse::<f64>().map_err(|error| {
-        IngestionError::new(
-            IngestionErrorKind::MalformedPayload,
-            Some(IngestionSource::Deribit),
-            format!("invalid Deribit instrument strike: {error}"),
-        )
-    })
-}
-
-fn parse_deribit_option_kind(instrument_name: &str) -> Result<OptionKind, IngestionError> {
-    let parts: Vec<&str> = instrument_name.split('-').collect();
-    if parts.len() != 4 {
-        return Err(malformed_deribit_instrument(instrument_name));
-    }
-    match parts[3] {
-        "C" => parse_deribit_option_kind_text("call"),
-        "P" => parse_deribit_option_kind_text("put"),
-        other => parse_deribit_option_kind_text(other),
-    }
 }
 
 fn parse_deribit_option_kind_text(value: &str) -> Result<OptionKind, IngestionError> {
@@ -2356,6 +2365,14 @@ fn malformed_deribit_instrument(instrument_name: &str) -> IngestionError {
         IngestionErrorKind::MalformedPayload,
         Some(IngestionSource::Deribit),
         format!("malformed Deribit instrument name `{instrument_name}`"),
+    )
+}
+
+fn malformed_deribit_expiry(expiry: &str) -> IngestionError {
+    IngestionError::new(
+        IngestionErrorKind::MalformedPayload,
+        Some(IngestionSource::Deribit),
+        format!("malformed Deribit expiry `{expiry}`"),
     )
 }
 
@@ -3383,6 +3400,37 @@ mod tests {
             client.ticker_url(),
             "https://www.deribit.com/api/v2/public/ticker?instrument_name=ETH-20260601-3000-C"
         );
+    }
+
+    #[test]
+    fn deribit_instrument_name_parses_real_and_fixture_shapes() {
+        let real = DeribitInstrumentName::parse("ETH-1JUN26-3000-C")
+            .expect("real Deribit instrument name should parse");
+        assert_eq!(real.raw(), "ETH-1JUN26-3000-C");
+        assert_eq!(real.underlying, "ETH");
+        assert_eq!(real.expiry_ts_ms, 1_780_272_000_000);
+        assert_eq!(real.strike, 3000.0);
+        assert_eq!(real.option_kind, OptionKind::Call);
+
+        let fixture = DeribitInstrumentName::parse("ETH-20260601-3000-P")
+            .expect("fixture-style Deribit instrument name should parse");
+        assert_eq!(fixture.expiry_ts_ms, 1_780_272_000_000);
+        assert_eq!(fixture.option_kind, OptionKind::Put);
+    }
+
+    #[test]
+    fn deribit_instrument_name_rejects_malformed_boundary_values() {
+        for raw in [
+            "ETH-1JUN26-C",
+            "ETH-1JUN26-0-C",
+            "ETH-1JUN26--C",
+            "ETH-1JUN26-3000-X",
+            "ETH-99XYZ26-3000-C",
+        ] {
+            let error = DeribitInstrumentName::parse(raw)
+                .expect_err("malformed Deribit instrument should fail");
+            assert_eq!(error.kind, IngestionErrorKind::MalformedPayload);
+        }
     }
 
     #[test]

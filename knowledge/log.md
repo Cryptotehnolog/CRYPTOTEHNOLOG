@@ -347,3 +347,7 @@ Ingestion parsing boundary переведен с string-based fixture extraction
 ## [2026-05-21] hardening | Executable edge and audit backlog
 
 Probability-basis matcher переведен с decisive midpoint edge на executable-side edge: `gross_mid_edge_probability` остается диагностикой, а threshold применяется к `gross_executable_edge_probability` после costs. Добавлен replay scenario `probability_basis_mid_edge_false_positive`, где midpoint выглядит привлекательным, но ask-side execution уничтожает edge. `rust-toolchain.toml` зафиксирован на `1.93.0`; отложенные audit items записаны в `roadmap-mvp.md`.
+
+## [2026-05-21] hardening | Deribit instrument parser and midpoint false-positive report check
+
+Добавлен typed `DeribitInstrumentName` parser на discovery/ticker boundary для форматов `ETH-1JUN26-3000-C` и `ETH-20260601-3000-C` без распространения newtype на весь проект. `ReplaySummary` расширен `midpoint_false_positive_count`, matcher возвращает `MidEdgeFalsePositive` для pairs, где midpoint edge прошел бы threshold, но executable pricing нет. Добавлен `scripts/check_midpoint_false_positive_report.ps1`, включенный в `check_all` и CI.

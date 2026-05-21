@@ -34,6 +34,7 @@ Live monitoring должен быть Rust service/binary. PowerShell может
 - fixture paths,
 - pricing model fixture policy,
 - manual JSON writer guard,
+- midpoint false-positive report check,
 - `cargo fmt --check`,
 - `cargo check`,
 - `cargo test`,
@@ -92,6 +93,8 @@ Warning-only проверка `stability` и `review_after`.
 
 JSON/text output включает `ReplaySummary`: counts matched/rejected, counts by rejection reason и агрегаты `net_edge_probability` по matched entries. Matched replay entries также показывают `gross_mid_edge_probability` и `gross_executable_edge_probability`, чтобы midpoint false positives были видны в отчетах.
 
+`ReplaySummary.midpoint_false_positive_count` явно считает scenarios, где midpoint edge прошел бы threshold, но executable side после spread/costs не проходит. Это отдельный report contract, чтобы “красивые” midpoint opportunities не смешивались с обычным `EdgeBelowThreshold`.
+
 Это smoke-level CLI regression, а не замена Rust unit tests.
 
 Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, чтобы `run_replay_regression.ps1`, `update_golden_fixture.ps1` и `check_golden_fixture_current.ps1` не дублировали один и тот же TOML subset parser.
@@ -107,6 +110,12 @@ Manifest parsing находится в `scripts/lib/replay_manifest.ps1`, что
 - referenced fixture/report files должны существовать.
 
 Включен в `check_all` и CI до replay regression, чтобы ошибки manifest ловились быстро.
+
+### `scripts/check_midpoint_false_positive_report.ps1`
+
+Проверяет dedicated `probability_basis_mid_edge_false_positive` JSON report без запуска сети: `summary.midpoint_false_positive_count` должен существовать и быть больше нуля.
+
+Включен в `check_all` и CI, чтобы счетчик midpoint false positives оставался видимым report contract.
 
 ### `scripts/check_ingestion_manifest.ps1`
 

@@ -1,5 +1,5 @@
 metadata|pricing_model_version=black_scholes_single_strike_v1
-summary|matched=1|rejected=1|net_edge_count=1|net_edge_avg=0.071338|net_edge_min=0.071338|net_edge_max=0.071338
+summary|matched=1|rejected=1|midpoint_false_positives=0|net_edge_count=1|net_edge_avg=0.071338|net_edge_min=0.071338|net_edge_max=0.071338
 summary_rejection|reason=InsufficientLiquidity|count=1
 matched|ETH-20260601-3000-C|eth-above-3000-june-1|mid_edge=0.091338|executable_edge=0.081338|net_edge=0.071338|survives=true
 rejected|InsufficientLiquidity|ETH-20260601-3000-C|eth-above-3000-low-liquidity

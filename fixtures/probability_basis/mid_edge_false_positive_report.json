@@ -4,9 +4,10 @@
   "summary": {
     "matched_count": 0,
     "rejected_count": 1,
+    "midpoint_false_positive_count": 1,
     "rejection_counts": [
       {
-        "reason": "EdgeBelowThreshold",
+        "reason": "MidEdgeFalsePositive",
         "count": 1
       }
     ],
@@ -20,7 +21,7 @@
   "entries": [
     {
       "type": "rejected",
-      "reason": "EdgeBelowThreshold",
+      "reason": "MidEdgeFalsePositive",
       "deribit_instrument_id": "ETH-20260601-3000-C",
       "polymarket_market_slug": "eth-above-3000-wide-spread"
     }
