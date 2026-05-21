@@ -27,7 +27,8 @@ use cryptotehnolog_ingestion::{
     MockIngestionStep, POLYMARKET_CLOB_BOOK_PAYLOAD_SHAPE_VERSION,
     POLYMARKET_GAMMA_MARKET_PAYLOAD_SHAPE_VERSION, POLYMARKET_GAMMA_MARKETS_PAYLOAD_SHAPE_VERSION,
     Phase0NormalizedBatchValidator, PolymarketDiscoveredMarket, PolymarketLiveIngestionClient,
-    PolymarketMarketDiscoveryCriteria, ReqwestHttpTransport, ingest_once_with_report,
+    PolymarketMarketCandidateDiagnostic, PolymarketMarketDiscoveryCriteria, ReqwestHttpTransport,
+    ingest_once_with_report,
 };
 #[cfg(feature = "network-integration")]
 use serde::Serialize;
@@ -62,6 +63,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
     let mut probe_reports = Vec::new();
     let mut payload_shape_versions = Vec::new();
     let mut selection_report = SelectionReport::empty();
+    let mut polymarket_discovery_diagnostics = Vec::new();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
     let mut batches = Vec::new();
@@ -90,6 +92,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
         &mut probe_reports,
         &mut payload_shape_versions,
         &mut selection_report,
+        &mut polymarket_discovery_diagnostics,
         &mut errors,
     ) {
         fetch_polymarket_batch(
@@ -128,6 +131,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
                     &probe_reports,
                     &payload_shape_versions,
                     &selection_report,
+                    &polymarket_discovery_diagnostics,
                     &ingestion_report,
                     &ReplayPipelineSummary::empty(),
                     &warnings,
@@ -141,6 +145,7 @@ fn run() -> Result<String, LiveProbeReplayFailure> {
         &probe_reports,
         &payload_shape_versions,
         &selection_report,
+        &polymarket_discovery_diagnostics,
         &ingestion_report,
         &replay_summary,
         &warnings,
@@ -229,6 +234,7 @@ fn discover_polymarket_market_client<T>(
     probe_reports: &mut Vec<LiveIngestionProbeReport>,
     payload_shape_versions: &mut Vec<PayloadShapeVersion>,
     selection_report: &mut SelectionReport,
+    polymarket_discovery_diagnostics: &mut Vec<PolymarketMarketCandidateDiagnostic>,
     errors: &mut Vec<DiagnosticError>,
 ) -> Option<PolymarketLiveIngestionClient>
 where
@@ -250,6 +256,16 @@ where
                 POLYMARKET_GAMMA_MARKETS_PAYLOAD_SHAPE_VERSION,
             ));
             let criteria = PolymarketMarketDiscoveryCriteria::phase0_eth_above_3000_yes();
+            match PolymarketLiveIngestionClient::diagnose_market_candidates_from_payload(
+                &payload, &criteria, 10,
+            ) {
+                Ok(diagnostics) => *polymarket_discovery_diagnostics = diagnostics,
+                Err(error) => errors.push(DiagnosticError::from_ingestion_error(
+                    "diagnostics",
+                    "Polymarket Gamma markets",
+                    error,
+                )),
+            }
             match PolymarketLiveIngestionClient::discover_market_from_payload(&payload, &criteria) {
                 Ok(discovered) => {
                     selection_report.set_polymarket(&discovered);
@@ -1018,6 +1034,7 @@ impl LiveProbeReplayFailure {
                 &probe_reports,
                 &[],
                 &SelectionReport::empty(),
+                &[],
                 &IngestionReport::from_outcomes(&[]),
                 &ReplayPipelineSummary::empty(),
                 &[],
@@ -1035,6 +1052,7 @@ struct LiveProbeReplayReportDto {
     pricing_model_version: &'static str,
     payload_shape_versions: Vec<PayloadShapeVersionDto>,
     selection_report: SelectionReportDto,
+    polymarket_discovery_diagnostics: Vec<PolymarketMarketCandidateDiagnosticDto>,
     probe_reports: Vec<LiveIngestionProbeReportDto>,
     ingestion_report: IngestionReportDto,
     replay_summary: ReplayPipelineSummaryDto,
@@ -1092,6 +1110,41 @@ impl From<&SelectionReport> for SelectionReportDto {
             selected_polymarket_market_slug: value.selected_polymarket_market_slug.clone(),
             selected_polymarket_event_slug: value.selected_polymarket_event_slug.clone(),
             selected_polymarket_liquidity_usd: value.selected_polymarket_liquidity_usd,
+        }
+    }
+}
+
+#[cfg(feature = "network-integration")]
+#[derive(Debug, Serialize)]
+struct PolymarketMarketCandidateDiagnosticDto {
+    market_slug: String,
+    event_slug: String,
+    question: String,
+    active: bool,
+    closed: bool,
+    outcome_found: bool,
+    missing_terms: Vec<String>,
+    liquidity_usd: f64,
+    liquidity_ok: bool,
+    outcome_token_id: Option<String>,
+    rejection_reasons: Vec<String>,
+}
+
+#[cfg(feature = "network-integration")]
+impl From<&PolymarketMarketCandidateDiagnostic> for PolymarketMarketCandidateDiagnosticDto {
+    fn from(value: &PolymarketMarketCandidateDiagnostic) -> Self {
+        Self {
+            market_slug: value.market_slug.clone(),
+            event_slug: value.event_slug.clone(),
+            question: value.question.clone(),
+            active: value.active,
+            closed: value.closed,
+            outcome_found: value.outcome_found,
+            missing_terms: value.missing_terms.clone(),
+            liquidity_usd: value.liquidity_usd,
+            liquidity_ok: value.liquidity_ok,
+            outcome_token_id: value.outcome_token_id.clone(),
+            rejection_reasons: value.rejection_reasons.clone(),
         }
     }
 }
@@ -1273,10 +1326,12 @@ impl From<&DiagnosticError> for DiagnosticErrorDto {
 }
 
 #[cfg(feature = "network-integration")]
+#[allow(clippy::too_many_arguments)]
 fn render_report(
     probe_reports: &[LiveIngestionProbeReport],
     payload_shape_versions: &[PayloadShapeVersion],
     selection_report: &SelectionReport,
+    polymarket_discovery_diagnostics: &[PolymarketMarketCandidateDiagnostic],
     ingestion_report: &IngestionReport,
     replay_summary: &ReplayPipelineSummary,
     warnings: &[DiagnosticWarning],
@@ -1288,6 +1343,10 @@ fn render_report(
         pricing_model_version: PRICING_MODEL_VERSION,
         payload_shape_versions: payload_shape_versions.iter().map(Into::into).collect(),
         selection_report: selection_report.into(),
+        polymarket_discovery_diagnostics: polymarket_discovery_diagnostics
+            .iter()
+            .map(Into::into)
+            .collect(),
         probe_reports: probe_reports.iter().map(Into::into).collect(),
         ingestion_report: ingestion_report.into(),
         replay_summary: replay_summary.into(),
@@ -1304,6 +1363,7 @@ fn render_report(
             "selection_report": {
                 "selection_quality": "missing"
             },
+            "polymarket_discovery_diagnostics": [],
             "probe_reports": [],
             "ingestion_report": {},
             "replay_summary": {},
@@ -1420,6 +1480,21 @@ mod tests {
                 "deribit_get_instruments_v1",
             )],
             &SelectionReport::empty(),
+            &[
+                cryptotehnolog_ingestion::PolymarketMarketCandidateDiagnostic {
+                    market_slug: "eth-low-liquidity".to_string(),
+                    event_slug: "eth".to_string(),
+                    question: "Will ETH be above $3000?".to_string(),
+                    active: true,
+                    closed: false,
+                    outcome_found: true,
+                    missing_terms: vec![],
+                    liquidity_usd: 100.0,
+                    liquidity_ok: false,
+                    outcome_token_id: Some("123".to_string()),
+                    rejection_reasons: vec!["liquidity_below_min".to_string()],
+                },
+            ],
             &cryptotehnolog_ingestion::IngestionReport::from_outcomes(&[]),
             &super::ReplayPipelineSummary::empty(),
             &[super::DiagnosticWarning::new(
@@ -1447,6 +1522,10 @@ mod tests {
         assert_eq!(
             value["payload_shape_versions"][0]["payload_shape_version"],
             "deribit_get_instruments_v1"
+        );
+        assert_eq!(
+            value["polymarket_discovery_diagnostics"][0]["rejection_reasons"][0],
+            "liquidity_below_min"
         );
         assert_eq!(value["warnings"][0]["kind"], "WideExecutableSpread");
         assert_eq!(value["errors"][0]["kind"], "MalformedPayload");

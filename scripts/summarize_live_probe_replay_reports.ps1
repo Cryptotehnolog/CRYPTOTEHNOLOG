@@ -144,6 +144,7 @@ if ($files.Count -eq 0) {
 
 $reportRows = @()
 $selectionRows = @()
+$polymarketCandidateRows = @()
 $payloadShapeRows = @()
 $mismatchRows = @()
 $warningRows = @()
@@ -218,6 +219,20 @@ foreach ($file in $files) {
         }
     }
 
+    foreach ($candidate in @($report.polymarket_discovery_diagnostics)) {
+        $polymarketCandidateRows += [pscustomobject]@{
+            Report = $file.Name
+            Market = [string]$candidate.market_slug
+            OutcomeFound = [System.Convert]::ToBoolean($candidate.outcome_found)
+            LiquidityUsd = Convert-NullableDouble $candidate.liquidity_usd
+            LiquidityOk = [System.Convert]::ToBoolean($candidate.liquidity_ok)
+            Active = [System.Convert]::ToBoolean($candidate.active)
+            Closed = [System.Convert]::ToBoolean($candidate.closed)
+            MissingTerms = (@($candidate.missing_terms) -join ",")
+            RejectionReasons = (@($candidate.rejection_reasons) -join ",")
+        }
+    }
+
     foreach ($warningEntry in $warnings) {
         $warningRows += [pscustomobject]@{
             Report = $file.Name
@@ -274,6 +289,14 @@ if ($mismatchRows.Count -gt 0) {
     Write-Output "WARNING: Basis mismatch risk detected in selected candidates"
     foreach ($row in $mismatchRows) {
         Write-Output "- $($row.Report): $($row.Warning) (Deribit=$($row.DeribitInstrument), Polymarket=$($row.PolymarketMarket), target_expiry_date=$($row.TargetExpiryDate), selected_expiry_date=$($row.SelectedExpiryDate), strike_distance=$($row.StrikeDistance))"
+    }
+}
+
+if ($polymarketCandidateRows.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Polymarket Gamma candidate diagnostics"
+    foreach ($row in $polymarketCandidateRows) {
+        Write-Output "- $($row.Report): market=$($row.Market) reasons=$($row.RejectionReasons) missing_terms=$($row.MissingTerms) liquidity_usd=$($row.LiquidityUsd) liquidity_ok=$($row.LiquidityOk) active=$($row.Active) closed=$($row.Closed) outcome_found=$($row.OutcomeFound)"
     }
 }
 

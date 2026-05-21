@@ -1405,6 +1405,31 @@ pub struct PolymarketDiscoveredMarket {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct PolymarketMarketCandidateDiagnostic {
+    pub market_slug: String,
+    pub event_slug: String,
+    pub question: String,
+    pub active: bool,
+    pub closed: bool,
+    pub outcome_found: bool,
+    pub missing_terms: Vec<String>,
+    pub liquidity_usd: f64,
+    pub liquidity_ok: bool,
+    pub outcome_token_id: Option<String>,
+    pub rejection_reasons: Vec<String>,
+}
+
+impl PolymarketMarketCandidateDiagnostic {
+    pub fn is_selectable(&self) -> bool {
+        self.rejection_reasons.is_empty()
+    }
+
+    fn matched_terms_count(&self, required_terms_count: usize) -> usize {
+        required_terms_count.saturating_sub(self.missing_terms.len())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct PolymarketClobBookQuote {
     pub token_id: String,
     pub market_id: Option<String>,
@@ -1501,6 +1526,14 @@ impl PolymarketLiveIngestionClient {
     ) -> Result<PolymarketDiscoveredMarket, IngestionError> {
         let markets = parse_polymarket_markets_payload(payload_json, criteria)?;
         select_polymarket_market_candidate(markets, criteria)
+    }
+
+    pub fn diagnose_market_candidates_from_payload(
+        payload_json: &str,
+        criteria: &PolymarketMarketDiscoveryCriteria,
+        limit: usize,
+    ) -> Result<Vec<PolymarketMarketCandidateDiagnostic>, IngestionError> {
+        diagnose_polymarket_markets_payload(payload_json, criteria, limit)
     }
 
     pub fn parse_gamma_market_payload(
@@ -2344,6 +2377,139 @@ fn parse_polymarket_markets_payload(
     }
 
     Ok(discovered)
+}
+
+fn diagnose_polymarket_markets_payload(
+    payload_json: &str,
+    criteria: &PolymarketMarketDiscoveryCriteria,
+    limit: usize,
+) -> Result<Vec<PolymarketMarketCandidateDiagnostic>, IngestionError> {
+    let parser = JsonPayloadParser::new(payload_json, IngestionSource::Polymarket, "Polymarket")?;
+    let markets = parser
+        .root_array()
+        .or_else(|| parser.array_at(&["result"]))
+        .or_else(|| parser.array_at(&["data"]))
+        .ok_or_else(|| {
+            IngestionError::new(
+                IngestionErrorKind::MalformedPayload,
+                Some(IngestionSource::Polymarket),
+                "missing Polymarket markets array",
+            )
+        })?;
+
+    let required_terms: Vec<String> = criteria
+        .required_terms
+        .iter()
+        .map(|term| term.to_ascii_lowercase())
+        .collect();
+    let mut diagnostics = Vec::with_capacity(markets.len());
+    for market in markets {
+        let market_slug = parser
+            .optional_string_from(market, "slug")?
+            .or_else(|| {
+                parser
+                    .optional_string_from(market, "market_slug")
+                    .ok()
+                    .flatten()
+            })
+            .unwrap_or_else(|| "<missing-slug>".to_string());
+        let question = parser
+            .optional_string_from(market, "question")?
+            .unwrap_or_else(|| market_slug.clone());
+        let event_slug = parser
+            .optional_string_from(market, "event_slug")?
+            .or_else(|| {
+                parser
+                    .optional_string_from(market, "eventSlug")
+                    .ok()
+                    .flatten()
+            })
+            .or_else(|| {
+                first_nested_string_from_value(&parser, market, &["events"], "slug")
+                    .ok()
+                    .flatten()
+            })
+            .unwrap_or_else(|| market_slug.clone());
+        let active = parser.optional_bool_from(market, "active")?.unwrap_or(true);
+        let closed = parser
+            .optional_bool_from(market, "closed")?
+            .unwrap_or(false);
+        let liquidity_usd = parser
+            .optional_f64_from(market, "liquidityNum")?
+            .or_else(|| parser.optional_f64_from(market, "liquidity").ok().flatten())
+            .or_else(|| {
+                parser
+                    .optional_f64_from(market, "liquidity_usd")
+                    .ok()
+                    .flatten()
+            })
+            .unwrap_or(0.0);
+        let outcomes = parser
+            .string_array_from(market, "outcomes")?
+            .unwrap_or_default();
+        let outcome_index = outcomes
+            .iter()
+            .position(|outcome| outcome == &criteria.outcome);
+        let outcome_found = outcome_index.is_some();
+        let outcome_token_id = match outcome_index {
+            Some(index) => polymarket_outcome_token_id_from_object(&parser, market, index)?,
+            None => None,
+        };
+        let haystack = format!("{market_slug} {question} {event_slug}").to_ascii_lowercase();
+        let missing_terms: Vec<String> = required_terms
+            .iter()
+            .filter(|term| !haystack.contains(term.as_str()))
+            .cloned()
+            .collect();
+        let liquidity_ok = liquidity_usd >= criteria.min_liquidity_usd;
+        let mut rejection_reasons = Vec::new();
+        if !active {
+            rejection_reasons.push("inactive".to_string());
+        }
+        if closed {
+            rejection_reasons.push("closed".to_string());
+        }
+        if !missing_terms.is_empty() {
+            rejection_reasons.push("terms_mismatch".to_string());
+        }
+        if !outcome_found {
+            rejection_reasons.push("outcome_mismatch".to_string());
+        }
+        if !liquidity_ok {
+            rejection_reasons.push("liquidity_below_min".to_string());
+        }
+
+        diagnostics.push(PolymarketMarketCandidateDiagnostic {
+            market_slug,
+            event_slug,
+            question,
+            active,
+            closed,
+            outcome_found,
+            missing_terms,
+            liquidity_usd,
+            liquidity_ok,
+            outcome_token_id,
+            rejection_reasons,
+        });
+    }
+
+    diagnostics.sort_by(|left, right| {
+        right
+            .is_selectable()
+            .cmp(&left.is_selectable())
+            .then_with(|| right.outcome_found.cmp(&left.outcome_found))
+            .then_with(|| {
+                right
+                    .matched_terms_count(required_terms.len())
+                    .cmp(&left.matched_terms_count(required_terms.len()))
+            })
+            .then_with(|| right.liquidity_usd.total_cmp(&left.liquidity_usd))
+            .then_with(|| left.market_slug.cmp(&right.market_slug))
+    });
+    diagnostics.truncate(limit);
+
+    Ok(diagnostics)
 }
 
 fn select_deribit_option_candidate(
@@ -4092,6 +4258,69 @@ mod tests {
 
         assert_eq!(error.kind, IngestionErrorKind::MalformedPayload);
         assert!(error.message.contains("no Polymarket market candidate"));
+    }
+
+    #[test]
+    fn polymarket_discovery_diagnostics_explain_rejected_candidates() {
+        let payload = r#"[
+            {
+                "slug": "btc-above-3000-june-1",
+                "question": "Will BTC be above $3000 on June 1?",
+                "outcomes": "[\"Yes\", \"No\"]",
+                "liquidity": "20000",
+                "active": true,
+                "closed": false
+            },
+            {
+                "slug": "eth-above-3000-low-liquidity",
+                "question": "Will ETH be above $3000?",
+                "outcomes": "[\"Yes\", \"No\"]",
+                "liquidity": "100",
+                "active": true,
+                "closed": false
+            },
+            {
+                "slug": "eth-above-3000-no-yes",
+                "question": "Will ETH be above $3000?",
+                "outcomes": "[\"Up\", \"Down\"]",
+                "liquidity": "10000",
+                "active": true,
+                "closed": false
+            },
+            {
+                "slug": "eth-above-3000-closed",
+                "question": "Will ETH be above $3000?",
+                "outcomes": "[\"Yes\", \"No\"]",
+                "liquidity": "10000",
+                "active": true,
+                "closed": true
+            }
+        ]"#;
+
+        let diagnostics = PolymarketLiveIngestionClient::diagnose_market_candidates_from_payload(
+            payload,
+            &PolymarketMarketDiscoveryCriteria::phase0_eth_above_3000_yes(),
+            4,
+        )
+        .expect("diagnostics should parse Gamma markets payload");
+
+        assert_eq!(diagnostics.len(), 4);
+        let low_liquidity = diagnostics
+            .iter()
+            .find(|candidate| candidate.market_slug == "eth-above-3000-low-liquidity")
+            .expect("low-liquidity candidate should be present");
+        assert_eq!(low_liquidity.rejection_reasons, vec!["liquidity_below_min"]);
+        let missing_outcome = diagnostics
+            .iter()
+            .find(|candidate| candidate.market_slug == "eth-above-3000-no-yes")
+            .expect("outcome mismatch candidate should be present");
+        assert_eq!(missing_outcome.rejection_reasons, vec!["outcome_mismatch"]);
+        let btc = diagnostics
+            .iter()
+            .find(|candidate| candidate.market_slug == "btc-above-3000-june-1")
+            .expect("terms mismatch candidate should be present");
+        assert_eq!(btc.missing_terms, vec!["eth"]);
+        assert_eq!(btc.rejection_reasons, vec!["terms_mismatch"]);
     }
 
     #[test]

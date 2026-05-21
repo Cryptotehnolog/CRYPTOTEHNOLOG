@@ -347,6 +347,7 @@ Polymarket path теперь использует CLOB для executable pricing
 - `pricing_model_version`,
 - `payload_shape_versions`,
 - `selection_report` с `selection_quality`, `target_expiry_ts_ms`/`selected_expiry_ts_ms`, UTC `target_expiry_date`/`selected_expiry_date` и derived `strike_mismatch`/`expiry_mismatch` flags,
+- `polymarket_discovery_diagnostics` - top Gamma candidates с причинами отбраковки: `terms_mismatch`, `outcome_mismatch`, `liquidity_below_min`, `inactive`, `closed`,
 - `probe_reports`,
 - `ingestion_report`,
 - `replay_summary` с `edge_quality` (`matched_count`, `edge_below_threshold_count`, `midpoint_false_positive_count`),
@@ -398,6 +399,7 @@ Default pattern: `artifacts\network_connectivity_report*.json`.
 - edge quality totals: matched, `EdgeBelowThreshold`, `MidEdgeFalsePositive`;
 - total warnings count и warning kinds, включая `WideExecutableSpread`;
 - отдельную таблицу `Selected Candidates` с коротким `Quality`, выбранной Deribit/Polymarket парой и UTC expiry dates;
+- блок `Polymarket Gamma candidate diagnostics`, если Gamma discovery не выбрал market или отфильтровал candidates; блок показывает `market`, rejection reasons, missing terms, liquidity, `active`/`closed` и найден ли нужный outcome;
 - warning, если `strike_mismatch` или `expiry_mismatch` равны `true`, потому что это basis mismatch risk; для старых reports без flags скрипт fallback-считает их из `strike_distance` и expiry timestamps;
 - payload shape versions отдельной таблицей, чтобы они не раздували основной summary;
 - errors by stage/endpoint/kind.
